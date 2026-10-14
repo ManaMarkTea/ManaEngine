@@ -41,6 +41,9 @@ public sealed class TouchControlsView : UIView
     /// <summary>The player has a bow: the Shoot button shows.</summary>
     public Func<bool> ShowsShoot { get; set; } = () => false;
 
+    /// <summary>A side-on level: the camera is fixed, so the Cam button (which orbits it) is hidden.</summary>
+    public Func<bool> SideOn { get; set; } = () => false;
+
     // ManaUI scrolls 48 points a wheel notch (ScrollViewer.WheelStep).
     private const float PointsPerNotch = 48.0f;
 
@@ -290,7 +293,7 @@ public sealed class TouchControlsView : UIView
         var buttons = game && !Swiping;
         foreach (var button in _buttons)
         {
-            button.View.Hidden = !buttons || (button.Key == Key.F && !ShowsShoot());
+            button.View.Hidden = !buttons || (button.Key == Key.F && !ShowsShoot()) || (button.Key == Key.C && SideOn());
         }
         if (!game && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe"))
         {

@@ -83,15 +83,16 @@ public sealed class GameViewController : UIViewController
             _controls.Scheme = () => game.TouchControls;
             // Looked for twice a second, not every frame: it walks the level.
             var frames = 0;
-            var armed = false;
+            var level = (Bow: false, SideOn: false);
             _controls.ShowsShoot = () =>
             {
                 if (frames++ % 30 == 0)
                 {
-                    armed = HasBow(game);
+                    level = (Has<ManaVoxel.Code.Gameplay.Course.BowComponent>(game), Has<Mana.Code.Components.ManaPlatformer2DComponent>(game));
                 }
-                return armed;
+                return level.Bow;
             };
+            _controls.SideOn = () => level.SideOn;
             _window.Render += _ => _controls.Refresh();
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
@@ -103,7 +104,8 @@ public sealed class GameViewController : UIViewController
         }
     }
 
-    private static bool HasBow(VoxelPlayGameMode game)
+    /// <summary>Whether the open level has a script of this kind anywhere (a bow, a side-on player).</summary>
+    private static bool Has<T>(VoxelPlayGameMode game)
     {
         if (game.IsLevelSelectOpen || game.IsLoading || game.Context?.World is not { } world)
         {
@@ -111,11 +113,11 @@ public sealed class GameViewController : UIViewController
         }
         lock (world.SceneLock)
         {
-            return world.Scenes.Any(scene => scene.Children.Any(Armed));
+            return world.Scenes.Any(scene => scene.Children.Any(Holds));
         }
 
-        static bool Armed(Mana.Code.Nodes.ManaSceneNode node) =>
-            node.Components.Any(component => component is ManaVoxel.Code.Gameplay.Course.BowComponent) || node.Children.Any(Armed);
+        static bool Holds(Mana.Code.Nodes.ManaSceneNode node) =>
+            node.Components.Any(component => component is T) || node.Children.Any(Holds);
     }
 
     /// <summary>

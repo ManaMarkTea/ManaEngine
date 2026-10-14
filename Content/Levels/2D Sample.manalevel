@@ -7037,6 +7037,1266 @@
           ]
         }
       ]
+    },
+    {
+      "id": "11479d0e36634e0aa7fa65c6c537bc66",
+      "name": "Bee 2",
+      "kind": "Group",
+      "position": [
+        58,
+        7.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "85208eea45204f6191a1fdb398da12c8",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "54214b4195764c44b0807746fc27d6b1",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "7e3bf22a15944bf0ba7f04e056a407d3",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -5,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "374c604b710f4ded9e38e19c0a7518e8",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "36a706b8017248938e3bf619d4f300be",
+      "name": "Fly 2",
+      "kind": "Group",
+      "position": [
+        76,
+        8,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "eab15f559cce45c7bf59eeabe3731734",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "8b25d51308d24d7cac2c20b6ca4347ff",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "ac205e58d23c4661bb4726a93edfa65a",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              -2,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "1206f52e480a4f4ea6549efaa8b3d0db",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "b8087f381f25491bb6abff1b34b674d6",
+      "name": "Bee 3",
+      "kind": "Group",
+      "position": [
+        100,
+        7,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "87cd51d9c9f6473ebfa82c88a1e2883d",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "42cd89a4884843808b13db63602756d9",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "d68592481ded46e3b3b4c513669c2964",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -6,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "df33795fcb904247b68a900d667aae2e",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "92d291d702df4484b05c8d8c4ac70e31",
+      "name": "Fly 3",
+      "kind": "Group",
+      "position": [
+        116,
+        9.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "fde1f34db5db49c197e25e498c618dee",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "1c2452c08acf43df975a22f76cccd544",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "09b62d1a247d41bb8b38be975ebedafa",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -3,
+              0,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "8e959bb40b914dcfa744b78ce83b1b61",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "8bab24e2cd024ed7a42b0f6fd1bf72e4",
+      "name": "Bee 4",
+      "kind": "Group",
+      "position": [
+        140,
+        7.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "1109d09bfab148bcab0b529a78d44fe7",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "53758d5a4e394ab7b4b857fcf36a2ba2",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "0bae0ef22258452db9e22b1cc90dc5bb",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -5,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "f3600aae61a540db8ebf863c12b9f9a7",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "a1da4553885a403da2cd398889dd1717",
+      "name": "Fly 4",
+      "kind": "Group",
+      "position": [
+        158,
+        8.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "c23756ba9e5b4b898eb13cb20a8ff2e7",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "d88f0e6d137444f6b698aa9c905d7147",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "5a39f480b50d4a909a1e1e7d4ce3eb5b",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              -2.5,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "24a558fbba3241d98a1c29ba0589d9b2",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "3fe82672c375489893ee0718b4b2df6d",
+      "name": "Bee 5",
+      "kind": "Group",
+      "position": [
+        172,
+        8,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "0752aebe9076424b87a1c84cbc149d35",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "08c996508c6741e78ed2a07dc2ebb9b7",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "60eeddc04e3a4ba0aa995a69bef4fed7",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -6,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "add5e629c2894789b4a1840c8e6d31fc",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "6ba2fd7ac0474e8090dd13b449c7342d",
+      "name": "Fly 5",
+      "kind": "Group",
+      "position": [
+        218,
+        8,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "b1c32b97064a46969d8dbb02fa35b70d",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "315b160069614b778aae6556195efe5d",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "bcd84cd59b204b69a361b35508bbf03e",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -4,
+              0,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "0cf197f1ccf642a78134afba800318d3",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "21819d920f694af78501ca7169b6f77b",
+      "name": "Bee 6",
+      "kind": "Group",
+      "position": [
+        234,
+        9,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "d5f7098135544c1b987e0c0fb5af14a4",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "0eae5548d3df4f92a464fc3f7b45e12e",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "14e5821bcdf445d381eada3a71bbcfc6",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -5,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "f216e0e81da74bab942c77c6f2b4c3d6",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "2fadb6f4e52a44f191953c45d9527f0e",
+      "name": "Fly 6",
+      "kind": "Group",
+      "position": [
+        246,
+        7.5,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "46df2101a09f442a8365a999227fe848",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "4d69511a093e4e4bb22c4825df09dda6",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "e52199889e624498812ef4a75811a8dd",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              0,
+              -2,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "cf1152ae72bb49ce8b164b11ef86f234",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "c29cdcd5504f4eb0aa8f6ea08b14b397",
+      "name": "Bee 7",
+      "kind": "Group",
+      "position": [
+        270,
+        8,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "044af76e6a1c4c8fa4f0c2a34b7b3827",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "339efba057ea48389f1d93a0985aeeea",
+              "assetPath": "Sprites/Enemies/Bee.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "0c947d2c36154b82904e4dccc2085164",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "b704d21169d247edac89450fe52b663a",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -6,
+              0,
+              0
+            ],
+            "speed": 1.5,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "00ff4072f9d74f68bdab31d6cd404c53",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "7ccf1fe4440e4d06bf68a92153925ff3",
+      "name": "Fly 7",
+      "kind": "Group",
+      "position": [
+        292,
+        10,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "3d0bc2020ec3402281cceafb4cd9a28b",
+          "type": "SpriteSheet",
+          "properties": {
+            "sheet": {
+              "assetId": "a45937c6eb7d4763b7cf5354555c1d46",
+              "assetPath": "Sprites/Enemies/Fly.manasheet"
+            },
+            "animation": "move",
+            "playing": true,
+            "frame": 0,
+            "flipX": false,
+            "tint": [
+              1,
+              1,
+              1,
+              1
+            ],
+            "pixelArt": false,
+            "unlit": true
+          }
+        },
+        {
+          "id": "f92a4565e14548619556d48914ecf42d",
+          "type": "Trigger",
+          "properties": {
+            "size": [
+              0.9,
+              0.8,
+              1.2
+            ],
+            "offset": [
+              0,
+              0.4,
+              0
+            ]
+          }
+        },
+        {
+          "id": "304effd1993049c187ade0b3ace17fa4",
+          "type": "Enemy",
+          "properties": {
+            "travel": [
+              -4,
+              0,
+              0
+            ],
+            "speed": 1.0,
+            "pauseSeconds": 0.6,
+            "chaseRadius": 0,
+            "chaseSpeed": 3.5,
+            "leashRadius": 8,
+            "damage": 1,
+            "bounceSpeed": 9,
+            "spriteFacesRight": false
+          }
+        },
+        {
+          "id": "3f665b83bf3445b08bfe9363f7e68d56",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/SampleCourse/Enemies/stomp.wav",
+            "variants": "",
+            "cue": "EnemyStomp",
+            "global": false,
+            "spatial": true,
+            "localOffset": [
+              0,
+              0,
+              0
+            ],
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.75,
+            "pitch": 1,
+            "referenceDistance": 5,
+            "maxDistance": 45,
+            "rolloff": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08,
+            "delaySeconds": 0
+          }
+        }
+      ]
     }
   ],
   "playerStart": {
