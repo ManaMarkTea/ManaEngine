@@ -26,6 +26,9 @@ namespace ManaCore.Graphics
         /// <summary>Set by <c>--precache-thumbnails</c>: make every missing asset thumbnail, headless, and exit.</summary>
         public bool PrecacheThumbnails { get; private init; }
 
+        /// <summary>Set by <c>--mute</c> (or <c>MANA_MUTE=1</c>): no sound at all -- scripted test runs pass it.</summary>
+        public bool Mute { get; private init; }
+
         public static ManaLaunchOptions Parse(string[] args)
         {
             var graphicsBackend = ParseGraphicsBackend(Environment.GetEnvironmentVariable("MANA_GRAPHICS_BACKEND"));
@@ -35,6 +38,7 @@ namespace ManaCore.Graphics
             string? commandFilePath = null;
             var precacheThumbnails = false;
             var playMenu = false;
+            var mute = Environment.GetEnvironmentVariable("MANA_MUTE") is "1" or "true";
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -83,6 +87,12 @@ namespace ManaCore.Graphics
                     continue;
                 }
 
+                if (arg.Equals("--mute", StringComparison.OrdinalIgnoreCase))
+                {
+                    mute = true;
+                    continue;
+                }
+
                 if (TryReadOptionValue(args, ref i, "--command-file", out var commandFileValue))
                 {
                     commandFilePath = commandFileValue;
@@ -97,6 +107,7 @@ namespace ManaCore.Graphics
                 EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath,
                 CommandFilePath = string.IsNullOrWhiteSpace(commandFilePath) ? null : commandFilePath,
                 PrecacheThumbnails = precacheThumbnails,
+                Mute = mute,
                 PlayMenu = playMenu
             };
         }

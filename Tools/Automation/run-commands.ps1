@@ -28,7 +28,9 @@ param(
     [string] $PhotoDir,
     # More arguments for the app, ahead of the script: -ExtraArgs "--train-yard-wars" runs that game, not the editor.
     [string[]] $ExtraArgs = @(),
-    [int] $TimeoutSeconds = 300
+    [int] $TimeoutSeconds = 300,
+    # Scripted runs are silent; -Sound to hear one (a check of the music or the sounds themselves).
+    [switch] $Sound
 )
 
 $repo = Resolve-Path (Join-Path $PSScriptRoot "../..")
@@ -56,6 +58,7 @@ Set-Content -Path $scriptPath -Value $script
 # The editor runs from the repo root so level and asset paths in the script resolve as they do in a checkout.
 # Start-Process joins its arguments with spaces, so a level path with spaces in it needs quotes of its own.
 $appArgs = @($ExtraArgs | ForEach-Object { if ($_ -match '\s' -and $_ -notmatch '^"') { "`"$_`"" } else { $_ } })
+if (-not $Sound) { $appArgs += "--mute" }
 $process = Start-Process -FilePath $Exe -ArgumentList ($appArgs + @("--command-file", "`"$scriptPath`"")) -WorkingDirectory $repo `
     -RedirectStandardOutput $logPath -PassThru -NoNewWindow
 if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {

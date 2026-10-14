@@ -40,7 +40,8 @@ namespace Mana
                     var play = new VoxelPlayGameMode(launchOptions.PlayLevelPath, backendKind)
                     {
                         CommandFilePath = launchOptions.CommandFilePath,
-                        OffersLevelSelect = launchOptions.PlayMenu
+                        OffersLevelSelect = launchOptions.PlayMenu,
+                        Muted = launchOptions.Mute
                     };
 #if !MANA_BROWSER
                     if (backendKind == ManaGraphicsBackendKind.WebGpu)
@@ -60,7 +61,8 @@ namespace Mana
                 var game = new VoxelEditorGameMode(backendKind)
                 {
                     StartupLevelPath = launchOptions.EditLevelPath,
-                    CommandFilePath = launchOptions.CommandFilePath
+                    CommandFilePath = launchOptions.CommandFilePath,
+                    Muted = launchOptions.Mute
                 };
 #if !MANA_BROWSER
                 if (backendKind == ManaGraphicsBackendKind.WebGpu)

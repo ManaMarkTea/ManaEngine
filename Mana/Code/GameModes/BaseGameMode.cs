@@ -64,6 +64,9 @@ namespace Mana.Code
                 OnLoadingComplete);
         }
 
+        /// <summary>No sound at all (<c>--mute</c>): set before the app runs.</summary>
+        public bool Muted { get; init; }
+
         public virtual void LoadForGraphicsBackend(IWindow window, IInputContext input, IManaGraphicsDevice graphicsDevice, bool initializeWorldRenderer = false)
         {
             var world = new ManaWorld();
@@ -72,6 +75,10 @@ namespace Mana.Code
             Context.DeferGpuUploads = DeferGpuUploadsOnStartup;
             Context.Audio.Dispose();
             Context.Audio = ManaAudio.ManaAudioFactory.Create(ManaLog.WriteDiagnostic);
+            if (Muted)
+            {
+                Context.Audio.MasterVolume = 0.0f;
+            }
 
             world.Initialize(Context, DeferGpuUploadsOnStartup ? false : initializeWorldRenderer);
 
