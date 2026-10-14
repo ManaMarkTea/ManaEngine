@@ -18,5 +18,13 @@ namespace Mana.Code.GameModes
         /// <summary>Jumps before landing again: 1 is a single jump, 2 a double jump.</summary>
         [System.ComponentModel.DataAnnotations.Range(1, 4)]
         public int MaxJumps { get; set; } = 2;
+
+        /// <summary>
+        /// The editor's floor stays solid under the level. Off for a level whose gaps are falls (a side-on platformer):
+        /// past its ground there is nothing to stand on.
+        /// </summary>
+        public bool Floor { get; set; } = true;
+
+        public override bool KeepsEditorFloor => Floor;
     }
 }

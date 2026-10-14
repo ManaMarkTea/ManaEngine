@@ -279,16 +279,8 @@ namespace Mana.Code.GameModes
                             "Ground");
                     }
 
-                    // Extended downward from the visual floor (Y=0 stays the walkable surface) and much
-                    // thicker than a flush 0.1 units -- see VoxelEditorGameMode's matching comment for why
-                    // a slab that thin lets a character landing at normal fall speed tunnel straight
-                    // through before Bepu's narrow phase ever sees an overlap.
-                    const float GroundThickness = 2.0f;
                     _ground = ground;
-                    Context.Physics.AddBoxBody(
-                        ground,
-                        new Vector3(GroundSize, GroundThickness, GroundSize),
-                        new Vector3(GroundSize * 0.5f, -GroundThickness * 0.5f, GroundSize * 0.5f));
+                    SetGroundSolid(true);
 
                     if (_levelPath != null)
                     {
@@ -423,22 +415,44 @@ namespace Mana.Code.GameModes
             _hud.Text = string.IsNullOrEmpty(ControlsHint) ? string.Empty : $"{_player.Name}  --  {ControlsHint}";
         }
 
+        private const float GroundThickness = 2.0f;
+        private Mana.Code.Components.ManaCollisionComponent? _groundBody;
+
+        // Extended downward from the visual floor (Y=0 stays the walkable surface) and much thicker than a flush
+        // 0.1 units: a slab that thin lets a character landing at normal fall speed tunnel straight through.
+        private void SetGroundSolid(bool solid)
+        {
+            if (_ground == null)
+            {
+                return;
+            }
+            foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
+            {
+                renderer.IsVisible = solid;
+            }
+            if (!solid && _groundBody != null)
+            {
+                Context.Physics.RemoveBody(_groundBody.Body);
+                _groundBody = null;
+            }
+            else if (solid && _groundBody == null)
+            {
+                _groundBody = Context.Physics.AddBoxBody(_ground, new Vector3(GroundSize, GroundThickness, GroundSize),
+                    new Vector3(GroundSize * 0.5f, -GroundThickness * 0.5f, GroundSize * 0.5f));
+            }
+        }
+
         private void BeginModes(List<ManaLevelGameMode> modes)
         {
+            // A mode that brings its own world, or whose gaps are falls, has no floor -- picture or body
+            // (see ManaLevelGameMode.KeepsEditorFloor); the next level may want it back.
+            SetGroundSolid(modes.All(mode => mode.KeepsEditorFloor));
             if (modes.Count == 0)
             {
                 return;
             }
 
             EnsureCommandRunner();
-            // A mode that brings its own world has no use for the play floor (see ManaLevelGameMode.KeepsEditorFloor).
-            if (!modes.All(mode => mode.KeepsEditorFloor) && _ground != null)
-            {
-                foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
-                {
-                    renderer.IsVisible = false;
-                }
-            }
 
             _gameModes.Begin(modes, new ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard, () => _exitRequested = true, standalone: true)
             {
@@ -461,6 +475,7 @@ namespace Mana.Code.GameModes
             // The start screen's two ways round, for scripts: play a level, back to the list.
             _commandRunner.Register("open_level", command => ChooseLevel(Mana.Code.Automation.ManaCommandRunner.RequirePath(command)));
             _commandRunner.Register("levels", _ => ShowLevelSelect());
+            _commandRunner.Register("ui_click", command => ClickLabel(command.Name));
         }
 
         public override void Closing()
@@ -554,6 +569,42 @@ namespace Mana.Code.GameModes
             }
             _levelPath = null;
             _hud.Text = string.Empty;
+        }
+
+        /// <summary>
+        /// Clicks the shown text that reads <paramref name="label"/> (a button's label) as a pointer would -- through the
+        /// UI's hit testing, so something lying over it gets the click instead, as it would for a finger.
+        /// </summary>
+        private void ClickLabel(string? label)
+        {
+            if (_uiRoot?.Content is not { } content || string.IsNullOrEmpty(label))
+            {
+                return;
+            }
+            var text = Shown(content).OfType<TextBlock>().FirstOrDefault(block => block.Text == label);
+            if (text == null)
+            {
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: ui_click found no '{label}' on screen.");
+                return;
+            }
+            var at = new System.Numerics.Vector2(text.Bounds.X + text.Bounds.Width * 0.5f, text.Bounds.Y + text.Bounds.Height * 0.5f);
+            _uiRoot.Input.InjectPointerMoved(at);
+            _uiRoot.Input.InjectPointerPressed(at, PointerButton.Left, Context.Window.Time);
+            _uiRoot.Input.InjectPointerReleased(at, PointerButton.Left);
+            ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: ui_click '{label}' at {at}");
+
+            static IEnumerable<UiElement> Shown(UiElement element)
+            {
+                if (element.Visibility != Visibility.Visible)
+                {
+                    yield break;
+                }
+                yield return element;
+                foreach (var child in element.VisualChildren.SelectMany(Shown))
+                {
+                    yield return child;
+                }
+            }
         }
 
         private float ControlsBarHeight => ControlsBar?.Invoke() ?? 0.0f;

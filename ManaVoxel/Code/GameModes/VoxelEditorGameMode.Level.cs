@@ -144,7 +144,8 @@ namespace Mana.Code.GameModes
             _restartKeyWasDown = restartKeyDown;
 
             var stopKeyDown = keyboard.IsKeyPressed(Key.Escape);
-            if (stopKeyDown && !_stopKeyWasDown && IsPlaying && !modeKeys)
+            // Ejected (F8) counts: IsPlaying is false then, and Escape left the match running under the editor.
+            if (stopKeyDown && !_stopKeyWasDown && (IsPlaying || _playMode.IsEjected) && !modeKeys)
             {
                 _playMode.Stop();
             }

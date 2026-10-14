@@ -69,10 +69,16 @@ namespace Mana.Code.GameModes
             {
                 Modes.Suspend();
                 camera.LensShiftToViewport = _savedLensShift;
+                // A side-on level's flat view: the free camera flies in perspective, as everywhere else in the editor.
+                _ejectedOrthographic = camera.OrthoGraphic;
+                camera.SetProjectionMode(false);
+                camera.UpdateProjection();
             }
             else
             {
                 camera.LensShiftToViewport = false;
+                camera.SetProjectionMode(_ejectedOrthographic);
+                camera.UpdateProjection();
                 Modes.Resume();
             }
 
@@ -87,6 +93,7 @@ namespace Mana.Code.GameModes
 
         private bool _exitRequested;
         private bool _savedLensShift;
+        private bool _ejectedOrthographic;
 
         /// <summary>The character being played, or null while editing.</summary>
         public ManaPawnNode? Player => _player;

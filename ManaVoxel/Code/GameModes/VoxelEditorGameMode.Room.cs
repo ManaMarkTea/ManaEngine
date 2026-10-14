@@ -210,12 +210,18 @@ namespace Mana.Code.GameModes
             // character/voxel-raycast actually touches exactly where it visually is, and only grows into
             // the space nobody stands on.
             const float ColliderThickness = 2.0f;
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, -ColliderThickness * 0.5f, halfGridSize));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, gridSize + ColliderThickness * 0.5f, halfGridSize));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, -ColliderThickness * 0.5f));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, gridSize + ColliderThickness * 0.5f));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(-ColliderThickness * 0.5f, halfGridSize, halfGridSize));
-            Context.Physics.AddBoxBody(xzPlane, new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(gridSize + ColliderThickness * 0.5f, halfGridSize, halfGridSize));
+            _roomColliderShapes.Clear();
+            _roomColliderShapes.AddRange(new[]
+            {
+                (new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, -ColliderThickness * 0.5f, halfGridSize)),
+                (new Vector3(gridSize, ColliderThickness, gridSize), new Vector3(halfGridSize, gridSize + ColliderThickness * 0.5f, halfGridSize)),
+                (new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, -ColliderThickness * 0.5f)),
+                (new Vector3(gridSize, gridSize, ColliderThickness), new Vector3(halfGridSize, halfGridSize, gridSize + ColliderThickness * 0.5f)),
+                (new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(-ColliderThickness * 0.5f, halfGridSize, halfGridSize)),
+                (new Vector3(ColliderThickness, gridSize, gridSize), new Vector3(gridSize + ColliderThickness * 0.5f, halfGridSize, halfGridSize)),
+            });
+            _roomColliders.Clear();
+            SetRoomSolid(xzPlane, true);
 
             // Ground/wall planes are raycast helpers for voxel placement, not meaningful selection targets.
             _pickingExclusions.Add(xzPlane);
@@ -252,6 +258,31 @@ namespace Mana.Code.GameModes
         }
 
         private bool _gridFloorShown = true;
+        private readonly List<(Vector3 Size, Vector3 Offset)> _roomColliderShapes = new();
+        private readonly List<ManaCollisionComponent> _roomColliders = new();
+
+        /// <summary>
+        /// The room's floor, walls and ceiling as bodies, or not: a level that plays without the floor falls past it
+        /// and runs beyond its walls (the 2D Sample is 270 m long), where hiding the picture alone left them solid.
+        /// </summary>
+        private void SetRoomSolid(ManaSceneNode? floorNode, bool solid)
+        {
+            if (!solid)
+            {
+                foreach (var collider in _roomColliders)
+                {
+                    Context.Physics.RemoveBody(collider.Body);
+                }
+                _roomColliders.Clear();
+            }
+            else if (_roomColliders.Count == 0 && floorNode != null)
+            {
+                foreach (var (size, offset) in _roomColliderShapes)
+                {
+                    _roomColliders.Add(Context.Physics.AddBoxBody(floorNode, size, offset));
+                }
+            }
+        }
 
         private void SyncGridRoomWalls()
         {
@@ -264,6 +295,7 @@ namespace Mana.Code.GameModes
                 {
                     renderer.IsVisible = floor;
                 }
+                SetRoomSolid(_gridXzPlane, floor);
             }
 
             var drawing = !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive);
@@ -313,6 +345,9 @@ namespace Mana.Code.GameModes
             }
 
             _gridXzPlane = null;
+            _roomColliders.Clear();
+            // A rebuilt room starts solid and shown; the next sync settles it for play again.
+            _gridFloorShown = true;
             _gridCeilingPlane = null;
             _gridYxPlane = null;
             _gridZyPlane = null;

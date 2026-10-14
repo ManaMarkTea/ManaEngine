@@ -24,7 +24,8 @@
       "id": "6d7c1634e71a4ee8862df3af8c74a88c",
       "type": "Character",
       "properties": {
-        "maxJumps": 2
+        "maxJumps": 2,
+        "floor": false
       }
     }
   ],
