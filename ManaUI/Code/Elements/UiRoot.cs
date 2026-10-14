@@ -356,6 +356,10 @@ namespace ManaUI
 
             FloatingLayer.Children.Add(window);
             window.BringToFront();
+            if (Theme.Kind == UiThemeKind.MacOS)
+            {
+                window.Focus();
+            }
             return window;
         }
 

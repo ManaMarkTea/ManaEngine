@@ -250,6 +250,37 @@ public static class WindowChecks
         Check("a fixed window keeps the space instead",
             filled != null && filled.Bounds.Bottom >= fixedWindow.Bounds.Bottom - 2.0f,
             $"content ends {filled?.Bounds.Bottom:0} of {fixedWindow.Bounds.Bottom:0}");
+
+        var macRoot = new UiRoot(fonts);
+        macRoot.RequestTheme(UiThemeKind.MacOS);
+        var mac = new UiWindow("Mac controls") { Width = 300, Height = 200 };
+        mac.Child = new TextBlock().Text("Preserved content");
+        macRoot.ShowWindow(mac, new Vector2(100, 100));
+        macRoot.UpdateLayout(new Vector2(800, 600));
+        var macTime = 0.0;
+        void MacClick(float x)
+        {
+            var point = new Vector2(mac.Bounds.X + x, mac.Bounds.Y + 14);
+            macRoot.Input.InjectPointerMoved(point);
+            macRoot.Input.InjectPointerPressed(point, PointerButton.Left, macTime += 1);
+            macRoot.Input.InjectPointerReleased(point, PointerButton.Left);
+            macRoot.UpdateLayout(new Vector2(800, 600));
+        }
+        var restingDraws = macRoot.Render().InstanceCount;
+        macRoot.Input.InjectPointerMoved(new Vector2(117, 114));
+        Check("mac traffic lights reveal symbols on hover", macRoot.Render().InstanceCount > restingDraws);
+        MacClick(37);
+        Check("mac yellow minimizes without closing", mac.IsMinimized && macRoot.FloatingLayer.Children.Contains(mac));
+        Check("mac minimized content is hidden", mac.Child.Visibility == Visibility.Collapsed);
+        MacClick(37);
+        Check("mac yellow restores size and content", !mac.IsMinimized && mac.Bounds.Height == 200
+            && mac.Child.Visibility == Visibility.Visible);
+        MacClick(57);
+        Check("mac green zooms to available area", mac.IsZoomed && mac.Bounds.Width == 784);
+        MacClick(57);
+        Check("mac green restores bounds", !mac.IsZoomed && mac.Bounds == new UiRect(100, 100, 300, 200));
+        MacClick(17);
+        Check("mac red closes from the left", !macRoot.FloatingLayer.Children.Contains(mac));
     }
 
     private static IEnumerable<UiElement> Descendants(UiElement element)

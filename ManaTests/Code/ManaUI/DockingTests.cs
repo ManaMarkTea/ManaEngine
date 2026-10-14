@@ -15,6 +15,26 @@ public static class DockingChecks
         static DockItem Item(string title) =>
             new(title, new Border().Fill(UiColor.White)) { Id = title };
 
+        var macRoot = new UiRoot(fonts);
+        var macHost = new DockHost();
+        macRoot.Content = macHost;
+        macRoot.RequestTheme(UiThemeKind.MacOS);
+        var macFirst = Item("Short");
+        var macGroup = macHost.Dock(macFirst, DockSide.Center);
+        var macSecond = Item("A longer label");
+        macHost.Dock(macSecond, DockSide.Center, macGroup);
+        macRoot.UpdateLayout(new Vector2(800, 400));
+        Check("mac tabs share the full strip equally", macGroup.TabRect(0).Width == 400
+            && macGroup.TabRect(1).Width == 400);
+        var closePoint = new Vector2(macGroup.TabRect(0).X + 12, macGroup.TabRect(0).Center.Y);
+        macRoot.Input.InjectPointerMoved(closePoint);
+        macRoot.Input.InjectPointerPressed(closePoint, PointerButton.Left, 0);
+        macRoot.Input.InjectPointerReleased(closePoint, PointerButton.Left);
+        Check("mac tab close target follows its left-side icon", macFirst.Owner == null && macSecond.Owner == macGroup);
+        macRoot.RequestTheme(UiThemeKind.Windows11);
+        macRoot.UpdateLayout(new Vector2(800, 400));
+        Check("switching away restores natural tab widths", macGroup.TabRect(0).Width < 800);
+
         // ---------------------------------------------------------------- building a layout
         var scene = Item("Scene");
         var group = host.Dock(scene, DockSide.Center);

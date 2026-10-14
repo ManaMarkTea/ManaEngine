@@ -83,6 +83,72 @@ namespace ManaUI
         public bool CanResize { get; set; } = true;
         public bool CanMove { get; set; } = true;
 
+        public bool IsMinimized { get; private set; }
+        public bool IsZoomed { get; private set; }
+        private float _restoreHeight;
+        private float _restoreMinHeight;
+        private Visibility _restoreChildVisibility;
+        private Vector2 _zoomPosition;
+        private Vector2 _zoomSize;
+
+        // A compact title bar keeps the restore button reachable without a separate desktop taskbar.
+        public void ToggleMinimize()
+        {
+            if (IsMinimized)
+            {
+                MinHeight = _restoreMinHeight;
+                Height = _restoreHeight;
+                if (Child != null)
+                {
+                    Child.Visibility = _restoreChildVisibility;
+                }
+                IsMinimized = false;
+            }
+            else
+            {
+                _restoreHeight = Height;
+                _restoreMinHeight = MinHeight;
+                _restoreChildVisibility = Child?.Visibility ?? Visibility.Visible;
+                if (Child != null)
+                {
+                    Child.Visibility = Visibility.Collapsed;
+                }
+                MinHeight = ResolvedTitleBarHeight;
+                Height = ResolvedTitleBarHeight;
+                IsMinimized = true;
+            }
+            InvalidateMeasure();
+        }
+
+        public void ToggleZoom()
+        {
+            if (!CanResize || Root == null)
+            {
+                return;
+            }
+            if (IsMinimized)
+            {
+                ToggleMinimize();
+            }
+            if (IsZoomed)
+            {
+                Position = _zoomPosition;
+                Width = _zoomSize.X;
+                Height = _zoomSize.Y;
+                IsZoomed = false;
+            }
+            else
+            {
+                _zoomPosition = Position;
+                _zoomSize = Bounds.Size;
+                Position = new Vector2(8);
+                Width = Math.Clamp(Root.Bounds.Width - 16, MinWidth, MaxWidth);
+                Height = Math.Clamp(Root.Bounds.Height - 16, MinHeight, MaxHeight);
+                IsZoomed = true;
+            }
+            InvalidateMeasure();
+        }
+
         /// <summary>Height of the title bar; falls back to the theme's control height.</summary>
         public float TitleBarHeight { get; set; } = float.NaN;
 
@@ -245,7 +311,13 @@ namespace ManaUI
 
             var titleBar = TitleBarRect();
 
-            if (skin != null && skin.TryGet("titleBar", out var bar))
+            if (theme.Kind == UiThemeKind.MacOS)
+            {
+                drawList.DrawBox(titleBar, UiColor.FromHex(IsFocusedWindow ? "#EEEEEE" : "#F6F6F6"),
+                    UiColor.FromHex(IsFocusedWindow ? "#D1D1D1" : "#EAEAEA"), UiColor.Transparent, 0,
+                    CornerRadius.Top(corners.TopLeft));
+            }
+            else if (skin != null && skin.TryGet("titleBar", out var bar))
             {
                 drawList.DrawNineSlice(titleBar, bar, IsFocusedWindow ? Vector4.One : new Vector4(0.6f, 0.65f, 0.8f, 1.0f),
                     MathF.Min(1.0f, titleBar.Height / bar.Size.Y));
@@ -265,12 +337,16 @@ namespace ManaUI
 
             RenderTitleText(drawList, theme, titleBar);
 
-            if (CanClose)
+            if (theme.Kind == UiThemeKind.MacOS)
+            {
+                RenderMacButtons(drawList);
+            }
+            else if (CanClose)
             {
                 RenderCloseButton(drawList, theme);
             }
 
-            if (CanResize)
+            if (CanResize && !IsMinimized && theme.Kind != UiThemeKind.MacOS)
             {
                 RenderResizeGrip(drawList, theme);
             }
@@ -323,12 +399,13 @@ namespace ManaUI
             {
                 Font = font,
                 Text = _title,
+                Alignment = theme.Kind == UiThemeKind.MacOS ? TextAlignment.Center : TextAlignment.Left,
                 Trimming = TextTrimming.CharacterEllipsis,
-                MaxWidth = MathF.Max(0.0f, titleBar.Width - 12.0f - (CanClose ? titleBar.Height : 0.0f))
+                MaxWidth = MathF.Max(0.0f, titleBar.Width - (theme.Kind == UiThemeKind.MacOS ? 144 : 12.0f + (CanClose ? titleBar.Height : 0.0f)))
             };
 
             var textArea = new UiRect(
-                titleBar.X + 10.0f,
+                titleBar.X + (theme.Kind == UiThemeKind.MacOS ? 72 : 10.0f),
                 titleBar.Y,
                 layout.MaxWidth,
                 titleBar.Height);
@@ -336,6 +413,52 @@ namespace ManaUI
             var onBlueBar = theme.Skin != null && theme.Skin.TryGet("titleBar", out _);
             layout.Render(drawList, textArea, onBlueBar ? (IsFocusedWindow ? theme.TextOnAccent : theme.TextOnAccent.WithAlpha(0.75f)) : IsFocusedWindow ? theme.Text : theme.TextMuted,
                 VerticalAlignment.Center);
+        }
+
+        private UiRect MacButtonRect(int index)
+        {
+            var bar = TitleBarRect();
+            return new UiRect(bar.X + 8 + index * 20, bar.Center.Y - 9, 18, 18);
+        }
+
+        private void RenderMacButtons(ManaUiDrawList drawList)
+        {
+            var pointer = Root?.Input.PointerPosition ?? new Vector2(-1);
+            var hoverGroup = MacButtonRect(0).Contains(pointer) || MacButtonRect(1).Contains(pointer)
+                || MacButtonRect(2).Contains(pointer);
+            for (var i = 0; i < 3; i++)
+            {
+                var enabled = i == 0 ? CanClose : i == 1 || CanResize;
+                var rect = MacButtonRect(i).Deflate(new Thickness(3));
+                var color = UiColor.FromHex(i == 0 ? "#FF5F57" : i == 1 ? "#FFBD2E" : "#28C840");
+                if (!enabled || (!IsFocusedWindow && !hoverGroup))
+                {
+                    color = UiColor.FromHex("#D5D5D5");
+                }
+                else if (MacButtonRect(i).Contains(pointer))
+                {
+                    color = UiColor.Lighten(color, 0.12f);
+                }
+                drawList.DrawBox(rect, color, UiColor.Darken(color, 0.12f), 1, new CornerRadius(6));
+                if (!enabled || !hoverGroup)
+                {
+                    continue;
+                }
+                var ink = UiColor.FromHex("#454545");
+                var centre = rect.Center;
+                if (i == 0)
+                {
+                    UiIcons.Cross(drawList, rect.Deflate(new Thickness(3)), ink, 1);
+                }
+                else if (i == 1)
+                {
+                    drawList.DrawLine(centre + new Vector2(-3, 0), centre + new Vector2(3, 0), ink, 1);
+                }
+                else
+                {
+                    drawList.DrawBorder(rect.Deflate(new Thickness(3)), ink, 1, CornerRadius.Zero);
+                }
+            }
         }
 
         private void RenderCloseButton(ManaUiDrawList drawList, UiTheme theme)
@@ -403,6 +526,10 @@ namespace ManaUI
 
         private UiRect CloseButtonRect()
         {
+            if (Root?.Theme.Kind == UiThemeKind.MacOS)
+            {
+                return MacButtonRect(0);
+            }
             var bar = TitleBarRect();
             var size = bar.Height - 8.0f;
             return new UiRect(bar.Right - size - 4.0f, bar.Y + 4.0f, size, size);
@@ -449,7 +576,7 @@ namespace ManaUI
         /// <summary>Which resize edge, if any, a point falls in.</summary>
         private ResizeEdge EdgeAt(Vector2 point)
         {
-            if (!CanResize || !Bounds.Contains(point))
+            if (!CanResize || IsMinimized || !Bounds.Contains(point))
             {
                 return ResizeEdge.None;
             }
@@ -528,6 +655,10 @@ namespace ManaUI
                 return;
             }
 
+            if (Root?.Theme.Kind == UiThemeKind.MacOS && TitleBarRect().Contains(e.Position))
+            {
+                Focus();
+            }
             if (CanClose && CloseButtonRect().Contains(e.Position))
             {
                 Close();
@@ -535,6 +666,21 @@ namespace ManaUI
                 return;
             }
 
+            if (Root?.Theme.Kind == UiThemeKind.MacOS)
+            {
+                if (MacButtonRect(1).Contains(e.Position))
+                {
+                    ToggleMinimize();
+                    e.Handled = true;
+                    return;
+                }
+                if (MacButtonRect(2).Contains(e.Position))
+                {
+                    ToggleZoom();
+                    e.Handled = true;
+                    return;
+                }
+            }
             var edge = EdgeAt(e.Position);
             if (edge != ResizeEdge.None)
             {

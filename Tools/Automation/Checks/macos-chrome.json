@@ -1,0 +1,10 @@
+[
+  { "type": "set_theme", "name": "macOS" },
+  { "type": "select_node", "name": "Default Scene" },
+  { "type": "wait", "frames": 45 },
+  { "type": "screenshot", "path": "@@OUT@@.tabs.png" },
+  { "type": "measure", "name": "distance" },
+  { "type": "wait", "frames": 60 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "quit" }
+]

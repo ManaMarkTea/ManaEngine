@@ -236,7 +236,12 @@ namespace ManaUI
                     drawList.FillRect(new UiRect(centre.X - width * 0.5f, centre.Y - height * 0.5f,
                         width, height), theme.Accent, new CornerRadius(2));
                 }
-                else if (theme.Kind is UiThemeKind.Windows11 or UiThemeKind.MacOS)
+                else if (theme.Kind == UiThemeKind.MacOS)
+                {
+                    UiIcons.Triangle(drawList, new UiRect(centre.X - 4, centre.Y - 4, 8, 8),
+                        _owner.IsExpanded ? UiIconDirection.Down : UiIconDirection.Right, theme.TextMuted);
+                }
+                else if (theme.Kind == UiThemeKind.Windows11)
                 {
                     var a = _owner.IsExpanded ? new Vector2(-4, -2) : new Vector2(-2, -4);
                     var b = _owner.IsExpanded ? new Vector2(0, 2) : new Vector2(2, 0);

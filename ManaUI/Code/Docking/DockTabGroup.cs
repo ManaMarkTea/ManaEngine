@@ -40,6 +40,7 @@ namespace ManaUI
         private DockItem? _lastClickedItem;
 
         private float _layoutWidth = float.NaN;
+        private UiThemeKind? _layoutTheme;
         private int _layoutCount = -1;
 
         /// <summary>
@@ -262,13 +263,14 @@ namespace ManaUI
         {
             width = MathF.Max(width, 1.0f);
 
-            if (_layoutCount == _items.Count
+            if (_layoutTheme == Root?.Theme.Kind && _layoutCount == _items.Count
                 && _layoutSelected == _selectedIndex
                 && MathF.Abs(_layoutWidth - width) < 0.5f)
             {
                 return;
             }
 
+            _layoutTheme = Root?.Theme.Kind;
             _layoutWidth = width;
             _layoutCount = _items.Count;
             _layoutSelected = _selectedIndex;
@@ -307,9 +309,9 @@ namespace ManaUI
                 var x = 0.0f;
                 for (var i = 0; i < _items.Count; i++)
                 {
-                    _tabRects[i] = new UiRect(x, 0.0f, _naturalWidths[i], rowHeight);
+                    _tabRects[i] = new UiRect(x, 0.0f, Root?.Theme.Kind == UiThemeKind.MacOS ? width / _items.Count : _naturalWidths[i], rowHeight);
                     _visibleOrder.Add(i);
-                    x += _naturalWidths[i];
+                    x += Root?.Theme.Kind == UiThemeKind.MacOS ? width / _items.Count : _naturalWidths[i];
                 }
 
                 return;
@@ -469,7 +471,7 @@ namespace ManaUI
             }
 
             return new UiRect(
-                tab.Right - TabCloseSize - 6.0f,
+                Root?.Theme.Kind == UiThemeKind.MacOS ? tab.X + 6.0f : tab.Right - TabCloseSize - 6.0f,
                 tab.Center.Y - TabCloseSize * 0.5f,
                 TabCloseSize,
                 TabCloseSize);
@@ -579,7 +581,12 @@ namespace ManaUI
                 var selected = i == _selectedIndex;
                 var hovered = tab.Contains(pointer);
 
-                if (selected)
+                if (theme.Kind == UiThemeKind.MacOS)
+                {
+                    drawList.DrawBox(tab, UiColor.FromHex(selected ? "#E7E7E7" : hovered ? "#D7D7D7" : "#CECECE"),
+                        UiColor.FromHex(selected ? "#D7D7D7" : "#BDBDBD"), theme.BorderStrong, 1, CornerRadius.Zero);
+                }
+                else if (selected)
                 {
                     if (drawList.DrawSkin(theme, "primary", tab, UiColor.White, lift: false))
                     {
@@ -605,13 +612,14 @@ namespace ManaUI
                 {
                     Font = font,
                     Text = _items[i].Title,
+                    Alignment = theme.Kind == UiThemeKind.MacOS ? TextAlignment.Center : TextAlignment.Left,
                     Trimming = TextTrimming.CharacterEllipsis,
                     MaxWidth = tab.Width - TabPaddingX * 2.0f - (_items[i].CanClose ? TabCloseSize : 0.0f)
                 };
 
                 layout.Render(
                     drawList,
-                    new UiRect(tab.X + TabPaddingX, tab.Y, layout.MaxWidth, tab.Height),
+                    new UiRect(tab.X + TabPaddingX + (theme.Kind == UiThemeKind.MacOS && _items[i].CanClose ? TabCloseSize : 0), tab.Y, layout.MaxWidth, tab.Height),
                     selected ? (theme.HasSkin("primary") ? theme.TextOnAccent : theme.Text) : theme.TextMuted,
                     VerticalAlignment.Center);
 
@@ -680,11 +688,11 @@ namespace ManaUI
             var hovered = rect.Contains(pointer);
             if (hovered)
             {
-                drawList.FillRect(rect, theme.Danger, new CornerRadius(3.0f));
+                drawList.FillRect(rect, theme.Kind == UiThemeKind.MacOS ? theme.Hover : theme.Danger, new CornerRadius(3.0f));
             }
 
             var glyph = font.GetGlyph('×');
-            var color = hovered ? theme.TextOnAccent : theme.TextMuted;
+            var color = hovered && theme.Kind != UiThemeKind.MacOS ? theme.TextOnAccent : theme.TextMuted;
 
             if (glyph.IsDrawable)
             {
