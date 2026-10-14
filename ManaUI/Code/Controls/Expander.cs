@@ -174,8 +174,12 @@ namespace ManaUI
 
             public void UpdateDisclosure()
             {
-                _disclosure.Text = _owner.IsExpanded ? "🔽" : "▶️";
-                InvalidateVisual();
+                var text = Theme.Kind is UiThemeKind.Windows31 or UiThemeKind.Lcars ? "" : _owner.IsExpanded ? "🔽" : "▶️";
+                if (_disclosure.Text != text)
+                {
+                    _disclosure.Text = text;
+                    InvalidateVisual();
+                }
             }
 
             public UiElement? Accessory
@@ -215,6 +219,22 @@ namespace ManaUI
                 if (!drawList.DrawSkin(theme, "button", Bounds, headerFill))
                 {
                     drawList.FillRect(Bounds, headerFill, theme.CornerRadius);
+                }
+                UpdateDisclosure();
+                var centre = _disclosure.Bounds.Center;
+                if (theme.Kind == UiThemeKind.Windows31)
+                {
+                    var box = new UiRect(centre.X - 9, centre.Y - 8, 18, 16);
+                    drawList.DrawSkin(theme, IsPressed ? "buttonPressed" : "button", box, UiColor.White);
+                    drawList.FillRect(new UiRect(centre.X - 5, centre.Y - 1.5f, 10, 3), UiColor.Black);
+                    drawList.FillRect(new UiRect(centre.X - 4, centre.Y - 0.5f, 8, 1), UiColor.White);
+                }
+                else if (theme.Kind == UiThemeKind.Lcars)
+                {
+                    var width = _owner.IsExpanded ? 14 : 4;
+                    var height = _owner.IsExpanded ? 4 : 14;
+                    drawList.FillRect(new UiRect(centre.X - width * 0.5f, centre.Y - height * 0.5f,
+                        width, height), theme.Accent, new CornerRadius(2));
                 }
                 RenderFocusRing(drawList, Bounds, theme.CornerRadius);
             }

@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Theme-specific group indicators (2026-10-14): Windows 3.1 uses a framed system-menu dash; LCARS uses an amber bar, horizontal expanded and vertical collapsed (ManaUI Expander). In-app captures verified; all 1789 ManaUI checks passed.
+
 [x] - Windows 3.1 editor theme (2026-10-14): Appearance > Theme > Windows 3.1; built-in ManaUI palette and atlas skin with square grey bevels, recessed inputs, navy titles/tabs and grey scrollbar thumbs. Automated WebGPU screenshot verified; all 1789 ManaUI checks passed.
 
 [x] - Train Yard Wars cargo transfer feedback and dock stops (2026-10-11): a moving yellow arrow points into
