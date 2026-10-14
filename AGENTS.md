@@ -48,6 +48,8 @@ Add coverage by dropping a suite in `ManaTests/Code/<System>/` and registering i
 `ManaTests/Code/TestRun.cs`. Suite files end in `Tests.cs`, and live under the system they exercise --
 asset and model logic under its own project, not under ManaUI because a panel happens to call it.
 
+- **Unit tests stay fast:** test one rule with a small set-up, never by playing a whole match or level out (that is
+  what the `--command-file` scripts are for). The run ends with its slowest suites; one over a second or two is a smell.
 - **Suites run in parallel.** Never change process-wide state in one (`ManaContentAssets.Root`, the working directory,
   a static setting) -- it leaks into whatever else is running. Build a fresh `ManaWorld`/`ManaContext` per suite.
 - **When the normal output is locked** (a debugger holding `Artifacts/Bin/ManaVoxel`), build the tests elsewhere and
@@ -213,6 +215,11 @@ are baked from; the live editor draws new ones with the GPU instead.
 ## Architecture
 
 - **Scene graph:** `ManaWorld` → `ManaScene[]` → `ManaSceneNode` tree → `ManaComponent[]`
+- **Cameras:** one `CameraComponent` (`World.MainCamera`) flies in the editor; anything else that drives it is an
+  `IManaCameraRig` attached with `AttachRig` (evaluated after the scene moves; an attached camera takes no fly input) and
+  let go with `DetachRig(rig)`. The character's `ManaSpringArmComponent` is one (`IManaCameraLookRig`: it takes mouse look);
+  a game mode that frames the shot itself uses `ManaComputedCameraRig` (Train Yard Wars, Yacht Jousting) or its own rig
+  (`RunnerCamera`), and detaches it on `Suspend` (F8) -- never by borrowing `ShouldCapture*Input`.
 - **Render loop:** `BaseGameMode` drives update + render. `ManaGameModeGraphicsBridge` dispatches to the active backend. `ManaWorld.CreateRenderScene()` collects mesh instances each frame.
 - **ManaUI is the only UI framework.** ImGui was removed entirely (package references, controllers, the `Draw*` hooks and every `*PanelView.cs`); a mode with `EnableManaUi` off now has no UI at all rather than an ImGui fallback. Retained-mode, two-pass WPF-style measure/arrange, lambda-based bindings, docking. Everything draws as one instanced SDF primitive, so a frame is a single draw call. The engine layer owns the tree (`Mana/Code/UI/ManaUi/ManaUiHost.cs`), laid out at the window size over the display scale (`UiRoot.ScreenScale`, from `ManaDpiScale`; `MANA_UI_SCALE=1.5` multiplies it to try a scaled layout -- pointer input is divided by it, and anything mapping UI positions to window pixels multiplies) and hands `ManaWebGpuContext.UiRoot` a finished draw list, which the backend submits in the tone-map pass. Views live under each project's `Code/UI/ManaUi/` folder.
 - **Levels:** `.manalevel` JSON in `Content/Levels/` (an optional `sky` block -- `mode`, `dateTime`, `timeSpeed`, `constellationLines` -- sets the sky on open; see `Night Sky` and `Particle Garden`). A level holds only what somebody placed -- a node is saved when it carries a `ManaLevelSource` (`Mana/Code/Levels/`), which `ManaShapeFactory` and the mesh import paths set as they build. Demo scenery (grid planes, planet, borders) has none and is never captured, because it comes back from the code that generates it. Voxel grids go in as a palette plus one base64 blob. Capture/load live in `ManaVoxel/Code/Levels/`.

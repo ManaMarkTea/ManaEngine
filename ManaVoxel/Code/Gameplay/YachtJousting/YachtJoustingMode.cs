@@ -26,8 +26,8 @@ public sealed class YachtJoustingMode : ManaLevelGameMode
     private readonly ManaSceneNode?[] _shields = new ManaSceneNode?[2];
     private ManaSceneNode? _burst;
     private ManaWaterNode? _water;
-    private Func<bool>? _mouseCapture;
-    private Func<bool>? _keyCapture;
+    // Frames both boats from the side while playing; the camera does not fly meanwhile.
+    private ManaComputedCameraRig? _cameraRig;
     private Vector3 _cameraPosition;
     private Vector3 _cameraRotation;
     private float _accumulator;
@@ -79,12 +79,9 @@ public sealed class YachtJoustingMode : ManaLevelGameMode
         _lightning.Clear();
         _models.Clear();
         var camera = context.World.MainCamera;
-        _mouseCapture = camera.ShouldCaptureMouseInput;
-        _keyCapture = camera.ShouldCaptureKeyboardInput;
         _cameraPosition = camera.Owner.Position;
         _cameraRotation = camera.Owner.Rotation;
-        camera.ShouldCaptureMouseInput = () => true;
-        camera.ShouldCaptureKeyboardInput = () => true;
+        _cameraRig = new ManaComputedCameraRig(CameraPose);
         _scene = new ManaScene(context) { Name = "Yacht Jousting Arena" };
         lock (context.World.SceneLock)
         {
@@ -102,7 +99,7 @@ public sealed class YachtJoustingMode : ManaLevelGameMode
             });
             runner.Register("yacht_log", _ => ManaLog.WriteDiagnostic($"Command file: yacht score {_match.Boats[0].Score}:{_match.Boats[1].Score}, health {_match.Boats[0].Health:F0}:{_match.Boats[1].Health:F0}, impacts {_match.ImpactSerial}, winner {_match.Winner}"));
         }
-        PlaceCamera();
+        camera.AttachRig(_cameraRig);
     }
 
     private void BuildArena(ManaContext context, ManaScene scene)
@@ -323,20 +320,14 @@ public sealed class YachtJoustingMode : ManaLevelGameMode
                 renderer.IsVisible = _flash > 0;
             }
         }
-        PlaceCamera();
     }
 
-    private void PlaceCamera()
+    private (Vector3 Position, Vector3 Rotation) CameraPose()
     {
-        if (_session is { } session)
-        {
-            var camera = session.Context.World.MainCamera;
-            var midpoint = (_match.Boats[0].Position + _match.Boats[1].Position) * 0.5f;
-            var distance = Math.Clamp(Math.Abs(_match.Boats[0].Position.X - _match.Boats[1].Position.X) * 0.65f + 14, 22, 39);
-            camera.Owner.Position = new Vector3(64 + midpoint.X + (_flash > 0 ? MathF.Sin(_match.Time * 100) * _flash : 0), 2 + distance * 0.34f, 64 + midpoint.Y + distance);
-            camera.Owner.Rotation = new Vector3(-0.33f, 0, 0);
-            camera.Owner.UpdateTransform();
-        }
+        var midpoint = (_match.Boats[0].Position + _match.Boats[1].Position) * 0.5f;
+        var distance = Math.Clamp(Math.Abs(_match.Boats[0].Position.X - _match.Boats[1].Position.X) * 0.65f + 14, 22, 39);
+        return (new Vector3(64 + midpoint.X + (_flash > 0 ? MathF.Sin(_match.Time * 100) * _flash : 0), 2 + distance * 0.34f, 64 + midpoint.Y + distance),
+            new Vector3(-0.33f, 0, 0));
     }
 
     public override UiElement BuildHud(UiTheme theme)
@@ -384,8 +375,8 @@ public sealed class YachtJoustingMode : ManaLevelGameMode
                 }
             }
             var camera = world.MainCamera;
-            camera.ShouldCaptureMouseInput = _mouseCapture;
-            camera.ShouldCaptureKeyboardInput = _keyCapture;
+            camera.DetachRig(_cameraRig);
+            _cameraRig = null;
             camera.Owner.Position = _cameraPosition;
             camera.Owner.Rotation = _cameraRotation;
             camera.Owner.UpdateTransform();

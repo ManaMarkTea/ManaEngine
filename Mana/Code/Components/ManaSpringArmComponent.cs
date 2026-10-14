@@ -8,11 +8,11 @@ namespace Mana
     // ends up inside a wall.
     //
     // The component itself never touches the camera. It publishes a desired pose each frame and
-    // CameraComponent reads it (see CameraComponent.AttachedSpringArm), which keeps the boom usable
+    // CameraComponent reads it (it is the camera's IManaCameraRig while attached), which keeps the boom usable
     // for anything else that wants a follow position and keeps the camera the only thing that writes
     // camera state. It never touches its own target either -- the yaw here is the authority on where
     // the view points, and a target that wants to face along it turns itself.
-    public class ManaSpringArmComponent : ManaComponent
+    public class ManaSpringArmComponent : ManaComponent, IManaCameraLookRig
     {
         public ManaSpringArmComponent(ManaSceneNode owner) : base(owner)
         {
@@ -96,6 +96,7 @@ namespace Mana
 
         public Vector3 CameraPosition { get; private set; }
         public Vector3 CameraTarget { get; private set; }
+        public Vector3 CameraRotation => new(PitchRadians, YawRadians, 0.0f);
         public float CurrentArmLength { get; private set; }
         public bool IsProbeShortened { get; private set; }
 
@@ -136,6 +137,10 @@ namespace Mana
 
         // Drops the smoothing for one frame. Call when the arm is first attached or the target
         // teleports, so the camera arrives immediately instead of flying across the level.
+        public float FieldOfView(float cameraDegrees) => cameraDegrees + FieldOfViewOffsetDegrees;
+
+        void IManaCameraRig.Snap() => SnapToTarget();
+
         public void SnapToTarget()
         {
             hasSmoothedSocket = false;

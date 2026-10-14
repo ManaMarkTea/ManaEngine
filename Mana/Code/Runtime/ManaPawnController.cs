@@ -178,13 +178,13 @@ namespace Mana.Code
 
             if (CameraMode == ManaCameraMode.Free || pawn == null)
             {
+                // Only our own boom is let go: a game mode's rig on the camera is not ours to drop.
                 if (SpringArm != null)
                 {
+                    camera.DetachRig(SpringArm);
                     SpringArm.Owner.Components.Remove(SpringArm);
                     SpringArm = null;
                 }
-
-                camera.DetachFromSpringArm();
                 return;
             }
 
@@ -207,7 +207,7 @@ namespace Mana.Code
             // exists would otherwise leave the probe colliding with the character it follows.
             SpringArm.IgnoreBody = pawn.Body;
 
-            camera.AttachToSpringArm(SpringArm);
+            camera.AttachRig(SpringArm);
         }
 
         private ManaSpringArmComponent CreateSpringArmFor(ManaPawnNode pawn)

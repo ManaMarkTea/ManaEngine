@@ -29,7 +29,7 @@ namespace Mana
         public float AspectRatio = 1.0f;
         public float FieldOfViewDegrees = 55.0f;
         public float EffectiveFieldOfViewDegrees => Math.Clamp(
-            FieldOfViewDegrees + (AttachedSpringArm?.FieldOfViewOffsetDegrees ?? 0.0f), 1.0f, 150.0f);
+            AttachedRig?.FieldOfView(FieldOfViewDegrees) ?? FieldOfViewDegrees, 1.0f, 150.0f);
         public float OrthographicHeight = 80.0f;
         public float PanSpeed = 1.0f;
         public bool TouchpadPanInOrthographic = true;
@@ -486,25 +486,30 @@ namespace Mana
             _ViewMatrix = Matrix4x4.CreateLookAt(Owner.Position, Owner.Position + forward, up);
         }
 
-        // When set, this camera stops flying and rides a boom instead. The camera still owns its own
-        // pose; the arm only supplies where that pose should be (see ApplyAttachedPose, which runs
-        // after the scene graph has moved so it reads the target's position from this frame, not last).
-        public ManaSpringArmComponent? AttachedSpringArm { get; private set; }
+        // When set, this camera stops flying and takes its pose from a rig (a boom, a game's framing). The
+        // camera still owns its own pose; the rig only supplies where it should be (see ApplyAttachedPose,
+        // which runs after the scene graph has moved so it reads positions from this frame, not last).
+        public IManaCameraRig? AttachedRig { get; private set; }
 
-        public bool IsAttached => AttachedSpringArm != null;
+        public bool IsAttached => AttachedRig != null;
 
-        public void AttachToSpringArm(ManaSpringArmComponent springArm)
+        public void AttachRig(IManaCameraRig rig)
         {
-            AttachedSpringArm = springArm;
-            springArm.SnapToTarget();
+            AttachedRig = rig;
+            rig.Snap();
             ApplyAttachedPose(0.0f);
         }
 
-        // Leaves the camera exactly where the arm last put it, so releasing a character drops you into
-        // free flight from that view instead of snapping back somewhere else.
-        public void DetachFromSpringArm()
+        // Leaves the camera exactly where the rig last put it, so releasing a character drops you into
+        // free flight from that view instead of snapping back somewhere else. With a rig named, only
+        // that one is let go -- a rig attached since by someone else stays.
+        public void DetachRig(IManaCameraRig? only = null)
         {
-            AttachedSpringArm = null;
+            if (AttachedRig == null || (only != null && !ReferenceEquals(AttachedRig, only)))
+            {
+                return;
+            }
+            AttachedRig = null;
             UpdateProjection();
 
             // Detaching mid-drag is a real path -- stopping play releases the pawn, which detaches the
@@ -544,20 +549,19 @@ namespace Mana
         // follow the target's previous-frame position and visibly trail it.
         public void ApplyAttachedPose(float deltaSeconds)
         {
-            var springArm = AttachedSpringArm;
-            if (springArm == null)
+            var rig = AttachedRig;
+            if (rig == null)
             {
                 return;
             }
 
-            springArm.Evaluate(deltaSeconds);
+            rig.Evaluate(deltaSeconds);
             UpdateProjection();
 
-            Owner.Position = springArm.CameraPosition;
+            Owner.Position = rig.CameraPosition;
 
-            // The arm's yaw/pitch are in ManaSceneNode.Forward's own convention, so they go straight
-            // onto Rotation with no conversion.
-            Owner.Rotation = new Vector3(springArm.PitchRadians, springArm.YawRadians, 0.0f);
+            // In ManaSceneNode.Forward's own convention, so it goes straight onto Rotation with no conversion.
+            Owner.Rotation = rig.CameraRotation;
 
             // Matrices written directly rather than via Owner.UpdateTransform(), which would tick this
             // component again and apply a second frame of mouse input -- orbiting at double speed.
@@ -573,16 +577,15 @@ namespace Mana
             UpdateViewMatrix();
         }
 
-        // Same gestures as free flight, redirected at the boom: either mouse button looks around, scroll
-        // changes the arm length instead of the fly speed. The pose itself is applied later, in
-        // ApplyAttachedPose.
+        // Same gestures as free flight, redirected at a rig that looks (the boom): either mouse button looks
+        // around, scroll changes the arm length instead of the fly speed. The pose itself is applied later,
+        // in ApplyAttachedPose.
         //
         // Right and left are both fed to the boom and differ only in what they tell the character to do
         // about it -- see ManaSpringArmComponent.IsSteerGestureActive. Left is opt-in because in the
         // editor a left-press already means something (OrbitOnLeftDrag).
-        private void UpdateAttachedInput()
+        private void UpdateAttachedInput(IManaCameraLookRig rig)
         {
-            var springArm = AttachedSpringArm!;
             var mouseState = Context.Input.Mice.First();
 
             var externalCapturesMouse = ShouldCaptureMouseInput?.Invoke() == true;
@@ -591,13 +594,13 @@ namespace Mana
             // Evaluated as two separate calls rather than one short-circuited expression, for the same
             // reason the free camera does: each button owns a latch that has to be advanced every frame.
             var steerActive = _rightMouseGesture.Update(mouseState.IsButtonPressed(MouseButton.Right), uiCapturesMouse);
-            var leftDown = springArm.MouseLookControls && mouseState.IsButtonPressed(MouseButton.Left);
+            var leftDown = rig.MouseLookControls && mouseState.IsButtonPressed(MouseButton.Left);
             var orbitActive = _leftMouseGesture.Update(leftDown, uiCapturesMouse);
 
             // Published even on the frames the mouse does not move: what reads these needs to know the
             // drag is still held, not that it moved.
-            springArm.IsSteerGestureActive = steerActive;
-            springArm.IsOrbitGestureActive = orbitActive;
+            rig.IsSteerGestureActive = steerActive;
+            rig.IsOrbitGestureActive = orbitActive;
 
             var lookActive = steerActive || orbitActive;
 
@@ -605,7 +608,7 @@ namespace Mana
             // the screen. Grabbing and releasing both teleport the OS pointer, so the frame either
             // happens on contributes one enormous bogus delta -- hence dropping that frame's motion,
             // which costs nothing perceptible at the start or end of a drag.
-            var captureChanged = UpdatePointerCapture(mouseState, lookActive && springArm.MouseLookControls);
+            var captureChanged = UpdatePointerCapture(mouseState, lookActive && rig.MouseLookControls);
 
             const float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
@@ -614,7 +617,7 @@ namespace Mana
             if (lookActive)
             {
                 // Same 0.4 scaling as the free camera's look, so the two modes feel identical.
-                springArm.AddLookInput(dxAvg * 0.4f, dyAvg * 0.4f);
+                rig.AddLookInput(dxAvg * 0.4f, dyAvg * 0.4f);
             }
 
             if (!uiCapturesMouse)
@@ -622,7 +625,7 @@ namespace Mana
                 var scroll = mouseState.ScrollWheels[0];
                 if (scroll.Y != 0.0f)
                 {
-                    springArm.AddZoomInput(scroll.Y);
+                    rig.AddZoomInput(scroll.Y);
                 }
             }
         }
@@ -685,7 +688,7 @@ namespace Mana
                 // that flies or reattaches it while "F to frame selected" is still easing in should just win.
                 var cancelKeyboard = Context.Input.Keyboards.FirstOrDefault();
                 var cancelMouse = Context.Input.Mice.FirstOrDefault();
-                bool manualMovementActive = AttachedSpringArm != null
+                bool manualMovementActive = AttachedRig != null
                     || (cancelMouse != null && (cancelMouse.IsButtonPressed(MouseButton.Right) || cancelMouse.IsButtonPressed(MouseButton.Middle)))
                     || (cancelKeyboard != null && (cancelKeyboard.IsKeyPressed(Key.W) || cancelKeyboard.IsKeyPressed(Key.A)
                         || cancelKeyboard.IsKeyPressed(Key.S) || cancelKeyboard.IsKeyPressed(Key.D)
@@ -701,9 +704,13 @@ namespace Mana
                 }
             }
 
-            if (AttachedSpringArm != null)
+            if (AttachedRig != null)
             {
-                UpdateAttachedInput();
+                // A rig that does not look (a game's own framing) takes no mouse at all.
+                if (AttachedRig is IManaCameraLookRig looking)
+                {
+                    UpdateAttachedInput(looking);
+                }
                 return;
             }
 
