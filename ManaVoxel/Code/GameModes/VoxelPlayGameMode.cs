@@ -191,8 +191,19 @@ namespace Mana.Code.GameModes
                     host.Root.Theme,
                     Context.World.GameState,
                     Restart,
-                    () => Context.Window.Close(),
-                    "Quit"),
+                    // With a start screen (the phone, whose window cannot close), leaving goes back to it.
+                    () =>
+                    {
+                        if (OffersLevelSelect)
+                        {
+                            ShowLevelSelect();
+                        }
+                        else
+                        {
+                            Context.Window.Close();
+                        }
+                    },
+                    OffersLevelSelect ? "Choose Level" : "Quit"),
                 ManaUiDeathScreen.Build(host.Root.Theme, Context.World.GameState),
                 Context.World.GameState);
 
