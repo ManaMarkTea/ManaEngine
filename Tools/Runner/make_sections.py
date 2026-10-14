@@ -133,6 +133,14 @@ class Section:
         ], children=[{"id": self._id("coin-model"), "name": "Coin Model", "kind": "Mesh", "position": [0, 0.0, 0],
                       "rotation": [0, 0, 0], "scale": [1.4, 1.4, 1.4], "asset": COIN}])
 
+    def arc_coin(self, lane, z, y):
+        """A coin the runner moves onto its own flight path (RunnerMode.PlaceArcCoins); here, roughly where it goes."""
+        self.node("Coin Arc", "Group", (LANES[lane], y, z), scripts=[
+            {"id": self._id("coin-trigger"), "type": "Trigger", "properties": {"size": [1.0, 1.2, 1.0], "offset": [0, 0.3, 0]}},
+            {"id": self._id("coin-collectible"), "type": "Collectible", "properties": {"value": 1, "spinDegreesPerSecond": 180}},
+        ], children=[{"id": self._id("coin-model"), "name": "Coin Model", "kind": "Mesh", "position": [0, 0.0, 0],
+                      "rotation": [0, 0, 0], "scale": [1.4, 1.4, 1.4], "asset": COIN}])
+
     def coins(self, lane, z0, z1, step=2.0, y=0.55):
         z = z0
         while z >= z1:
@@ -578,8 +586,8 @@ def sky():
     s.road(0.0, -12.0, decor=False)
     s.launch(-9.0, h + 2.0)
     for lane in range(3):
-        for i, y in enumerate((4.0, 10.0, 18.0, 26.0)):
-            s.coin(lane, -12.0 - i * 2.5, y)
+        for i, y in enumerate((4.0, 10.0, 16.0, 21.0, 25.0, 28.0)):
+            s.arc_coin(lane, -12.0 - i * 2.5, y)
     s.cloud(0, -18.0, -LENGTH, base=h, wide=True)
     s.sky_decor(h)
     s.exit(h)
@@ -630,8 +638,8 @@ def sky():
     s.sky_decor()
     s.cloud(0, 0.0, -8.0, wide=True)
     for lane in range(3):
-        for i, y in enumerate((-4.0, -12.0, -20.0)):
-            s.coin(lane, -10.0 - i * 3.0, y)
+        for i, y in enumerate((-2.0, -5.0, -9.0, -14.0, -20.0, -26.0)):
+            s.arc_coin(lane, -10.0 - i * 2.0, y)
     s.road(-8.0, -LENGTH, decor=False)
     for node in s.children:
         # The city, 30 m below the clouds: dropped onto at the end of the sky.

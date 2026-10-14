@@ -376,12 +376,12 @@
         ]
       },
       {
-        "id": "058bf752a7de55e5bcf2179b3fae1d9f",
-        "name": "Coin",
+        "id": "0fa57c3c8c325a748f226e55d3dd72c3",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
           -2.2,
-          -4.0,
+          -2.0,
           -10.0
         ],
         "rotation": [
@@ -445,13 +445,13 @@
         ]
       },
       {
-        "id": "56ce3e0d8540550cace28cdbca717d48",
-        "name": "Coin",
+        "id": "e9e1b1c1a9895586a97ff839ae0faba3",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
           -2.2,
-          -12.0,
-          -13.0
+          -5.0,
+          -12.0
         ],
         "rotation": [
           0,
@@ -514,13 +514,13 @@
         ]
       },
       {
-        "id": "e6f8204620ce59a9aaf8defed4bcbe43",
-        "name": "Coin",
+        "id": "7306bc71d0f15fa880c4eb1eba65460b",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
           -2.2,
-          -20.0,
-          -16.0
+          -9.0,
+          -14.0
         ],
         "rotation": [
           0,
@@ -583,13 +583,13 @@
         ]
       },
       {
-        "id": "46f7dfbe6e915885bfb2afc7783f5cba",
-        "name": "Coin",
+        "id": "74286037782a58009a577138f60859c8",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          0.0,
-          -4.0,
-          -10.0
+          -2.2,
+          -14.0,
+          -16.0
         ],
         "rotation": [
           0,
@@ -652,13 +652,13 @@
         ]
       },
       {
-        "id": "c5dad1965aee51a18a8556164823d281",
-        "name": "Coin",
+        "id": "cad35c944bfc5d36b5b7d2d5ec551d80",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          0.0,
-          -12.0,
-          -13.0
+          -2.2,
+          -20.0,
+          -18.0
         ],
         "rotation": [
           0,
@@ -721,13 +721,13 @@
         ]
       },
       {
-        "id": "b506b276e95958779bedf29ca0b8dcc3",
-        "name": "Coin",
+        "id": "e0e4daf9404558a1887ca55913182751",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          0.0,
-          -20.0,
-          -16.0
+          -2.2,
+          -26.0,
+          -20.0
         ],
         "rotation": [
           0,
@@ -790,12 +790,12 @@
         ]
       },
       {
-        "id": "8053ad75efae59739fc5ca1e4d0a6d2f",
-        "name": "Coin",
+        "id": "55e66529e9df510ba16ecf8f7a42341a",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          2.2,
-          -4.0,
+          0.0,
+          -2.0,
           -10.0
         ],
         "rotation": [
@@ -859,13 +859,13 @@
         ]
       },
       {
-        "id": "28516e5a7dc751b89a35b2eaf720ec1b",
-        "name": "Coin",
+        "id": "c746ac220daf58618cf94e981a6a815f",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          2.2,
-          -12.0,
-          -13.0
+          0.0,
+          -5.0,
+          -12.0
         ],
         "rotation": [
           0,
@@ -928,13 +928,13 @@
         ]
       },
       {
-        "id": "f789a1054e145719a1df1bd7d121adef",
-        "name": "Coin",
+        "id": "895073ea9e485e83a0f2ba45d712d133",
+        "name": "Coin Arc",
         "kind": "Group",
         "position": [
-          2.2,
-          -20.0,
-          -16.0
+          0.0,
+          -9.0,
+          -14.0
         ],
         "rotation": [
           0,
@@ -975,6 +975,627 @@
         "children": [
           {
             "id": "2a5a5b1f8b7052db9ad1ad0ef58670be",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "1424c6750bfd5c959caa4740ea009705",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          0.0,
+          -14.0,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "e52e5a96eb865ab18262dba31f6250be",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "3520ae9544585f7fad71ab0fb3642c08",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "f826194213ee50eca6ff5ec09657751b",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "2b6a14ce1c8e59dd904583de81c5e276",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          0.0,
+          -20.0,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "a4dea72f00bc568094f4c9cd2553ce5f",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "dd613c0bb64358efbf24a8c9ac549b37",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "f785f97719c75680a2c402c604bea33e",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "d1b6f1fed06e573d8e615114e2730e4c",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          0.0,
+          -26.0,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "a35812b71568591a97e544a15276d7ef",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "23aaa0dc01a1526b8e6506a31f444ebd",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "aa52a759cc6d5802833db61a85d11705",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "f5dcfc597478589bb8649dd9ed31c039",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -2.0,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "d40d86e0f8735d0697e2b2561fa96b90",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "d299825b5f0d513babf14a01c57ac160",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "800e9dd4c80952a685b8536bbbf6116d",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "5345e71f12015ffa80982ecb4bf511d9",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -5.0,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "1142c254b05d5e4eba97dd30add517f0",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "97c2bb5decbf50e4847da2586dda3be6",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "9f91b4e268425cbdbf4a4366b91dbb7f",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "91f8fb70f83a5004b3dc7d9cdf9c51ad",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -9.0,
+          -14.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "c42403d049025bada37b9fdfdfbd90e7",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "a77d29188f5453e7860e47dca4c13c8e",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "0a41c830c4e6584595fa4f1ac8dd7ff1",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "70bb9c070fc65c32a605632779f5c761",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -14.0,
+          -16.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "f270027144e65816bd9d5a2da1e02e41",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "fd20ffd9211850988644f90e2f26511b",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "1afe4de4b300593a83e4de6215340fc6",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "7502da31eb4f5542b92104a620f61f65",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -20.0,
+          -18.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "7a25f3bced955db88745af6ae850bc3d",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "5dcfe167f7875ef28389b46330f5c24d",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "8f2b6528ebfa5afabbda33c4f84392fd",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "7af4eaf992835a9e92009d8747d2b2c5",
+        "name": "Coin Arc",
+        "kind": "Group",
+        "position": [
+          2.2,
+          -26.0,
+          -20.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "4122bc38984c5110899e23853c99dacd",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "ceb5a32079d35e5bbc877e83ddb34a1b",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "f07ddba4d34c596a91ecb1a397e3433f",
             "name": "Coin Model",
             "kind": "Mesh",
             "position": [

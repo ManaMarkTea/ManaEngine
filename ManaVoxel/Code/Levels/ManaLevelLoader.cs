@@ -688,7 +688,98 @@ namespace ManaVoxel.Code.Levels
         /// entry inside it. Shared with the editor's own placement path rather than re-decoded here; two
         /// copies of that encoding is what broke mesh import once already.
         /// </summary>
+        // Models already read, per world, by asset and the file's write time: a prefab laid again (a runner's sections, a
+        // row of lamps) copies them instead of decoding the glTF once more, which was ~40 ms a section.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ManaWorld, Dictionary<string, ManaSceneNode?>> MeshTemplates = new();
+
         public static ManaSceneNode LoadMeshAsset(string assetReference, ManaWorld world, ManaScene? into = null)
+        {
+            var key = MeshTemplateKey(assetReference);
+            if (key == null)
+            {
+                return ReadMeshAsset(assetReference, world, into);
+            }
+            var templates = MeshTemplates.GetOrCreateValue(world);
+            ManaSceneNode? template;
+            lock (templates)
+            {
+                templates.TryGetValue(key, out template);
+            }
+            if (template == null)
+            {
+                var holding = new ManaScene(world.Context);
+                var read = ReadMeshAsset(assetReference, world, holding);
+                holding.Children.Remove(read);
+                if (!IsPlainModel(read))
+                {
+                    // Rigged or otherwise more than meshes: each one is read afresh, as before.
+                    Adopt(world, read, into);
+                    return read;
+                }
+                lock (templates)
+                {
+                    templates[key] = template = read;
+                }
+            }
+            var copy = CopyModel(template, world.Context);
+            Adopt(world, copy, into);
+            return copy;
+        }
+
+        private static string? MeshTemplateKey(string assetReference)
+        {
+            try
+            {
+                var file = MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out _) ? zipPath : ResolveAssetPath(assetReference);
+                return File.Exists(file) ? $"{assetReference}|{File.GetLastWriteTimeUtc(file).Ticks}" : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>Only plain nodes and mesh renderers -- what <see cref="CopyModel"/> can copy faithfully.</summary>
+        private static bool IsPlainModel(ManaSceneNode node) =>
+            node.GetType() == typeof(ManaSceneNode)
+            && node.Components.All(component => component.GetType() == typeof(MeshRendererComponent))
+            && node.Children.All(IsPlainModel);
+
+        // The meshes are shared; each renderer gets its own material, as a fresh read gave it, so editing one copy's
+        // material in place (the emission and material script commands) leaves the others alone.
+        private static ManaSceneNode CopyModel(ManaSceneNode template, ManaContext context)
+        {
+            var node = new ManaSceneNode(context, template.LocalTransform) { Name = template.Name };
+            foreach (var renderer in template.Components.OfType<MeshRendererComponent>())
+            {
+                node.Components.Add(new MeshRendererComponent(node, renderer.Mesh) { Material = (Mana.Code.Materials.ManaMaterial)renderer.Material.Clone() });
+            }
+            foreach (var child in template.Children)
+            {
+                node.AddChild(CopyModel(child, context));
+            }
+            return node;
+        }
+
+        // Where a read puts a model: in the given scene, or in a scene of its own in the world (the caller moves it out).
+        private static void Adopt(ManaWorld world, ManaSceneNode node, ManaScene? into)
+        {
+            lock (world.SceneLock)
+            {
+                if (into != null)
+                {
+                    into.Children.Add(node);
+                }
+                else
+                {
+                    var scene = new ManaScene(world.Context) { Name = node.Name };
+                    scene.Children.Add(node);
+                    world.Scenes.Add(scene);
+                }
+            }
+        }
+
+        private static ManaSceneNode ReadMeshAsset(string assetReference, ManaWorld world, ManaScene? into)
         {
             if (MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
             {

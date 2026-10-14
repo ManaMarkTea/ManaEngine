@@ -31,7 +31,8 @@ public sealed class IosWindow : IWindow
     /// <summary>The view's size in points, and in pixels at the screen's native scale; the view calls it on layout.</summary>
     public void RefreshSize()
     {
-        var scale = _view.Window?.Screen.NativeScale ?? UIScreen.MainScreen.NativeScale;
+        // At most 2x: a phone's 3x screen is over twice the pixels to shade, for detail nobody sees at arm's length.
+        var scale = Math.Min(2.0, _view.Window?.Screen.NativeScale ?? UIScreen.MainScreen.NativeScale);
         var size = new Vector2D<int>(Math.Max(1, (int)Math.Round(_view.Bounds.Width)), Math.Max(1, (int)Math.Round(_view.Bounds.Height)));
         var framebuffer = new Vector2D<int>(Math.Max(1, (int)Math.Round(_view.Bounds.Width * scale)), Math.Max(1, (int)Math.Round(_view.Bounds.Height * scale)));
         if (size == _size && framebuffer == _framebufferSize)
@@ -42,7 +43,7 @@ public sealed class IosWindow : IWindow
         _framebufferSize = framebuffer;
         if (_view.Layer is CAMetalLayer layer)
         {
-            layer.ContentsScale = scale;
+            layer.ContentsScale = (System.Runtime.InteropServices.NFloat)scale;
         }
         if (_loaded)
         {
