@@ -58,5 +58,15 @@ public static class ContentAssetChecks
 
         check("every prefab in Content loads and places into a level without a warning", broken.Count == 0,
             broken.Count == 0 ? $"{prefabs.Count} prefabs" : string.Join(" | ", broken));
+
+        // Assets/Catalog.md is how anyone laying out content finds what there is; a pack missing from it is invisible.
+        var assets = Path.Combine(Path.GetDirectoryName(ManaContentLibrary.Root) ?? ".", "Assets");
+        var catalog = Path.Combine(assets, "Catalog.md");
+        var headings = File.Exists(catalog) ? File.ReadLines(catalog).Select(line => line.TrimEnd()).ToHashSet() : [];
+        var missing = Directory.Exists(assets)
+            ? Directory.EnumerateFiles(assets, "*.zip").Select(Path.GetFileNameWithoutExtension).Where(pack => !headings.Contains($"## {pack}")).ToList()
+            : [];
+        check("every pack in Assets/ is in Assets/Catalog.md (python Tools/Assets/catalog_assets.py)", File.Exists(catalog) && missing.Count == 0,
+            missing.Count == 0 ? "" : "missing: " + string.Join(", ", missing));
     }
 }

@@ -190,6 +190,15 @@ in it) is never touched. On the Mac itself: `Tools/ManaLidar/deploy-ios.sh [Debu
   them as floats (`MemoryMarshal.Cast<Vector3, float>`, as `ManaWebGpuMesh.BuildVertices` does). Symbolicate a phone
   crash with `atos -o <app>/ManaVoxel.iOS -l <base>` on the Mac (`devicectl device copy from --domain-type systemCrashLogs`).
 
+## What assets there are
+
+`Assets/Catalog.md` lists every model the project can place -- each pack in `Assets/*.zip` and the loose
+`Mana/Assets/Models` -- with its size in metres (and its origin when not centred on the ground) and its animation clips,
+plus the picture packs and `Content/`'s own prefabs and sprite assets. Read it before laying out a level or a prefab
+rather than opening packs. It is generated: `python Tools/Assets/catalog_assets.py` after adding or changing a pack
+(the content checks fail on a pack it is missing); `--sheets` also draws each pack's previews into
+`Library/AssetPreviews/<pack>.png`, to see what the pieces look like.
+
 ## Thumbnails
 
 The editor's Import and Project panels make a model's or asset's thumbnail the first time its tile is on screen and keep it in
