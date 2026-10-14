@@ -1,0 +1,3741 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "fe0e0379dee051d6a52a4f48f0995137",
+  "name": "Crypt Tombs",
+  "root": {
+    "id": "67506706f554560ea1b5d33950be26c1",
+    "name": "Crypt Tombs",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "43a3fdbc9bfa5b67994eab0235351638",
+        "name": "Crypt",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0.0,
+          -5.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          1.25,
+          1.25,
+          1.25
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide.glb"
+      },
+      {
+        "id": "23e64f21a1fe500da57a56e579034c6b",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          3.0,
+          -7.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "58e71834f12b59608558769aec9c84df",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "003a058fc63559269cdbe2c87b06e99b",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          3.0,
+          -2.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "0d2ca7d233085945b6950a995050bafb",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "989efab89b1e50e78fabfce3d645759c",
+        "name": "Crypt",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          1.25,
+          1.25,
+          1.25
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide-junction.glb"
+      },
+      {
+        "id": "afccc24c9888508195be33753199f0a0",
+        "name": "Passage",
+        "kind": "Mesh",
+        "position": [
+          -10.0,
+          0.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          1.25,
+          1.25
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide.glb"
+      },
+      {
+        "id": "a6730a19ab015f5a9a828d97a8d6064d",
+        "name": "Passage End",
+        "kind": "Mesh",
+        "position": [
+          -20.0,
+          0.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.25,
+          1.25,
+          1.25
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide-end.glb"
+      },
+      {
+        "id": "84452a6cbd955b6082ee4617bf0b7493",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -23.4,
+          3.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "8c0c9c3febce5d448458290e11291253",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "e902e88c739255f3909e1e09a57aa46b",
+        "name": "Statue",
+        "kind": "Mesh",
+        "position": [
+          -22.4,
+          0.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          2.6,
+          2.6,
+          2.6
+        ],
+        "asset": "zip:kenney_mini-arena.zip/Models/GLB format/statue.glb"
+      },
+      {
+        "id": "c31fb2d59cc05ec8ba141e777c513291",
+        "name": "Coffin",
+        "kind": "Shape",
+        "position": [
+          -10.0,
+          0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.5,
+          0.66,
+          1
+        ],
+        "size": [
+          1.2,
+          0.6,
+          1.8
+        ]
+      },
+      {
+        "id": "5d4806a3bb7d51bbbbce01fa45d3be4c",
+        "name": "Coffin Lid",
+        "kind": "Shape",
+        "position": [
+          -10.0,
+          0.68,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.62,
+          0.62,
+          0.78,
+          1
+        ],
+        "size": [
+          1.3,
+          0.16,
+          1.9
+        ]
+      },
+      {
+        "id": "cb07e55c7d6a5cabb61cef4688b3429b",
+        "name": "Coffin",
+        "kind": "Shape",
+        "position": [
+          -15.5,
+          0.3,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.5,
+          0.66,
+          1
+        ],
+        "size": [
+          1.2,
+          0.6,
+          1.8
+        ]
+      },
+      {
+        "id": "0856634b4ebc53c8aa22473f1b933bba",
+        "name": "Coffin Lid",
+        "kind": "Shape",
+        "position": [
+          -15.5,
+          0.68,
+          -12.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.62,
+          0.62,
+          0.78,
+          1
+        ],
+        "size": [
+          1.3,
+          0.16,
+          1.9
+        ]
+      },
+      {
+        "id": "7e2908d4f9445d2098cdc4440e9f166b",
+        "name": "Chest",
+        "kind": "Mesh",
+        "position": [
+          -19.0,
+          0.0,
+          -17.8
+        ],
+        "rotation": [
+          0,
+          -0.4,
+          0
+        ],
+        "scale": [
+          2.4,
+          2.4,
+          2.4
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/chest.glb"
+      },
+      {
+        "id": "1bb1808af0bb5716b32725fa079e466b",
+        "name": "Pot",
+        "kind": "Mesh",
+        "position": [
+          -12.5,
+          0.0,
+          -18.1
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.2,
+          2.2,
+          2.2
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/pot.glb"
+      },
+      {
+        "id": "90133b13dcc95c19a3981e8e5519f885",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          -13.0,
+          1.6,
+          -11.3
+        ],
+        "rotation": [
+          0,
+          3.14159,
+          0
+        ],
+        "scale": [
+          2.6,
+          2.6,
+          2.6
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "4f3afeb97c785a7ebc771f40b555ee9c",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          3.0,
+          -12.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "c34def9d10725c00bd32377d73b150d2",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5f69311318853fbb18609faecebc0ce",
+        "name": "Crypt",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0.0,
+          -25.0
+        ],
+        "rotation": [
+          0,
+          1.5708,
+          0
+        ],
+        "scale": [
+          1.25,
+          1.25,
+          1.25
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide.glb"
+      },
+      {
+        "id": "9dcc78348a7b50d0a5d7cafeda16073a",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -3.45,
+          3.0,
+          -27.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "0b40e55a5c1c5c89abcae9f5c3c4ea72",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "748f0f6bff2a50b5b502a75d7809aa41",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          3.45,
+          3.0,
+          -22.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "aa181c7470a65ccab11b836bd3d7b568",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "d015482b2a295354a53ca1a5a8b3dc90",
+        "name": "Ground Floor",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          -0.23,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.44,
+          0.41,
+          0.39,
+          1
+        ],
+        "size": [
+          7.6,
+          0.4,
+          30.0
+        ]
+      },
+      {
+        "id": "54df51a30da8593abccb1d1a0511af4d",
+        "name": "Ceiling",
+        "kind": "Shape",
+        "position": [
+          0,
+          6.0,
+          -15.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.1,
+          0.09,
+          0.13,
+          1
+        ],
+        "size": [
+          64.0,
+          0.6,
+          30.0
+        ]
+      },
+      {
+        "id": "c25f4eedf22e52418bf69a7d0af400dd",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.0,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "1528dcff1c715595a574f0682a63fa71",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "2e66c50d8a0a579f942334ba41a39e41",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "cd20f08fb2fb5d4ea7e007c54e0104ef",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "b5f40d7a867a5233b42a9ca4d6967e0c",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "abf3546fe5085e4297bcd29e3e9f704a",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "751c4b469c8953c29d045865e960ea59",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.0,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "7cfa8f59851a55ca8b9d6ab3e8356523",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "ac81e94a88f85e82a8e2b5508bf7eb65",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "3652a7bf26b951029de7a62a87c5274f",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "779ff459216955f392dcd6dd12510b0f",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "5174cb92306a53a7adf926c80a5ba361",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "2c655e45e10c56419f3dac2daa072db5",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -2.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "54c6e47cd13e50a482e996db67c077e6",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "ffad134ba01f5599b2ad7d5e70299fa8",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "987e5038bda45398be327d5f37774e15",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "883253e2ffcb514f9372c4721a220b94",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -4.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "666cef06e20a54949e73d45a39f90f6f",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "ac228f6a2359550b8e30453807a26030",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "6c63bfbe14b955b68ab802becdcd5156",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "90936517f84f5347a0cf0485cab0e504",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -6.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "c4f9f037508d5e12972f1b7c22298ef3",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "193c98f33a095b4d95c15929d0001f09",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "2d8dd172658e5a1bb62df3ef5f001dd8",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "87b1f836cde1593eb0d161b6e5564721",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -8.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "23e00d7683e457b4b99582d96e612b2b",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "1c385883d82756478757c49dd20ae885",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "9c7a715e5cf950678a93651f47c492af",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "35c43d62aa6f59118c9f3c5ac6dab1d1",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.55,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "f9f9a7c3dd49596d9c98fa1b6b6eb5c9",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "5e2e9ab692c450edbadc326a87500d0a",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "80573c6ca83155779be45bb25fa80f5d",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "c22ab21013455d2cb85b5ea8a8d23da2",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.0,
+          -14.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "2a289882f18555bea7eba84d8213b926",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "565fc0f5cb22599cb01a7ecf71690681",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "b733938a3636543ea10deef3b08c8bf3",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "ce76a97bd1585c1f9b0b5f4d6baca9a2",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "5406ffecfd2e50e3aba8b10fd8a6a540",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "9da897c247b15b4bbd2169377437b077",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.8379,
+          -11.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "da21994a9e2a5b0a8c88b275ebdb1a90",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "de87f92cd9de58fbae977400a3b81316",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "1f9eae9b72d15513a8c96a6c33a34ae5",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "6c0d0557aeaa58019e87da7ac1998ca2",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.597,
+          -12.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "3b9c11b3d2d75cd39a51e49f03dfcd1e",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "2115f77f1a7d5512981ac07cc41d7a41",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "3eef46cac94955a8a211df7757c7eeab",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "d16511c03314559bbfa8a7e3590a0be4",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.85,
+          -14.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "afb5c4260f7c56fbb697e2fcd6b4cd53",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "afc72b07f1bc50b79f086b756a92d5fa",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "0e99f8ae66e55569a9511e87b0c3773e",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "bef511d64c6f57949f205e16308f3622",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.597,
+          -15.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "25cf91f56239518381212cab8cc29cbb",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "98346dd6c2d75743affd2ba3fee249ff",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "32e2eae4332e5782a65da0147d88d010",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "bc14969d4c215748ad8c5e712b679815",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.8379,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "76bf7b45476e513ca00211c63c424c14",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "0a2ad14dd75450969644697968a3d82b",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "e95df4bda0d453948976a814e6ee1340",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "84644268d0db53578f670f7f64037535",
+        "name": "Enemy Charge",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.0,
+          -22.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "ae93230083625d68a0ceda1515443380",
+            "name": "Skull",
+            "kind": "Shape",
+            "position": [
+              0,
+              1.22,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.42,
+              0.4,
+              0.4
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "281009c1be515a28a913712b3707df26",
+            "name": "Jaw",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.99,
+              0.03
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.32,
+              0.08,
+              0.3
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "6e61e50264985cc19ed583c0f4b0c728",
+            "name": "Eye",
+            "kind": "Shape",
+            "position": [
+              -0.09,
+              1.25,
+              0.2
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1,
+              0.15,
+              0.1,
+              1
+            ],
+            "size": [
+              0.1,
+              0.08,
+              0.03
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.15,
+                0.1
+              ],
+              "emissionStrength": 5.0,
+              "unlit": true
+            }
+          },
+          {
+            "id": "ad58ac2874d6504698bfed33f2db6132",
+            "name": "Eye",
+            "kind": "Shape",
+            "position": [
+              0.09,
+              1.25,
+              0.2
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1,
+              0.15,
+              0.1,
+              1
+            ],
+            "size": [
+              0.1,
+              0.08,
+              0.03
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.15,
+                0.1
+              ],
+              "emissionStrength": 5.0,
+              "unlit": true
+            }
+          },
+          {
+            "id": "173d6af1a07e531e9ad3832a98b793b0",
+            "name": "Nose",
+            "kind": "Shape",
+            "position": [
+              0,
+              1.15,
+              0.2
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.0,
+              0.0,
+              0.0,
+              1
+            ],
+            "size": [
+              0.05,
+              0.07,
+              0.02
+            ]
+          },
+          {
+            "id": "0db315fb676c5606ab0a12040e5971be",
+            "name": "Spine",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.7,
+              -0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.07,
+              0.55,
+              0.07
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "5dabfb4c302f5993a23f00abfa5a8240",
+            "name": "Pelvis",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.45,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.34,
+              0.1,
+              0.16
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "0e1282d1e1f15d4e90135fda38dabdb5",
+            "name": "Rib",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.88,
+              0.02
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.4,
+              0.05,
+              0.22
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "063f11ebed0559d0acf935f9a0061c29",
+            "name": "Rib",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.78,
+              0.02
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.35,
+              0.05,
+              0.22
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "6be8da86460b5d40adf20961d105bc93",
+            "name": "Rib",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.68,
+              0.02
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.3,
+              0.05,
+              0.22
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "64e83b0e361255f5bcc31e7d5ad4b004",
+            "name": "Leg",
+            "kind": "Shape",
+            "position": [
+              -0.1,
+              0.22,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.08,
+              0.45,
+              0.08
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "09dfa5b9848257a78fcfa536fec24c96",
+            "name": "Foot",
+            "kind": "Shape",
+            "position": [
+              -0.1,
+              0.025,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.12,
+              0.05,
+              0.2
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "0f93651eaa9852a8875f25b5c117ecf5",
+            "name": "Arm",
+            "kind": "Shape",
+            "position": [
+              -0.25,
+              0.86,
+              0.18
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.07,
+              0.07,
+              0.44
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "4a3b80ca0236599dbc909e4a75a04d6d",
+            "name": "Hand",
+            "kind": "Shape",
+            "position": [
+              -0.25,
+              0.84,
+              0.42
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.1,
+              0.1,
+              0.08
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "8b7936ece5af5d0da0487d6acd8205a5",
+            "name": "Leg",
+            "kind": "Shape",
+            "position": [
+              0.1,
+              0.22,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.08,
+              0.45,
+              0.08
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "9380e0182efe5fd69a01668b3217bec1",
+            "name": "Foot",
+            "kind": "Shape",
+            "position": [
+              0.1,
+              0.025,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.12,
+              0.05,
+              0.2
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "7a03af8da15254e18f266c1be74dd5ca",
+            "name": "Arm",
+            "kind": "Shape",
+            "position": [
+              0.25,
+              0.86,
+              0.18
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.07,
+              0.07,
+              0.44
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          },
+          {
+            "id": "930ae4b286e9597ebec2cd03fc03ef38",
+            "name": "Hand",
+            "kind": "Shape",
+            "position": [
+              0.25,
+              0.84,
+              0.42
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.1,
+              0.1,
+              0.08
+            ],
+            "material": {
+              "roughness": 0.8,
+              "emission": [
+                0.93,
+                0.9,
+                0.82
+              ],
+              "emissionStrength": 0.12
+            }
+          }
+        ]
+      },
+      {
+        "id": "0881774dbd3b5046bebbbf86b0c6adb7",
+        "name": "PowerUp Shield",
+        "kind": "Mesh",
+        "position": [
+          2.2,
+          0.45,
+          -17.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2.4,
+          2.4,
+          2.4
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/potion.glb",
+        "scripts": [
+          {
+            "id": "884cee45e29e5727b67d55fac79d74f3",
+            "type": "Glow",
+            "properties": {
+              "color": [
+                0.3,
+                0.6,
+                1.0,
+                1
+              ],
+              "strength": 1.8,
+              "lightRange": 4.0,
+              "lightIntensity": 1.5,
+              "lightOffset": [
+                0,
+                0.4,
+                0
+              ],
+              "pulseSpeed": 1.2,
+              "enabled": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "3a28c2eeb6b358f8a08ce74252ffd6d7",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          -2.2,
+          0.0,
+          -26.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "600d7d217af855c0b43995f666a5fd67",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "30a43026b5925cb7b65e7a62dd9d3dbd",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "9d571864e7a952aa9edd3c3403a7047f",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "94f3a262e12d5b0b9bb0fd5a5d78225d",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "45b130fabba1542fab6ed52189d82465",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "87d79c4a735f53e5ac9ec067bee2bc47",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.0,
+          -26.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "ffda11f1e1ce5867bb44a3ec7322d4df",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "17da81c899db529ab67a1254ebbb14ff",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "701a04f3d7e257629b429f09a37dee0a",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "3c8f4f24a5cc5f00b8cfe5e76b57e89b",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "4c15a972a8ec544ea186a973663a4d72",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "8b6b0a9862e75acd8f60a7f8cb7e889d",
+        "name": "Obstacle Tomb",
+        "kind": "Group",
+        "position": [
+          2.2,
+          0.0,
+          -26.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "children": [
+          {
+            "id": "a2c021ad0e56599d9d73f422a17ad2f9",
+            "name": "Tomb",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.3,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.5,
+              0.5,
+              0.66,
+              1
+            ],
+            "size": [
+              1.8,
+              0.6,
+              2.4
+            ]
+          },
+          {
+            "id": "35f9db389b17531899a6ce3790d66a7a",
+            "name": "Lid",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.71,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.62,
+              0.62,
+              0.78,
+              1
+            ],
+            "size": [
+              1.95,
+              0.22,
+              2.55
+            ]
+          },
+          {
+            "id": "8163b339989c53788a1156833ea83c1d",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.05
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.16,
+              0.06,
+              1.4
+            ]
+          },
+          {
+            "id": "adc75303c0295640843f641478c19f0d",
+            "name": "Cross",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.85,
+              0.4
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              0.93,
+              0.9,
+              0.82,
+              1
+            ],
+            "size": [
+              0.85,
+              0.06,
+              0.16
+            ]
+          },
+          {
+            "id": "4627bd0ac9535cefbfdafed576722b74",
+            "name": "Glow Edge",
+            "kind": "Shape",
+            "position": [
+              0,
+              0.83,
+              1.29
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "shape": "Cube",
+            "color": [
+              1.0,
+              0.6,
+              0.18,
+              1
+            ],
+            "size": [
+              1.95,
+              0.06,
+              0.06
+            ],
+            "material": {
+              "emission": [
+                1.0,
+                0.6,
+                0.18
+              ],
+              "emissionStrength": 4.0,
+              "unlit": true
+            }
+          }
+        ]
+      },
+      {
+        "id": "7db65f4dbe725fb799322d00e045c022",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.8379,
+          -23.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "02245c63478957da8a700870269edd93",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "380cc5686d3c5730a14066e9b61f5a45",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "2d865dc7033356faaba6b91555e05843",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "f91d83b4dc6f59c3862aa323fa9500e7",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.597,
+          -25.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "9582bad348ef5f5b8eeea570a860661a",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "d3e7f1c38c285abfbd6cb90f021ee9d5",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "106d9438fabc5c2a85aaeb59eeffcdfb",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "6d029472b40a5c638b6da797c5a7882f",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.85,
+          -26.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "5bb7ec0f617052568c205cee716e1734",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "8d61b469e3bb567dbebddfe862095885",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "2a7a090a3afa564f89978141f8778f78",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "e89ad01bbb8355be80d522ceac523cd0",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          1.597,
+          -28.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "09e585d78b8b5318951545076fefb4a8",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "69655cb830c158fda12d3cdc81989e22",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "0bd03d880d4759ab8e4cc0aa13330ada",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      },
+      {
+        "id": "c3114bc29107503282196fbfe9b3e2d0",
+        "name": "Coin",
+        "kind": "Group",
+        "position": [
+          0.0,
+          0.8379,
+          -29.5
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "36dd06bb39b55bfabe7549e816142870",
+            "type": "Trigger",
+            "properties": {
+              "size": [
+                1.0,
+                1.2,
+                1.0
+              ],
+              "offset": [
+                0,
+                0.3,
+                0
+              ]
+            }
+          },
+          {
+            "id": "cb73cf46ffc35d2a8fc1c8359b457539",
+            "type": "Collectible",
+            "properties": {
+              "value": 1,
+              "spinDegreesPerSecond": 180
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "5e0541be3a89558fb782852897079f7b",
+            "name": "Coin Model",
+            "kind": "Mesh",
+            "position": [
+              0,
+              0.0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1.4,
+              1.4,
+              1.4
+            ],
+            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
+          }
+        ]
+      }
+    ]
+  },
+  "properties": []
+}

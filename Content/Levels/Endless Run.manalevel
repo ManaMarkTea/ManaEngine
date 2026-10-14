@@ -28,6 +28,7 @@
       "type": "Runner",
       "properties": {
         "music": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav",
+        "beachMusic": "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
         "coinSound": "Assets/Audio/Starter/Gameplay/pickup.wav",
         "jumpSound": "Assets/Audio/Starter/Gameplay/jump.wav",
         "landSound": "Assets/Audio/Starter/Gameplay/land.wav",

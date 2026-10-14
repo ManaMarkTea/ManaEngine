@@ -24,141 +24,34 @@
     ],
     "children": [
       {
-        "id": "0fbdfab776735e17ac30bc4d2d2fd322",
-        "name": "Ground Floor",
-        "kind": "Shape",
+        "id": "3c89069e5e92587c91a36508e4e842ea",
+        "name": "Crypt",
+        "kind": "Mesh",
         "position": [
+          0,
           0.0,
-          -0.18,
-          -3.0
+          -5.0
         ],
         "rotation": [
           0,
-          0,
+          1.5708,
           0
         ],
         "scale": [
-          1,
-          1,
-          1
+          1.25,
+          1.25,
+          1.25
         ],
-        "shape": "Cube",
-        "color": [
-          0.44,
-          0.41,
-          0.39,
-          1
-        ],
-        "size": [
-          7.6,
-          0.4,
-          6.0
-        ]
-      },
-      {
-        "id": "ace96e55c1695ff19f66cd6baa2006ef",
-        "name": "Wall",
-        "kind": "Shape",
-        "position": [
-          -4.3,
-          3.0,
-          -2.5
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          1.0,
-          6.4,
-          5.0
-        ]
-      },
-      {
-        "id": "8806732f390d591ca7ddecf772e0a7be",
-        "name": "Wall",
-        "kind": "Shape",
-        "position": [
-          4.3,
-          3.0,
-          -2.5
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          1.0,
-          6.4,
-          5.0
-        ]
-      },
-      {
-        "id": "7d4e8620731558c78f59ec81bfe7d4d4",
-        "name": "Ceiling",
-        "kind": "Shape",
-        "position": [
-          0,
-          6.0,
-          -2.5
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.44,
-          0.41,
-          0.39,
-          1
-        ],
-        "size": [
-          9.6,
-          0.6,
-          5.0
-        ]
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/corridor-wide.glb"
       },
       {
         "id": "c75ce6b3ec725b88930055784d7a0695",
         "name": "Torch",
         "kind": "Shape",
         "position": [
-          -3.65,
-          3.2,
-          -3.0
+          -3.45,
+          3.0,
+          -7.5
         ],
         "rotation": [
           0,
@@ -211,141 +104,13 @@
         ]
       },
       {
-        "id": "2d3e1665cf06557caa1aa74612e1197a",
-        "name": "Gate Wall",
-        "kind": "Shape",
-        "position": [
-          -17.4,
-          6.0,
-          -6.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          27.2,
-          14.0,
-          2.0
-        ]
-      },
-      {
-        "id": "f436c1095ca0545d89196c9f8563c852",
-        "name": "Gate Wall",
-        "kind": "Shape",
-        "position": [
-          17.4,
-          6.0,
-          -6.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          27.2,
-          14.0,
-          2.0
-        ]
-      },
-      {
-        "id": "15ee9cb84b585924af73aeeb365153d1",
-        "name": "Gate Lintel",
-        "kind": "Shape",
-        "position": [
-          0,
-          9.3,
-          -6.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          7.8,
-          7.4,
-          2.0
-        ]
-      },
-      {
-        "id": "557d3875c21854ad9ebf5c7586c03221",
-        "name": "Gate Arch",
-        "kind": "Shape",
-        "position": [
-          0,
-          5.75,
-          -7.05
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.44,
-          0.41,
-          0.39,
-          1
-        ],
-        "size": [
-          8.2,
-          0.5,
-          0.25
-        ]
-      },
-      {
         "id": "e01459950eb8577cba750e8ef439ccd6",
         "name": "Torch",
         "kind": "Shape",
         "position": [
-          -5.4,
-          4.2,
-          -7.2
+          3.45,
+          3.0,
+          -2.5
         ],
         "rotation": [
           0,
@@ -398,255 +163,16 @@
         ]
       },
       {
-        "id": "e5e43a217ac65382ac272f1a9f40054c",
-        "name": "Banner",
-        "kind": "Mesh",
-        "position": [
-          -7.8,
-          3.0,
-          -7.1
-        ],
-        "rotation": [
-          0,
-          3.14159,
-          0
-        ],
-        "scale": [
-          3.0,
-          3.0,
-          3.0
-        ],
-        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
-      },
-      {
-        "id": "856abd2c8c825f2b8a7be07b370bf800",
-        "name": "Torch",
+        "id": "0fbdfab776735e17ac30bc4d2d2fd322",
+        "name": "Ground Floor",
         "kind": "Shape",
         "position": [
-          5.4,
-          4.2,
-          -7.2
+          0.0,
+          -0.23,
+          -5.0
         ],
         "rotation": [
           0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          1.0,
-          0.62,
-          0.25,
-          1
-        ],
-        "size": [
-          0.25,
-          0.4,
-          0.25
-        ],
-        "material": {
-          "emission": [
-            1.0,
-            0.62,
-            0.25
-          ],
-          "emissionStrength": 4.0
-        },
-        "scripts": [
-          {
-            "id": "3ac96de1beeb5395bb80030433c0959b",
-            "type": "Light",
-            "properties": {
-              "color": [
-                1,
-                0.62,
-                0.3,
-                1
-              ],
-              "intensity": 4.5,
-              "range": 14,
-              "lightType": "Point",
-              "flickerAmount": 0.35,
-              "flickerSpeed": 8
-            }
-          }
-        ]
-      },
-      {
-        "id": "ef66c1b2f4a0598493dd4c6e02a2e527",
-        "name": "Banner",
-        "kind": "Mesh",
-        "position": [
-          7.8,
-          3.0,
-          -7.1
-        ],
-        "rotation": [
-          0,
-          3.14159,
-          0
-        ],
-        "scale": [
-          3.0,
-          3.0,
-          3.0
-        ],
-        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
-      },
-      {
-        "id": "95ac9caf27325614ae17b4b9aa5d0bec",
-        "name": "Hill",
-        "kind": "Shape",
-        "position": [
-          0,
-          13.6,
-          3.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          56.0,
-          1.2,
-          18.0
-        ]
-      },
-      {
-        "id": "0ddb65f75b3a57989a301e9046957381",
-        "name": "Hill Shoulder",
-        "kind": "Shape",
-        "position": [
-          -16.0,
-          14.6,
-          3.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Icosphere",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          14.0,
-          1.4,
-          14.0
-        ]
-      },
-      {
-        "id": "efc82862319f59458e3eddb6eac98aa2",
-        "name": "Palm",
-        "kind": "Mesh",
-        "position": [
-          -12.0,
-          14.2,
-          0.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.1,
-          1.1,
-          1.1
-        ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
-      },
-      {
-        "id": "4f2fafc8592151cbb0abbbd7c32e952e",
-        "name": "Hill Shoulder",
-        "kind": "Shape",
-        "position": [
-          16.0,
-          14.6,
-          3.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Icosphere",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          14.0,
-          1.4,
-          14.0
-        ]
-      },
-      {
-        "id": "d06dda3cf2425630a21204a373d1a900",
-        "name": "Palm",
-        "kind": "Mesh",
-        "position": [
-          12.0,
-          14.2,
-          0.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1.1,
-          1.1,
-          1.1
-        ],
-        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
-      },
-      {
-        "id": "77a28b6e774b55328ade67ca12b91812",
-        "name": "Ramp Up",
-        "kind": "Shape",
-        "position": [
-          0,
-          4.82,
-          -16.0
-        ],
-        "rotation": [
-          0.46365,
           0,
           0
         ],
@@ -664,18 +190,18 @@
         ],
         "size": [
           7.6,
-          0.36,
-          22.3607
+          0.4,
+          10.0
         ]
       },
       {
-        "id": "b074e265347551b893f4f849bfa1857f",
-        "name": "Trench Wall",
+        "id": "7d4e8620731558c78f59ec81bfe7d4d4",
+        "name": "Ceiling",
         "kind": "Shape",
         "position": [
-          -4.3,
-          4.5,
-          -16.0
+          0,
+          6.0,
+          -5.0
         ],
         "rotation": [
           0,
@@ -689,111 +215,15 @@
         ],
         "shape": "Cube",
         "color": [
-          0.5,
-          0.47,
-          0.5,
+          0.1,
+          0.09,
+          0.13,
           1
         ],
         "size": [
-          1.0,
-          11.0,
-          20.0
-        ]
-      },
-      {
-        "id": "87a5996bd617599fac70b92592d74425",
-        "name": "Trench Wall",
-        "kind": "Shape",
-        "position": [
-          4.3,
-          4.5,
-          -16.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.5,
-          0.47,
-          0.5,
-          1
-        ],
-        "size": [
-          1.0,
-          11.0,
-          20.0
-        ]
-      },
-      {
-        "id": "1be888aed6ae5994b700be8b4c3f77f3",
-        "name": "Verge",
-        "kind": "Shape",
-        "position": [
-          -26.0,
-          9.97,
-          -16.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          40.0,
-          0.2,
-          20.0
-        ]
-      },
-      {
-        "id": "e89b1e51f9df53d2ae9592323ca1dc5f",
-        "name": "Verge",
-        "kind": "Shape",
-        "position": [
-          26.0,
-          9.97,
-          -16.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          40.0,
-          0.2,
-          20.0
+          64.0,
+          0.6,
+          10.0
         ]
       },
       {
@@ -803,7 +233,7 @@
         "position": [
           0.0,
           0.55,
-          -7.0
+          -1.0
         ],
         "rotation": [
           0,
@@ -871,8 +301,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          1.6611,
-          -9.0
+          0.55,
+          -3.0
         ],
         "rotation": [
           0,
@@ -940,8 +370,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          2.7722,
-          -11.0
+          0.55,
+          -5.0
         ],
         "rotation": [
           0,
@@ -1009,8 +439,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          3.8833,
-          -13.0
+          0.55,
+          -7.0
         ],
         "rotation": [
           0,
@@ -1078,8 +508,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          4.9944,
-          -15.0
+          0.55,
+          -9.0
         ],
         "rotation": [
           0,
@@ -1142,13 +572,134 @@
         ]
       },
       {
+        "id": "881a87d7f97150d797857bb3c337be0f",
+        "name": "Stairs",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0.0,
+          -14.8148
+        ],
+        "rotation": [
+          0,
+          3.14159,
+          0
+        ],
+        "scale": [
+          1.234567901234568,
+          1.234567901234568,
+          1.234567901234568
+        ],
+        "asset": "zip:kenney_modular-dungeon-kit_1.0.zip/Models/GLB format/stairs-wide.glb"
+      },
+      {
+        "id": "77a28b6e774b55328ade67ca12b91812",
+        "name": "Ramp Up",
+        "kind": "Shape",
+        "position": [
+          0,
+          2.32,
+          -13.1481
+        ],
+        "rotation": [
+          0.67114,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.44,
+          0.41,
+          0.39,
+          1
+        ],
+        "size": [
+          7.6,
+          0.36,
+          9.2401
+        ],
+        "material": {
+          "opacity": 0.0,
+          "opacityMode": "Blend"
+        }
+      },
+      {
+        "id": "9456fac244695b5a86c479437c244b9f",
+        "name": "Header",
+        "kind": "Shape",
+        "position": [
+          0,
+          8.2,
+          -10.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.5,
+          0.66,
+          1
+        ],
+        "size": [
+          12.0,
+          5.8,
+          0.6
+        ]
+      },
+      {
+        "id": "582e5cbd4e6d5139aefbb45d654ff8cd",
+        "name": "Ceiling",
+        "kind": "Shape",
+        "position": [
+          0,
+          10.8,
+          -14.1481
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.1,
+          0.09,
+          0.13,
+          1
+        ],
+        "size": [
+          12.0,
+          0.6,
+          28.2963
+        ]
+      },
+      {
         "id": "54279e94f15d531392d337f25869e8b2",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          6.1056,
-          -17.0
+          0.55,
+          -10.5
         ],
         "rotation": [
           0,
@@ -1216,8 +767,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          7.2167,
-          -19.0
+          2.4381,
+          -12.5
         ],
         "rotation": [
           0,
@@ -1285,8 +836,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          8.3278,
-          -21.0
+          4.3262,
+          -14.5
         ],
         "rotation": [
           0,
@@ -1349,13 +900,823 @@
         ]
       },
       {
+        "id": "2d29d40abe81510788b0aa997d1ccc1e",
+        "name": "Ground Threshold",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          4.77,
+          -20.1481
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.47,
+          0.5,
+          1
+        ],
+        "size": [
+          7.6,
+          0.4,
+          7.7037
+        ]
+      },
+      {
+        "id": "2d3e1665cf06557caa1aa74612e1197a",
+        "name": "Gate Wall",
+        "kind": "Shape",
+        "position": [
+          -17.4,
+          8.0,
+          -18.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.47,
+          0.5,
+          1
+        ],
+        "size": [
+          27.2,
+          8.0,
+          2.0
+        ]
+      },
+      {
+        "id": "f436c1095ca0545d89196c9f8563c852",
+        "name": "Gate Wall",
+        "kind": "Shape",
+        "position": [
+          17.4,
+          8.0,
+          -18.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.47,
+          0.5,
+          1
+        ],
+        "size": [
+          27.2,
+          8.0,
+          2.0
+        ]
+      },
+      {
+        "id": "15ee9cb84b585924af73aeeb365153d1",
+        "name": "Gate Lintel",
+        "kind": "Shape",
+        "position": [
+          0,
+          11.3,
+          -18.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.5,
+          0.47,
+          0.5,
+          1
+        ],
+        "size": [
+          7.8,
+          1.4,
+          2.0
+        ]
+      },
+      {
+        "id": "557d3875c21854ad9ebf5c7586c03221",
+        "name": "Gate Arch",
+        "kind": "Shape",
+        "position": [
+          0,
+          10.75,
+          -19.3463
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.44,
+          0.41,
+          0.39,
+          1
+        ],
+        "size": [
+          8.2,
+          0.5,
+          0.25
+        ]
+      },
+      {
+        "id": "856abd2c8c825f2b8a7be07b370bf800",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          -5.4,
+          9.2,
+          -19.4963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "3ac96de1beeb5395bb80030433c0959b",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5e43a217ac65382ac272f1a9f40054c",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          -7.8,
+          8.0,
+          -19.3963
+        ],
+        "rotation": [
+          0,
+          3.14159,
+          0
+        ],
+        "scale": [
+          3.0,
+          3.0,
+          3.0
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "42fb450f237954ec9ea7248c7a527393",
+        "name": "Torch",
+        "kind": "Shape",
+        "position": [
+          5.4,
+          9.2,
+          -19.4963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          1.0,
+          0.62,
+          0.25,
+          1
+        ],
+        "size": [
+          0.25,
+          0.4,
+          0.25
+        ],
+        "material": {
+          "emission": [
+            1.0,
+            0.62,
+            0.25
+          ],
+          "emissionStrength": 4.0
+        },
+        "scripts": [
+          {
+            "id": "d8a8dc9290df5482a7890cb4215b84f8",
+            "type": "Light",
+            "properties": {
+              "color": [
+                1,
+                0.62,
+                0.3,
+                1
+              ],
+              "intensity": 4.5,
+              "range": 14,
+              "lightType": "Point",
+              "flickerAmount": 0.35,
+              "flickerSpeed": 8
+            }
+          }
+        ]
+      },
+      {
+        "id": "ef66c1b2f4a0598493dd4c6e02a2e527",
+        "name": "Banner",
+        "kind": "Mesh",
+        "position": [
+          7.8,
+          8.0,
+          -19.3963
+        ],
+        "rotation": [
+          0,
+          3.14159,
+          0
+        ],
+        "scale": [
+          3.0,
+          3.0,
+          3.0
+        ],
+        "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/banner.glb"
+      },
+      {
+        "id": "95ac9caf27325614ae17b4b9aa5d0bec",
+        "name": "Hill",
+        "kind": "Shape",
+        "position": [
+          0,
+          12.6,
+          -9.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          56.0,
+          1.2,
+          18.0
+        ]
+      },
+      {
+        "id": "0ddb65f75b3a57989a301e9046957381",
+        "name": "Hill Shoulder",
+        "kind": "Shape",
+        "position": [
+          -16.0,
+          13.6,
+          -9.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          14.0,
+          1.4,
+          14.0
+        ]
+      },
+      {
+        "id": "efc82862319f59458e3eddb6eac98aa2",
+        "name": "Palm",
+        "kind": "Mesh",
+        "position": [
+          -12.0,
+          13.2,
+          -12.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.1,
+          1.1,
+          1.1
+        ],
+        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+      },
+      {
+        "id": "4f2fafc8592151cbb0abbbd7c32e952e",
+        "name": "Hill Shoulder",
+        "kind": "Shape",
+        "position": [
+          16.0,
+          13.6,
+          -9.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Icosphere",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          14.0,
+          1.4,
+          14.0
+        ]
+      },
+      {
+        "id": "d06dda3cf2425630a21204a373d1a900",
+        "name": "Palm",
+        "kind": "Mesh",
+        "position": [
+          12.0,
+          13.2,
+          -12.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.1,
+          1.1,
+          1.1
+        ],
+        "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/palm-straight.glb"
+      },
+      {
+        "id": "5c1820734ab3534a9fcc18710bce67da",
+        "name": "Ground Road",
+        "kind": "Shape",
+        "position": [
+          0.0,
+          4.82,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.2,
+          0.21,
+          0.25,
+          1
+        ],
+        "size": [
+          7.6,
+          0.4,
+          6.0
+        ]
+      },
+      {
+        "id": "33149d84c14f57739bf9fcdacfe7bdb2",
+        "name": "Pavement",
+        "kind": "Shape",
+        "position": [
+          -4.7,
+          5.0,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.62,
+          0.62,
+          0.66,
+          1
+        ],
+        "size": [
+          2.6,
+          0.25,
+          6.0
+        ]
+      },
+      {
+        "id": "1be888aed6ae5994b700be8b4c3f77f3",
+        "name": "Verge",
+        "kind": "Shape",
+        "position": [
+          -26.0,
+          4.97,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          40.0,
+          0.2,
+          6.0
+        ]
+      },
+      {
+        "id": "1ebc2172e68451e7ab1cb1b30f9ebbe5",
+        "name": "Pavement",
+        "kind": "Shape",
+        "position": [
+          4.7,
+          5.0,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.62,
+          0.62,
+          0.66,
+          1
+        ],
+        "size": [
+          2.6,
+          0.25,
+          6.0
+        ]
+      },
+      {
+        "id": "e89b1e51f9df53d2ae9592323ca1dc5f",
+        "name": "Verge",
+        "kind": "Shape",
+        "position": [
+          26.0,
+          4.97,
+          -27.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          40.0,
+          0.2,
+          6.0
+        ]
+      },
+      {
+        "id": "a527c7ca21e55ed784086140e4b873ba",
+        "name": "Lane Line",
+        "kind": "Shape",
+        "position": [
+          -1.1,
+          5.03,
+          -25.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.95,
+          0.95,
+          0.92,
+          1
+        ],
+        "size": [
+          0.1,
+          0.02,
+          2.5
+        ]
+      },
+      {
+        "id": "375c9dd381565bb09a3b8ba207699a23",
+        "name": "Lane Line",
+        "kind": "Shape",
+        "position": [
+          1.1,
+          5.03,
+          -25.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.95,
+          0.95,
+          0.92,
+          1
+        ],
+        "size": [
+          0.1,
+          0.02,
+          2.5
+        ]
+      },
+      {
+        "id": "d524fbb6d5dd5fb89b49a764a4cd9fc0",
+        "name": "Lane Line",
+        "kind": "Shape",
+        "position": [
+          -1.1,
+          5.03,
+          -30.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.95,
+          0.95,
+          0.92,
+          1
+        ],
+        "size": [
+          0.1,
+          0.02,
+          2.5
+        ]
+      },
+      {
+        "id": "46cd8e0a17185d7593a3c266d86629bf",
+        "name": "Lane Line",
+        "kind": "Shape",
+        "position": [
+          1.1,
+          5.03,
+          -30.25
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.95,
+          0.95,
+          0.92,
+          1
+        ],
+        "size": [
+          0.1,
+          0.02,
+          2.5
+        ]
+      },
+      {
+        "id": "f3c97e2359d1509191d51070a3a028e6",
+        "name": "Verge",
+        "kind": "Shape",
+        "position": [
+          -26.0,
+          4.97,
+          -20.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          40.0,
+          0.2,
+          8.0
+        ]
+      },
+      {
+        "id": "cc40767a0cfc5383b006a4101afc4f1a",
+        "name": "Verge",
+        "kind": "Shape",
+        "position": [
+          26.0,
+          4.97,
+          -20.2963
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Cube",
+        "color": [
+          0.36,
+          0.66,
+          0.32,
+          1
+        ],
+        "size": [
+          40.0,
+          0.2,
+          8.0
+        ]
+      },
+      {
         "id": "030a4dd691c55bf2bc3481a7c4932fe8",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          9.4389,
-          -23.0
+          5.55,
+          -25.0
         ],
         "rotation": [
           0,
@@ -1423,8 +1784,8 @@
         "kind": "Group",
         "position": [
           0.0,
-          10.55,
-          -25.0
+          5.55,
+          -27.0
         ],
         "rotation": [
           0,
@@ -1487,237 +1848,13 @@
         ]
       },
       {
-        "id": "5c1820734ab3534a9fcc18710bce67da",
-        "name": "Ground Road",
-        "kind": "Shape",
-        "position": [
-          0.0,
-          9.82,
-          -28.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.2,
-          0.21,
-          0.25,
-          1
-        ],
-        "size": [
-          7.6,
-          0.4,
-          4.0
-        ]
-      },
-      {
-        "id": "33149d84c14f57739bf9fcdacfe7bdb2",
-        "name": "Pavement",
-        "kind": "Shape",
-        "position": [
-          -4.7,
-          10.0,
-          -28.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.62,
-          0.62,
-          0.66,
-          1
-        ],
-        "size": [
-          2.6,
-          0.25,
-          4.0
-        ]
-      },
-      {
-        "id": "f3c97e2359d1509191d51070a3a028e6",
-        "name": "Verge",
-        "kind": "Shape",
-        "position": [
-          -26.0,
-          9.97,
-          -28.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          40.0,
-          0.2,
-          4.0
-        ]
-      },
-      {
-        "id": "1ebc2172e68451e7ab1cb1b30f9ebbe5",
-        "name": "Pavement",
-        "kind": "Shape",
-        "position": [
-          4.7,
-          10.0,
-          -28.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.62,
-          0.62,
-          0.66,
-          1
-        ],
-        "size": [
-          2.6,
-          0.25,
-          4.0
-        ]
-      },
-      {
-        "id": "cc40767a0cfc5383b006a4101afc4f1a",
-        "name": "Verge",
-        "kind": "Shape",
-        "position": [
-          26.0,
-          9.97,
-          -28.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.36,
-          0.66,
-          0.32,
-          1
-        ],
-        "size": [
-          40.0,
-          0.2,
-          4.0
-        ]
-      },
-      {
-        "id": "a527c7ca21e55ed784086140e4b873ba",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          -1.1,
-          10.03,
-          -27.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
-        "id": "375c9dd381565bb09a3b8ba207699a23",
-        "name": "Lane Line",
-        "kind": "Shape",
-        "position": [
-          1.1,
-          10.03,
-          -27.25
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "shape": "Cube",
-        "color": [
-          0.95,
-          0.95,
-          0.92,
-          1
-        ],
-        "size": [
-          0.1,
-          0.02,
-          2.5
-        ]
-      },
-      {
         "id": "4221454b0a4457b799676ba59acbfd13",
         "name": "Coin",
         "kind": "Group",
         "position": [
           0.0,
-          0.55,
-          -1.0
+          5.55,
+          -29.0
         ],
         "rotation": [
           0,
@@ -1780,288 +1917,12 @@
         ]
       },
       {
-        "id": "98405378e09d509d85d8e4fec0a0e5cb",
-        "name": "Coin",
-        "kind": "Group",
-        "position": [
-          0.0,
-          0.55,
-          -3.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "scripts": [
-          {
-            "id": "fc350f7fd6035944b46a32adc416c185",
-            "type": "Trigger",
-            "properties": {
-              "size": [
-                1.0,
-                1.2,
-                1.0
-              ],
-              "offset": [
-                0,
-                0.3,
-                0
-              ]
-            }
-          },
-          {
-            "id": "2810a3c7cf145fb28829337da7b4aa8e",
-            "type": "Collectible",
-            "properties": {
-              "value": 1,
-              "spinDegreesPerSecond": 180
-            }
-          }
-        ],
-        "children": [
-          {
-            "id": "57ffd7351a8f58ddacb109a49de32c96",
-            "name": "Coin Model",
-            "kind": "Mesh",
-            "position": [
-              0,
-              0.0,
-              0
-            ],
-            "rotation": [
-              0,
-              0,
-              0
-            ],
-            "scale": [
-              1.4,
-              1.4,
-              1.4
-            ],
-            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
-          }
-        ]
-      },
-      {
-        "id": "60c5243e4b01589ba437b7f9092e3fce",
-        "name": "Coin",
-        "kind": "Group",
-        "position": [
-          0.0,
-          0.55,
-          -5.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "scripts": [
-          {
-            "id": "f275638647085607a079bb862cdc831f",
-            "type": "Trigger",
-            "properties": {
-              "size": [
-                1.0,
-                1.2,
-                1.0
-              ],
-              "offset": [
-                0,
-                0.3,
-                0
-              ]
-            }
-          },
-          {
-            "id": "1bcaf995cf9456998e9482a2ad7fcce4",
-            "type": "Collectible",
-            "properties": {
-              "value": 1,
-              "spinDegreesPerSecond": 180
-            }
-          }
-        ],
-        "children": [
-          {
-            "id": "721265e49cf65c3682160a25ebc01ae4",
-            "name": "Coin Model",
-            "kind": "Mesh",
-            "position": [
-              0,
-              0.0,
-              0
-            ],
-            "rotation": [
-              0,
-              0,
-              0
-            ],
-            "scale": [
-              1.4,
-              1.4,
-              1.4
-            ],
-            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
-          }
-        ]
-      },
-      {
-        "id": "055966890b235694be3e79b479ac79b3",
-        "name": "Coin",
-        "kind": "Group",
-        "position": [
-          0.0,
-          10.55,
-          -27.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "scripts": [
-          {
-            "id": "f996de9c3f32564fb52d36a8cfdc1a34",
-            "type": "Trigger",
-            "properties": {
-              "size": [
-                1.0,
-                1.2,
-                1.0
-              ],
-              "offset": [
-                0,
-                0.3,
-                0
-              ]
-            }
-          },
-          {
-            "id": "8fd8fb3734c65d5abd124d0bba9b8cbb",
-            "type": "Collectible",
-            "properties": {
-              "value": 1,
-              "spinDegreesPerSecond": 180
-            }
-          }
-        ],
-        "children": [
-          {
-            "id": "89a460a4ae5950e5950385db5d9e7e72",
-            "name": "Coin Model",
-            "kind": "Mesh",
-            "position": [
-              0,
-              0.0,
-              0
-            ],
-            "rotation": [
-              0,
-              0,
-              0
-            ],
-            "scale": [
-              1.4,
-              1.4,
-              1.4
-            ],
-            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
-          }
-        ]
-      },
-      {
-        "id": "d6d7681129bc50638e1e82f800e4b063",
-        "name": "Coin",
-        "kind": "Group",
-        "position": [
-          0.0,
-          10.55,
-          -29.0
-        ],
-        "rotation": [
-          0,
-          0,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "scripts": [
-          {
-            "id": "4ca539947f7e54858264b70fb0babb4e",
-            "type": "Trigger",
-            "properties": {
-              "size": [
-                1.0,
-                1.2,
-                1.0
-              ],
-              "offset": [
-                0,
-                0.3,
-                0
-              ]
-            }
-          },
-          {
-            "id": "87f49b74c8425e36b6c10485173ff54b",
-            "type": "Collectible",
-            "properties": {
-              "value": 1,
-              "spinDegreesPerSecond": 180
-            }
-          }
-        ],
-        "children": [
-          {
-            "id": "909d734f8240571ea46eba57f67f2497",
-            "name": "Coin Model",
-            "kind": "Mesh",
-            "position": [
-              0,
-              0.0,
-              0
-            ],
-            "rotation": [
-              0,
-              0,
-              0
-            ],
-            "scale": [
-              1.4,
-              1.4,
-              1.4
-            ],
-            "asset": "zip:kenney_mini-dungeon.zip/Models/GLB format/coin.glb"
-          }
-        ]
-      },
-      {
         "id": "37650182e90a505699a6c801d1c5b3eb",
         "name": "Exit",
         "kind": "Group",
         "position": [
           0,
-          10.0,
+          5.0,
           -30.0
         ],
         "rotation": [
