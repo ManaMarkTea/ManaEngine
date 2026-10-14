@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Preserve macOS red close circles after docking (2026-10-14): DockTabGroup draws persistent left-side red circles for every closeable macOS tab, with a cross on hover. Docking close targets unchanged; in-app screenshot verified and all 1795 ManaUI checks passed.
+
 [x] - macOS chrome and control styling (2026-10-14): neutral silver surfaces and gradient buttons; full-width segmented dock tabs with left close targets; centered floating-window titles and left traffic lights (inactive grey, hover symbols). Red closes, yellow collapses/restores the title bar, green zooms/restores; unavailable actions grey out. ManaUI UiWindow/DockTabGroup/UiTheme; focused pointer and restore tests, all 1795 ManaUI checks passed; Tools/Automation/Checks/macos-chrome.json and DevPhotos captures.
 
 [x] - Windows 11 and macOS editor themes (2026-10-14): added to Appearance > Theme, with distinct neutral palettes, corner/scrollbar metrics, blue accents and drawn group chevrons (ManaUI UiTheme/Expander). In-app WebGPU captures verified; all 1789 ManaUI checks passed. Repeatable check: Tools/Automation/Checks/modern-themes.json.

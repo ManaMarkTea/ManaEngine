@@ -623,7 +623,7 @@ namespace ManaUI
                     selected ? (theme.HasSkin("primary") ? theme.TextOnAccent : theme.Text) : theme.TextMuted,
                     VerticalAlignment.Center);
 
-                if (_items[i].CanClose && (selected || hovered))
+                if (_items[i].CanClose && (selected || hovered || theme.Kind == UiThemeKind.MacOS))
                 {
                     RenderTabClose(drawList, theme, font, TabCloseRect(i), pointer);
                 }
@@ -686,13 +686,24 @@ namespace ManaUI
             Vector2 pointer)
         {
             var hovered = rect.Contains(pointer);
+            if (theme.Kind == UiThemeKind.MacOS)
+            {
+                var dot = new UiRect(rect.Center.X - 6, rect.Center.Y - 6, 12, 12);
+                var red = UiColor.FromHex(hovered ? "#FF726B" : "#FF5F57");
+                drawList.DrawBox(dot, red, UiColor.FromHex("#DF4942"), 1, new CornerRadius(6));
+                if (hovered)
+                {
+                    UiIcons.Cross(drawList, dot.Deflate(new Thickness(3)), UiColor.FromHex("#454545"), 1);
+                }
+                return;
+            }
             if (hovered)
             {
-                drawList.FillRect(rect, theme.Kind == UiThemeKind.MacOS ? theme.Hover : theme.Danger, new CornerRadius(3.0f));
+                drawList.FillRect(rect, theme.Danger, new CornerRadius(3.0f));
             }
 
             var glyph = font.GetGlyph('×');
-            var color = hovered && theme.Kind != UiThemeKind.MacOS ? theme.TextOnAccent : theme.TextMuted;
+            var color = hovered ? theme.TextOnAccent : theme.TextMuted;
 
             if (glyph.IsDrawable)
             {
