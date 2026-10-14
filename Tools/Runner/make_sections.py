@@ -185,8 +185,9 @@ class Section:
             z -= 5.0
         if decor and length >= LENGTH - 0.1:
             for z in (-7.0, -22.0):
-                self.mesh("Lamp", LIGHT, (4.1, 0.12, z), (0, 3.14159, 0), 3.2)
-                self.mesh("Lamp", LIGHT, (-4.1, 0.12, z - 7.5), (0, 0, 0), 3.2)
+                # The model's arm points along its -Z: a quarter turn hangs it out over the lanes.
+                self.mesh("Lamp", LIGHT, (4.1, 0.12, z), (0, 1.5708, 0), 3.2)
+                self.mesh("Lamp", LIGHT, (-4.1, 0.12, z - 7.5), (0, -1.5708, 0), 3.2)
             self.mesh("Palm", PALM, (7.5, 0.0, -4.0), scale=1.1)
             self.mesh("Palm", PALM_BEND, (-7.2, 0.0, -16.0), (0, 1.2, 0), 1.1)
             self.mesh("Palm", PALM, (-8.0, 0.0, -27.0), scale=0.9)
@@ -583,12 +584,14 @@ def dungeon():
 def sky():
     h = SKY_HEIGHT
     s = Section("Sky", "Sky Enter")
-    s.road(0.0, -12.0, decor=False)
-    s.launch(-9.0, h + 2.0)
+    # Thrown well above the clouds, and the cloud starts far enough on that even at top speed the runner is over its
+    # level before reaching its edge (near the top of a throw the climb is slow; 2 m over came in under the edge).
+    s.road(0.0, -6.0, decor=False)
+    s.launch(-3.0, h + 6.0)
     for lane in range(3):
         for i, y in enumerate((4.0, 10.0, 16.0, 21.0, 25.0, 28.0)):
-            s.arc_coin(lane, -12.0 - i * 2.5, y)
-    s.cloud(0, -18.0, -LENGTH, base=h, wide=True)
+            s.arc_coin(lane, -6.0 - i * 2.5, y)
+    s.cloud(0, -24.0, -LENGTH, base=h, wide=True)
     s.sky_decor(h)
     s.exit(h)
     yield s
