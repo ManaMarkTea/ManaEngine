@@ -27,7 +27,7 @@ public static class SceneScaleBoxChecks
             !SceneScaleBox.TryEdge(new SceneScaleBoxHandle(1, 1, 0), new Vector3(-1, 0, 0), new Vector3(1, 2, 0), out _, out _));
 
         var solid = SceneScaleBox.Handles(-Vector3.One, Vector3.One);
-        Check("a solid box has six faces and eight corners", solid.Count == 14, string.Join(" ", solid));
+        Check("a solid box has six faces, twelve edges and eight corners", solid.Count == 26, string.Join(" ", solid));
         Check("whose faces are dots", !SceneScaleBox.TryEdge(new SceneScaleBoxHandle(0, 1, 0), -Vector3.One, Vector3.One, out _, out _));
 
         Check("handles by name for scripts",

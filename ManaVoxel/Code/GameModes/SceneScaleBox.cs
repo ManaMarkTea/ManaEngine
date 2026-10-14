@@ -117,9 +117,8 @@ namespace Mana.Code.GameModes
             foreach (var z in Range(2))
             {
                 var handle = new SceneScaleBoxHandle(x, y, z);
-                // Faces and corners only: a 3D box's edge midpoints would crowd its faces.
-                var count = handle.AxisCount;
-                if (count == 1 || (count > 1 && count == SolidAxes(min, max)))
+                // Faces scale one axis, edges two, a solid's corners all three.
+                if (handle.AxisCount > 0)
                 {
                     handles.Add(handle);
                 }

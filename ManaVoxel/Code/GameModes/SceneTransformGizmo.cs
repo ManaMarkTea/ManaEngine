@@ -14,9 +14,9 @@ namespace Mana.Code.GameModes
     {
         // Arrow centre (0.94) plus half its height (0.34 / 2), measured from the pivot.
         internal const float TranslationTipDistance = 1.11f;
-        private static readonly Vector4 XColor = new(0.92f, 0.18f, 0.16f, 1.0f);
-        private static readonly Vector4 YColor = new(0.22f, 0.82f, 0.28f, 1.0f);
-        private static readonly Vector4 ZColor = new(0.18f, 0.46f, 0.96f, 1.0f);
+        internal static readonly Vector4 XColor = new(0.92f, 0.18f, 0.16f, 1.0f);
+        internal static readonly Vector4 YColor = new(0.22f, 0.82f, 0.28f, 1.0f);
+        internal static readonly Vector4 ZColor = new(0.18f, 0.46f, 0.96f, 1.0f);
         private static readonly Vector4 HoverColor = new(1.0f, 0.88f, 0.20f, 1.0f);
 
         private readonly ManaWorld _world;
@@ -922,10 +922,15 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            // A flat box is dragged across its own plane; a solid one's face along its axis, a corner across the view.
+            // A flat box is dragged across its own plane, a two-axis handle across the plane of its axes, a solid's face
+            // along its axis and its corner across the view.
             if (flatAxis >= 0)
             {
                 _boxPlaneNormal = Vector3.Normalize(LocalAxisWorld(flatAxis));
+            }
+            else if (handle.AxisCount == 2)
+            {
+                _boxPlaneNormal = Vector3.Normalize(LocalAxisWorld(handle.X == 0 ? 0 : handle.Y == 0 ? 1 : 2));
             }
             else if (handle.AxisCount == 1)
             {
