@@ -44,6 +44,8 @@ public sealed class IosWindow : IWindow
         if (_view.Layer is CAMetalLayer layer)
         {
             layer.ContentsScale = (System.Runtime.InteropServices.NFloat)scale;
+            // Frames are sRGB, as on desktop; said so, iOS converts them for the P3 panel instead of showing them raw.
+            layer.ColorSpace ??= CoreGraphics.CGColorSpace.CreateSrgb();
         }
         if (_loaded)
         {
