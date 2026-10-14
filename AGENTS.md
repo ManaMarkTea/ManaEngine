@@ -181,6 +181,10 @@ in it) is never touched. On the Mac itself: `Tools/ManaLidar/deploy-ios.sh [Debu
 - **iOS ahead-of-time code is not the desktop's:** the iPhone build got `Vector2` arithmetic wrong (V shifted, U
   right), tearing textures until `ScanAtlas`/`ScanTextureBaker`/measure snapping moved to plain floats. Code that
   runs on the phone avoids `Vector2` maths; `ScanAtlas.Verify` refuses a layout off the texture rather than saving it.
+  It also reads a `Vector3`/`Vector2` array element with a 16-byte load, past the array's end: an array ending at an
+  unmapped page crashes (`EXC_BAD_ACCESS` at a page-aligned address, now and then). Hot loops over vector arrays read
+  them as floats (`MemoryMarshal.Cast<Vector3, float>`, as `ManaWebGpuMesh.BuildVertices` does). Symbolicate a phone
+  crash with `atos -o <app>/ManaVoxel.iOS -l <base>` on the Mac (`devicectl device copy from --domain-type systemCrashLogs`).
 
 ## Thumbnails
 
