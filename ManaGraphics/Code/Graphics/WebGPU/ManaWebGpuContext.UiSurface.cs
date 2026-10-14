@@ -152,4 +152,3 @@ namespace ManaGraphics.Code.Graphics
     }
 }
 #endif
-
