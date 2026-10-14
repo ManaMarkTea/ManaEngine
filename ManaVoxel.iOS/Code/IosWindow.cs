@@ -8,7 +8,7 @@ namespace ManaVoxel.iOS;
 /// <summary>
 /// The game's view as a Silk.NET window, as ManaBrowserWindow is for the web: the engine reads its sizes and
 /// subscribes to Load/Update/Render. Run fires Load and returns -- UIKit owns the main loop -- and a CADisplayLink
-/// drives the frames, at the screen's own rate (120 Hz on ProMotion).
+/// drives the frames, at 60 Hz (ProMotion could do 120; the battery prefers not).
 /// </summary>
 public sealed class IosWindow : IWindow
 {
@@ -92,8 +92,8 @@ public sealed class IosWindow : IWindow
         _loaded = true;
         Load?.Invoke();
         _link = CADisplayLink.Create(Frame);
-        // Ask for the screen's full rate; iOS gives 60 unless Info.plist allows ProMotion (CADisableMinimumFrameDurationOnPhone).
-        _link.PreferredFrameRateRange = new CAFrameRateRange { Minimum = 30, Maximum = 120, Preferred = 120 };
+        // 60, not ProMotion's 120: half the frames for the battery and heat, and the game reads smoothly at 60.
+        _link.PreferredFrameRateRange = new CAFrameRateRange { Minimum = 30, Maximum = 60, Preferred = 60 };
         _link.AddToRunLoop(NSRunLoop.Main, NSRunLoopMode.Common);
     }
 
