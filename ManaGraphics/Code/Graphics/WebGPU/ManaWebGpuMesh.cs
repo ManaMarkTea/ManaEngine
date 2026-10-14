@@ -100,19 +100,22 @@ namespace ManaGraphics.Code.Graphics
         private static ManaWebGpuVertex[] BuildVertices(ManaMeshCpuData meshData)
         {
             var vertices = new ManaWebGpuVertex[meshData.Positions.Length];
+            // Read as plain floats: iOS's AOT code loads a Vector3/Vector2 element with a 16-byte load, which ran off
+            // the end of an array that ended at a page boundary and crashed (EXC_BAD_ACCESS here, after a level change).
+            var positions = MemoryMarshal.Cast<Vector3, float>(meshData.Positions.AsSpan());
+            var hasNormals = meshData.Normals.Length == meshData.Positions.Length;
+            var normals = MemoryMarshal.Cast<Vector3, float>(meshData.Normals.AsSpan());
+            var hasUvs = meshData.TextureCoordinates0.Length == meshData.Positions.Length;
+            var uvs = MemoryMarshal.Cast<Vector2, float>(meshData.TextureCoordinates0.AsSpan());
+            var hasColors = meshData.Colors.Length == meshData.Positions.Length;
 
             for (var i = 0; i < vertices.Length; i++)
             {
-                var color = meshData.Colors.Length == meshData.Positions.Length
-                    ? meshData.Colors[i]
-                    : Vector4.One;
-                var uv = meshData.TextureCoordinates0.Length == meshData.Positions.Length
-                    ? meshData.TextureCoordinates0[i]
-                    : Vector2.Zero;
-                var normal = meshData.Normals.Length == meshData.Positions.Length
-                    ? meshData.Normals[i]
-                    : Vector3.UnitY;
-                vertices[i] = new ManaWebGpuVertex(meshData.Positions[i], normal, color, uv);
+                var color = hasColors ? meshData.Colors[i] : Vector4.One;
+                var uv = hasUvs ? new Vector2(uvs[i * 2], uvs[i * 2 + 1]) : Vector2.Zero;
+                var normal = hasNormals ? new Vector3(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]) : Vector3.UnitY;
+                var position = new Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
+                vertices[i] = new ManaWebGpuVertex(position, normal, color, uv);
             }
 
             return vertices;

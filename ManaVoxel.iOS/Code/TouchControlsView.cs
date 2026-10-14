@@ -38,6 +38,9 @@ public sealed class TouchControlsView : UIView
     /// <summary>Which controls the level's modes want: the stick and buttons, or swipes.</summary>
     public Func<ManaTouchControls> Scheme { get; set; } = () => ManaTouchControls.Stick;
 
+    /// <summary>The player has a bow: the Shoot button shows.</summary>
+    public Func<bool> ShowsShoot { get; set; } = () => false;
+
     // ManaUI scrolls 48 points a wheel notch (ScrollViewer.WheelStep).
     private const float PointsPerNotch = 48.0f;
 
@@ -74,6 +77,8 @@ public sealed class TouchControlsView : UIView
             MakeButton("⬆︎\nJump", Key.Space, UIColor.FromRGB(0.22f, 0.78f, 0.45f)),
             MakeButton("»\nRun", Key.ShiftLeft, UIColor.FromRGB(0.24f, 0.55f, 1.0f)),
             MakeButton("◎\nCam", Key.C, UIColor.FromRGB(0.62f, 0.38f, 0.95f)),
+            // The Bow's fire key: hold to draw, let go to loose (stick up aims high, as W does).
+            MakeButton("🏹\nShoot", Key.F, UIColor.FromRGB(0.95f, 0.55f, 0.18f)),
         };
         foreach (var button in _buttons)
         {
@@ -91,6 +96,7 @@ public sealed class TouchControlsView : UIView
         Place(_buttons[0].View, right - 88, bottom - 88, 88);
         Place(_buttons[1].View, right - 88 - 80, bottom - 66, 66);
         Place(_buttons[2].View, right - 66, bottom - 88 - 80, 66);
+        Place(_buttons[3].View, right - 88 - 80, bottom - 66 - 80, 66);
     }
 
     private static void Place(UIView view, nfloat x, nfloat y, nfloat size)
@@ -284,7 +290,7 @@ public sealed class TouchControlsView : UIView
         var buttons = game && !Swiping;
         foreach (var button in _buttons)
         {
-            button.View.Hidden = !buttons;
+            button.View.Hidden = !buttons || (button.Key == Key.F && !ShowsShoot());
         }
         if (!game && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe"))
         {

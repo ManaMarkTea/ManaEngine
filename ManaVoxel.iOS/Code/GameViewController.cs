@@ -81,6 +81,17 @@ public sealed class GameViewController : UIViewController
             var game = _game;
             _controls!.GameControls = () => !game.IsLevelSelectOpen && !game.IsPaused && !game.IsLoading;
             _controls.Scheme = () => game.TouchControls;
+            // Looked for twice a second, not every frame: it walks the level.
+            var frames = 0;
+            var armed = false;
+            _controls.ShowsShoot = () =>
+            {
+                if (frames++ % 30 == 0)
+                {
+                    armed = HasBow(game);
+                }
+                return armed;
+            };
             _window.Render += _ => _controls.Refresh();
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
@@ -90,6 +101,21 @@ public sealed class GameViewController : UIViewController
             Console.WriteLine($"[ManaVoxel.iOS] The game failed to start: {ex}");
             ShowFailure(ex);
         }
+    }
+
+    private static bool HasBow(VoxelPlayGameMode game)
+    {
+        if (game.IsLevelSelectOpen || game.IsLoading || game.Context?.World is not { } world)
+        {
+            return false;
+        }
+        lock (world.SceneLock)
+        {
+            return world.Scenes.Any(scene => scene.Children.Any(Armed));
+        }
+
+        static bool Armed(Mana.Code.Nodes.ManaSceneNode node) =>
+            node.Components.Any(component => component is ManaVoxel.Code.Gameplay.Course.BowComponent) || node.Children.Any(Armed);
     }
 
     /// <summary>

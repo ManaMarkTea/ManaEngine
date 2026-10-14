@@ -18,6 +18,8 @@ BOOT = [
 EXCLUDED = {"Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"}
 CONTENT_KINDS = (".manalevel", ".manaprefab", ".managridpreset", ".manasheet", ".manaslice", ".manawfc", ".manaui")
 REFERENCE = re.compile(r'"(?:zip:([^"/]+\.zip)/[^"]*|((?:Mana/)?Assets/[^";]+\.\w+))"|;((?:Mana/)?Assets/[^";]+\.\w+)')
+# Pictures and sounds kept in Content itself, named by a sheet or a level (the bows' frames).
+CONTENT_FILE = re.compile(r'"(Content/[^"]+\.(?:png|jpe?g|wav|ogg|mp3|glb))"', re.IGNORECASE)
 
 
 def find(asset):
@@ -58,6 +60,9 @@ def main():
                 source = find(asset)
             if asset not in files and asset not in EXCLUDED:
                 files[asset] = source
+        for asset in CONTENT_FILE.findall(text):
+            source = ROOT / asset
+            files.setdefault(asset, source if source.is_file() else None)
     missing = sorted(a for a, f in files.items() if f is None)
     for asset in missing:
         print(f"missing: {asset}", file=sys.stderr)
