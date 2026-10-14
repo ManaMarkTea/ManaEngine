@@ -135,6 +135,7 @@ namespace ManaUI
         private readonly bool _hasSubmenuColumn;
 
         private UiPopup? _submenu;
+        private string _measuredText = string.Empty;
 
         public MenuRow(UiRoot root, UiPopup owner, MenuItem item, bool hasCheckColumn, bool hasSubmenuColumn)
         {
@@ -158,7 +159,8 @@ namespace ManaUI
             var theme = root.Theme;
             var font = root.Fonts.Get(theme.FontFamily, theme.FontSize, root.Scale);
 
-            var width = LeftInset + font.MeasureWidth(_item.Text) + 12.0f;
+            _measuredText = _item.ResolveText();
+            var width = LeftInset + font.MeasureWidth(_measuredText) + 12.0f;
 
             var shortcut = _item.ResolveShortcut();
             if (!string.IsNullOrEmpty(shortcut))
@@ -216,7 +218,14 @@ namespace ManaUI
                     font);
             }
 
-            var label = new TextLayout { Font = font, Text = _item.Text };
+            var text = _item.ResolveText();
+            if (text != _measuredText)
+            {
+                // A live label that changed (TextFrom) may need a wider row.
+                InvalidateMeasure();
+            }
+
+            var label = new TextLayout { Font = font, Text = text };
             label.Render(
                 drawList,
                 new UiRect(Bounds.X + LeftInset, Bounds.Y, Bounds.Width, Bounds.Height),
@@ -311,6 +320,13 @@ namespace ManaUI
             }
 
             e.Handled = true;
+
+            if (_item.StaysOpen)
+            {
+                _item.Invoke();
+                InvalidateVisual();
+                return;
+            }
 
             // Closed before invoking, so an action that opens a dialog or another menu is not immediately
             // dismissed by the tail of its own click.

@@ -87,26 +87,27 @@ namespace Mana.Code.GameModes
 
             var items = new List<MenuItem>
             {
-                MenuItem.Label($"Add to {SceneName(scene)}").ShortcutFrom(() => FormatPoint(position)),
+                MenuItem.Label("").TextFrom(() => $"Add to {SceneName(scene)}").ShortcutFrom(() => FormatPoint(position)),
                 MenuItem.Separator()
             };
-            items.AddRange(SceneAddNodeMenu.Items(selection, scene, null, position, hit?.Normal));
 
-            var others = Context.World.Scenes.Where(other => !ReferenceEquals(other, scene)).ToList();
-            if (others.Count > 0)
+            // Which scene, chosen in a tick list that stays open, so the header above follows the choice.
+            var scenes = Context.World.Scenes.ToList();
+            if (scenes.Count > 1)
             {
-                var elsewhere = new MenuItem("Add to Another Scene");
-                foreach (var other in others)
+                var choose = new MenuItem("Change Scene");
+                foreach (var candidate in scenes)
                 {
-                    var into = new MenuItem(SceneName(other));
-                    into.Items.AddRange(SceneAddNodeMenu.Items(selection, other, null, position, hit?.Normal));
-                    elsewhere.Items.Add(into);
+                    choose.Items.Add(new MenuItem(SceneName(candidate), () => scene = candidate)
+                        .Checkable(() => ReferenceEquals(scene, candidate))
+                        .KeepsMenuOpen());
                 }
 
+                items.Add(choose);
                 items.Add(MenuItem.Separator());
-                items.Add(elsewhere);
             }
 
+            items.AddRange(SceneAddNodeMenu.Items(selection, () => scene, null, position, hit?.Normal));
             return items;
         }
 

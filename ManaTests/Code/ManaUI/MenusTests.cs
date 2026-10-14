@@ -225,6 +225,23 @@ public static class MenuChecks
         root.Input.InjectPointerReleased(contextRows[0].Bounds.Center, PointerButton.Left);
         Check("context menu item invokes", contextInvoked);
 
+        // A tick list that stays open: choosing one leaves the menu up, and a live label follows the choice.
+        var chosen = "A";
+        MenuFlyout.ShowAt(root, point, new[]
+        {
+            new MenuItem().TextFrom(() => $"Into {chosen}"),
+            new MenuItem("A", () => chosen = "A").Checkable(() => chosen == "A").KeepsMenuOpen(),
+            new MenuItem("B", () => chosen = "B").Checkable(() => chosen == "B").KeepsMenuOpen()
+        });
+        root.UpdateLayout(new Vector2(1000, 700));
+        var stayingRows = FindAll<Control>(root.Popups.Topmost!).Where(IsMenuRow).ToList();
+        root.Input.InjectPointerMoved(stayingRows[2].Bounds.Center);
+        root.Input.InjectPointerPressed(stayingRows[2].Bounds.Center, PointerButton.Left, time += 1.0);
+        root.Input.InjectPointerReleased(stayingRows[2].Bounds.Center, PointerButton.Left);
+        Check("a stays-open item runs and leaves the menu up", chosen == "B" && root.Popups.Topmost != null);
+        Check("a live label reads the current state", new MenuItem().TextFrom(() => $"Into {chosen}").ResolveText() == "Into B");
+        root.Popups.CloseAll();
+
         // A context menu near the edge must stay on screen.
         MenuFlyout.ShowAt(root, new Vector2(995.0f, 695.0f), new[]
         {

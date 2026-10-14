@@ -26,13 +26,14 @@ namespace ManaVoxel.Code.UI.ManaUi
         };
 
         /// <summary>
-        /// The menu's entries: added under <paramref name="parent"/> when there is one, or straight into
-        /// <paramref name="scene"/>, at <paramref name="position"/> (world). With a <paramref name="surfaceNormal"/> the
+        /// The menu's entries: added under <paramref name="parent"/> when there is one, or straight into the scene
+        /// <paramref name="scene"/> names when the entry is chosen (a menu can change it while open), at
+        /// <paramref name="position"/> (world). With a <paramref name="surfaceNormal"/> the
         /// point is on a surface, and a shape is lifted half its size off it rather than sunk halfway in.
         /// </summary>
         public static List<MenuItem> Items(
             SceneSelectionState selection,
-            ManaScene scene,
+            Func<ManaScene> scene,
             ManaSceneNode? parent,
             Vector3 position,
             Vector3? surfaceNormal = null)
@@ -42,19 +43,19 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             items.Add(new MenuItem("Empty Node", () =>
             {
-                var node = new ManaSceneNode(scene.Context, Matrix4x4.CreateTranslation(position))
+                var node = new ManaSceneNode(scene().Context, Matrix4x4.CreateTranslation(position))
                 {
                     Name = "Node",
                     LevelSource = ManaLevelSource.Group
                 };
-                Add(selection, scene, parent, node);
+                Add(selection, scene(), parent, node);
             }).WithTooltip("An empty node that can own children -- nothing to render on its own."));
 
             items.Add(MenuItem.Separator());
 
             foreach (var (label, build) in ShapeBuilders)
             {
-                items.Add(new MenuItem(label, () => Built(selection, scene, parent, build(new ManaShapeFactory(scene.Context, scene), shapePosition))));
+                items.Add(new MenuItem(label, () => Built(selection, scene(), parent, build(new ManaShapeFactory(scene().Context, scene()), shapePosition))));
             }
 
             items.Add(MenuItem.Separator());
@@ -63,26 +64,26 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 // 16 x 16 at a modest resolution: enough to see it ripple, small enough to drag around. Size and
                 // resolution are editable in the inspector afterwards.
-                var water = new ManaWaterNode(scene.Context, new Vector2(16.0f, 16.0f), 64)
+                var water = new ManaWaterNode(scene().Context, new Vector2(16.0f, 16.0f), 64)
                 {
                     LevelSource = ManaLevelSource.ForWater(new Vector2(16.0f, 16.0f), 64)
                 };
                 water.Position = position;
                 water.UpdateTransform();
-                Add(selection, scene, parent, water);
+                Add(selection, scene(), parent, water);
             }).WithTooltip("A rippling water surface. Add a Hazard component to make it deadly, and set its size to match."));
 
             items.Add(new MenuItem("Grid Map", () =>
             {
-                var gridMap = new ManaGridMapNode(scene.Context) { Position = position };
+                var gridMap = new ManaGridMapNode(scene().Context) { Position = position };
                 gridMap.UpdateTransform();
-                Add(selection, scene, parent, gridMap);
+                Add(selection, scene(), parent, gridMap);
                 GridMapEditing.Begin(gridMap);
             }).WithTooltip("A grid of tiles painted from a palette of models -- roads, dungeon rooms. Select it to paint."));
 
             foreach (var (label, build) in CoursePieceFactory.Pieces)
             {
-                items.Add(new MenuItem($"Course: {label}", () => Built(selection, scene, parent, build(new ManaShapeFactory(scene.Context, scene), position)))
+                items.Add(new MenuItem($"Course: {label}", () => Built(selection, scene(), parent, build(new ManaShapeFactory(scene().Context, scene()), position)))
                     .WithTooltip("A ready-made play piece: a shape, its behaviour and a trigger volume."));
             }
 
@@ -92,7 +93,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static MenuItem Submenu(SceneSelectionState selection, ManaScene scene, ManaSceneNode? parent, Vector3 position)
         {
             var addNode = new MenuItem("Add Node");
-            addNode.Items.AddRange(Items(selection, scene, parent, position));
+            addNode.Items.AddRange(Items(selection, () => scene, parent, position));
             return addNode;
         }
 

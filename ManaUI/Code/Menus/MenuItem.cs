@@ -99,6 +99,29 @@ namespace ManaUI
 
         public string ResolveShortcut() => ShortcutProvider?.Invoke() ?? Shortcut ?? string.Empty;
 
+        /// <summary>A live label, for a row that says something about the state the menu is changing.</summary>
+        public Func<string>? TextProvider { get; set; }
+
+        public MenuItem TextFrom(Func<string> text)
+        {
+            TextProvider = text;
+            return this;
+        }
+
+        public string ResolveText() => TextProvider?.Invoke() ?? Text;
+
+        /// <summary>
+        /// Clicking runs the item and leaves the menu open -- a choice among several (a tick list) made while
+        /// looking at the rest of the menu, rather than a command that is done once clicked.
+        /// </summary>
+        public bool StaysOpen { get; set; }
+
+        public MenuItem KeepsMenuOpen()
+        {
+            StaysOpen = true;
+            return this;
+        }
+
         /// <summary>Fluent helper for building a submenu inline.</summary>
         public MenuItem WithItems(params MenuItem[] items)
         {
