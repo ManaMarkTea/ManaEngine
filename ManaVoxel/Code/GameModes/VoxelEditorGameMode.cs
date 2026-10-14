@@ -1115,6 +1115,8 @@ namespace Mana.Code.GameModes
             // hit-tested like anything else, and UiWantsMouse already knows.
             UpdateVoxelPointerInteraction(UiWantsMouse);
             _viewModel.ScaleBoxHighlight = _transformGizmo?.HighlightedBoxHandle;
+            UpdateViewportContextMenu(UiWantsMouse);
+            UpdateSnapShortcut();
             UpdateFrameSelectedShortcut();
             UpdateDropSelectedToFloorShortcut();
             UpdateEscapeSelectionShortcut();

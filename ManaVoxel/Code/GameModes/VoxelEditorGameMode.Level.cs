@@ -762,6 +762,7 @@ namespace Mana.Code.GameModes
                 _commandRunner.Register("gizmo_mode", command =>
                     _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));
                 _commandRunner.Register("scale_box", command => RunScaleBoxCommand(command.Name, command.Position));
+                _commandRunner.Register("viewport_menu", command => RunViewportMenuCommand(command.Name, command.Position));
 #if !MANA_BROWSER
                 _commandRunner.Register("live_scan", command => RunLiveScanCommand(command.Name, command.Path));
 #endif

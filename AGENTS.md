@@ -100,6 +100,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `material` | `name`, `position` (metallic, roughness) | Sets metallic and roughness on every mesh under a node -- `[1, 0]` is a mirror |
 | `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
 | `gizmo_mode` / `scale_box` | `name` / `name`, `position` | Translate, Rotate or Scale; drags a Scale box handle of the selection (`+x`, `-y`, a corner `-x+y`) to a world point and logs the node's position and scale |
+| `viewport_menu` | `position`, `name` | The viewport's right-click Add menu at a world point; with `name` (an entry, e.g. `Cube`) picks it and logs the new node's position and scene |
 | `grid_autotile` / `grid_generate` | see `ManaCommandFile` | Paints a road preset through cells; runs the WFC generator |
 | `bow` | `name` (`hold`, `hold_up`, `release`) | Holds or lets go of the Bow's fire key while playing, so a script can shoot |
 | `import_filter` | `name` | Types into the Import panel's filter (e.g. a pack name) to bring its models into view |

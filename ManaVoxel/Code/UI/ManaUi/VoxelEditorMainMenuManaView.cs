@@ -67,6 +67,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new MenuItem("Snap to Grid", () => viewModel.Snap.Enabled = !viewModel.Snap.Enabled)
                     .Checkable(() => viewModel.Snap.Enabled)
+                    .WithShortcut("X")
                     .WithTooltip("Snaps placement and the move, rotate and scale gizmos. Sizes are in Preferences.")
             };
 
