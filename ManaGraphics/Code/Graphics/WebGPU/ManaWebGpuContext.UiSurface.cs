@@ -24,6 +24,7 @@ namespace ManaGraphics.Code.Graphics
             private readonly IWindow _window;
             private Surface* _surface;
             private readonly TextureFormat _format;
+            private readonly PresentMode _presentMode;
             private ManaWebGpuUiRenderer? _renderer;
             private Vector2D<int> _size;
             private bool _configured;
@@ -37,7 +38,31 @@ namespace ManaGraphics.Code.Graphics
                     _surface = WebGPUSurface.CreateWebGPUSurface(window, owner._api, owner._instance);
                     if (_surface == null) throw new InvalidOperationException("Unable to create the panel surface.");
                     _format = owner._api.SurfaceGetPreferredFormat(_surface, owner._adapter);
+                    SurfaceCapabilities capabilities = default;
+                    owner._api.SurfaceGetCapabilities(_surface, owner._adapter, &capabilities);
+                    try
+                    {
+                        _presentMode = PresentMode.Fifo;
+                        for (nuint i = 0; i < capabilities.PresentModeCount; i++)
+                        {
+                            // The editor already paces frames; a secondary FIFO can stall the whole UI thread.
+                            if (capabilities.PresentModes[i] == PresentMode.Immediate)
+                            {
+                                _presentMode = PresentMode.Immediate;
+                                break;
+                            }
+                            if (capabilities.PresentModes[i] == PresentMode.Mailbox)
+                            {
+                                _presentMode = PresentMode.Mailbox;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        owner._api.SurfaceCapabilitiesFreeMembers(capabilities);
+                    }
                     _renderer = new ManaWebGpuUiRenderer(owner._api, owner._device, owner._queue, _format);
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Panel UI surface: present={_presentMode}.");
                 }
                 catch { Dispose(); throw; }
             }
@@ -54,7 +79,7 @@ namespace ManaGraphics.Code.Graphics
                     {
                         Device = _owner._device, Format = _format, Usage = TextureUsage.RenderAttachment,
                         Width = (uint)size.X, Height = (uint)size.Y,
-                        PresentMode = PresentMode.Fifo, AlphaMode = CompositeAlphaMode.Opaque
+                        PresentMode = _presentMode, AlphaMode = CompositeAlphaMode.Opaque
                     };
                     api.SurfaceConfigure(_surface, &configuration);
                     _configured = true;
@@ -62,12 +87,19 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 SurfaceTexture texture = default;
-                api.SurfaceGetCurrentTexture(_surface, &texture);
+                using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Panel UI: Acquire"))
+                {
+                    api.SurfaceGetCurrentTexture(_surface, &texture);
+                }
                 if (texture.Status != SurfaceGetCurrentTextureStatus.Success || texture.Texture == null)
                 {
                     if (texture.Texture != null) api.TextureRelease(texture.Texture);
-                    api.SurfaceUnconfigure(_surface);
-                    _configured = false;
+                    // A timeout leaves the surface valid; rebuilding it can wait for the entire shared queue.
+                    if (texture.Status != SurfaceGetCurrentTextureStatus.Timeout)
+                    {
+                        api.SurfaceUnconfigure(_surface);
+                        _configured = false;
+                    }
                     return;
                 }
 
@@ -91,7 +123,10 @@ namespace ManaGraphics.Code.Graphics
                     api.RenderPassEncoderEnd(pass);
                     commands = api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
                     api.QueueSubmit(_owner._queue, 1, &commands);
-                    api.SurfacePresent(_surface);
+                    using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Panel UI: Present"))
+                    {
+                        api.SurfacePresent(_surface);
+                    }
                 }
                 finally
                 {
@@ -117,3 +152,4 @@ namespace ManaGraphics.Code.Graphics
     }
 }
 #endif
+

@@ -1,5 +1,8 @@
 # Finished
 
+[x] - Detached panel resize/presentation mitigations (2026-10-14): present once per normal tick instead of twice in resize callbacks, choose supported Immediate/Mailbox presentation with FIFO fallback, retain a valid surface on acquisition timeout, and profile panel Acquire/Present independently. ManaUiDesktopWindows/ManaWebGpuContext.UiSurface; desktop_panel automation and Tools/Automation/Checks/desktop-panel-resize.json. Repeated shrink/expand check held 119.9 FPS, 11.2 ms worst frame, no settled hitches; all 1795 ManaUI checks passed.
+    Follow-up: exact user-reported persistent 3 FPS/black-area failure was not reproduced; these mitigations need confirmation on that intermittent case.
+
 [x] - Preserve macOS red close circles after docking (2026-10-14): DockTabGroup draws persistent left-side red circles for every closeable macOS tab, with a cross on hover. Docking close targets unchanged; in-app screenshot verified and all 1795 ManaUI checks passed.
 
 [x] - macOS chrome and control styling (2026-10-14): neutral silver surfaces and gradient buttons; full-width segmented dock tabs with left close targets; centered floating-window titles and left traffic lights (inactive grey, hover symbols). Red closes, yellow collapses/restores the title bar, green zooms/restores; unavailable actions grey out. ManaUI UiWindow/DockTabGroup/UiTheme; focused pointer and restore tests, all 1795 ManaUI checks passed; Tools/Automation/Checks/macos-chrome.json and DevPhotos captures.

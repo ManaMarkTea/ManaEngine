@@ -98,10 +98,9 @@ namespace Mana.Code.UI.ManaUi
                     _host.Root.Content = _frame;
                     _window.Closing += () => _closeRequested = true;
                     _window.Move += _ => MarkBoundsDirty();
-                    _window.Resize += _ => { MarkBoundsDirty(); DrawFrame(0); };
-                    // Windows runs a modal event loop during a native resize, pausing the editor's
-                    // frame loop. These callbacks still run on the UI thread during that loop.
-                    _window.FramebufferResize += _ => DrawFrame(0);
+                    // Borderless edges resize through our pointer handler, without a native modal loop.
+                    // Present once on the normal tick, after both window and framebuffer sizes have settled.
+                    _window.Resize += _ => MarkBoundsDirty();
                 }
                 catch { Dispose(); Destroy(); throw; }
             }

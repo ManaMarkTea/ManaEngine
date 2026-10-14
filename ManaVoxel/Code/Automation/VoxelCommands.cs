@@ -124,6 +124,56 @@ namespace ManaVoxel.Code.Automation
 
             runner.Register("open_panel", command => ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? ""));
 
+            runner.Register("desktop_panel", command =>
+            {
+                var controller = ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.LastDragController
+                    ?? throw new InvalidOperationException("desktop_panel: editor docking is unavailable.");
+                var root = context.GameMode?.ManaUi?.Root
+                    ?? throw new InvalidOperationException("desktop_panel: editor UI is unavailable.");
+                IEnumerable<ManaUI.UiElement> WalkUi(ManaUI.UiElement element)
+                {
+                    yield return element;
+                    foreach (var child in element.VisualChildren)
+                    {
+                        foreach (var nested in WalkUi(child))
+                        {
+                            yield return nested;
+                        }
+                    }
+                }
+                var id = command.Name ?? "showcase";
+                var desktop = controller.FindDesktop(id);
+                if (desktop == null)
+                {
+                    var item = WalkUi(root).OfType<ManaUI.DockHost>().SelectMany(host => host.AllItems())
+                        .FirstOrDefault(item => item.Id == id)
+                        ?? throw new InvalidDataException($"desktop_panel: panel '{id}' is not open.");
+                    desktop = controller.PopOut(item)
+                        ?? throw new InvalidOperationException("desktop_panel: native windows are unavailable.");
+                }
+                if (command.Position is { Length: >= 2 } size)
+                {
+                    if (command.Preset == "drag")
+                    {
+                        var panelRoot = desktop.Root;
+                        panelRoot.UpdateLayout(desktop.Size / panelRoot.ScreenScale);
+                        var start = desktop.Frame.Bounds.Size - new Vector2(2);
+                        panelRoot.Input.InjectPointerMoved(start);
+                        panelRoot.Input.InjectPointerPressed(start, ManaUI.PointerButton.Left, 0);
+                        var end = start + new Vector2(size[0], size[1]) - desktop.Size;
+                        for (var step = 1; step <= 20; step++)
+                        {
+                            panelRoot.Input.InjectPointerMoved(Vector2.Lerp(start, end, step / 20f));
+                        }
+                        panelRoot.Input.InjectPointerReleased(end, ManaUI.PointerButton.Left);
+                    }
+                    else
+                    {
+                        desktop.Size = new Vector2(size[0], size[1]);
+                    }
+                }
+            });
+
             runner.Register("grid_autotile", command => ApplyGridAutoTile(runner, command));
             runner.Register("grid_generate", command => ApplyGridGenerate(runner, command));
         }

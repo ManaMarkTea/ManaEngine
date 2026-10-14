@@ -1,0 +1,17 @@
+[
+  { "type": "set_theme", "name": "macOS" },
+  { "type": "open_panel", "name": "showcase" },
+  { "type": "wait", "frames": 30 },
+  { "type": "desktop_panel", "name": "showcase", "position": [360, 280] },
+  { "type": "wait", "frames": 45 },
+  { "type": "desktop_panel", "name": "showcase", "preset": "drag", "position": [640, 760] },
+  { "type": "wait", "frames": 45 },
+  { "type": "desktop_panel", "name": "showcase", "preset": "drag", "position": [440, 350] },
+  { "type": "wait", "frames": 45 },
+  { "type": "desktop_panel", "name": "showcase", "preset": "drag", "position": [720, 850] },
+  { "type": "wait", "frames": 60 },
+  { "type": "profile_reset" },
+  { "type": "wait", "frames": 240 },
+  { "type": "profile_dump", "path": "Artifacts/Automation/desktop-panel-resize-profile.txt" },
+  { "type": "quit" }
+]
