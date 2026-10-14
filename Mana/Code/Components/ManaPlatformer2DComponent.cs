@@ -236,7 +236,7 @@ namespace Mana.Code.Components
                 _arm.FollowTargetYaw = false;
                 // A view made taller for a narrow screen looks up rather than down into the ground: the extra height
                 // goes mostly above the player, where there is sky to see.
-                var lift = _camera != null ? MathF.Max(0.0f, _camera.OrthographicHeight - ViewHeight) * 0.35f : 0.0f;
+                var lift = _camera != null ? MathF.Max(0.0f, _camera.OrthographicHeight - ViewHeight) * 0.2f : 0.0f;
                 _arm.SocketOffset = new Vector3(0.0f, CameraHeight + lift, 0.0f);
                 _arm.VerticalSocketLagSpeed = CameraVerticalLagSpeed;
             }

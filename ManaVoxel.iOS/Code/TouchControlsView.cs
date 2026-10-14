@@ -78,6 +78,9 @@ public sealed class TouchControlsView : UIView
         public required UIView View { get; init; }
         public required UIColor Color { get; init; }
         public int Holds;
+        /// <summary>A tap turns it on and the next off (Run), rather than holding it only while pressed.</summary>
+        public bool Toggle { get; init; }
+        public bool Latched;
     }
 
     public TouchControlsView(IosInput input)
@@ -93,7 +96,8 @@ public sealed class TouchControlsView : UIView
         _buttons = new[]
         {
             MakeButton("⬆︎\nJump", Key.Space, UIColor.FromRGB(0.22f, 0.78f, 0.45f)),
-            MakeButton("»\nRun", Key.ShiftLeft, UIColor.FromRGB(0.24f, 0.55f, 1.0f)),
+            // A toggle: holding it down with a thumb that also wants Jump was the hard part of running.
+            MakeButton("»\nRun", Key.ShiftLeft, UIColor.FromRGB(0.24f, 0.55f, 1.0f), toggle: true),
             MakeButton("◎\nCam", Key.C, UIColor.FromRGB(0.62f, 0.38f, 0.95f)),
             // The Bow's fire key: hold to draw, let go to loose (stick up aims high, as W does).
             MakeButton("🏹\nShoot", Key.F, UIColor.FromRGB(0.95f, 0.55f, 0.18f)),
@@ -297,6 +301,18 @@ public sealed class TouchControlsView : UIView
     /// <summary>Holds a button's key, and shows it: brighter, a little sunk, a tick under the thumb.</summary>
     private void Press(TouchButton button, bool down)
     {
+        if (button.Toggle)
+        {
+            if (down)
+            {
+                button.Latched = !button.Latched;
+                _input.Keyboard.Set(button.Key, button.Latched);
+                ManaRumble.Play(ManaRumbleStrength.Tap);
+            }
+            // Lit while on; sunk only under the thumb.
+            Show(button, button.Latched, down);
+            return;
+        }
         button.Holds = Math.Max(0, button.Holds + (down ? 1 : -1));
         var held = button.Holds > 0;
         _input.Keyboard.Set(button.Key, held);
@@ -304,12 +320,29 @@ public sealed class TouchControlsView : UIView
         {
             ManaRumble.Play(ManaRumbleStrength.Tap);
         }
-        UIView.Animate(held ? 0.06 : 0.14, () =>
+        Show(button, held, held);
+    }
+
+    private static void Show(TouchButton button, bool lit, bool sunk)
+    {
+        UIView.Animate(sunk ? 0.06 : 0.14, () =>
         {
-            button.View.Transform = held ? CGAffineTransform.MakeScale(0.88f, 0.88f) : CGAffineTransform.MakeIdentity();
-            button.View.BackgroundColor = held ? Brighter(button.Color) : button.Color.ColorWithAlpha(0.82f);
-            button.View.Layer.BorderColor = UIColor.FromWhiteAlpha(1, held ? 1.0f : 0.75f).CGColor;
+            button.View.Transform = sunk ? CGAffineTransform.MakeScale(0.88f, 0.88f) : CGAffineTransform.MakeIdentity();
+            button.View.BackgroundColor = lit ? Brighter(button.Color) : button.Color.ColorWithAlpha(0.82f);
+            button.View.Layer.BorderColor = UIColor.FromWhiteAlpha(1, lit ? 1.0f : 0.75f).CGColor;
+            button.View.Layer.BorderWidth = lit && button.Toggle ? 4.0f : 2.5f;
         });
+    }
+
+    /// <summary>Toggles off: leaving play (a menu, the app in the background) does not leave Run on.</summary>
+    private void Unlatch()
+    {
+        foreach (var button in _buttons.Where(b => b.Latched))
+        {
+            button.Latched = false;
+            _input.Keyboard.Set(button.Key, false);
+            Show(button, false, false);
+        }
     }
 
     /// <summary>Shows the scheme's controls, and hides them while a menu is up; the window calls it every frame.</summary>
@@ -333,7 +366,7 @@ public sealed class TouchControlsView : UIView
         CATransaction.DisableActions = true;
         _stickHome.Hidden = !buttons || _fingers.Values.Any(f => f.Kind == "stick");
         CATransaction.Commit();
-        if (!game && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe"))
+        if (!game && (_fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe") || _buttons.Any(b => b.Latched)))
         {
             Reset();
         }
@@ -342,6 +375,7 @@ public sealed class TouchControlsView : UIView
     /// <summary>Everything let go, when the app leaves the foreground with fingers down.</summary>
     public void Reset()
     {
+        Unlatch();
         foreach (var finger in _fingers.Values.Where(f => f.Button != null))
         {
             finger.Button!.Holds = 1;
@@ -399,7 +433,7 @@ public sealed class TouchControlsView : UIView
         ShadowOffset = new CGSize(0, 2),
     };
 
-    private static TouchButton MakeButton(string label, Key key, UIColor color)
+    private static TouchButton MakeButton(string label, Key key, UIColor color, bool toggle = false)
     {
         var view = new UIView
         {
@@ -426,6 +460,6 @@ public sealed class TouchControlsView : UIView
         }
         view.AddSubview(text);
         text.Frame = view.Bounds;
-        return new TouchButton { Key = key, View = view, Color = color };
+        return new TouchButton { Key = key, View = view, Color = color, Toggle = toggle };
     }
 }

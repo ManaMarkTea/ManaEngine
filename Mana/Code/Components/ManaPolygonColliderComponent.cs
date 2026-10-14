@@ -59,7 +59,7 @@ namespace Mana.Code.Components
                 _body = null;
             }
 
-            var triangles = Extrude(Outline(), Depth, scale);
+            var triangles = Extrude(Points, Depth, scale);
             if (triangles.Length > 0)
             {
                 _body = physics.AddTriangleMeshBody(Owner, triangles);
@@ -68,73 +68,85 @@ namespace Mana.Code.Components
             }
         }
 
-        private List<Vector2> Outline()
-        {
-            var outline = new List<Vector2>();
-            for (var i = 0; i + 1 < Points.Length; i += 2)
-            {
-                outline.Add(new Vector2(Points[i], Points[i + 1]));
-            }
-            return outline;
-        }
+        // Points are worked on as plain floats, x then y: the iPhone's AOT code got Vector2 values passed between
+        // methods wrong (X and Y shifted), which put the phone's colliders where there was nothing to stand on.
 
         /// <summary>
         /// The outline cut into triangles by ear clipping, then made a prism: both faces, and a pair of triangles per
         /// edge for the sides. Three vertices a triangle, scale applied, as a triangle-mesh body takes them.
         /// </summary>
-        public static Vector3[] Extrude(IReadOnlyList<Vector2> outline, float depth, Vector3 scale)
+        public static Vector3[] Extrude(IReadOnlyList<Vector2> outline, float depth, Vector3 scale) => Extrude(Flatten(outline), depth, scale);
+
+        public static Vector3[] Extrude(float[] points, float depth, Vector3 scale)
         {
-            if (outline.Count < 3)
+            var count = points.Length / 2;
+            if (count < 3)
             {
                 return [];
             }
 
-            var polygon = outline.ToList();
-            if (SignedArea(polygon) < 0.0f)
+            // Counter-clockwise, which the ear clipping wants.
+            var xy = new float[count * 2];
+            var reverse = SignedArea(points, count) < 0.0f;
+            for (var i = 0; i < count; i++)
             {
-                polygon.Reverse();
+                var from = reverse ? count - 1 - i : i;
+                xy[i * 2] = points[from * 2];
+                xy[i * 2 + 1] = points[from * 2 + 1];
             }
 
-            var faces = Triangulate(polygon);
+            var faces = Triangulate(xy);
             var half = MathF.Max(depth, 0.001f) * 0.5f;
-            Vector3 At(Vector2 p, float z) => new(p.X * scale.X, p.Y * scale.Y, z * scale.Z);
+            Vector3 At(int i, float z) => new(xy[i * 2] * scale.X, xy[i * 2 + 1] * scale.Y, z * scale.Z);
 
             var result = new List<Vector3>();
             foreach (var (a, b, c) in faces)
             {
                 // Front faces +Z, back faces -Z.
-                result.Add(At(polygon[a], half)); result.Add(At(polygon[b], half)); result.Add(At(polygon[c], half));
-                result.Add(At(polygon[a], -half)); result.Add(At(polygon[c], -half)); result.Add(At(polygon[b], -half));
+                result.Add(At(a, half)); result.Add(At(b, half)); result.Add(At(c, half));
+                result.Add(At(a, -half)); result.Add(At(c, -half)); result.Add(At(b, -half));
             }
 
-            for (var i = 0; i < polygon.Count; i++)
+            for (var i = 0; i < count; i++)
             {
-                var p = polygon[i];
-                var q = polygon[(i + 1) % polygon.Count];
-                result.Add(At(p, -half)); result.Add(At(q, -half)); result.Add(At(q, half));
-                result.Add(At(p, -half)); result.Add(At(q, half)); result.Add(At(p, half));
+                var q = (i + 1) % count;
+                result.Add(At(i, -half)); result.Add(At(q, -half)); result.Add(At(q, half));
+                result.Add(At(i, -half)); result.Add(At(q, half)); result.Add(At(i, half));
             }
 
             return result.ToArray();
         }
 
-        private static float SignedArea(IReadOnlyList<Vector2> polygon)
+        private static float[] Flatten(IReadOnlyList<Vector2> outline)
+        {
+            var xy = new float[outline.Count * 2];
+            for (var i = 0; i < outline.Count; i++)
+            {
+                xy[i * 2] = outline[i].X;
+                xy[i * 2 + 1] = outline[i].Y;
+            }
+            return xy;
+        }
+
+        private static float SignedArea(float[] xy, int count)
         {
             var area = 0.0f;
-            for (var i = 0; i < polygon.Count; i++)
+            for (var i = 0; i < count; i++)
             {
-                var p = polygon[i];
-                var q = polygon[(i + 1) % polygon.Count];
-                area += p.X * q.Y - q.X * p.Y;
+                var q = (i + 1) % count;
+                area += xy[i * 2] * xy[q * 2 + 1] - xy[q * 2] * xy[i * 2 + 1];
             }
             return area * 0.5f;
         }
 
         /// <summary>Ear clipping on a counter-clockwise simple polygon: triangles as index triples.</summary>
-        public static List<(int A, int B, int C)> Triangulate(IReadOnlyList<Vector2> polygon)
+        public static List<(int A, int B, int C)> Triangulate(IReadOnlyList<Vector2> polygon) => Triangulate(Flatten(polygon));
+
+        public static List<(int A, int B, int C)> Triangulate(float[] xy)
         {
+            var count = xy.Length / 2;
             var result = new List<(int, int, int)>();
-            var remaining = Enumerable.Range(0, polygon.Count).ToList();
+            var remaining = Enumerable.Range(0, count).ToList();
             var guard = 0;
             while (remaining.Count > 3 && guard++ < 10000)
             {
@@ -144,7 +156,7 @@ namespace Mana.Code.Components
                     var a = remaining[(i + remaining.Count - 1) % remaining.Count];
                     var b = remaining[i];
                     var c = remaining[(i + 1) % remaining.Count];
-                    if (Cross(polygon[a], polygon[b], polygon[c]) <= 0.0f)
+                    if (Cross(xy, a, b, c) <= 0.0f)
                     {
                         continue;
                     }
@@ -152,7 +164,7 @@ namespace Mana.Code.Components
                     var contains = false;
                     foreach (var other in remaining)
                     {
-                        if (other != a && other != b && other != c && Inside(polygon[other], polygon[a], polygon[b], polygon[c]))
+                        if (other != a && other != b && other != c && Inside(xy, other, a, b, c))
                         {
                             contains = true;
                             break;
@@ -183,9 +195,11 @@ namespace Mana.Code.Components
             return result;
         }
 
-        private static float Cross(Vector2 a, Vector2 b, Vector2 c) => (b.X - a.X) * (c.Y - a.Y) - (b.Y - a.Y) * (c.X - a.X);
+        // Points by index into the x,y array.
+        private static float Cross(float[] xy, int a, int b, int c) =>
+            (xy[b * 2] - xy[a * 2]) * (xy[c * 2 + 1] - xy[a * 2 + 1]) - (xy[b * 2 + 1] - xy[a * 2 + 1]) * (xy[c * 2] - xy[a * 2]);
 
-        private static bool Inside(Vector2 p, Vector2 a, Vector2 b, Vector2 c) =>
-            Cross(a, b, p) >= 0.0f && Cross(b, c, p) >= 0.0f && Cross(c, a, p) >= 0.0f;
+        private static bool Inside(float[] xy, int p, int a, int b, int c) =>
+            Cross(xy, a, b, p) >= 0.0f && Cross(xy, b, c, p) >= 0.0f && Cross(xy, c, a, p) >= 0.0f;
     }
 }
