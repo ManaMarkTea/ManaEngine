@@ -82,7 +82,8 @@ namespace Mana.Code.GameModes
                 hit = null;
             }
             var scene = TargetScene(hit?.Node);
-            var position = hit?.Position ?? MissedPoint(scene, camera, ray.Origin, ray.Direction);
+            Vector3? normal = hit?.Normal;
+            var position = hit?.Position ?? MissedPoint(scene, ray.Origin, ray.Direction, out normal);
             var selection = Context.World.Selection;
 
             var items = new List<MenuItem>
@@ -107,7 +108,7 @@ namespace Mana.Code.GameModes
                 items.Add(MenuItem.Separator());
             }
 
-            items.AddRange(SceneAddNodeMenu.Items(selection, () => scene, null, position, hit?.Normal));
+            items.AddRange(SceneAddNodeMenu.Items(selection, () => scene, null, position, normal));
             return items;
         }
 
@@ -194,35 +195,53 @@ namespace Mana.Code.GameModes
         }
 
         /// <summary>
-        /// Nothing under the pointer: as deep as most of the level's objects (on a 2D level, its play plane rather than a
-        /// backdrop behind it), else the ground, else a little way in front of the camera.
+        /// Nothing under the pointer (the editor floor is not pickable): on a 2D level its play plane, the Player
+        /// Start's depth; otherwise the ground; else a little way in front of the camera.
         /// </summary>
-        private static Vector3 MissedPoint(ManaScene scene, CameraComponent camera, Vector3 origin, Vector3 direction)
+        private static Vector3 MissedPoint(ManaScene scene, Vector3 origin, Vector3 direction, out Vector3? groundNormal)
         {
-            var forward = Vector3.Normalize(camera.Owner.Forward);
-            var depths = scene.Children
-                .Select(node => Vector3.Dot(node.WorldTransform.Translation - origin, forward))
-                .Where(depth => depth > 0.1f)
-                .Order()
-                .ToList();
-            float? nearestDepth = depths.Count > 0 ? depths[depths.Count / 2] : null;
-
-            var facing = Vector3.Dot(direction, forward);
-            if (nearestDepth is { } planeDepth && facing > 1e-4f)
+            groundNormal = null;
+            if (PlayPlaneZ(scene) is { } planeZ && MathF.Abs(direction.Z) > 1e-4f)
             {
-                return origin + direction * (planeDepth / facing);
+                var along = (planeZ - origin.Z) / direction.Z;
+                if (along > 0.0f)
+                {
+                    return origin + direction * along;
+                }
             }
 
             if (direction.Y < -1e-4f)
             {
                 var distance = -origin.Y / direction.Y;
-                if (distance is > 0.0f and < 500.0f)
+                if (distance is > 0.0f and < 1000.0f)
                 {
+                    // On the floor, so a shape sits on it rather than half sunk.
+                    groundNormal = Vector3.UnitY;
                     return origin + direction * distance;
                 }
             }
 
             return origin + direction * 10.0f;
+        }
+
+        private static float? PlayPlaneZ(ManaScene scene)
+        {
+            var pending = new Stack<ManaSceneNode>(scene.Children);
+            while (pending.Count > 0)
+            {
+                var node = pending.Pop();
+                if (node.Components.OfType<Mana.Code.Components.ManaPlatformer2DComponent>().Any())
+                {
+                    return node.WorldTransform.Translation.Z;
+                }
+
+                foreach (var child in node.Children)
+                {
+                    pending.Push(child);
+                }
+            }
+
+            return null;
         }
 
         private static string SceneName(ManaScene scene) => string.IsNullOrWhiteSpace(scene.Name) ? "Scene" : scene.Name;
