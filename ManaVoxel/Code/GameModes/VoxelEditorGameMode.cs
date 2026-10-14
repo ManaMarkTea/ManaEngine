@@ -1114,6 +1114,7 @@ namespace Mana.Code.GameModes
             // window drawn over the scene is invisible to the scene. As part of the ManaUI tree it is
             // hit-tested like anything else, and UiWantsMouse already knows.
             UpdateVoxelPointerInteraction(UiWantsMouse);
+            _viewModel.ScaleBoxHighlight = _transformGizmo?.HighlightedBoxHandle;
             UpdateFrameSelectedShortcut();
             UpdateDropSelectedToFloorShortcut();
             UpdateEscapeSelectionShortcut();

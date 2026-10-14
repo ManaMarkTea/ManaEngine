@@ -759,12 +759,30 @@ namespace Mana.Code.GameModes
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
                 _commandRunner.Register("measure", command => RunMeasureCommand(command.Name, command.Position));
+                _commandRunner.Register("gizmo_mode", command =>
+                    _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));
+                _commandRunner.Register("scale_box", command => RunScaleBoxCommand(command.Name, command.Position));
 #if !MANA_BROWSER
                 _commandRunner.Register("live_scan", command => RunLiveScanCommand(command.Name, command.Path));
 #endif
             }
 
             _commandRunner.Tick();
+        }
+
+        // A Scale box handle of the selection dragged to a world point, then where that left the node.
+        private void RunScaleBoxCommand(string? name, float[]? position)
+        {
+            var handle = SceneScaleBoxHandle.Parse(name)
+                ?? throw new InvalidDataException($"scale_box: '{name}' is not a handle (e.g. +x, -y, +x-y).");
+            if (position is not { Length: 3 } || Context.World.Selection.SelectedNode is not { } node || _transformGizmo == null)
+            {
+                throw new InvalidDataException("scale_box: needs a selected node and a world 'position' to drag to.");
+            }
+
+            var dragged = _transformGizmo.DragBoxHandle(node, handle, new Vector3(position[0], position[1], position[2]));
+            ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
+                $"Command file: scale_box {handle} {(dragged ? "dragged" : "missed")}; {node.Name} at {node.Position}, scale {node.Scale}");
         }
     }
 }

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mana;
+using Mana.Code.GameModes;
 using Mana.Code.UI;
 using ManaUI;
 
@@ -40,7 +41,12 @@ public sealed class SelectionTransformOverlay : UiElement
         drawList.PushClip(Bounds);
         try
         {
-            if (CameraComponent.TryComputeSelectionWorldBounds(
+            if (_editor.TransformGizmoMode == SceneTransformGizmoMode.Scale &&
+                SceneScaleBox.TryLocalBounds(node, out var boxMin, out var boxMax))
+            {
+                DrawScaleBox(drawList, node.WorldTransform, boxMin, boxMax, Project);
+            }
+            else if (CameraComponent.TryComputeSelectionWorldBounds(
                     selection.SelectedComponent as MeshRendererComponent, node, out var min, out var max))
             {
                 Span<Vector2> corners = stackalloc Vector2[8];
@@ -81,6 +87,49 @@ public sealed class SelectionTransformOverlay : UiElement
         finally
         {
             drawList.PopClip();
+        }
+    }
+
+    private delegate bool Projector(Vector3 point, out Vector2 screen);
+
+    // The Scale tool's box (SceneScaleBox): the selection's own frame, so it turns with it, unlike the bounds above.
+    private void DrawScaleBox(ManaUiDrawList drawList, Matrix4x4 world, Vector3 min, Vector3 max, Projector project)
+    {
+        var shadow = new Vector4(0, 0, 0, 0.55f);
+        var line = new Vector4(1, 1, 1, 0.9f);
+        var hot = new Vector4(1.0f, 0.88f, 0.20f, 1.0f);
+        var highlight = _editor.ScaleBoxHighlight;
+
+        for (var i = 0; i < 8; i++)
+        for (var axis = 0; axis < 3; axis++)
+        {
+            var other = i ^ (1 << axis);
+            if (i > other || SceneScaleBox.IsFlat(min, max, axis) ||
+                !project(Vector3.Transform(SceneScaleBox.Corner(min, max, i), world), out var a) ||
+                !project(Vector3.Transform(SceneScaleBox.Corner(min, max, other), world), out var b))
+                continue;
+            drawList.DrawLine(a, b, shadow, 3);
+            drawList.DrawLine(a, b, line, 1);
+        }
+
+        foreach (var handle in SceneScaleBox.Handles(min, max))
+        {
+            var lit = highlight == handle;
+            if (SceneScaleBox.TryEdge(handle, min, max, out var start, out var end))
+            {
+                if (lit && project(Vector3.Transform(start, world), out var a) && project(Vector3.Transform(end, world), out var b))
+                {
+                    drawList.DrawLine(a, b, shadow, 6);
+                    drawList.DrawLine(a, b, hot, 3);
+                }
+                // An edge is grabbed anywhere along it; the dot in its middle only says so.
+            }
+
+            if (!project(Vector3.Transform(SceneScaleBox.Point(handle, min, max), world), out var dot))
+                continue;
+            var radius = (lit ? 6.0f : 4.5f) - (handle.AxisCount == 1 && !lit ? 1.0f : 0.0f);
+            drawList.FillRect(new UiRect(dot.X - radius - 1, dot.Y - radius - 1, radius * 2 + 2, radius * 2 + 2), shadow);
+            drawList.FillRect(new UiRect(dot.X - radius, dot.Y - radius, radius * 2, radius * 2), lit ? hot : Vector4.One);
         }
     }
 

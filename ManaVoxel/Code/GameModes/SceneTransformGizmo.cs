@@ -1,3 +1,4 @@
+using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using ManaVoxel.Code.UI;
@@ -48,6 +49,17 @@ namespace Mana.Code.GameModes
         private Vector3 _dragPlaneU;
         private Vector3 _dragPlaneV;
 
+        // Scale box: the selection's own bounds, with a handle on each face (edge) and corner.
+        private Vector3 _boxMin;
+        private Vector3 _boxMax;
+        private SceneScaleBoxHandle? _boxHovered;
+        private SceneScaleBoxHandle? _boxActive;
+        private Matrix4x4 _boxStartWorld;
+        private Matrix4x4 _boxWorldToLocal;
+        private Vector3 _boxHandleWorld;
+        private Vector3 _boxPlaneNormal;
+        private Vector3 _boxStartHitLocal;
+
         private enum GizmoAxis
         {
             X,
@@ -73,6 +85,9 @@ namespace Mana.Code.GameModes
             _pickScene.Children.Add(_root);
         }
 
+        /// <summary>The Scale box handle under the pointer or being dragged.</summary>
+        public SceneScaleBoxHandle? HighlightedBoxHandle => _boxActive ?? _boxHovered;
+
         /// <summary>Returns true while a handle owns or is under the pointer.</summary>
         public bool Update(
             ManaSceneNode? selectedNode,
@@ -93,10 +108,20 @@ namespace Mana.Code.GameModes
             if (!ReferenceEquals(_target, selectedNode))
             {
                 EndDrag();
+                EndBoxDrag();
                 _target = selectedNode;
             }
 
             var effectiveMode = _activeAxis.HasValue ? _dragMode : mode;
+            // Scale works on the selection's box when it has one; an empty group keeps the axis handles.
+            if (!_activeAxis.HasValue && (_boxActive.HasValue || effectiveMode == SceneTransformGizmoMode.Scale)
+                && UpdateScaleBox(selectedNode, inputCaptured, mouse, pointerDown, out var boxCaptured))
+            {
+                _pointerWasDown = pointerDown;
+                return boxCaptured;
+            }
+
+            _boxHovered = null;
             EnsureBuilt(effectiveMode);
             EnsureAttached();
             SyncTransform(selectedNode);
@@ -142,9 +167,15 @@ namespace Mana.Code.GameModes
         public void Hide()
         {
             EndDrag();
+            EndBoxDrag();
             SetHoveredAxis(null);
+            _boxHovered = null;
             _target = null;
+            DetachHandles();
+        }
 
+        private void DetachHandles()
+        {
             lock (_world.SceneLock)
             {
                 _world.DefaultScene.Children.Remove(_root);
@@ -457,7 +488,7 @@ namespace Mana.Code.GameModes
             var axisWorld = AxisWorld(normalAxis);
             _dragAxisWorld = axisWorld;
 
-            var keyboard = _world.Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = Keyboard;
             _dragInPlane = mode == SceneTransformGizmoMode.Translate &&
                 ((int)axis >= (int)GizmoAxis.XY || keyboard?.IsKeyPressed(Key.ShiftLeft) == true || keyboard?.IsKeyPressed(Key.ShiftRight) == true);
 
@@ -475,7 +506,7 @@ namespace Mana.Code.GameModes
                     return;
                 }
             }
-            else if (!TryBuildAxisDragPlane(axisWorld, out _dragPlaneNormal)
+            else if (!TryBuildAxisDragPlane(_dragPivotWorld, axisWorld, out _dragPlaneNormal)
                 || !TryAxisParameterOnPlane(
                     rayOrigin,
                     rayDirection,
@@ -652,7 +683,7 @@ namespace Mana.Code.GameModes
             return Vector3.Normalize(Vector3.Transform(local, _orientationWorld));
         }
 
-        private bool TryBuildAxisDragPlane(Vector3 axisDirection, out Vector3 planeNormal)
+        private bool TryBuildAxisDragPlane(Vector3 origin, Vector3 axisDirection, out Vector3 planeNormal)
         {
             var axis = Vector3.Normalize(axisDirection);
             var cameraPosition = _world.MainCamera.Owner.WorldTransform.Translation;
@@ -662,7 +693,7 @@ namespace Mana.Code.GameModes
             // scene scale; the old closest-lines denominator approached zero and launched nodes away.
             var candidates = new[]
             {
-                cameraPosition - _pivotWorld,
+                cameraPosition - origin,
                 _world.MainCamera.Owner.Up,
                 _world.MainCamera.Owner.Right
             };
@@ -767,6 +798,295 @@ namespace Mana.Code.GameModes
                     value.Z = component;
                     break;
             }
+        }
+
+        private IKeyboard? Keyboard => _world.Context.Input.Keyboards.FirstOrDefault();
+
+        private bool IsHeld(Key left, Key right) => Keyboard is { } keyboard && (keyboard.IsKeyPressed(left) || keyboard.IsKeyPressed(right));
+
+        /// <summary>False when the selection has no box, so Scale falls back to its axis handles.</summary>
+        private bool UpdateScaleBox(ManaSceneNode target, bool inputCaptured, IMouse mouse, bool pointerDown, out bool captured)
+        {
+            captured = false;
+            if (!_boxActive.HasValue && !SceneScaleBox.TryLocalBounds(target, out _boxMin, out _boxMax))
+            {
+                return false;
+            }
+
+            DetachHandles();
+            SetHoveredAxis(null);
+            var ray = _world.MainCamera.ProjectScreenToWorld(new Vector3(mouse.Position, 0.0f), new Vector3(mouse.Position, 1.0f));
+            if (_boxActive.HasValue)
+            {
+                if (pointerDown)
+                {
+                    ApplyBoxDrag(target, ray.Origin, ray.Direction);
+                }
+                else
+                {
+                    EndBoxDrag();
+                }
+
+                captured = true;
+                return true;
+            }
+
+            _boxHovered = inputCaptured ? null : PickBoxHandle(target, ray.Origin);
+            if (pointerDown && !_pointerWasDown && _boxHovered is { } handle)
+            {
+                BeginBoxDrag(target, handle, ray.Origin, ray.Direction);
+            }
+
+            captured = _boxHovered.HasValue || _boxActive.HasValue;
+            return true;
+        }
+
+        // Picked on screen, in window pixels: an edge anywhere along its length, a corner or face by its dot.
+        private SceneScaleBoxHandle? PickBoxHandle(ManaSceneNode target, Vector3 pointerNearPoint)
+        {
+            const float dotRadius = 10.0f;
+            const float edgeRadius = 7.0f;
+            var camera = _world.MainCamera;
+            var viewProjection = camera._ViewMatrix * camera._ProjectionMatrix;
+            var halfWindow = new Vector2(_world.Context.Window.Size.X, _world.Context.Window.Size.Y) * 0.5f;
+            bool Screen(Vector3 world, out Vector2 screen)
+            {
+                var clip = Vector4.Transform(new Vector4(world, 1.0f), viewProjection);
+                screen = clip.W > 1e-5f ? new Vector2(clip.X / clip.W * halfWindow.X, -clip.Y / clip.W * halfWindow.Y) : Vector2.Zero;
+                return clip.W > 1e-5f;
+            }
+
+            // The pointer ray starts on the near plane, so projecting its start gives the pointer in the same terms.
+            if (!Screen(pointerNearPoint, out var pointer))
+            {
+                return null;
+            }
+
+            var world = target.WorldTransform;
+            SceneScaleBoxHandle? best = null;
+            var bestScore = float.PositiveInfinity;
+            foreach (var handle in SceneScaleBox.Handles(_boxMin, _boxMax))
+            {
+                float distance;
+                float radius;
+                if (SceneScaleBox.TryEdge(handle, _boxMin, _boxMax, out var start, out var end))
+                {
+                    if (!Screen(Vector3.Transform(start, world), out var a) || !Screen(Vector3.Transform(end, world), out var b))
+                    {
+                        continue;
+                    }
+
+                    var segment = b - a;
+                    var t = segment.LengthSquared() > 1e-6f ? Math.Clamp(Vector2.Dot(pointer - a, segment) / segment.LengthSquared(), 0.0f, 1.0f) : 0.0f;
+                    distance = Vector2.Distance(pointer, a + segment * t);
+                    radius = edgeRadius;
+                }
+                else
+                {
+                    if (!Screen(Vector3.Transform(SceneScaleBox.Point(handle, _boxMin, _boxMax), world), out var dot))
+                    {
+                        continue;
+                    }
+
+                    distance = Vector2.Distance(pointer, dot);
+                    radius = dotRadius;
+                }
+
+                // A corner sits where two edges meet; it wins there.
+                var score = distance - (handle.AxisCount > 1 ? dotRadius : 0.0f);
+                if (distance <= radius && score < bestScore)
+                {
+                    bestScore = score;
+                    best = handle;
+                }
+            }
+
+            return best;
+        }
+
+        private void BeginBoxDrag(ManaSceneNode target, SceneScaleBoxHandle handle, Vector3 rayOrigin, Vector3 rayDirection)
+        {
+            _boxStartWorld = ComposeLocalTransform(target) * (target.Parent?.WorldTransform ?? Matrix4x4.Identity);
+            if (!Matrix4x4.Invert(_boxStartWorld, out _boxWorldToLocal))
+            {
+                return;
+            }
+
+            _boxHandleWorld = Vector3.Transform(SceneScaleBox.Point(handle, _boxMin, _boxMax), _boxStartWorld);
+            var flatAxis = -1;
+            for (var axis = 0; axis < 3 && SceneScaleBox.SolidAxes(_boxMin, _boxMax) == 2; axis++)
+            {
+                if (SceneScaleBox.IsFlat(_boxMin, _boxMax, axis))
+                {
+                    flatAxis = axis;
+                }
+            }
+
+            // A flat box is dragged across its own plane; a solid one's face along its axis, a corner across the view.
+            if (flatAxis >= 0)
+            {
+                _boxPlaneNormal = Vector3.Normalize(LocalAxisWorld(flatAxis));
+            }
+            else if (handle.AxisCount == 1)
+            {
+                var axis = handle.X != 0 ? 0 : handle.Y != 0 ? 1 : 2;
+                if (!TryBuildAxisDragPlane(_boxHandleWorld, Vector3.Normalize(LocalAxisWorld(axis)), out _boxPlaneNormal))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                _boxPlaneNormal = Vector3.Normalize(_world.MainCamera.Owner.WorldTransform.Translation - _boxHandleWorld);
+            }
+
+            if (!TryPlanePoint(rayOrigin, rayDirection, _boxHandleWorld, _boxPlaneNormal, out var hit))
+            {
+                return;
+            }
+
+            _boxStartHitLocal = Vector3.Transform(_boxHandleWorld + hit, _boxWorldToLocal);
+            _dragStartPosition = target.Position;
+            _dragStartRotation = target.Rotation;
+            _dragStartScale = target.Scale;
+            _dragMode = SceneTransformGizmoMode.Scale;
+            _boxActive = handle;
+        }
+
+        private Vector3 LocalAxisWorld(int axis) =>
+            Vector3.TransformNormal(axis == 0 ? Vector3.UnitX : axis == 1 ? Vector3.UnitY : Vector3.UnitZ, _boxStartWorld);
+
+        /// <summary>
+        /// Moves the grabbed side and keeps the opposite one where it was (Alt: the middle stays, both sides move; Shift:
+        /// the proportions stay). A 9-slice steps a whole tile at a time, the rest snap their edge to the grid.
+        /// </summary>
+        private void ApplyBoxDrag(ManaSceneNode target, Vector3 rayOrigin, Vector3 rayDirection)
+        {
+            if (_boxActive is not { } handle ||
+                !TryPlanePoint(rayOrigin, rayDirection, _boxHandleWorld, _boxPlaneNormal, out var hit))
+            {
+                return;
+            }
+
+            var handleLocal = SceneScaleBox.Point(handle, _boxMin, _boxMax);
+            var moved = handleLocal + Vector3.Transform(_boxHandleWorld + hit, _boxWorldToLocal) - _boxStartHitLocal;
+            var fromMiddle = IsHeld(Key.AltLeft, Key.AltRight);
+            var centre = (_boxMin + _boxMax) * 0.5f;
+            var anchor = Vector3.Zero;
+            var lengths = Vector3.Zero;
+            for (var axis = 0; axis < 3; axis++)
+            {
+                var side = handle[axis];
+                anchor = SceneScaleBox.Set(anchor, axis, fromMiddle || side == 0 ? SceneScaleBox.Get(centre, axis)
+                    : side > 0 ? SceneScaleBox.Get(_boxMin, axis) : SceneScaleBox.Get(_boxMax, axis));
+                lengths = SceneScaleBox.Set(lengths, axis, LocalAxisWorld(axis).Length());
+            }
+
+            var factors = Vector3.One;
+            // A solid box's corner scales evenly -- three free axes would follow the pointer nowhere useful.
+            if (handle.AxisCount > 1 && (IsHeld(Key.ShiftLeft, Key.ShiftRight) || handle.AxisCount == 3))
+            {
+                var startSpan = (handleLocal - anchor) * lengths;
+                var factor = Vector3.Dot((moved - anchor) * lengths, startSpan) / MathF.Max(startSpan.LengthSquared(), 1e-12f);
+                if (_snap.Enabled)
+                {
+                    factor = EditorSnapSettings.SnapTo(factor, _snap.ScaleStep);
+                }
+
+                factors = new Vector3(handle.X != 0 ? factor : 1.0f, handle.Y != 0 ? factor : 1.0f, handle.Z != 0 ? factor : 1.0f);
+            }
+            else
+            {
+                for (var axis = 0; axis < 3; axis++)
+                {
+                    if (handle[axis] == 0)
+                    {
+                        continue;
+                    }
+
+                    var length = MathF.Max(SceneScaleBox.Get(lengths, axis), 1e-12f);
+                    var delta = (SceneScaleBox.Get(moved, axis) - SceneScaleBox.Get(handleLocal, axis)) * length;
+                    // The edge itself lands on the grid, as a move handle's pivot does.
+                    delta = _snap.SnapDragDistance(_boxHandleWorld, Vector3.Normalize(LocalAxisWorld(axis)), delta);
+                    var edge = SceneScaleBox.Get(handleLocal, axis) + delta / length;
+                    var span = SceneScaleBox.Get(handleLocal, axis) - SceneScaleBox.Get(anchor, axis);
+                    factors = SceneScaleBox.Set(factors, axis, MathF.Abs(span) > 1e-12f ? (edge - SceneScaleBox.Get(anchor, axis)) / span : 1.0f);
+                }
+            }
+
+            var startScale = _dragStartScale;
+            var scale = startScale;
+            for (var axis = 0; axis < 3; axis++)
+            {
+                var start = SceneScaleBox.Get(startScale, axis);
+                // Never through zero: a side dragged past its anchor stops there rather than flipping the object.
+                var factor = MathF.Max(SceneScaleBox.Get(factors, axis), 0.01f / MathF.Max(MathF.Abs(start), 1e-6f));
+                scale = SceneScaleBox.Set(scale, axis, start * factor);
+            }
+
+            var newAnchor = anchor;
+            if (target.Components.OfType<ManaSprite9SliceComponent>().FirstOrDefault() is { TileSize: { } tile } slice)
+            {
+                // Scaled so the block is exactly whole tiles, its quad is exactly Size about its pivot again.
+                for (var axis = 0; axis < 2; axis++)
+                {
+                    var size = axis == 0 ? slice.Size.X : slice.Size.Y;
+                    var tileSize = axis == 0 ? tile.X : tile.Y;
+                    var pivot = axis == 0 ? slice.Pivot.X : slice.Pivot.Y;
+                    if (handle[axis] == 0 || size <= 0.0f || tileSize <= 0.0f)
+                    {
+                        continue;
+                    }
+
+                    var start = SceneScaleBox.Get(startScale, axis);
+                    var tiles = MathF.Max(1.0f, MathF.Round(MathF.Abs(size * SceneScaleBox.Get(scale, axis)) / tileSize));
+                    scale = SceneScaleBox.Set(scale, axis, MathF.CopySign(tiles * tileSize / size, start));
+                    var low = -pivot * size;
+                    var high = (1.0f - pivot) * size;
+                    newAnchor = SceneScaleBox.Set(newAnchor, axis, fromMiddle ? (low + high) * 0.5f : handle[axis] > 0 ? low : high);
+                }
+            }
+
+            var rotation = _dragStartRotation.ToQuaternionFromEuler();
+            target.Scale = scale;
+            target.Position = _dragStartPosition + Vector3.Transform(startScale * anchor - scale * newAnchor, rotation);
+            ApplyCurrentTransform(target);
+        }
+
+        /// <summary>For scripts: drags a box handle from where it is to a world point, as the pointer would from the camera.</summary>
+        public bool DragBoxHandle(ManaSceneNode target, SceneScaleBoxHandle handle, Vector3 to)
+        {
+            Hide();
+            if (!SceneScaleBox.TryLocalBounds(target, out _boxMin, out _boxMax) ||
+                !SceneScaleBox.Handles(_boxMin, _boxMax).Contains(handle))
+            {
+                return false;
+            }
+
+            _target = target;
+            var eye = _world.MainCamera.Owner.WorldTransform.Translation;
+            var from = Vector3.Transform(SceneScaleBox.Point(handle, _boxMin, _boxMax), target.WorldTransform);
+            BeginBoxDrag(target, handle, eye, Vector3.Normalize(from - eye));
+            var dragged = _boxActive.HasValue;
+            ApplyBoxDrag(target, eye, Vector3.Normalize(to - eye));
+            EndBoxDrag();
+            _target = null;
+            return dragged;
+        }
+
+        private void EndBoxDrag()
+        {
+            if (_boxActive.HasValue && _target != null)
+            {
+                _history.RecordTransform(
+                    _target,
+                    new SceneNodeTransformState(_dragStartPosition, _dragStartRotation, _dragStartScale),
+                    SceneNodeTransformState.Capture(_target),
+                    $"Scale {_target.Name}",
+                    _world.Selection);
+            }
+
+            _boxActive = null;
         }
 
         private static Matrix4x4 ComposeLocalTransform(ManaSceneNode node)

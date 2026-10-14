@@ -137,6 +137,7 @@ public static class TestRunner
         ("ManaUI", "floating persistence", FloatingPersistenceChecks.Run),
         ("ManaVoxel", "place search model", PlaceSearchModelChecks.Run),
         ("ManaVoxel", "grid snapping", EditorSnapChecks.Run),
+        ("ManaVoxel", "scale box handles", SceneScaleBoxChecks.Run),
         ("ManaVoxel", "character size in play", CharacterScaleChecks.Run),
         ("ManaVoxel", "scene placement and moving between scenes", SceneMoveChecks.Run),
         ("ManaUI", "place search panel", PlaceSearchChecks.Run),

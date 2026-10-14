@@ -31,6 +31,11 @@ namespace Mana.Code.Components
 
         public ManaSpriteSlice? Asset => ManaContentAssets.Load<ManaSpriteSlice>(Slice, ManaSpriteSlice.Extension);
 
+        /// <summary>One tile in metres, or null until the asset and its pictures are found -- the step an editor resize takes.</summary>
+        public Vector2? TileSize => Asset is { } slice && ManaSpritePictures.Resolve(slice.AnyPiece) is { } sample
+            ? FrameSize(sample, 1, 1, slice.PixelsPerUnit)
+            : null;
+
         protected override string LayoutKey() =>
             $"{Slice.AssetId}|{Slice.AssetPath}|{(Asset is { } asset ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(asset) : 0)}|{Size}|{Pivot}|{Owner.Scale.X}|{Owner.Scale.Y}";
 

@@ -155,6 +155,8 @@ namespace ManaVoxel.Code.UI
         public bool ShowTrackSnapPoints;
         public bool ShowTransformGizmo = true;
         public SceneTransformGizmoMode TransformGizmoMode = SceneTransformGizmoMode.Translate;
+        /// <summary>The Scale box handle under the pointer or being dragged, for the overlay to light up.</summary>
+        public Mana.Code.GameModes.SceneScaleBoxHandle? ScaleBoxHighlight;
         public EditorUndoHistory History { get; } = new();
 
         // Off by default -- the demo KML is a ~10.5MB external file whose parse + mesh build cost is not
