@@ -46,6 +46,12 @@ namespace Mana.Code.Components
         [Category("Movement")]
         public float JumpHeight { get; set; } = 4.5f;
 
+        /// <summary>Walking pace side-on, metres a second (0 keeps the character's own, scaled to its height).</summary>
+        public float WalkSpeed { get; set; }
+
+        /// <summary>Running pace side-on, metres a second (0 keeps the character's own).</summary>
+        public float RunSpeed { get; set; }
+
         [Category("Camera")]
         public float CameraDistance { get; set; } = 12.0f;
 
@@ -68,12 +74,20 @@ namespace Mana.Code.Components
         [Category("Camera")]
         public float ViewHeight { get; set; } = 12.0f;
 
+        /// <summary>
+        /// The least it shows across: a narrow screen (a phone held upright) shows more top to bottom rather than
+        /// a few metres either side of the player.
+        /// </summary>
+        [Category("Camera")]
+        public float MinViewWidth { get; set; } = 12.0f;
+
         private ManaPawnNode? _player;
         private ManaSceneNode? _spriteNode;
         private ManaSpringArmComponent? _arm;
         private readonly List<MeshRendererComponent> _hidden = new();
         private float _savedTurnRate;
         private float _savedJumpHeight;
+        private (float Walk, float Run) _savedSpeeds;
         private CameraComponent? _camera;
         private (bool Orthographic, float Height) _savedProjection;
         private (float Yaw, float Pitch, float Length, bool Probe, bool FollowYaw, Vector3 Socket, float? VerticalLag) _savedArm;
@@ -108,6 +122,15 @@ namespace Mana.Code.Components
             {
                 player.JumpHeight = JumpHeight;
             }
+            _savedSpeeds = (player.WalkSpeed, player.RunSpeed);
+            if (WalkSpeed > 0.0f)
+            {
+                player.WalkSpeed = WalkSpeed;
+            }
+            if (RunSpeed > 0.0f)
+            {
+                player.RunSpeed = RunSpeed;
+            }
 
             _hidden.Clear();
             HideRenderers(player);
@@ -122,7 +145,7 @@ namespace Mana.Code.Components
             {
                 _camera = camera;
                 _savedProjection = (camera.OrthoGraphic, camera.OrthographicHeight);
-                camera.OrthographicHeight = MathF.Max(1.0f, ViewHeight);
+                camera.OrthographicHeight = ViewHeightFor(camera);
                 camera.SetProjectionMode(true);
                 camera.UpdateProjection();
             }
@@ -139,6 +162,7 @@ namespace Mana.Code.Components
             _player.PlaneZ = null;
             _player.TurnDegreesPerSecond = _savedTurnRate;
             _player.JumpHeight = _savedJumpHeight;
+            (_player.WalkSpeed, _player.RunSpeed) = _savedSpeeds;
             foreach (var renderer in _hidden)
             {
                 renderer.IsVisible = true;
@@ -195,6 +219,13 @@ namespace Mana.Code.Components
             // Every frame, not once: a character's model finishes loading after play has begun.
             HideRenderers(_player);
 
+            // The window can turn or resize mid-play.
+            if (_camera != null && ViewHeightFor(_camera) is var height && MathF.Abs(height - _camera.OrthographicHeight) > 0.01f)
+            {
+                _camera.OrthographicHeight = height;
+                _camera.UpdateProjection();
+            }
+
             if (_arm != null)
             {
                 _arm.YawRadians = 0.0f;
@@ -207,6 +238,9 @@ namespace Mana.Code.Components
                 _arm.VerticalSocketLagSpeed = CameraVerticalLagSpeed;
             }
         }
+
+        private float ViewHeightFor(CameraComponent camera) =>
+            MathF.Max(MathF.Max(1.0f, ViewHeight), MinViewWidth / MathF.Max(0.1f, camera.AspectRatio));
 
         private void HideRenderers(ManaSceneNode node)
         {
