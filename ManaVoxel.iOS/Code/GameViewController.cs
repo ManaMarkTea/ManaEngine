@@ -10,8 +10,8 @@ using Silk.NET.Windowing;
 namespace ManaVoxel.iOS;
 
 /// <summary>
-/// The game, full screen: the engine's WebGPU renderer drawing into a Metal layer (wgpu-native on Metal), with the
-/// touch controls over it. Runs the same <see cref="VoxelPlayGameMode"/> as <c>ManaVoxel --play</c>.
+/// The game: the engine's WebGPU renderer drawing into a Metal layer (wgpu-native on Metal), above the touch controls'
+/// bar when it is up and full screen otherwise, with the controls over it. Runs the same <see cref="VoxelPlayGameMode"/> as <c>ManaVoxel --play</c>.
 /// </summary>
 public sealed class GameViewController : UIViewController
 {
@@ -20,8 +20,7 @@ public sealed class GameViewController : UIViewController
     private TouchControlsView? _controls;
     private VoxelPlayGameMode? _game;
     private NSObject[] _observers = Array.Empty<NSObject>();
-
-    public override void LoadView() => View = new MetalView();
+    private readonly MetalView _metal = new();
 
     public override bool PrefersStatusBarHidden() => true;
     public override bool PrefersHomeIndicatorAutoHidden => true;
@@ -32,7 +31,9 @@ public sealed class GameViewController : UIViewController
     {
         base.ViewDidLoad();
         View!.BackgroundColor = UIColor.Black;
-        _window = new IosWindow(View, _input);
+        _metal.Frame = View.Bounds;
+        View.AddSubview(_metal);
+        _window = new IosWindow(_metal, _input);
         IosHaptics.Install(View);
         _controls = new TouchControlsView(_input) { Frame = View.Bounds, AutoresizingMask = UIViewAutoresizing.FlexibleDimensions };
         View.AddSubview(_controls);
@@ -51,6 +52,21 @@ public sealed class GameViewController : UIViewController
     public override void ViewDidLayoutSubviews()
     {
         base.ViewDidLayoutSubviews();
+        LayoutGame();
+    }
+
+    /// <summary>The game fills what the controls' bar leaves: the screen, less the bar while it is up.</summary>
+    private void LayoutGame()
+    {
+        if (View == null)
+        {
+            return;
+        }
+        var frame = new CoreGraphics.CGRect(0, 0, View.Bounds.Width, View.Bounds.Height - (_controls?.BarHeight ?? 0));
+        if (_metal.Frame != frame)
+        {
+            _metal.Frame = frame;
+        }
         _window?.RefreshSize();
     }
 
@@ -66,14 +82,15 @@ public sealed class GameViewController : UIViewController
         _window.RefreshSize();
         try
         {
-            ManaWebGpuNativeHost.Current = new IosWebGpuHost(_window, _input, (CAMetalLayer)View!.Layer);
+            ManaWebGpuNativeHost.Current = new IosWebGpuHost(_window, _input, (CAMetalLayer)_metal.Layer);
             // Opens on the start screen of levels; the pause button in play goes back to it.
             _game = new VoxelPlayGameMode(null, ManaGraphicsBackendKind.WebGpu)
             {
                 OffersLevelSelect = true,
                 MenuMusic = "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
-                SafeArea = () => new ManaUI.Thickness((float)View!.SafeAreaInsets.Left, (float)View.SafeAreaInsets.Top,
-                    (float)View.SafeAreaInsets.Right, (float)View.SafeAreaInsets.Bottom),
+                // The game view's own: with the bar up, its bottom edge is clear of the home indicator.
+                SafeArea = () => new ManaUI.Thickness((float)_metal.SafeAreaInsets.Left, (float)_metal.SafeAreaInsets.Top,
+                    (float)_metal.SafeAreaInsets.Right, (float)_metal.SafeAreaInsets.Bottom),
                 // The controls explain themselves on screen: no hint bar.
                 ControlsHint = string.Empty,
                 CommandFilePath = CommandScript(),
@@ -93,7 +110,11 @@ public sealed class GameViewController : UIViewController
                 return level.Bow;
             };
             _controls.SideOn = () => level.SideOn;
-            _window.Render += _ => _controls.Refresh();
+            _window.Render += _ =>
+            {
+                _controls.Refresh();
+                LayoutGame();
+            };
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
         }

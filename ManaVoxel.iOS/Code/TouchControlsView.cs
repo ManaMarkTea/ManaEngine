@@ -10,9 +10,9 @@ namespace ManaVoxel.iOS;
 /// <summary>
 /// On-screen controls over the game, in two schemes the level's modes choose (<see cref="ManaTouchControls"/>):
 /// <list type="bullet">
-/// <item>Stick: a thumbstick wherever a thumb lands on the left that holds W/A/S/D, coloured Jump/Run/Camera buttons on
-/// the right that light up and tick under the thumb, and anywhere else a drag that holds the right mouse button to
-/// look round.</item>
+/// <item>Stick: a bar along the bottom, below the game (which draws only above it), holding a thumbstick wherever a
+/// thumb lands on its left that holds W/A/S/D and a row of coloured buttons on its right that light up and tick under
+/// the thumb; over the game, a drag holds the right mouse button to look round.</item>
 /// <item>Swipe (the runner): nothing on screen; a swipe left, right, up or down taps that arrow key.</item>
 /// </list>
 /// In both, a finger that barely moves is a tap that clicks (the HUD's buttons), and while a menu is up a drag scrolls.
@@ -28,6 +28,18 @@ public sealed class TouchControlsView : UIView
     private readonly CAShapeLayer _stickBase = Circle(StickRadius, UIColor.FromWhiteAlpha(1, 0.12f), UIColor.FromWhiteAlpha(1, 0.45f));
     private readonly CAShapeLayer _stickKnob = Circle(28, UIColor.FromRGBA(0.35f, 0.75f, 1.0f, 0.85f), UIColor.White);
     private readonly TouchButton[] _buttons;
+    private readonly UIView _bar = new() { UserInteractionEnabled = false };
+    private readonly CAGradientLayer _barFill = new()
+    {
+        Colors = new[] { UIColor.FromRGB(0.16f, 0.15f, 0.27f).CGColor, UIColor.FromRGB(0.08f, 0.07f, 0.14f).CGColor },
+    };
+    private readonly CALayer _barEdge = new() { BackgroundColor = UIColor.FromWhiteAlpha(1, 0.22f).CGColor };
+    // Where the stick lives, while no thumb is on it.
+    private readonly CAShapeLayer _stickHome = Circle(StickRadius * 0.75f, UIColor.FromWhiteAlpha(1, 0.05f), UIColor.FromWhiteAlpha(1, 0.25f));
+    private string _shown = string.Empty;
+
+    // The bar's own height, above the home indicator's strip.
+    private const float BarContent = 124;
 
     /// <summary>
     /// False while a menu is up (the start screen, the pause panel): the stick and buttons hide, a tap clicks and a
@@ -43,6 +55,12 @@ public sealed class TouchControlsView : UIView
 
     /// <summary>A side-on level: the camera is fixed, so the Cam button (which orbits it) is hidden.</summary>
     public Func<bool> SideOn { get; set; } = () => false;
+
+    /// <summary>The bar is up: in play, with the stick and buttons (swipes and menus have the whole screen).</summary>
+    public bool ShowsBar => GameControls() && !Swiping;
+
+    /// <summary>How much of the bottom the bar covers, in points; the game draws above it.</summary>
+    public nfloat BarHeight => ShowsBar ? BarContent + SafeAreaInsets.Bottom : 0;
 
     // ManaUI scrolls 48 points a wheel notch (ScrollViewer.WheelStep).
     private const float PointsPerNotch = 48.0f;
@@ -71,6 +89,10 @@ public sealed class TouchControlsView : UIView
         _input = input;
         MultipleTouchEnabled = true;
         BackgroundColor = UIColor.Clear;
+        _bar.Layer.AddSublayer(_barFill);
+        _bar.Layer.AddSublayer(_barEdge);
+        AddSubview(_bar);
+        Layer.AddSublayer(_stickHome);
         _stickBase.Hidden = true;
         _stickKnob.Hidden = true;
         Layer.AddSublayer(_stickBase);
@@ -92,14 +114,24 @@ public sealed class TouchControlsView : UIView
     public override void LayoutSubviews()
     {
         base.LayoutSubviews();
-        // Jump biggest, under the right thumb; Run and Camera above it.
         var insets = SafeAreaInsets;
-        var right = Bounds.Width - insets.Right - 24;
-        var bottom = Bounds.Height - insets.Bottom - 24;
-        Place(_buttons[0].View, right - 88, bottom - 88, 88);
-        Place(_buttons[1].View, right - 88 - 80, bottom - 66, 66);
-        Place(_buttons[2].View, right - 66, bottom - 88 - 80, 66);
-        Place(_buttons[3].View, right - 88 - 80, bottom - 66 - 80, 66);
+        var top = Bounds.Height - BarContent - insets.Bottom;
+        var middle = top + BarContent / 2;
+        CATransaction.Begin();
+        CATransaction.DisableActions = true;
+        _bar.Frame = new CGRect(0, top, Bounds.Width, Bounds.Height - top);
+        _barFill.Frame = _bar.Bounds;
+        _barEdge.Frame = new CGRect(0, 0, Bounds.Width, 1.5);
+        _stickHome.Position = new CGPoint(insets.Left + 28 + StickRadius, middle);
+        CATransaction.Commit();
+        // In a row across the bar's right: Jump biggest under the thumb, the rest leftwards from it.
+        var x = Bounds.Width - insets.Right - 20 - 88;
+        Place(_buttons[0].View, x, middle - 44, 88);
+        foreach (var button in _buttons.Skip(1).Where(b => !b.View.Hidden))
+        {
+            x -= 14 + 66;
+            Place(button.View, x, middle - 33, 66);
+        }
     }
 
     private static void Place(UIView view, nfloat x, nfloat y, nfloat size)
@@ -136,10 +168,15 @@ public sealed class TouchControlsView : UIView
                 finger.Button = button;
                 Press(button, true);
             }
-            else if (at.X < Bounds.Width * 0.4 && at.Y > Bounds.Height * 0.3 && !_fingers.Values.Any(f => f.Kind == "stick"))
+            else if (at.Y >= _bar.Frame.Y - 12 && at.X < Bounds.Width * 0.5 && !_fingers.Values.Any(f => f.Kind == "stick"))
             {
                 finger.Kind = "stick";
                 ShowStick(at, at);
+            }
+            else if (at.Y >= _bar.Frame.Y)
+            {
+                // The bar between the stick and the buttons: nothing there to touch.
+                finger.Kind = "ignored";
             }
             else if (!_fingers.Values.Any(f => f.Kind == "look"))
             {
@@ -291,10 +328,23 @@ public sealed class TouchControlsView : UIView
     {
         var game = GameControls();
         var buttons = game && !Swiping;
+        var shown = string.Empty;
         foreach (var button in _buttons)
         {
             button.View.Hidden = !buttons || (button.Key == Key.F && !ShowsShoot()) || (button.Key == Key.C && SideOn());
+            shown += button.View.Hidden ? "0" : "1";
         }
+        if (shown != _shown)
+        {
+            // A button came or went: the row closes up.
+            _shown = shown;
+            SetNeedsLayout();
+        }
+        _bar.Hidden = !buttons;
+        CATransaction.Begin();
+        CATransaction.DisableActions = true;
+        _stickHome.Hidden = !buttons || _fingers.Values.Any(f => f.Kind == "stick");
+        CATransaction.Commit();
         if (!game && _fingers.Values.Any(f => f.Kind is "stick" or "key" or "look" or "swipe"))
         {
             Reset();
