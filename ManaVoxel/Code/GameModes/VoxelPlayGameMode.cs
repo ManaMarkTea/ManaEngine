@@ -560,6 +560,8 @@ namespace Mana.Code.GameModes
             }
             _player = null;
             Context.World.GameState.Player = null;
+            // The finished level's results and messages go with it, not behind the start screen.
+            Context.World.GameState.Reset();
             ManaLevelLoader.RemoveAuthoredNodes(Context, _ground);
             lock (Context.World.SceneLock)
             {

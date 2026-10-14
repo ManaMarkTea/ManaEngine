@@ -305,7 +305,10 @@ namespace Mana.Code
         public void Restart(ManaWorld world, Vector3 spawnPosition, float spawnYawRadians)
         {
             world.EndPlay();
+            world.BeginPlay();
 
+            // After play has begun again, not between: a teleport while the character's body was down for the restart
+            // did not take, and on the next frame the goal it had just reached saw it there and won the level again.
             if (_player != null)
             {
                 _player.RespawnPoint = spawnPosition;
@@ -315,8 +318,6 @@ namespace Mana.Code
                 facing.Y = spawnYawRadians;
                 _player.Rotation = facing;
             }
-
-            world.BeginPlay();
         }
 
         /// <summary>The one line the play HUD shows above the controls hint.</summary>

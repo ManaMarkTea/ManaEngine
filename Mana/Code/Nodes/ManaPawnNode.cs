@@ -311,9 +311,14 @@ namespace Mana.Code.Nodes
 
         public void TeleportTo(Vector3 worldPosition)
         {
+            // The body first: the pawn's position is read back from it.
+            Body?.Teleport(worldPosition);
             Position = worldPosition;
             destination = null;
-            Body?.Teleport(worldPosition);
+            // The world transform at once (triggers read it), without UpdateTransform, which would also run the
+            // components -- the character's among them, mid-teleport.
+            LocalTransform = Matrix4x4.CreateScale(Scale) * Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler()) * Matrix4x4.CreateTranslation(Position);
+            WorldTransform = Parent != null ? LocalTransform * Parent.WorldTransform : LocalTransform;
         }
 
         // Walks up from any descendant (the pick lands on a child mesh node, never on the pawn root).
