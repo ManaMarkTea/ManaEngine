@@ -231,6 +231,7 @@ namespace Mana.Code.GameModes
                     Context.Window.FileDrop += Window_FileDrop;
                     _viewModel.AttachScene(Context, Context.World.DefaultScene);
                     Context.World.MainCamera.ShouldCaptureMouseInput = ShouldCaptureEditorMouseInput;
+                    Context.World.MainCamera.KeepOrthographicPivotInFront = true;
 
                     // Same reason the camera above stops zooming: a live placement preview wants the
                     // scroll wheel for its own rotation, not whatever panel happened to keep pointer

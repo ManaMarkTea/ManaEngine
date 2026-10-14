@@ -14,7 +14,7 @@ namespace Mana.Code.UI.ManaUi
 
         private const float ButtonSize = 28.0f;
         private const float ButtonGap = 4.0f;
-        private const int ButtonCount = 3;
+        private const int ButtonCount = 4;
 
         /// <summary>The ball and the button column under it.</summary>
         public const float GizmoHeight = GizmoSize + ButtonGap * 2.0f + ButtonCount * (ButtonSize + ButtonGap);
@@ -23,7 +23,7 @@ namespace Mana.Code.UI.ManaUi
         public static bool FitsIn(Vector2 sceneSize) =>
             sceneSize.X >= GizmoSize + GizmoMargin * 2.0f && sceneSize.Y >= GizmoHeight + GizmoMargin * 2.0f;
 
-        public static UiElement Build(UiTheme theme, CameraComponent camera)
+        public static UiElement Build(UiTheme theme, CameraComponent camera, Action<UiElement>? openSettings = null)
         {
             var column = (GizmoSize - ButtonSize) * 0.5f;
             var canvas = new Canvas().Width(GizmoSize).Height(GizmoHeight).Children(
@@ -55,7 +55,34 @@ namespace Mana.Code.UI.ManaUi
                     .Width(ButtonSize).Height(ButtonSize));
             }
 
+            if (openSettings != null)
+            {
+                GizmoRoundButton? settings = null;
+                settings = new GizmoRoundButton(DrawSettings, "Camera settings: projection, zoom, clip planes and navigation.")
+                {
+                    Clicked = () =>
+                    {
+                        if (settings != null)
+                        {
+                            openSettings(settings);
+                        }
+                    }
+                };
+                canvas.Children.Add(settings.At(column, GizmoSize + ButtonGap * 2 + 3 * (ButtonSize + ButtonGap))
+                    .Width(ButtonSize).Height(ButtonSize));
+            }
             return canvas;
+        }
+
+        private static void DrawSettings(ManaUiDrawList list, UiRect box, Vector4 color)
+        {
+            for (var i = 0; i < 3; i++)
+            {
+                var y = box.Y + box.Height * (0.25f + i * 0.25f);
+                var x = box.X + box.Width * (i == 1 ? 0.65f : 0.35f);
+                list.DrawLine(new Vector2(box.X + box.Width * 0.15f, y), new Vector2(box.Right - box.Width * 0.15f, y), color, 1.5f);
+                list.DrawBox(new UiRect(x - 2, y - 3, 4, 6), color, color, 0, new CornerRadius(1));
+            }
         }
 
         private static Vector2 P(UiRect box, float tx, float ty) =>

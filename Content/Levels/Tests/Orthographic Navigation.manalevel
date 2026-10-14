@@ -1,0 +1,83 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Orthographic Navigation",
+  "camera": {
+    "position": [
+      58,
+      12,
+      58
+    ],
+    "rotation": [
+      -0.4405,
+      0.7854,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "id": "8ce7e0bbd79b40a19d71bb5f60828d7d",
+      "name": "Blue Cube",
+      "kind": "Shape",
+      "position": [
+        40,
+        2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.2,
+        0.5,
+        0.9,
+        1
+      ],
+      "size": [
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "id": "f41993091131428889207d324cade2ae",
+      "name": "Orange Ball",
+      "kind": "Shape",
+      "position": [
+        48,
+        2,
+        40
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        4,
+        4,
+        4
+      ],
+      "shape": "Sphere",
+      "color": [
+        0.9,
+        0.4,
+        0.1,
+        1
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ]
+    }
+  ]
+}

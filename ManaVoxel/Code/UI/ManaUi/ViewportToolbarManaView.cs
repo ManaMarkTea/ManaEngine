@@ -13,6 +13,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private const float SnapOptionsWidth = 330.0f;
         private static Button? _snapOptionsButton;
         private static Action? _openSnapOptions;
+        private static Action? _openCameraOptions;
 
         /// <summary>
         /// The bar over the viewport, after Blender's header: the menus on the left; snapping (a magnet and its
@@ -27,6 +28,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .WithTooltip("Snap steps for move, rotate and scale, and the gizmo's size.");
             _snapOptionsButton = steps;
             _openSnapOptions = () => OpenSnapOptions(theme, editor);
+            _openCameraOptions = () => OpenCameraOptions(steps, theme, camera);
             steps.OnClick(_openSnapOptions);
 
             var tools = new StackPanel().Horizontal(2.0f).Children(
@@ -58,6 +60,58 @@ namespace ManaVoxel.Code.UI.ManaUi
                 var at = new Vector2(MathF.Max(0.0f, anchor.Bounds.Right - SnapOptionsWidth - 24.0f), anchor.Bounds.Bottom + 2.0f);
                 MenuFlyout.ShowAt(root, at, new[] { MenuItem.Custom(SnapOptions(theme, editor)) });
             }
+        }
+
+        public static void OpenCameraOptions() => _openCameraOptions?.Invoke();
+
+        public static void OpenCameraOptions(UiElement anchor, UiTheme theme, Func<CameraComponent?> camera)
+        {
+            if (anchor.Root is not { } root)
+            {
+                return;
+            }
+            var at = new Vector2(MathF.Max(0, anchor.Bounds.Right - 330), anchor.Bounds.Bottom + 2);
+            MenuFlyout.ShowAt(root, at, new[] { MenuItem.Custom(CameraOptions(theme, camera)) });
+        }
+
+        public static UiElement CameraOptions(UiTheme theme, Func<CameraComponent?> camera)
+        {
+            UiElement Scalar(string label, Func<CameraComponent, float> read, Action<CameraComponent, float> write,
+                float minimum, float maximum)
+            {
+                var control = new SliderBox { Minimum = minimum, Maximum = maximum, DecimalPlaces = 2 };
+                control.BindPolled(c => c.Value, () => camera() is { } current ? read(current) : minimum);
+                control.BindPolled(c => c.IsEnabled, () => camera() != null);
+                control.ValueChanged += (_, value) =>
+                {
+                    if (!control.IsApplyingBinding && camera() is { } current)
+                    {
+                        write(current, value);
+                        current.UpdateProjection();
+                    }
+                };
+                return new Grid().Columns("100, *", 6).Rows("Auto").Children(
+                    new TextBlock().Text(label).Foreground(theme.TextMuted).CenterV(), control.GridColumn(1));
+            }
+            Button Projection(string label, bool ortho)
+            {
+                var button = new Button().Label(label).OnClick(() => camera()?.SetProjectionMode(ortho));
+                button.BindPolled(b => b.Variant, () => camera()?.OrthoGraphic == ortho ? ButtonVariant.Primary : ButtonVariant.Standard);
+                button.BindPolled(b => b.IsEnabled, () => camera() != null);
+                return button;
+            }
+            var fov = Scalar("Field of view", c => c.FieldOfViewDegrees, (c, v) => c.FieldOfViewDegrees = Math.Clamp(v, 1, 150), 1, 150);
+            fov.BindPolled(r => r.Visibility, () => camera()?.OrthoGraphic == true ? Visibility.Collapsed : Visibility.Visible);
+            var height = Scalar("Ortho height", c => c.OrthographicHeight, (c, v) => c.OrthographicHeight = Math.Clamp(v, 1, 1000), 1, 1000);
+            height.BindPolled(r => r.Visibility, () => camera()?.OrthoGraphic == true ? Visibility.Visible : Visibility.Collapsed);
+            return new StackPanel().Vertical(8).Width(330).Margin(10, 8, 10, 10).Children(
+                PreferencesManaView.Heading(theme, "Camera"),
+                new StackPanel().Horizontal(6).Children(Projection("Perspective", false), Projection("Orthographic", true)),
+                fov, height,
+                Scalar("Near clip", c => c.NearClipPlane, (c, v) => c.NearClipPlane = Math.Clamp(v, 0.0001f, c.FarClipPlane - 0.001f), 0.001f, 10),
+                Scalar("Far clip", c => c.FarClipPlane, (c, v) => c.FarClipPlane = MathF.Max(c.NearClipPlane + 0.001f, v), 1, 10000),
+                Scalar("Move speed", c => c.MovementSpeed, (c, v) => c.MovementSpeed = Math.Clamp(v, 0.25f, 500), 0.25f, 500),
+                Scalar("Pan speed", c => c.PanSpeed, (c, v) => c.PanSpeed = Math.Clamp(v, 0.05f, 5), 0.05f, 5));
         }
 
         /// <summary>The snap steps and gizmo size, as the bar drops them down.</summary>
@@ -155,7 +209,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             return new MenuBar().AddRange(new[]
             {
-                new MenuItem("Camera").WithItems(speed, views,
+                new MenuItem("Camera").WithItems(new MenuItem("Settings...", OpenCameraOptions), speed, views,
                     Toggle("Orthographic", () => camera()?.OrthoGraphic == true, () =>
                     {
                         if (camera() is { } current) { current.SetProjectionMode(!current.OrthoGraphic); }

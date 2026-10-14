@@ -19,6 +19,24 @@ namespace ManaVoxel.Code.Automation
         {
             var context = runner.Context;
 
+            runner.Register("camera_settings", _ => ManaVoxel.Code.UI.ManaUi.ViewportToolbarManaView.OpenCameraOptions());
+
+            runner.Register("camera_projection", command =>
+            {
+                var camera = context.World.MainCamera;
+                camera.SetProjectionMode(string.Equals(command.Name, "Ortho", StringComparison.OrdinalIgnoreCase));
+                if (command.Position is { Length: > 0 } settings)
+                {
+                    camera.OrthographicHeight = settings[0];
+                    camera.UpdateProjection();
+                }
+                if (Enum.TryParse<global::Mana.CameraViewPreset>(command.Preset, true, out var preset))
+                {
+                    camera.SetViewPreset(preset);
+                }
+                Console.WriteLine($"Command file: camera {command.Name} at {camera.Owner.Position}, ortho height {camera.OrthographicHeight}");
+            });
+
             runner.Register("open_level", command => openLevel(ManaCommandRunner.RequirePath(command)));
 
             runner.Register("transform_node", command =>

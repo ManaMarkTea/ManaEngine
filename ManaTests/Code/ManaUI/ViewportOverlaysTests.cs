@@ -21,6 +21,13 @@ public static class ViewportOverlayChecks
     {
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
+        var optionsRoot = new UiRoot(fonts)
+        {
+            Content = ViewportToolbarManaView.CameraOptions(UiTheme.Light(), () => null)
+        };
+        optionsRoot.UpdateLayout(new Vector2(380, 400));
+        Check("camera settings render safely without a current camera", optionsRoot.Render().InstanceCount > 0);
+
         var editor = new ManaVoxel.Code.UI.VoxelEditorViewModel();
         var toolbar = ViewportToolbarManaView.Build(editor, () => null, null);
         var displayMenu = toolbar.Menus.Single(menu => menu.Text == "Display");

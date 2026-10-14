@@ -21,8 +21,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             var theme = context.Theme;
 
             var projection = new StackPanel().Horizontal(theme.Spacing).Children(
-                Preset(theme, "Perspective", () => camera.OrthoGraphic = false, () => !camera.OrthoGraphic),
-                Preset(theme, "Ortho", () => camera.OrthoGraphic = true, () => camera.OrthoGraphic));
+                Preset(theme, "Perspective", () => camera.SetProjectionMode(false), () => !camera.OrthoGraphic),
+                Preset(theme, "Ortho", () => camera.SetProjectionMode(true), () => camera.OrthoGraphic));
 
             // Only one of these applies at a time, and the one that does not is hidden rather than
             // disabled: a field that cannot matter is noise, not information.

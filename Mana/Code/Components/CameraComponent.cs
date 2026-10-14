@@ -24,6 +24,9 @@ namespace Mana
     public class CameraComponent : ManaComponent
     {
         public bool OrthoGraphic = false;
+        public bool KeepOrthographicPivotInFront { get; set; }
+        private float _perspectiveDistanceBeforeOrtho;
+        private float _orthoHeightAtSwitch;
         public float NearClipPlane = 0.1f;
         public float FarClipPlane = 1000.0f;
         public float AspectRatio = 1.0f;
@@ -157,6 +160,10 @@ namespace Mana
             if (OrthoGraphic)
             {
                 OrthographicHeight = MathF.Max(1.0f, OrthographicHeight);
+                if (KeepOrthographicPivotInFront && !IsAttached)
+                {
+                    UpdateViewMatrix();
+                }
                 _ProjectionMatrix = Matrix4x4.CreateOrthographic(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane, FarClipPlane) * lensShift;
                 ViewParams = new Vector3(OrthographicHeight * AspectRatio, OrthographicHeight, NearClipPlane);
                 return;
@@ -179,8 +186,23 @@ namespace Mana
                 return;
             }
 
+            if (KeepOrthographicPivotInFront && !IsAttached)
+            {
+                var pivot = OrbitPivot();
+                if (orthographic)
+                {
+                    _perspectiveDistanceBeforeOrtho = Vector3.Distance(Owner.Position, pivot);
+                    _orthoHeightAtSwitch = MathF.Max(1, OrthographicHeight);
+                }
+                else if (_perspectiveDistanceBeforeOrtho > 0)
+                {
+                    _viewCenterDistance = _perspectiveDistanceBeforeOrtho * OrthographicHeight / _orthoHeightAtSwitch;
+                    Owner.Position = pivot - Owner.Forward.Normalized() * _viewCenterDistance;
+                }
+            }
             OrthoGraphic = orthographic;
             UpdateProjection();
+            UpdateViewMatrix();
         }
 
         /// <summary>
@@ -541,8 +563,24 @@ namespace Mana
             return Owner.Position + forward * Math.Clamp(along, 2.0f, 2000.0f);
         }
 
+        public static float OrthographicDepthDistance(float height, float near, float far) =>
+            MathF.Min(MathF.Max(1, height) * 2, MathF.Max(near * 2, far * 0.45f));
+
         public void UpdateViewMatrix()
         {
+            if (OrthoGraphic && KeepOrthographicPivotInFront && !IsAttached)
+            {
+                var pivot = OrbitPivot();
+                var direction = Owner.Forward.Normalized();
+                var distance = Vector3.Dot(pivot - Owner.Position, direction);
+                var required = OrthographicDepthDistance(OrthographicHeight, NearClipPlane, FarClipPlane);
+                // Ortho zoom expands the volume around a nearby camera; retreat without moving the view's pivot.
+                if (distance < required)
+                {
+                    Owner.Position = pivot - direction * required;
+                    _viewCenterDistance = required;
+                }
+            }
             Vector3 forward = Owner.Forward.Normalized();
             Vector3 up = Owner.Up.Normalized();
             _ViewMatrix = Matrix4x4.CreateLookAt(Owner.Position, Owner.Position + forward, up);

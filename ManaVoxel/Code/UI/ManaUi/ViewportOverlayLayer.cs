@@ -58,7 +58,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (camera() is { } initial)
             {
                 Add(
-                    ViewportCameraGizmoManaView.Build(theme, initial),
+                    ViewportCameraGizmoManaView.Build(theme, initial, anchor => ViewportToolbarManaView.OpenCameraOptions(anchor, theme, camera)),
                     ViewportSlot.TopRight,
                     new Vector2(ViewportCameraGizmoManaView.GizmoSize, ViewportCameraGizmoManaView.GizmoHeight),
                     ViewportCameraGizmoManaView.FitsIn);

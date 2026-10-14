@@ -1,0 +1,16 @@
+[
+  { "type": "open_level", "path": "Content/Levels/Tests/Orthographic Navigation.manalevel" },
+  { "type": "wait", "frames": 90 },
+  { "type": "move_camera", "position": [58, 12, 58], "target": [40, 0, 40] },
+  { "type": "camera_projection", "name": "Perspective" },
+  { "type": "camera_projection", "name": "Ortho" },
+  { "type": "wait", "frames": 30 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "camera_settings" },
+  { "type": "wait", "frames": 30 },
+  { "type": "screenshot", "path": "@@OUT@@.settings.png" },
+  { "type": "camera_projection", "name": "Perspective" },
+  { "type": "wait", "frames": 30 },
+  { "type": "screenshot", "path": "@@OUT@@.perspective.png" },
+  { "type": "quit" }
+]
