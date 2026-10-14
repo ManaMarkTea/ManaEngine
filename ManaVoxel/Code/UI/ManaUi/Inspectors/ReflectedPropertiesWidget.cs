@@ -62,7 +62,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 var row = InspectorControls.Row(
                     context,
                     Humanise(property.Name),
-                    Editor(subject, property, theme),
+                    Editor(subject, property, theme, context.Engine),
                     XmlDocSummaries.For(property));
 
                 // Saved script fields are the property names in camelCase, which is what an override's path holds.
@@ -237,7 +237,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             return combo;
         }
 
-        private static UiElement Editor(object subject, PropertyInfo property, UiTheme theme)
+        private static UiElement Editor(object subject, PropertyInfo property, UiTheme theme, ManaContext? engine)
         {
             var type = property.PropertyType;
 
@@ -326,6 +326,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 {
                     return PicturePicker.List(theme, Humanise(property.Name), () => Read() as string[] ?? [], value => Write(value));
                 }
+            }
+
+            if (type == typeof(string) && property.GetCustomAttribute<Mana.Code.Components.SoundPathAttribute>() != null)
+            {
+                return SoundPicker.Slot(theme, Humanise(property.Name), engine, () => Read() as string ?? string.Empty, value => Write(value));
             }
 
             if (type == typeof(string))

@@ -10,6 +10,7 @@ namespace Mana.Code.Components;
 public sealed class ManaAudioSourceComponent(ManaSceneNode owner) : ManaComponent(owner), IManaAudioEmitter, IDisposable
 {
     public const string ScriptType = "AudioSource";
+    [SoundPath]
     public string ClipPath { get; set; } = string.Empty;
     /// <summary>Additional clip paths separated by semicolons, played in rotation.</summary>
     public string Variants { get; set; } = string.Empty;
