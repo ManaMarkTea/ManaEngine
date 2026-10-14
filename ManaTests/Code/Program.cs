@@ -73,6 +73,14 @@ if (run.Total == 0)
     return 2;
 }
 
+// The slowest suites, so a run that creeps up in time says where.
+Console.WriteLine("Slowest suites:");
+foreach (var section in run.Sections.OrderByDescending(s => s.Duration).Take(8))
+{
+    Console.WriteLine($"  {section.Duration.TotalSeconds,6:F1}s  {section.Title}");
+}
+Console.WriteLine();
+
 Console.WriteLine(run.Success
     ? $"ALL {run.Total} CHECKS PASSED in {run.Duration.TotalSeconds:F1}s"
     : $"{run.Failed} of {run.Total} CHECK(S) FAILED");
