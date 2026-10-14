@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Windows 3.1 editor theme (2026-10-14): Appearance > Theme > Windows 3.1; built-in ManaUI palette and atlas skin with square grey bevels, recessed inputs, navy titles/tabs and grey scrollbar thumbs. Automated WebGPU screenshot verified; all 1789 ManaUI checks passed.
+
 [x] - Train Yard Wars cargo transfer feedback and dock stops (2026-10-11): a moving yellow arrow points into
     the loading wagon; a teal arrow points from the unloading wagon toward the dock. Yards have a marked east-side
     cargo platform. Trains stop with each loaded wagon beside that platform, transfer one wagon, then pull forward

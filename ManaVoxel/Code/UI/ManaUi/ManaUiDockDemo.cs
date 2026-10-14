@@ -1415,7 +1415,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                         new MenuItem("LCARS", () => chooseTheme(UiThemeKind.Lcars))
                             .Checkable(() => root.Theme.Kind == UiThemeKind.Lcars),
                         new MenuItem("Kenney", () => chooseTheme(UiThemeKind.Kenney))
-                            .Checkable(() => root.Theme.Kind == UiThemeKind.Kenney)),
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Kenney),
+                        new MenuItem("Windows 3.1", () => chooseTheme(UiThemeKind.Windows31))
+                            .Checkable(() => root.Theme.Kind == UiThemeKind.Windows31)),
 
                     new MenuItem("Backdrop blur").WithItems(
                         BlurChoices.Select(blur => new MenuItem(BlurLabel(blur), () => chooseBlur(blur))

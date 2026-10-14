@@ -369,7 +369,7 @@ namespace ManaUI
                 : IsPointerOver ? theme.BorderStrong : theme.Border;
 
             var thumbTint = dragging ? UiColor.White : IsPointerOver ? new Vector4(0.8f, 0.9f, 1.0f, 1.0f) : new Vector4(0.55f, 0.65f, 0.8f, 1.0f);
-            if (!drawList.DrawSkin(theme, "fill", thumb, thumbTint, lift: false))
+            if (!drawList.DrawSkin(theme, theme.HasSkin("scrollbarThumb") ? "scrollbarThumb" : "fill", thumb, thumbTint, lift: false))
             {
                 drawList.FillRect(thumb, color, corners);
             }

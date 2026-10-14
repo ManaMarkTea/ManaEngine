@@ -8,7 +8,8 @@ namespace ManaUI
         Lcars,
 
         /// <summary>Navy and sky blue, dressed in Kenney's Space UI pack's pictures where the pack is available.</summary>
-        Kenney
+        Kenney,
+        Windows31
     }
 
     /// <summary>
@@ -283,7 +284,45 @@ namespace ManaUI
                 UiThemeKind.Light => Light(),
                 UiThemeKind.Lcars => Lcars(),
                 UiThemeKind.Kenney => Kenney(),
+                UiThemeKind.Windows31 => Windows31(),
                 _ => Dark()
+            };
+        }
+
+        public static UiTheme Windows31()
+        {
+            return new UiTheme
+            {
+                Kind = UiThemeKind.Windows31,
+                Background = UiColor.FromHex("#C0C0C0"),
+                Surface = UiColor.FromHex("#C0C0C0"),
+                SurfaceAlt = UiColor.White,
+                SurfaceRaised = UiColor.FromHex("#C0C0C0"),
+                RowAlternate = UiColor.FromHex("#EEEEEE"),
+                Text = UiColor.Black,
+                TextMuted = UiColor.FromHex("#404040"),
+                TextDisabled = UiColor.FromHex("#808080"),
+                TextOnAccent = UiColor.White,
+                Accent = UiColor.FromHex("#000080"),
+                AccentHover = UiColor.FromHex("#0000A0"),
+                AccentPressed = UiColor.FromHex("#000060"),
+                Selected = UiColor.FromHex("#B8B8D8"),
+                Border = UiColor.FromHex("#808080"),
+                BorderStrong = UiColor.Black,
+                Divider = UiColor.FromHex("#808080"),
+                FocusRing = UiColor.Black,
+                Hover = new Vector4(0, 0, 0, 0.06f),
+                SurfaceGradient = 0,
+                AccentGradient = 0,
+                CornerRadius = CornerRadius.Zero,
+                CornerRadiusLarge = CornerRadius.Zero,
+                CornerRadiusCompact = CornerRadius.Zero,
+                FontSize = 14,
+                FontSizeSmall = 12,
+                FontSizeHeading = 16,
+                ScrollBarThickness = 16,
+                GridFloor = UiColor.FromHex("#C0C0C0"),
+                GridLine = UiColor.FromHex("#808080")
             };
         }
 

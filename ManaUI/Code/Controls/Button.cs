@@ -217,12 +217,16 @@ namespace ManaUI
             }
 
             // Pressed: the flat picture, so the button reads as pushed in.
-            if (!accent && IsPressed && skin.TryGet("buttonPressed", out var pressed))
+            if (IsPressed && skin.TryGet(accent ? "primaryPressed" : "buttonPressed", out var pressed))
             {
                 slice = pressed;
             }
 
-            drawList.DrawNineSlice(Bounds, slice, tint, MathF.Min(1.0f, Bounds.Height / slice.Size.Y));
+            if (slice.PreserveColors)
+            {
+                tint = new Vector4(1, 1, 1, tint.W);
+            }
+            drawList.DrawNineSlice(Bounds, slice, tint, slice.CornerScale ?? MathF.Min(1.0f, Bounds.Height / slice.Size.Y));
             return true;
         }
 

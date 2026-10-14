@@ -225,9 +225,9 @@ namespace Mana.Code.Automation
         {
             Register("set_theme", command =>
             {
-                if (!Enum.TryParse<ManaUI.UiThemeKind>(command.Name, true, out var kind) || !Enum.IsDefined(kind))
+                if (!Enum.TryParse<ManaUI.UiThemeKind>(command.Name?.Replace("Windows 3.1", "Windows31", StringComparison.OrdinalIgnoreCase), true, out var kind) || !Enum.IsDefined(kind))
                 {
-                    throw new InvalidDataException("Command file: 'set_theme' requires a theme name: Dark, Light, LCARS or Kenney.");
+                    throw new InvalidDataException("Command file: 'set_theme' requires a theme name: Dark, Light, LCARS, Kenney or Windows31.");
                 }
                 var root = Context.GameMode?.ManaUi?.Root
                     ?? throw new InvalidOperationException("Command file: 'set_theme' requires an active ManaUI root.");

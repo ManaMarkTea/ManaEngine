@@ -19,7 +19,8 @@ namespace ManaUI
         private bool _visualDirty = true;
         private readonly Dictionary<UiThemeKind, Func<ManaImageAtlas, UiSkin?>> _skinFactories = new()
         {
-            [UiThemeKind.Lcars] = LcarsUiSkin.For
+            [UiThemeKind.Lcars] = LcarsUiSkin.For,
+            [UiThemeKind.Windows31] = Windows31UiSkin.For
         };
 
         public UiRoot(ManaFontManager fonts, UiTheme? theme = null)

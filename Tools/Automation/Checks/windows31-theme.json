@@ -1,0 +1,8 @@
+[
+  { "type": "set_theme", "name": "Windows 3.1" },
+  { "type": "wait", "frames": 90 },
+  { "type": "open_tools" },
+  { "type": "wait", "frames": 30 },
+  { "type": "screenshot", "path": "@@OUT@@" },
+  { "type": "quit" }
+]
