@@ -10,8 +10,8 @@ using Silk.NET.Windowing;
 namespace ManaVoxel.iOS;
 
 /// <summary>
-/// The game: the engine's WebGPU renderer drawing into a Metal layer (wgpu-native on Metal), above the touch controls'
-/// bar when it is up and full screen otherwise, with the controls over it. Runs the same <see cref="VoxelPlayGameMode"/> as <c>ManaVoxel --play</c>.
+/// The game, full screen: the engine's WebGPU renderer drawing into a Metal layer (wgpu-native on Metal), with the
+/// touch controls over it (on a bar the game's UI draws for them, its picture fitted above). Runs the same <see cref="VoxelPlayGameMode"/> as <c>ManaVoxel --play</c>.
 /// </summary>
 public sealed class GameViewController : UIViewController
 {
@@ -52,20 +52,9 @@ public sealed class GameViewController : UIViewController
     public override void ViewDidLayoutSubviews()
     {
         base.ViewDidLayoutSubviews();
-        LayoutGame();
-    }
-
-    /// <summary>The game fills what the controls' bar leaves: the screen, less the bar while it is up.</summary>
-    private void LayoutGame()
-    {
-        if (View == null)
+        if (View != null)
         {
-            return;
-        }
-        var frame = new CoreGraphics.CGRect(0, 0, View.Bounds.Width, View.Bounds.Height - (_controls?.BarHeight ?? 0));
-        if (_metal.Frame != frame)
-        {
-            _metal.Frame = frame;
+            _metal.Frame = View.Bounds;
         }
         _window?.RefreshSize();
     }
@@ -88,12 +77,12 @@ public sealed class GameViewController : UIViewController
             {
                 OffersLevelSelect = true,
                 MenuMusic = "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
-                // The game view's own: with the bar up, its bottom edge is clear of the home indicator.
                 SafeArea = () => new ManaUI.Thickness((float)_metal.SafeAreaInsets.Left, (float)_metal.SafeAreaInsets.Top,
                     (float)_metal.SafeAreaInsets.Right, (float)_metal.SafeAreaInsets.Bottom),
                 // The controls explain themselves on screen: no hint bar.
                 ControlsHint = string.Empty,
                 CommandFilePath = CommandScript(),
+                ControlsBar = () => (float)(_controls?.BarHeight ?? 0),
             };
             var game = _game;
             _controls!.GameControls = () => !game.IsLevelSelectOpen && !game.IsPaused && !game.IsLoading;
@@ -110,11 +99,7 @@ public sealed class GameViewController : UIViewController
                 return level.Bow;
             };
             _controls.SideOn = () => level.SideOn;
-            _window.Render += _ =>
-            {
-                _controls.Refresh();
-                LayoutGame();
-            };
+            _window.Render += _ => _controls.Refresh();
             _game.RunWebGpu(null);
             AppDelegate.Trace("Game running");
         }

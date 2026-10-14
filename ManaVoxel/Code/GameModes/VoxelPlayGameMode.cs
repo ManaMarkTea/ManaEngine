@@ -74,6 +74,14 @@ namespace Mana.Code.GameModes
         /// </summary>
         public Func<Thickness>? SafeArea { get; set; }
 
+        /// <summary>
+        /// How much of the bottom a phone's on-screen controls take, in UI points (0 for none): a bar is drawn there
+        /// for them, the game's picture is fitted above it and the HUD keeps clear of it.
+        /// </summary>
+        public Func<float>? ControlsBar { get; set; }
+
+        private UiRoot? _uiRoot;
+
         /// <summary>Music looped while the start screen is up (a path under the working folder), or null for none.</summary>
         public string? MenuMusic { get; set; }
 
@@ -191,15 +199,24 @@ namespace Mana.Code.GameModes
             // The level's game modes draw their own HUDs over it, and may hide it (see ManaLevelGameMode.ShowsPlayHud).
             _gameModes.UseTheme(host.Root.Theme);
             playHud.BindPolled(el => el.Visibility, () => _gameModes.ShowsPlayHud ? Visibility.Visible : Visibility.Collapsed);
-            // Inside the safe area, so nothing sits under a phone's notch or home bar.
+            // Inside the safe area, so nothing sits under a phone's notch or home bar -- or its controls' bar.
             var hud = new Grid();
             hud.Children.Add(playHud);
             hud.Children.Add(_gameModes.HudLayer);
-            if (SafeArea is { } safeArea)
+            if (SafeArea != null || ControlsBar != null)
             {
-                hud.BindPolled(el => el.Margin, safeArea);
+                hud.BindPolled(el => el.Margin, () =>
+                {
+                    var safe = SafeArea?.Invoke() ?? default;
+                    return new Thickness(safe.Left, safe.Top, safe.Right, MathF.Max(safe.Bottom, ControlsBarHeight));
+                });
             }
             var layer = new Grid();
+            _uiRoot = host.Root;
+            if (ControlsBar != null)
+            {
+                layer.Children.Add(ManaUiPlayMenus.ControlsBar(host.Root.Theme, () => ControlsBarHeight));
+            }
             layer.Children.Add(hud);
             if (OffersLevelSelect)
             {
@@ -539,9 +556,25 @@ namespace Mana.Code.GameModes
             _hud.Text = string.Empty;
         }
 
+        private float ControlsBarHeight => ControlsBar?.Invoke() ?? 0.0f;
+
+        /// <summary>The game's picture fitted above the controls' bar (the whole window when there is none).</summary>
+        private void FitViewportAboveControls()
+        {
+            if (ControlsBar == null || _uiRoot is not { } root || root.Size.Y <= 0.0f)
+            {
+                return;
+            }
+            // As a share of the UI's height: the camera measures the window in its own units.
+            var size = Context.Window.Size;
+            var shown = Math.Clamp(1.0f - ControlsBarHeight / root.Size.Y, 0.2f, 1.0f);
+            Mana.Code.UI.ManaEditorGizmos.Viewport = new UiRect(0.0f, 0.0f, size.X, size.Y * shown);
+        }
+
         public override void Update(double deltaTime)
         {
             SyncMenuMusic();
+            FitViewportAboveControls();
             // Two frames: the one that drew "Loading", then the load.
             if (_pendingLevel != null && ++_pendingFrames > 2)
             {

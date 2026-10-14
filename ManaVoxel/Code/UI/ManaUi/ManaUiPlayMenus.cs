@@ -169,6 +169,27 @@ namespace ManaVoxel.Code.UI.ManaUi
             return layer;
         }
 
+        /// <summary>
+        /// The strip along the bottom a phone's on-screen controls sit on (the platform draws the stick and buttons
+        /// over it): the game's picture ends at its top edge, so thumbs never cover the action.
+        /// </summary>
+        public static UiElement ControlsBar(UiTheme theme, Func<float> height)
+        {
+            var edge = new Border().Fill(new Vector4(1.0f, 1.0f, 1.0f, 0.2f)).Top();
+            edge.Height = 1.5f;
+            var glow = new Border().Fill(new Vector4(0.2f, 0.19f, 0.34f, 0.55f)).Top();
+            glow.Height = 18.0f;
+            var bar = new Grid();
+            bar.Children.Add(new Border().Fill(new Vector4(0.08f, 0.07f, 0.14f, 1.0f)));
+            bar.Children.Add(glow);
+            bar.Children.Add(edge);
+            bar.VerticalAlignment = VerticalAlignment.Bottom;
+            bar.IsHitTestVisible = false;
+            bar.BindPolled(el => el.Height, height);
+            bar.BindPolled(el => el.Visibility, () => height() > 0.0f ? Visibility.Visible : Visibility.Collapsed);
+            return bar;
+        }
+
         private static Button MenuButton(string label, ButtonVariant variant, Action click)
         {
             var button = new Button { Width = 220.0f, HorizontalAlignment = HorizontalAlignment.Center }.Label(label).Variant(variant).OnClick(click);
