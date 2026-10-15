@@ -97,24 +97,24 @@ def fmt(v):
     return f"{v:.2f}".rstrip("0").rstrip(".") if abs(v) >= 0.005 else "0"
 
 
-def model_line(name, bounds, animations):
+MODEL_TABLE = ["| Model | W | H | D | Sits at (when off centre) | Clips |", "|---|---:|---:|---:|---|---|"]
+
+
+def model_row(name, bounds, animations):
+    """One table row: size in metres (X, Y, Z), where it sits about its placed point if that is not centred on the ground."""
     if bounds is None:
-        line = f"- `{name}` -- no mesh bounds"
+        cells = ["", "", "", "no mesh bounds"]
     else:
         lo, hi = bounds
-        size = " x ".join(fmt(hi[i] - lo[i]) for i in range(3))
-        line = f"- `{name}` {size} m"
-        # Placed at its origin: say where the model actually sits when that is not centred on the ground.
+        cells = [fmt(hi[i] - lo[i]) for i in range(3)]
         off = [abs(lo[i] + hi[i]) / 2 > 0.05 * max(1.0, hi[i] - lo[i]) for i in (0, 2)] + [abs(lo[1]) > 0.02]
-        if any(off):
-            line += f" (x {fmt(lo[0])}..{fmt(hi[0])}, y {fmt(lo[1])}..{fmt(hi[1])}, z {fmt(lo[2])}..{fmt(hi[2])})"
-    if animations:
-        shown = ", ".join(animations[:14]) + (f", +{len(animations) - 14} more" if len(animations) > 14 else "")
-        line += f" -- clips: {shown}"
-    return line
+        cells.append(f"x {fmt(lo[0])}..{fmt(hi[0])}, y {fmt(lo[1])}..{fmt(hi[1])}, z {fmt(lo[2])}..{fmt(hi[2])}" if any(off) else "")
+    clips = ", ".join(animations[:14]) + (f", +{len(animations) - 14} more" if len(animations) > 14 else "")
+    return f"| `{name}` | " + " | ".join(cells) + f" | {clips} |"
 
 
 def pack_section(zip_path, sheets):
+    """The pack's section, and its counts for the index: (lines, models, pictures)."""
     lines = []
     with zipfile.ZipFile(zip_path) as z:
         names = z.namelist()
@@ -127,10 +127,10 @@ def pack_section(zip_path, sheets):
         lines.append("")
         if models:
             folders = sorted({n.rsplit("/", 1)[0] for n in models})
-            lines.append(f"{len(models)} models. Placed as `zip:{zip_path.name}/{folders[0]}/<name>{Path(models[0]).suffix}`.")
-            if len(folders) > 1:
-                lines.append("Folders: " + ", ".join(f"`{f}`" for f in folders))
+            lines.append(f"{len(models)} models, placed as `zip:{zip_path.name}/{folders[0]}/<model>{Path(models[0]).suffix}`"
+                         + (" (folders: " + ", ".join(f"`{f}`" for f in folders) + ")" if len(folders) > 1 else "") + ".")
             lines.append("")
+            lines += MODEL_TABLE
             for name in models:
                 try:
                     bounds, animations = describe(gltf_json(z.read(name), name))
@@ -139,21 +139,24 @@ def pack_section(zip_path, sheets):
                 label = name.rsplit("/", 1)[-1].rsplit(".", 1)[0]
                 if len(folders) > 1:
                     label = name.split("/", 1)[-1].rsplit(".", 1)[0]
-                lines.append(model_line(label, bounds, animations))
+                lines.append(model_row(label, bounds, animations))
         if pictures:
             by_folder = {}
             for n in pictures:
                 folder = n.rsplit("/", 1)[0] if "/" in n else "."
                 by_folder.setdefault(folder, []).append(n.rsplit("/", 1)[-1][:-4])
+            if models:
+                lines.append("")
+            lines.append(f"{len(pictures)} picture{'' if len(pictures) == 1 else 's'}, as `zip:{zip_path.name}/<folder>/<picture>.png`.")
             lines.append("")
-            lines.append(f"{len(pictures)} pictures (`zip:{zip_path.name}/<path>.png`):")
+            lines += ["| Folder | Pictures | Examples |", "|---|---:|---|"]
             for folder, files in sorted(by_folder.items()):
                 sample = ", ".join(sorted(files)[:12]) + (", ..." if len(files) > 12 else "")
-                lines.append(f"- `{folder}/` {len(files)}: {sample}")
+                lines.append(f"| `{folder}/` | {len(files)} | {sample} |")
         if sheets:
             write_sheet(z, names, zip_path.stem)
     lines.append("")
-    return lines
+    return lines, len(models), len(pictures)
 
 
 def write_sheet(z, names, stem):
@@ -183,7 +186,7 @@ def write_sheet(z, names, stem):
 
 
 def loose_section():
-    lines = ["## Loose models (`Mana/Assets/Models`, copied to the app as `Assets/Models/...`)", ""]
+    lines = ["## Loose models", "", "In `Mana/Assets/Models`, copied to the app: placed as `Assets/Models/<path>`.", ""] + MODEL_TABLE
     for path in sorted(LOOSE.rglob("*")):
         if path.suffix.lower() not in (".glb", ".gltf"):
             continue
@@ -196,21 +199,20 @@ def loose_section():
             bounds, animations = describe(gltf_json(path.read_bytes(), path.name))
         except Exception as error:
             bounds, animations = None, [f"unreadable: {error}"]
-        lines.append(model_line("Assets/Models/" + path.relative_to(LOOSE).as_posix(), bounds, animations))
+        lines.append(model_row(path.relative_to(LOOSE).as_posix(), bounds, animations))
     lines.append("")
     return lines
 
 
 def content_section():
-    lines = ["## The project's own assets (`Content/`)", ""]
-    kinds = (("Prefabs", "*.manaprefab"), ("Sprite sheets", "*.manasheet"), ("9-slices", "*.manaslice"),
-             ("Grid map presets", "*.managridpreset"), ("Generator rules", "*.manawfc"), ("Levels", "*.manalevel"))
+    lines = ["## The project's own assets", "", "In `Content/`, referenced by their path under it.", "",
+             "| Kind | Asset |", "|---|---|"]
+    kinds = (("Prefab", "*.manaprefab"), ("Sprite sheet", "*.manasheet"), ("9-slice", "*.manaslice"),
+             ("Grid map preset", "*.managridpreset"), ("Generator rules", "*.manawfc"), ("Level", "*.manalevel"))
     for title, pattern in kinds:
-        files = sorted(CONTENT.rglob(pattern))
-        if not files:
-            continue
-        lines.append(f"**{title}** ({len(files)}): " + ", ".join(f"`{f.relative_to(CONTENT).as_posix()}`" for f in files))
-        lines.append("")
+        for f in sorted(CONTENT.rglob(pattern)):
+            lines.append(f"| {title} | `{f.relative_to(CONTENT).as_posix()}` |")
+    lines.append("")
     return lines
 
 
@@ -222,10 +224,18 @@ def main():
            "(`--sheets` also draws each pack's previews into `Library/AssetPreviews/<pack>.png`, to look at).",
            "Sizes are width x height x depth (X, Y, Z) in the model's own metres, before any scale it is placed at, and ranges",
            "are where it sits about the point it is placed at (a model's lone root node's own offset is dropped when placed).",
-           "", "Packs: " + ", ".join(f"[{z.stem}](#{z.stem.lower().replace('.', '')})" for z in zips), ""]
+           ""]
+    sections, index = [], []
     for path in zips:
         print("reading", path.name)
-        out += pack_section(path, sheets)
+        lines, models, pictures = pack_section(path, sheets)
+        sections += lines
+        def count(n, word):
+            return f"{n} {word}{'' if n == 1 else 's'}" if n else ""
+        counts = ", ".join(c for c in (count(models, "model"), count(pictures, "picture")) if c)
+        index.append(f"- [{path.stem}](#{path.stem.lower().replace('.', '')}) -- {counts or 'nothing to place'}")
+    out += ["## Packs", ""] + index + ["- [Loose models](#loose-models)", "- [The project's own assets](#the-projects-own-assets)", ""]
+    out += sections
     out += loose_section()
     out += content_section()
     OUT.write_text("\n".join(out).rstrip() + "\n", encoding="utf-8", newline="\n")
