@@ -208,4 +208,3 @@ namespace Mana.Code.GameModes
         }
     }
 }
-

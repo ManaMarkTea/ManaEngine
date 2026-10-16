@@ -310,4 +310,3 @@ namespace ManaGraphics.Code.Graphics
         }
     }
 }
-

@@ -591,6 +591,3 @@ public ManaSceneNode? PreviewNode => _meshPickerPreviewNode;
 
     }
 }
-
-
-
