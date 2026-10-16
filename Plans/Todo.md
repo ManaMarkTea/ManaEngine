@@ -2,6 +2,8 @@
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
     Standalone Pages route: /code-screensaver/ (Tools/WebAssets/screensaver), with a right-side sound toggle.
     Terminals tile the viewport flush to its borders, with no cropped panes or positional drift.
+    Green terminal borders separate the panes. Engine implementation lives in Games/CodeScreensaver.
+    Each pane types its newest line character by character, then scrolls, with its own pace and cursor.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

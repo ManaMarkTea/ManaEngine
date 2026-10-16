@@ -1,4 +1,5 @@
 using ManaVoxel.Code.Assets;
+using CodeScreensaver;
 using ManaVoxel.Code.GridMaps;
 using Runner;
 using TrainYardWars;
@@ -15,6 +16,14 @@ namespace ManaVoxel.Code.Levels
         [System.Runtime.CompilerServices.ModuleInitializer]
         internal static void Register()
         {
+            ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
+            {
+                Type = CodeScreensaverMode.ModeType,
+                DisplayName = CodeScreensaverMode.DisplayName,
+                Description = CodeScreensaverMode.Description,
+                ModeType = typeof(CodeScreensaverMode),
+                Create = () => new CodeScreensaverMode()
+            });
             TywModel.Loader = (asset, world, into) => ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), world, into);
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {

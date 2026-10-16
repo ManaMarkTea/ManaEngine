@@ -40,13 +40,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Source-only fallback for the code screensaver when no checkout is present. -->
-    <EmbeddedResource Include="..\Mana\Code\Components\*.cs;..\ManaUI\Code\Controls\*.cs;..\ManaGraphics\Assets\Shaders\WebGpu\*.wgsl">
-      <LogicalName>TerminalSource/%(Identity)</LogicalName>
-    </EmbeddedResource>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
@@ -75,6 +68,8 @@
          network to listen on; the browser build leaves the LiveScan code out (MANA_BROWSER). -->
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <!-- Games in projects of their own; ManaGames.cs registers their level game modes. -->
+    <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\Games\Runner\Runner.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />

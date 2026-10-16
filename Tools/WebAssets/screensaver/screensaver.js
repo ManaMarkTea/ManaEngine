@@ -32,7 +32,8 @@ function resize() {
             const bottom = row === rows - 1 ? height : snap(height * used / total);
             const file = pick();
             panes.push({ file, x, y, w: right - x, h: bottom - y,
-                scroll: random(0, file.lines.length), rate: random(.8, 3.6), phase: random(0, 30),
+                scroll: Math.floor(random(0, file.lines.length)), typed: 0, typingLength: 0,
+                rate: random(.8, 3.6), phase: random(0, 30),
                 id: panes.length + 1, accent: Math.random() < .22 ? colors.red : colors.green });
             y = bottom;
         }
@@ -70,42 +71,59 @@ function render(delta) {
     for (const pane of panes) {
         if (delta) {
             const burst = Math.sin(time * .65 + pane.phase);
-            pane.scroll += delta * pane.rate * (burst > .65 ? 3 : burst < -.7 ? .06 : 1);
-            if (pane.scroll >= pane.file.lines.length) { pane.file = pick(); pane.scroll = 0; }
+            if (pane.typed < pane.typingLength)
+                pane.typed += delta * pane.rate * 24 * (burst > .65 ? 3 : burst < -.7 ? .06 : 1);
+            else {
+                const next = Math.floor(pane.scroll) + 1;
+                pane.scroll += delta * 8;
+                if (pane.scroll >= next) { pane.scroll = next; pane.typed = 0; }
+            }
+            if (pane.scroll >= pane.file.lines.length) { pane.file = pick(); pane.scroll = 0; pane.typed = 0; }
         }
         const x = pane.x, y = pane.y, w = pane.w, h = pane.h;
         if (x + w < 0 || x > width || y + h < 0 || y > height) continue;
         ctx.fillStyle = '#091117'; ctx.fillRect(x, y, w, h);
-        ctx.strokeStyle = '#29434d'; ctx.lineWidth = 1 / dpr;
-        ctx.strokeRect(x + .5 / dpr, y + .5 / dpr, w - 1 / dpr, h - 1 / dpr);
-        ctx.fillStyle = pane.accent; ctx.fillRect(x, y, 1 / dpr, h);
         ctx.fillStyle = '#101e25'; ctx.fillRect(x + 1, y + 1, w - 2, 25);
+        ctx.fillStyle = '#315143'; ctx.fillRect(x + 2, y + 26, w - 4, 1);
         ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y + 2, w - 16, h - 4); ctx.clip();
         ctx.font = `11px ${family}`;
         label(`> agent/${String(pane.id).padStart(2, '0')}  ~/${pane.file.path}`, x + 9, y + 8, pane.accent);
         const size = 12, lineHeight = size + 3;
         ctx.font = `${size}px ${family}`;
         const advance = ctx.measureText('M').width;
-        const rows = Math.max(0, Math.floor((h - 64) / lineHeight));
+        const rows = Math.max(1, Math.floor((h - 64) / lineHeight));
         const first = Math.floor(pane.scroll), fraction = pane.scroll - first;
+        const capacity = Math.max(1, Math.floor((w - 58) / advance));
+        pane.typingLength = Math.min(capacity, pane.file.lines[(first + rows - 1) % pane.file.lines.length].length);
         ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y + 33, w - 16, h - 62); ctx.clip();
-        for (let row = 0; row < rows + 1; row++) {
+        for (let row = 0; row < rows; row++) {
             const line = (first + row) % pane.file.lines.length;
             const top = y + 35 + row * lineHeight - fraction * lineHeight;
             label(String(line + 1).padStart(4, '0'), x + 10, top, colors.muted);
             let pen = x + 48;
+            let remaining = row === rows - 1 ? Math.floor(pane.typed) : capacity;
             for (const [text, color] of sourceTokens(pane.file, line)) {
-                const available = Math.max(0, Math.floor((x + w - 10 - pen) / advance));
+                const available = Math.min(remaining, Math.max(0, Math.floor((x + w - 10 - pen) / advance)));
                 if (!available) break;
-                label(text.slice(0, available), pen, top, color);
-                pen += text.length * advance;
+                const visible = text.slice(0, available);
+                label(visible, pen, top, color);
+                pen += visible.length * advance;
+                remaining -= visible.length;
+            }
+            if (row === rows - 1 && Math.floor(time * 2 + pane.phase) % 2 === 0) {
+                ctx.fillStyle = pane.accent;
+                ctx.fillRect(snap(pen), snap(top), advance * .8, size + 1);
             }
         }
         ctx.restore();
         ctx.fillStyle = '#0d1c22'; ctx.fillRect(x, y + h - 24, w, 23);
         ctx.font = `10px ${family}`;
-        label(`> reading source  ${String(first + 1).padStart(4, '0')}/${pane.file.lines.length}  ${Math.floor(time * 2 + pane.phase) % 2 ? '_' : ''}`, x + 10, y + h - 17, pane.accent);
+        label(`> typing source   ${String(first + 1).padStart(4, '0')}/${pane.file.lines.length}`, x + 10, y + h - 17, pane.accent);
         ctx.restore();
+        ctx.fillStyle = '#3d6552';
+        ctx.fillRect(x, y, w, 2); ctx.fillRect(x, y + h - 2, w, 2);
+        ctx.fillRect(x, y, 2, h); ctx.fillRect(x + w - 2, y, 2, h);
+        ctx.fillStyle = pane.accent; ctx.fillRect(x + 2, y + 2, 2, 22);
     }
     ctx.globalAlpha = 1;
 }

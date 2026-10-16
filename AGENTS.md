@@ -223,6 +223,7 @@ are baked from; the live editor draws new ones with the GPU instead.
   (`git add <paths>`, never `git add -A`) -- the working tree can hold someone else's unfinished change.
 - **Code comments:** one or two lines, saying why, not what; no essays.
 - **Commit and push** working steps as they land, with a message saying what changed and why.
+- **GitHub Actions:** do not manually trigger workflows unless the user explicitly asks. Let the daily deployment run to save compute.
 
 ## Architecture
 
