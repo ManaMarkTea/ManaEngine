@@ -21,18 +21,20 @@ function resize() {
     if (!sources.length) return;
     panes = [];
     const columns = Math.max(1, Math.min(8, Math.round(width / 390)));
-    const cell = (width + 80) / columns;
-    for (let layer = 0; layer < 2; layer++) {
-        for (let col = -1; col <= columns; col++) {
-            let y = -random(40, 250);
-            while (y < height + 100) {
-                const file = pick(), h = random(290, 490);
-                panes.push({ file, x: col * cell - 40 + (layer === 0 ? cell * .35 : 0), y,
-                    w: cell - (layer === 0 ? 24 : 10), h, scroll: random(0, file.lines.length),
-                    rate: random(.8, 3.6), phase: random(0, 30), background: layer === 0,
-                    id: panes.length + 1, accent: Math.random() < .22 ? colors.red : colors.green });
-                y += h + 12;
-            }
+    const rows = Math.max(1, Math.round(height / 360));
+    for (let col = 0; col < columns; col++) {
+        const x = snap(width * col / columns), right = snap(width * (col + 1) / columns);
+        const weights = Array.from({ length: rows }, () => random(.8, 1.2));
+        const total = weights.reduce((sum, value) => sum + value, 0);
+        let used = 0, y = 0;
+        for (let row = 0; row < rows; row++) {
+            used += weights[row];
+            const bottom = row === rows - 1 ? height : snap(height * used / total);
+            const file = pick();
+            panes.push({ file, x, y, w: right - x, h: bottom - y,
+                scroll: random(0, file.lines.length), rate: random(.8, 3.6), phase: random(0, 30),
+                id: panes.length + 1, accent: Math.random() < .22 ? colors.red : colors.green });
+            y = bottom;
         }
     }
     render(0);
@@ -65,18 +67,14 @@ function label(text, x, y, color) {
 
 function render(delta) {
     ctx.fillStyle = '#050a0e'; ctx.fillRect(0, 0, width, height);
-    const dx = Math.sin(time * .035) * 12, dy = Math.cos(time * .045) * 10;
     for (const pane of panes) {
         if (delta) {
             const burst = Math.sin(time * .65 + pane.phase);
             pane.scroll += delta * pane.rate * (burst > .65 ? 3 : burst < -.7 ? .06 : 1);
             if (pane.scroll >= pane.file.lines.length) { pane.file = pick(); pane.scroll = 0; }
         }
-        const x = snap(pane.x + dx), y = snap(pane.y + dy);
-        const w = Math.round(pane.w), h = Math.round(pane.h);
+        const x = pane.x, y = pane.y, w = pane.w, h = pane.h;
         if (x + w < 0 || x > width || y + h < 0 || y > height) continue;
-        ctx.globalAlpha = pane.background ? .25 : 1;
-        ctx.fillStyle = '#000'; ctx.fillRect(x + 4, y + 6, w, h);
         ctx.fillStyle = '#091117'; ctx.fillRect(x, y, w, h);
         ctx.strokeStyle = '#29434d'; ctx.lineWidth = 1 / dpr;
         ctx.strokeRect(x + .5 / dpr, y + .5 / dpr, w - 1 / dpr, h - 1 / dpr);
@@ -85,7 +83,7 @@ function render(delta) {
         ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y + 2, w - 16, h - 4); ctx.clip();
         ctx.font = `11px ${family}`;
         label(`> agent/${String(pane.id).padStart(2, '0')}  ~/${pane.file.path}`, x + 9, y + 8, pane.accent);
-        const size = pane.background ? 10 : 12, lineHeight = size + 3;
+        const size = 12, lineHeight = size + 3;
         ctx.font = `${size}px ${family}`;
         const advance = ctx.measureText('M').width;
         const rows = Math.max(0, Math.floor((h - 64) / lineHeight));

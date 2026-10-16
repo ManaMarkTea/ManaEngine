@@ -1,6 +1,7 @@
-[x] - Code Screensaver: dense, drifting terminal windows scroll random real repository source, with soft typing.
+[x] - Code Screensaver: split terminal windows scroll random real repository source, with soft typing.
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
     Standalone Pages route: /code-screensaver/ (Tools/WebAssets/screensaver), with a right-side sound toggle.
+    Terminals tile the viewport flush to its borders, with no cropped panes or positional drift.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

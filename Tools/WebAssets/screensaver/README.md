@@ -3,7 +3,8 @@
 Pages URL: https://manamarktea.github.io/ManaRenderer/code-screensaver/
 
 The Pages assembly exports real `.cs` and `.wgsl` files from the engine's source directories into
-`sources.json`. It refreshes on each deployment. This standalone Canvas page needs no WASM, GPU or
+`sources.json`. It refreshes on each deployment. Terminals tile the viewport with outer edges flush to the
+screen borders; only their contents scroll. This standalone Canvas page needs no WASM, GPU or
 external libraries. Text is drawn at the device pixel ratio without CSS scaling or blur.
 
 The right-side button toggles soft synthesized keyboard sounds (off until clicked, as browsers require).

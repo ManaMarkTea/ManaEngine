@@ -33,7 +33,7 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
     internal static void Register() => ManaLevelGameModes.Register(new()
     {
         Type = "CodeScreensaver", DisplayName = "Code Screensaver",
-        Description = "A drifting wall of terminals scrolling real ManaRenderer source files.",
+            Description = "Split terminals scrolling real ManaRenderer source files.",
         ModeType = typeof(CodeScreensaverMode), Create = () => new CodeScreensaverMode()
     });
 
@@ -117,7 +117,6 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
             public required SourceFile Source;
             public float X, Y, Width, Height, Scroll, Rate, Phase;
             public int Agent;
-            public bool Background;
         }
 
         public CodeWall(int columns, int seed, SourceFile[] sources)
@@ -126,22 +125,25 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
             _sources = sources;
             _random = seed == 0 ? new Random() : new Random(seed);
             if (sources.Length == 0) return;
-            // A second, dimmer wall extends past the foreground rather than exposing empty corners.
-            for (var layer = 0; layer < 2; layer++)
-            for (var col = 0; col < columns + 1; col++)
-            for (var row = 0; row < 3; row++)
+            for (var col = 0; col < columns; col++)
             {
-                var width = 1680f / columns;
-                var terminal = new Terminal
+                var weights = Enumerable.Range(0, 3).Select(_ => .8f + _random.NextSingle() * .4f).ToArray();
+                var total = weights.Sum();
+                var top = 0f;
+                for (var row = 0; row < 3; row++)
                 {
-                    Source = Pick(), X = col * width - 110 + (layer == 0 ? -width * .4f : 0),
-                    Y = row * 410 - 170 + (col % 2) * 65 + (layer == 0 ? 80 : 0),
-                    Width = width - (layer == 0 ? 28 : 10), Height = 390 + _random.Next(35),
-                    Scroll = 0, Rate = .5f + _random.NextSingle() * 1.5f,
-                    Phase = _random.NextSingle() * 20, Agent = _terminals.Count + 1, Background = layer == 0
-                };
-                terminal.Scroll = _random.Next(terminal.Source.Lines.Length);
-                _terminals.Add(terminal);
+                    var bottom = row == 2 ? 1 : top + weights[row] / total;
+                    var terminal = new Terminal
+                    {
+                        Source = Pick(), X = (float)col / columns, Y = top,
+                        Width = 1f / columns, Height = bottom - top,
+                        Rate = .5f + _random.NextSingle() * 1.5f,
+                        Phase = _random.NextSingle() * 20, Agent = _terminals.Count + 1
+                    };
+                    terminal.Scroll = _random.Next(terminal.Source.Lines.Length);
+                    _terminals.Add(terminal);
+                    top = bottom;
+                }
             }
         }
 
@@ -171,9 +173,9 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
         {
             if (Root == null) return;
             draw.FillRect(Bounds, new Vector4(.004f, .009f, .016f, 1));
-            _scale = MathF.Max(Bounds.Width / 1440, Bounds.Height / 820);
-            _originX = Bounds.X + Bounds.Width / 2 - 780 * _scale + MathF.Sin(_time * .045f) * 42 * _scale;
-            _originY = Bounds.Y + Bounds.Height / 2 - 440 * _scale + MathF.Cos(_time * .057f) * 26 * _scale;
+            _scale = Math.Clamp(Bounds.Width / 1440, .8f, 1.5f);
+            _originX = Bounds.X;
+            _originY = Bounds.Y;
             var font = Root.Fonts.Get(Root.Theme.FontFamilyMono, 12, Root.Scale);
             draw.PushClip(Bounds);
             foreach (var terminal in _terminals) RenderTerminal(draw, font, terminal);
@@ -192,20 +194,20 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
 
         private void RenderTerminal(ManaUiDrawList draw, ManaFont font, Terminal t)
         {
-            var x = t.X;
-            var y = t.Y + MathF.Sin(_time * .09f + t.Phase) * (t.Background ? 12 : 5);
+            var x = t.X * Bounds.Width / _scale;
+            var y = t.Y * Bounds.Height / _scale;
+            var width = t.Width * Bounds.Width / _scale;
+            var height = t.Height * Bounds.Height / _scale;
             var accent = t.Agent % 5 == 0 ? Red : Green;
-            draw.PushOpacity(t.Background ? .28f : 1);
-            Box(draw, x + 5, y + 8, t.Width, t.Height, new Vector4(0, 0, 0, .65f));
-            Box(draw, x, y, t.Width, t.Height, new Vector4(.013f, .025f, .037f, 1));
-            Box(draw, x, y, t.Width, 25, new Vector4(.027f, .045f, .057f, 1));
-            draw.DrawLine(Point(x, y), Point(x + t.Width, y), Muted, _scale);
-            draw.DrawLine(Point(x, y), Point(x, y + t.Height), accent * new Vector4(1, 1, 1, .65f), _scale);
-            draw.DrawLine(Point(x, y + t.Height), Point(x + t.Width, y + t.Height), Muted, _scale);
-            var capacity = Math.Max(8, (int)((t.Width - 28) / 6.3f));
+            Box(draw, x, y, width, height, new Vector4(.013f, .025f, .037f, 1));
+            Box(draw, x, y, width, 25, new Vector4(.027f, .045f, .057f, 1));
+            draw.DrawLine(Point(x, y), Point(x + width, y), Muted, _scale);
+            draw.DrawLine(Point(x, y), Point(x, y + height), accent * new Vector4(1, 1, 1, .65f), _scale);
+            draw.DrawLine(Point(x, y + height), Point(x + width, y + height), Muted, _scale);
+            var capacity = Math.Max(8, (int)((width - 28) / 6.3f));
             Text(draw, font, $"> agent/{t.Agent:00}   ~/{t.Source.Path}", x + 10, y + 6, accent, .9f, capacity);
             var offset = t.Scroll - MathF.Floor(t.Scroll);
-            var rows = (int)((t.Height - 60) / 14);
+            var rows = (int)((height - 60) / 14);
             for (var row = 0; row < rows; row++)
             {
                 var line = ((int)t.Scroll + row) % t.Source.Lines.Length;
@@ -213,10 +215,9 @@ public sealed class CodeScreensaverMode : ManaLevelGameMode
                 Text(draw, font, (line + 1).ToString("0000"), x + 10, top, Muted, .85f);
                 Text(draw, font, t.Source.Lines[line], x + 44, top, Ink, 1, Math.Max(1, capacity - 6), true);
             }
-            Box(draw, x + 1, y + t.Height - 24, t.Width - 2, 23, new Vector4(.02f, .038f, .047f, 1));
+            Box(draw, x + 1, y + height - 24, width - 2, 23, new Vector4(.02f, .038f, .047f, 1));
             Text(draw, font, $"> reading source   {((int)t.Scroll + 1):0000}/{t.Source.Lines.Length}   " + (((int)(_time * 2 + t.Phase) % 2 == 0) ? "_" : ""),
-                x + 10, y + t.Height - 18, accent, .85f, capacity);
-            draw.PopOpacity();
+                x + 10, y + height - 18, accent, .85f, capacity);
         }
 
         private void Text(ManaUiDrawList draw, ManaFont font, string text, float x, float y, Vector4 color,
