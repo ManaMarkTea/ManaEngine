@@ -135,11 +135,23 @@
       "label": "Deploy: ManaLidar to iPhone",
       "type": "process",
       "command": "${workspaceFolder}/Tools/ManaLidar/deploy-ios.sh",
+      "windows": {
+        "command": "pwsh",
+        "args": [
+          "-NoProfile",
+          "-File",
+          "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
+          "-App",
+          "ManaLidar",
+          "-Configuration",
+          "${input:configuration}"
+        ]
+      },
       "args": [
         "${input:configuration}"
       ],
       "problemMatcher": "$msCompile",
-      "detail": "Mac only: builds ManaLidar and installs it on the connected iPhone."
+      "detail": "Builds, installs and launches ManaLidar on the iPhone. Windows automatically deploys committed HEAD through the Mac over SSH; commit app changes first."
     },
     {
       "label": "Deploy: ManaLidar to iPhone (from Windows, via the Mac)",
@@ -153,7 +165,50 @@
         "${input:configuration}"
       ],
       "problemMatcher": "$msCompile",
-      "detail": "Windows: finds the Mac on the network (Remote Login on), pulls this branch there over SSH and installs on the phone. First run asks the Mac user name and password once."
+      "detail": "Windows: sends committed HEAD directly to a separate deploy copy on the Mac over SSH, then builds, installs and launches ManaLidar. Commit app changes first. Remote Login must be on; the phone must be paired with the Mac."
+    },
+    {
+      "label": "Deploy: ManaVoxel to iPhone",
+      "type": "process",
+      "command": "${workspaceFolder}/Tools/ManaLidar/deploy-ios.sh",
+      "args": [
+        "${input:configuration}"
+      ],
+      "options": {
+        "env": {
+          "APP": "ManaVoxel.iOS"
+        }
+      },
+      "windows": {
+        "command": "pwsh",
+        "args": [
+          "-NoProfile",
+          "-File",
+          "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
+          "-App",
+          "ManaVoxel.iOS",
+          "-Configuration",
+          "${input:configuration}"
+        ]
+      },
+      "problemMatcher": "$msCompile",
+      "detail": "Builds, installs and launches ManaVoxel on the iPhone. Windows automatically deploys committed HEAD through the Mac over SSH; commit app changes first."
+    },
+    {
+      "label": "Deploy: ManaVoxel to iPhone (from Windows, via the Mac)",
+      "type": "process",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-File",
+        "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
+        "-App",
+        "ManaVoxel.iOS",
+        "-Configuration",
+        "${input:configuration}"
+      ],
+      "problemMatcher": "$msCompile",
+      "detail": "Windows: sends committed HEAD directly to a separate deploy copy on the Mac over SSH, then builds, installs and launches ManaVoxel. Commit app changes first. Remote Login must be on; the phone must be paired with the Mac."
     },
     {
       "label": "Run: ManaTests",
