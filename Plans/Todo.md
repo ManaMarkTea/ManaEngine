@@ -6,6 +6,7 @@
     Each pane types its newest line character by character, then scrolls, with its own pace and cursor.
     Line fitting uses the actual rasterized glyph widths, so text fills each pane at any display scale.
     Full-width top status bar holds Pause/Stop/Sound; the HTML full-screen button is centered above the panes.
+    The top bar also shows the current local time, updating each second even while sessions are paused.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

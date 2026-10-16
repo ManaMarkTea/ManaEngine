@@ -5,6 +5,15 @@ const pauseButton = document.querySelector('#pause');
 const soundButton = document.querySelector('#sound');
 const stopButton = document.querySelector('#stop');
 const runStatus = document.querySelector('#run-status');
+const clock = document.querySelector('#clock');
+const clockFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' });
+function updateClock() {
+    const now = new Date();
+    clock.textContent = clockFormat.format(now);
+    clock.dateTime = now.toISOString();
+}
+updateClock();
+setInterval(updateClock, 1000);
 const colors = { ink: '#b9cbd1', green: '#80dfa0', red: '#f47980', muted: '#52727e', blue: '#78afc2' };
 const family = 'ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace';
 let sources = [], panes = [], width = 0, height = 0, dpr = 1, time = 0, last = 0;
@@ -203,6 +212,7 @@ addEventListener('keydown', event => {
     if (button) { event.preventDefault(); button.click(); }
 });
 document.addEventListener('visibilitychange', async () => {
+    updateClock();
     last = 0;
     if (audio) await (document.hidden || paused || stopped || !sound ? audio.suspend() : audio.resume());
 });
