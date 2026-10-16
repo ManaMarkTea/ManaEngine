@@ -1,32 +1,13 @@
-using BepuPhysics.Collidables;
 using ManaUI;
-using System.Linq;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
-using ManaVoxel.Code.Services;
-using ManaVoxel.Code.Tools;
-using ManaVoxel.Code.Assets;
-using ManaVoxel.Code.Levels;
-using ManaVoxel.Code.Search;
-using ManaVoxel.Code.UI;
-using ManaVoxel.Code.UI.ManaUi;
-using ManaCore.Diagnostics;
-using ManaCore.Graphics;
-using ManaCore.Loading;
-using ManaGraphics.Code.Diagnostics;
-using ManaGraphics.Code.Graphics;
-using ManaGeoTools.Code;
-using ManaGeoTools.Code.Planet;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Text;
 
 namespace Mana.Code.GameModes
 {
     // The editor room -- floor, walls, ceiling and LCARS coves -- and the colliders that follow their models.
-    public partial class VoxelEditorGameMode
+    internal sealed class EditorRoom(ManaContext context, HashSet<ManaSceneNode> pickingExclusions, Func<UiTheme?> themeProvider, float gridSize)
     {
         // The demo grid room's own nodes -- tracked so a live theme switch can tear the room down and
         // rebuild it rounded (LCARS) or square (Dark/Light) instead of only ever picking a shape once at
@@ -48,7 +29,7 @@ namespace Mana.Code.GameModes
         /// </summary>
         private void ApplyGridTheme(params ManaSceneNode?[] planes)
         {
-            var theme = ManaUi?.Root?.Theme;
+            var theme = themeProvider();
             if (theme == null)
             {
                 return;
@@ -77,9 +58,8 @@ namespace Mana.Code.GameModes
         /// torn down first (see <see cref="RemoveGridRoom"/>), so a live theme switch can actually change
         /// the room's topology instead of only ever picking a shape once at startup.
         /// </summary>
-        private void BuildGridRoom(bool rounded)
+        public void BuildGridRoom(bool rounded)
         {
-            const float gridSize = GridSize;
             float halfGridSize = gridSize * 0.5f;
 
             // How far each wall gets trimmed back from its two neighbours so a rounded cove (see
@@ -104,9 +84,9 @@ namespace Mana.Code.GameModes
             ManaSceneNode xzPlane, yxPlane, zyPlane, ceilingPlane, wallZFar, wallXFar;
             var wallCoves = new ManaSceneNode?[4];
 
-            var shapes = new ManaShapeFactory(Context, Context.World.DefaultScene);
+            var shapes = new ManaShapeFactory(context, context.World.DefaultScene);
 
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
                 // Floor and ceiling: full extent, never trimmed -- see the comment above.
                 xzPlane = shapes.AddQuad(corner, Colors.White, ManaQuadPlanes.XZ, 0, gridSize, 0, gridSize, "Grid Plane XZ");
@@ -224,17 +204,17 @@ namespace Mana.Code.GameModes
             SetRoomSolid(xzPlane, true);
 
             // Ground/wall planes are raycast helpers for voxel placement, not meaningful selection targets.
-            _pickingExclusions.Add(xzPlane);
-            _pickingExclusions.Add(ceilingPlane);
-            _pickingExclusions.Add(yxPlane);
-            _pickingExclusions.Add(zyPlane);
-            _pickingExclusions.Add(wallZFar);
-            _pickingExclusions.Add(wallXFar);
+            pickingExclusions.Add(xzPlane);
+            pickingExclusions.Add(ceilingPlane);
+            pickingExclusions.Add(yxPlane);
+            pickingExclusions.Add(zyPlane);
+            pickingExclusions.Add(wallZFar);
+            pickingExclusions.Add(wallXFar);
             foreach (var cove in wallCoves)
             {
                 if (cove != null)
                 {
-                    _pickingExclusions.Add(cove);
+                    pickingExclusions.Add(cove);
                 }
             }
 
@@ -249,11 +229,11 @@ namespace Mana.Code.GameModes
         private int _visualBoundsFrame;
 
         /// <summary>Every half second or so, refits colliders that follow a model's bounds the model has outgrown.</summary>
-        private void SyncVisualBoundsColliders()
+        public void SyncVisualBoundsColliders()
         {
             if (++_visualBoundsFrame % 30 == 0)
             {
-                ManaCollisionBounds.RefitAll(Context.World);
+                ManaCollisionBounds.RefitAll(context.World);
             }
         }
 
@@ -271,7 +251,7 @@ namespace Mana.Code.GameModes
             {
                 foreach (var collider in _roomColliders)
                 {
-                    Context.Physics.RemoveBody(collider.Body);
+                    context.Physics.RemoveBody(collider.Body);
                 }
                 _roomColliders.Clear();
             }
@@ -279,15 +259,14 @@ namespace Mana.Code.GameModes
             {
                 foreach (var (size, offset) in _roomColliderShapes)
                 {
-                    _roomColliders.Add(Context.Physics.AddBoxBody(floorNode, size, offset));
+                    _roomColliders.Add(context.Physics.AddBoxBody(floorNode, size, offset));
                 }
             }
         }
 
-        private void SyncGridRoomWalls()
+        public void SyncGridRoomWalls(bool floor, bool drawing)
         {
             // A level game mode that brings its own world (see ManaLevelGameMode.KeepsEditorFloor) plays without the floor.
-            var floor = !IsPlaying || _gameModes.KeepsEditorFloor;
             if (floor != _gridFloorShown && _gridXzPlane != null)
             {
                 _gridFloorShown = floor;
@@ -298,7 +277,6 @@ namespace Mana.Code.GameModes
                 SetRoomSolid(_gridXzPlane, floor);
             }
 
-            var drawing = !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive);
             var show = ManaEditorGizmos.ShowRoom || drawing;
             if (_gridWallsShown == show)
             {
@@ -329,18 +307,18 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
                 foreach (var node in nodes)
                 {
                     foreach (var collision in node.GetComponents<ManaCollisionComponent>().ToArray())
                     {
-                        Context.Physics.RemoveBody(collision.Body);
+                        context.Physics.RemoveBody(collision.Body);
                     }
 
-                    _pickingExclusions.Remove(node);
+                    pickingExclusions.Remove(node);
                     node.Parent?.RemoveChild(node);
-                    Context.World.DefaultScene.Children.Remove(node);
+                    context.World.DefaultScene.Children.Remove(node);
                 }
             }
 
@@ -362,9 +340,9 @@ namespace Mana.Code.GameModes
         /// its shape once at startup -- which is what previously left a square room behind until the next
         /// full editor restart.
         /// </summary>
-        private void SyncGridRoomShape()
+        public void SyncGridRoomShape()
         {
-            var rounded = ManaUi?.Root?.Theme?.Kind == UiThemeKind.Lcars;
+            var rounded = themeProvider()?.Kind == UiThemeKind.Lcars;
             if (_gridRoomRounded == rounded)
             {
                 return;

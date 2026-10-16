@@ -10,7 +10,7 @@ namespace Mana.Code.GameModes
 {
     // Editing a PolygonCollider's outline in the viewport: while its node is selected, each point has a handle.
     // Drag one to move it, Ctrl+click an edge to add a point there, Alt+click a point to remove it.
-    public partial class VoxelEditorGameMode
+    internal sealed class PolygonEditingController(ManaContext context, VoxelEditorViewModel viewModel, HashSet<ManaSceneNode> pickingExclusions)
     {
         private static readonly Vector4 PolygonHandleColor = new(0.3f, 0.9f, 1.0f, 1.0f);
 
@@ -22,14 +22,14 @@ namespace Mana.Code.GameModes
         private bool _polygonLeftWasDown;
 
         /// <summary>True while the pointer is working a handle, so selection and the gizmo leave the click alone.</summary>
-        private bool UpdatePolygonEditing(bool inputCaptured, IMouse mouse)
+        public bool UpdatePolygonEditing(bool inputCaptured, IMouse mouse, bool isPlaying)
         {
             var leftDown = mouse.IsButtonPressed(MouseButton.Left);
             var pressed = leftDown && !_polygonLeftWasDown;
             _polygonLeftWasDown = leftDown;
 
-            var collider = !IsPlaying && ManaEditorGizmos.Visible
-                ? Context.World.Selection.SelectedNode?.GetComponent<ManaPolygonColliderComponent>()
+            var collider = !isPlaying && ManaEditorGizmos.Visible
+                ? context.World.Selection.SelectedNode?.GetComponent<ManaPolygonColliderComponent>()
                 : null;
             if (collider == null)
             {
@@ -62,7 +62,7 @@ namespace Mana.Code.GameModes
             }
             else if (pressed && at is { } click)
             {
-                var keyboard = Context.Input.Keyboards.FirstOrDefault();
+                var keyboard = context.Input.Keyboards.FirstOrDefault();
                 var control = keyboard != null && (keyboard.IsKeyPressed(Key.ControlLeft) || keyboard.IsKeyPressed(Key.ControlRight));
                 var alt = keyboard != null && (keyboard.IsKeyPressed(Key.AltLeft) || keyboard.IsKeyPressed(Key.AltRight));
 
@@ -74,7 +74,7 @@ namespace Mana.Code.GameModes
                         var before = points;
                         var after = points.Where((_, i) => i / 2 != hovered).ToArray();
                         collider.Points = after;
-                        _viewModel.History.Record("Remove polygon point", () => collider.Points = before, () => collider.Points = after);
+                        viewModel.History.Record("Remove polygon point", () => collider.Points = before, () => collider.Points = after);
                         hovered = -1;
                     }
                     captured = true;
@@ -118,19 +118,19 @@ namespace Mana.Code.GameModes
             }
 
             var after = collider.Points;
-            _viewModel.History.Record("Edit polygon", () => collider.Points = before, () => collider.Points = after);
+            viewModel.History.Record("Edit polygon", () => collider.Points = before, () => collider.Points = after);
         }
 
         private float SnapPolygonCoordinate(float value)
         {
-            var snap = _viewModel.Snap;
+            var snap = viewModel.Snap;
             return snap.Enabled ? EditorSnapSettings.SnapTo(value, snap.TranslateStep) : MathF.Round(value * 100.0f) / 100.0f;
         }
 
         /// <summary>Where the pointer meets the collider's own plane (its local z = 0), in its local x, y.</summary>
         private Vector2? PolygonPlanePoint(ManaSceneNode node, IMouse mouse)
         {
-            var camera = Context.World.MainCamera;
+            var camera = context.World.MainCamera;
             if (camera == null || !Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
             {
                 return null;
@@ -157,7 +157,7 @@ namespace Mana.Code.GameModes
         /// <summary>About a hundredth of the view's height at the node, in its local units, so handles stay a steady size on screen.</summary>
         private float PolygonHandleRadius(ManaSceneNode node)
         {
-            var camera = Context.World.MainCamera;
+            var camera = context.World.MainCamera;
             var worldScale = MathF.Max(new Vector3(node.WorldTransform.M11, node.WorldTransform.M12, node.WorldTransform.M13).Length(), 1e-4f);
             if (camera == null)
             {
@@ -255,26 +255,26 @@ namespace Mana.Code.GameModes
             }
             lines.Add(new ManaLinePolyline(corners, closed: true));
 
-            var mesh = new ManaLineMesh(Context, lines, thickness: radius * 0.22f, PolygonHandleColor, emissionStrength: 0.8f);
-            var node = new ManaSceneNode(Context, Matrix4x4.Identity)
+            var mesh = new ManaLineMesh(context, lines, thickness: radius * 0.22f, PolygonHandleColor, emissionStrength: 0.8f);
+            var node = new ManaSceneNode(context, Matrix4x4.Identity)
             {
                 Name = "Polygon Points",
                 IncludeInEnvironmentCapture = false,
                 IsEditorTransient = true
             };
             node.Components.Add(new MeshRendererComponent(node, mesh) { DrawAfterScene = true, AlwaysOnTop = true });
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                Context.World.DefaultScene.Children.Add(node);
+                context.World.DefaultScene.Children.Add(node);
             }
 
             node.SetLocalTransform(collider.Owner.WorldTransform);
-            _pickingExclusions.Add(node);
+            pickingExclusions.Add(node);
             _polygonOverlay = node;
             _polygonOverlayKey = key;
         }
 
-        private void HidePolygonOverlay()
+        public void HidePolygonOverlay()
         {
             _polygonOverlayKey = null;
             if (_polygonOverlay == null)
@@ -282,12 +282,12 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                Context.World.DefaultScene.Children.Remove(_polygonOverlay);
+                context.World.DefaultScene.Children.Remove(_polygonOverlay);
             }
 
-            _pickingExclusions.Remove(_polygonOverlay);
+            pickingExclusions.Remove(_polygonOverlay);
             _polygonOverlay = null;
         }
     }

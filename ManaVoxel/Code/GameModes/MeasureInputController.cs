@@ -1,4 +1,6 @@
+using Mana.Code.Nodes;
 using ManaVoxel.Code.Measure;
+using ManaVoxel.Code.UI;
 using ManaVoxel.Code.UI.ManaUi;
 using Silk.NET.Input;
 
@@ -7,7 +9,7 @@ namespace Mana.Code.GameModes
     // The measuring tool (M, or the ruler on the toolbar): while it is on it owns the pointer. Each frame the
     // pointer is snapped to the triangle beneath it (or the ground), dropped onto the first point's surface when
     // asked, and a click adds the point. MeasureOverlay draws the result.
-    public partial class VoxelEditorGameMode
+    internal sealed class MeasureInputController(ManaContext context, VoxelEditorViewModel viewModel, HashSet<ManaSceneNode> pickingExclusions)
     {
         /// <summary>Within this many pixels of a corner, an edge's middle or an edge, the point jumps to it.</summary>
         private const float MeasureSnapPixels = 14.0f;
@@ -22,35 +24,35 @@ namespace Mana.Code.GameModes
         private MeasureSnap? _measureLastSnap;
 
         /// <summary>M switches the tool on and off, as the toolbar's ruler does.</summary>
-        private void UpdateMeasureShortcut()
+        public void UpdateMeasureShortcut(bool isPlaying, bool uiWantsKeyboard)
         {
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             if (keyboard == null)
             {
                 return;
             }
-            var down = !UiWantsKeyboard && !IsPlaying && keyboard.IsKeyPressed(Key.M)
+            var down = !uiWantsKeyboard && !isPlaying && keyboard.IsKeyPressed(Key.M)
                 && !keyboard.IsKeyPressed(Key.ControlLeft) && !keyboard.IsKeyPressed(Key.ControlRight);
             if (down && !_measureToggleWasDown)
             {
-                _viewModel.Measure.Active = !_viewModel.Measure.Active;
+                viewModel.Measure.Active = !viewModel.Measure.Active;
             }
             _measureToggleWasDown = down;
         }
 
         /// <summary>True while measuring, so the click is the tool's and nothing gets selected.</summary>
-        private bool UpdateMeasuring(bool inputCaptured, IMouse mouse)
+        public bool UpdateMeasuring(bool inputCaptured, IMouse mouse, bool isPlaying, bool uiWantsKeyboard)
         {
-            var tool = _viewModel.Measure;
-            if (!tool.Active || IsPlaying)
+            var tool = viewModel.Measure;
+            if (!tool.Active || isPlaying)
             {
                 _measureLeftWasDown = mouse.IsButtonPressed(MouseButton.Left);
                 return false;
             }
 
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             var shift = keyboard != null && (keyboard.IsKeyPressed(Key.ShiftLeft) || keyboard.IsKeyPressed(Key.ShiftRight));
-            if (keyboard != null && !UiWantsKeyboard)
+            if (keyboard != null && !uiWantsKeyboard)
             {
                 var escape = keyboard.IsKeyPressed(Key.Escape);
                 if (escape && !_measureEscapeWasDown)
@@ -104,56 +106,22 @@ namespace Mana.Code.GameModes
         /// <summary>Snaps the point under <paramref name="pointer"/>, drops it onto the first surface if asked, and clicks it.</summary>
         private void PointMeasure(Vector2 pointer, bool shift, bool click)
         {
-            var tool = _viewModel.Measure;
+            var tool = viewModel.Measure;
             // Ray mode's ray: the scene's own triangles, skipping the editor's helpers as the pointer does.
             tool.CastRay ??= (origin, direction) =>
-                ManaScenePicker.PickTriangle(Context.World.Scenes, origin, direction, _pickingExclusions)?.Position;
+                ManaScenePicker.PickTriangle(context.World.Scenes, origin, direction, pickingExclusions)?.Position;
             tool.Point(SnapMeasurePoint(pointer, tool), shift, click);
         }
 
-#if !MANA_BROWSER
-        /// <summary>
-        /// The live_scan script command: "listen" (as opening the panel does), "photos"/"coverage" colouring, "clear",
-        /// and "bake" into the level (to <paramref name="path"/> when given). Logs what has streamed in.
-        /// </summary>
-        private void RunLiveScanCommand(string? name, string? path)
-        {
-            var session = ManaVoxel.Code.LiveScan.LiveScanSession.Current
-                ?? throw new InvalidDataException("live_scan: no live-scan session yet.");
-            switch (name?.ToLowerInvariant())
-            {
-                case "listen": session.Start(); break;
-                case "photos": session.Colour = ManaVoxel.Code.LiveScan.LiveScanSession.Colouring.Photos; break;
-                case "coverage": session.Colour = ManaVoxel.Code.LiveScan.LiveScanSession.Colouring.Coverage; break;
-                case "clear": session.Clear(); break;
-                case "bake":
-                    var file = Path.GetFullPath(path ?? Path.Combine("Assets/Lidar", $"Live {DateTime.Now:yyyy-MM-dd HH.mm.ss}.glb"));
-                    Directory.CreateDirectory(Path.GetDirectoryName(file)!);
-                    session.Bake(file, ManaLidar.ScanDetail.High, null, (baked, at) =>
-                    {
-                        var model = Context.World.LoadFromGltf(baked, into: _viewModel.ActiveScene ?? Context.World.DefaultScene);
-                        model.LevelSource = Mana.Code.Levels.ManaLevelSource.ForMesh(baked);
-                        model.Position = at;
-                        session.Clear();
-                        ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: live scan baked to {baked}, placed at {at}.");
-                    }, error => ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: live scan bake failed: {error}"));
-                    break;
-                case "log": break;
-                default: throw new InvalidDataException($"live_scan: unknown '{name}'.");
-            }
-            ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
-                $"Command file: live scan {name}: phone {session.Server?.Phone ?? "none"}, {session.PieceCount} pieces, "
-                + $"{session.TriangleCount} triangles, {session.PhotoCount} photos, port {session.Server?.Port}");
-        }
-#endif
+
 
         /// <summary>
         /// The measure script command: modes and options by name, and "hover"/"click" at a world point -- projected
         /// to the screen and run through the same snapping as the pointer, so a script tests what a person gets.
         /// </summary>
-        private void RunMeasureCommand(string? name, float[]? position)
+        public void RunMeasureCommand(string? name, float[]? position)
         {
-            var tool = _viewModel.Measure;
+            var tool = viewModel.Measure;
             switch (name?.ToLowerInvariant())
             {
                 case "off": tool.Active = false; return;
@@ -172,18 +140,18 @@ namespace Mana.Code.GameModes
                 case "imperial": tool.Units = MeasureUnits.Imperial; return;
                 case "hover":
                 case "click":
-                    if (position is not { Length: 3 } p || Context.World.MainCamera is not { } camera)
+                    if (position is not { Length: 3 } p || context.World.MainCamera is not { } camera)
                     {
                         throw new InvalidDataException("measure: hover and click need a world 'position' and a camera.");
                     }
                     tool.Active = true;
-                    var window = new Vector2(Context.Window.Size.X, Context.Window.Size.Y);
+                    var window = new Vector2(context.Window.Size.X, context.Window.Size.Y);
                     if (!VoxelPlacementDepthOverlay.TryProject(camera._ViewMatrix * camera._ProjectionMatrix, window,
                             new Vector3(p[0], p[1], p[2]), out var screen, out _))
                     {
                         throw new InvalidDataException("measure: that point is behind the camera.");
                     }
-                    var real = Context.Input.Mice.FirstOrDefault()?.Position ?? Vector2.Zero;
+                    var real = context.Input.Mice.FirstOrDefault()?.Position ?? Vector2.Zero;
                     _measureScriptedPointer = (real, screen);
                     PointMeasure(screen, shift: false, click: name.Equals("click", StringComparison.OrdinalIgnoreCase));
                     var hover = tool.Hover;
@@ -199,7 +167,7 @@ namespace Mana.Code.GameModes
         // The triangle test walks every mesh, so it runs only when the pointer has moved (or the scene might have).
         private MeasureSnap? SnapMeasurePoint(Vector2 pointer, MeasureTool tool)
         {
-            var camera = Context.World.MainCamera;
+            var camera = context.World.MainCamera;
             if (camera == null)
             {
                 return null;
@@ -214,7 +182,7 @@ namespace Mana.Code.GameModes
             _measureLastTargets = tool.Targets;
 
             var ray = camera.ProjectScreenToWorld(new Vector3(pointer, 0.0f), new Vector3(pointer, 1.0f));
-            var window = new Vector2(Context.Window.Size.X, Context.Window.Size.Y);
+            var window = new Vector2(context.Window.Size.X, context.Window.Size.Y);
             Vector2? ToScreen(Vector3 world) =>
                 VoxelPlacementDepthOverlay.TryProject(viewProjection, window, world, out var screen, out var depth) && depth >= 0 && depth <= 1
                     ? screen
@@ -224,7 +192,7 @@ namespace Mana.Code.GameModes
             const MeasureSnapTargets surface = MeasureSnapTargets.Vertex | MeasureSnapTargets.Midpoint
                 | MeasureSnapTargets.Edge | MeasureSnapTargets.Face;
             if ((tool.Targets & surface) != 0
-                && ManaScenePicker.PickTriangle(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions) is { } hit)
+                && ManaScenePicker.PickTriangle(context.World.Scenes, ray.Origin, ray.Direction, pickingExclusions) is { } hit)
             {
                 snap = MeasureSnapping.FromTriangle(hit.Position, hit.Normal, hit.A, hit.B, hit.C, pointer, ToScreen,
                     MeasureSnapPixels, tool.Targets, hit.CreaseEdges);
@@ -232,7 +200,7 @@ namespace Mana.Code.GameModes
             else
             {
                 // Over nothing: the ground, on the editor's snap grid when snapping is on.
-                var step = tool.Targets.HasFlag(MeasureSnapTargets.Grid) && _viewModel.Snap.Enabled ? _viewModel.Snap.TranslateStep : 0f;
+                var step = tool.Targets.HasFlag(MeasureSnapTargets.Grid) && viewModel.Snap.Enabled ? viewModel.Snap.TranslateStep : 0f;
                 snap = MeasureSnapping.OnGround(ray.Origin, ray.Direction, step);
             }
             _measureLastSnap = snap;
@@ -240,3 +208,4 @@ namespace Mana.Code.GameModes
         }
     }
 }
+

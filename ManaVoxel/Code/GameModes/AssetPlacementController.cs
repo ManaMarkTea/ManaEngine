@@ -1,3 +1,4 @@
+using ManaVoxel.Code.GridMaps;
 using BepuPhysics.Collidables;
 using ManaUI;
 using System.Linq;
@@ -26,9 +27,78 @@ using System.Text;
 namespace Mana.Code.GameModes
 {
     // Placing a model dragged or clicked out of the Import panel: the live preview, its rotation, commit and cancel.
-    public partial class VoxelEditorGameMode
+    internal sealed class AssetPlacementController(
+        ManaContext context, VoxelEditorViewModel viewModel, GridMapInputController gridMapInput,
+        Func<UiRoot?> rootProvider, Func<RayHit> placementHit, Func<bool> openingLevel,
+        Func<bool> uiWantsMouse, Func<bool> uiWantsKeyboard)
     {
-        private const string ZipAssetPrefix = "zipasset:";
+        /// <summary>
+        /// A model dragged out of the asset browser and let go over the Grid Map window's palette joins the
+        /// selected map's palette as the brush -- painting or not. True when that happened.
+        /// </summary>
+        private bool TakeGridPaletteDrop(IMouse mouse)
+        {
+            var leftDown = mouse.IsButtonPressed(MouseButton.Left);
+            if (leftDown || !_meshPickerDragWasDown
+                || MeshImportRequests.Dragging == null
+                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
+                || context.World.Selection.SelectedNode is not ManaGridMapNode map
+                || rootProvider() is not { } root
+                || !GridMapToolManaView.IsOverPalette(root.Input.PointerPosition))
+            {
+                return false;
+            }
+
+            gridMapInput.AddAllToGridPalette(map, MeshImportRequests.TakeDragAll());
+
+            MeshAssetRow.ForceEndActiveDrag();
+            _meshPickerDragWasDown = false;
+            return true;
+        }
+
+        /// <summary>
+        /// While painting, choosing a model in the asset browser adds it to the palette as the brush instead of
+        /// placing it. True when that happened, so the ordinary placement path stands down.
+        /// </summary>
+        private bool TakeGridPaletteRequest(IMouse mouse)
+        {
+            var target = GridMapEditing.Target;
+            if (target == null
+                || Path.GetExtension(MeshImportRequests.PendingPlacement) == ManaVoxel.Code.Assets.ManaPrefab.Extension
+                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
+                || _meshPickerPreviewNode?.PrefabLink != null)
+            {
+                return false;
+            }
+
+            if (MeshImportRequests.TakePlacement() is { Length: > 0 } picked)
+            {
+                gridMapInput.AddToGridPalette(target, picked);
+            }
+
+            gridMapInput.AddAllToGridPalette(target, MeshImportRequests.TakePaletteAdd());
+
+            var leftDown = mouse.IsButtonPressed(MouseButton.Left);
+            if (!leftDown && _meshPickerDragWasDown && MeshImportRequests.Dragging != null)
+            {
+                var overUi = MeshImportRequests.PointerOverUi;
+                var dropped = MeshImportRequests.TakeDragAll();
+                if (!overUi)
+                {
+                    gridMapInput.AddAllToGridPalette(target, dropped);
+                }
+
+                MeshAssetRow.ForceEndActiveDrag();
+            }
+
+            _meshPickerDragWasDown = leftDown;
+            return true;
+        }
+
+public ManaSceneNode? PreviewNode => _meshPickerPreviewNode;
+        private string? _meshDownloadPath;
+        private string? _meshDownloadFailedPath;
+        private int _meshDownloadGeneration;
         private bool _meshPickerDragWasDown;
         private bool _meshPickerPlaceClickWasDown;
         private bool _meshPickerEscapeWasDown;
@@ -39,7 +109,7 @@ namespace Mana.Code.GameModes
         private int _meshPickerPreviewMaterialStartIndex = -1;
         private EditorSelectionSnapshot? _meshPickerPreviewSelectionBefore;
 
-        private void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)
+        public void ProcessMeshPickerPlacement(Silk.NET.Input.IMouse mouseState, Vector2 sceneMin, Vector2 sceneMax)
         {
             if (HandleMeshPickerEscapeCancel())
             {
@@ -96,7 +166,7 @@ namespace Mana.Code.GameModes
                     {
                         // Keep the requested preview alive until its download completes. The next click
                         // places it; releasing a drag early must not silently discard the selection.
-                        _viewModel.Levels.SetStatus("Downloading asset — click to place it when ready.");
+                        viewModel.Levels.SetStatus("Downloading asset — click to place it when ready.");
                     }
                     else
                     {
@@ -120,7 +190,7 @@ namespace Mana.Code.GameModes
                 _meshPickerPreviewNode != null &&
                 string.IsNullOrWhiteSpace(draggedPath) &&
                 isOverScene &&
-                !UiWantsMouse)
+                !uiWantsMouse())
             {
                 CommitMeshPickerPlacementPreview();
             }
@@ -130,14 +200,14 @@ namespace Mana.Code.GameModes
 
         private bool HandleMeshPickerEscapeCancel()
         {
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             if (keyboard == null)
             {
                 _meshPickerEscapeWasDown = false;
                 return false;
             }
 
-            var keyDown = !UiWantsKeyboard && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
+            var keyDown = !uiWantsKeyboard() && keyboard.IsKeyPressed(Silk.NET.Input.Key.Escape);
             var pressed = keyDown && !_meshPickerEscapeWasDown;
             _meshPickerEscapeWasDown = keyDown;
 
@@ -152,7 +222,7 @@ namespace Mana.Code.GameModes
 
         private async void BeginMeshPickerPlacementPreview(string assetReference)
         {
-            if (_openingLevel || _meshDownloadPath == assetReference) return;
+            if (openingLevel() || _meshDownloadPath == assetReference) return;
             if (_meshPickerPreviewNode != null &&
                 string.Equals(_meshPickerPreviewAssetPath, assetReference, StringComparison.OrdinalIgnoreCase))
             {
@@ -167,7 +237,7 @@ namespace Mana.Code.GameModes
                 var generation = _meshDownloadGeneration;
                 try
                 {
-                    _viewModel.Levels.SetStatus("Downloading selected asset…");
+                    viewModel.Levels.SetStatus("Downloading selected asset…");
                     if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
                     {
                         await ManaLevelLoader.EnsureAssetsAsync(new ManaLevel { Nodes = [ManaPrefab.Load(assetReference).Root] });
@@ -177,14 +247,14 @@ namespace Mana.Code.GameModes
                         await catalog.EnsureAsync(assetReference);
                     }
                     if (generation != _meshDownloadGeneration) return;
-                    _viewModel.Levels.SetStatus("Asset ready — click in the scene to place it.");
+                    viewModel.Levels.SetStatus("Asset ready — click in the scene to place it.");
                 }
                 catch (Exception ex)
                 {
                     if (generation == _meshDownloadGeneration)
                     {
                         _meshDownloadFailedPath = assetReference;
-                        _viewModel.Levels.SetStatus($"Download failed: {ex.Message}. Select the asset again to retry.");
+                        viewModel.Levels.SetStatus($"Download failed: {ex.Message}. Select the asset again to retry.");
                     }
                     return;
                 }
@@ -194,7 +264,7 @@ namespace Mana.Code.GameModes
                 }
             }
 
-            var world = Context.World;
+            var world = context.World;
             var sceneStart = world.Scenes.Count;
             var meshStart = world.Meshes.Count;
             var materialStart = world.Materials.Count;
@@ -226,7 +296,7 @@ namespace Mana.Code.GameModes
                 // Said out loud, not only to a log file nobody has open. A drag that produces no preview and
                 // no message is indistinguishable from a drag the editor never noticed -- which is exactly
                 // what an unreadable asset looked like: you drop it, nothing appears, nothing explains.
-                _viewModel.Levels.SetStatus(
+                viewModel.Levels.SetStatus(
                     $"{System.IO.Path.GetFileName(assetReference)}: {DescribeImportFailure(ex)}");
             }
         }
@@ -262,7 +332,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            var mouseHit = GetProjectedPlacementHit();
+            var mouseHit = placementHit();
             if (!mouseHit.Hit)
             {
                 return;
@@ -272,23 +342,23 @@ namespace Mana.Code.GameModes
             // ShouldCaptureEditorMouseInput reports this preview as an editor mouse capture for exactly that
             // reason. The spin is written into the Placement panel's Rotation, so what the panel shows is
             // what the next placement will use, rather than a hidden extra angle nobody can see or reset.
-            var scrollY = Context.Input.Mice.FirstOrDefault()?.ScrollWheels[0].Y ?? 0.0f;
+            var scrollY = context.Input.Mice.FirstOrDefault()?.ScrollWheels[0].Y ?? 0.0f;
             if (scrollY != 0.0f)
             {
                 SpinPlacementRotation(scrollY, mouseHit.Normal);
             }
 
-            _meshPickerPreviewNode.Position = _viewModel.Snap.SnapPosition(mouseHit.Position) + _viewModel.ImportPositionOffset;
+            _meshPickerPreviewNode.Position = viewModel.Snap.SnapPosition(mouseHit.Position) + viewModel.ImportPositionOffset;
 
             _meshPickerPreviewNode.Rotation = new Vector3(
-                _viewModel.ImportRotationDegrees.X.ToRadians(),
-                _viewModel.ImportRotationDegrees.Y.ToRadians(),
-                _viewModel.ImportRotationDegrees.Z.ToRadians());
+                viewModel.ImportRotationDegrees.X.ToRadians(),
+                viewModel.ImportRotationDegrees.Y.ToRadians(),
+                viewModel.ImportRotationDegrees.Z.ToRadians());
 
             _meshPickerPreviewNode.Scale = new Vector3(
-                MathF.Max(0.01f, _viewModel.ImportScale.X),
-                MathF.Max(0.01f, _viewModel.ImportScale.Y),
-                MathF.Max(0.01f, _viewModel.ImportScale.Z));
+                MathF.Max(0.01f, viewModel.ImportScale.X),
+                MathF.Max(0.01f, viewModel.ImportScale.Y),
+                MathF.Max(0.01f, viewModel.ImportScale.Z));
             _meshPickerPreviewNode.UpdateTransform();
         }
 
@@ -298,9 +368,9 @@ namespace Mana.Code.GameModes
         /// </summary>
         private void SpinPlacementRotation(float notches, Vector3 surfaceNormal)
         {
-            var snap = _viewModel.Snap;
+            var snap = viewModel.Snap;
             var degrees = notches * (snap.Enabled ? snap.RotationStepDegrees : 15.0f);
-            var rotation = _viewModel.ImportRotationDegrees;
+            var rotation = viewModel.ImportRotationDegrees;
 
             if (surfaceNormal == Vector3.Zero || MathF.Abs(surfaceNormal.Y) > 0.999f)
             {
@@ -327,12 +397,12 @@ namespace Mana.Code.GameModes
                     float.RadiansToDegrees(euler.Z));
             }
 
-            _viewModel.ImportRotationDegrees = rotation;
+            viewModel.ImportRotationDegrees = rotation;
         }
 
         private void CommitMeshPickerPlacementPreview()
         {
-            var world = Context.World;
+            var world = context.World;
             var placedNode = _meshPickerPreviewNode;
             var assetPath = _meshPickerPreviewAssetPath;
             if (placedNode != null &&
@@ -354,14 +424,14 @@ namespace Mana.Code.GameModes
                 if (placedNode.PrefabLink != null)
                 {
                     // Prefabs may own physics and audio; the mesh-only insertion undo cannot restore those yet.
-                    _viewModel.History.Clear();
+                    viewModel.History.Clear();
                 }
                 else if (!insertion.IsEmpty)
                 {
                     var displayName = !string.IsNullOrWhiteSpace(assetPath)
                         ? MeshAssetLibrary.DisplayName(assetPath)
                         : placedNode.Name ?? "Actor";
-                    _viewModel.History.RecordWorldInsertion(
+                    viewModel.History.RecordWorldInsertion(
                         insertion,
                         placedNode,
                         selectionBefore,
@@ -378,7 +448,7 @@ namespace Mana.Code.GameModes
             _meshPickerPreviewSelectionBefore = null;
         }
 
-        private void CancelMeshPickerPlacementPreview()
+        public void CancelMeshPickerPlacementPreview()
         {
             _meshDownloadGeneration++;
             _meshDownloadPath = null;
@@ -408,7 +478,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? SpriteNodeFor(string assetReference)
         {
             var extension = Path.GetExtension(assetReference);
-            ManaSceneNode Node(string name) => new(Context, Matrix4x4.Identity)
+            ManaSceneNode Node(string name) => new(context, Matrix4x4.Identity)
             {
                 Name = name, LevelSource = new Mana.Code.Levels.ManaLevelSource { Kind = Mana.Code.Levels.ManaLevelSourceKind.Group }
             };
@@ -436,8 +506,8 @@ namespace Mana.Code.GameModes
 
             if (node != null)
             {
-                var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;
-                lock (Context.World.SceneLock)
+                var scene = viewModel.ActiveScene ?? context.World.DefaultScene;
+                lock (context.World.SceneLock)
                 {
                     scene.Children.Add(node);
                 }
@@ -450,14 +520,14 @@ namespace Mana.Code.GameModes
         {
             if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
             {
-                return ProjectAssets.InstantiateForPlacement(assetReference);
+                return ProjectAssetViewModel.For(context.World, viewModel).InstantiateForPlacement(assetReference);
             }
             if (SpriteNodeFor(assetReference) is { } sprite)
             {
                 return sprite;
             }
             // Straight into the scene the editor is working in, not a scene of its own per drag.
-            var scene = _viewModel.ActiveScene ?? Context.World.DefaultScene;
+            var scene = viewModel.ActiveScene ?? context.World.DefaultScene;
 
             if (TryDecodeZipAssetReference(assetReference, out var zipPath, out var entryPath))
             {
@@ -472,16 +542,16 @@ namespace Mana.Code.GameModes
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
                 var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
-                return Context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: scene);
+                return context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: scene);
             }
 
-            return Context.World.LoadFromGltf(assetReference, into: scene);
+            return context.World.LoadFromGltf(assetReference, into: scene);
         }
 
         private void RemoveMeshPickerPreviewWorldData(
             int sceneStart, int meshStart, int materialStart, ManaSceneNode? previewNode = null)
         {
-            var world = Context.World;
+            var world = context.World;
             lock (world.SceneLock)
             {
                 // The preview lives in an existing scene now, so it has to be taken out of it by hand.
@@ -519,21 +589,8 @@ namespace Mana.Code.GameModes
         private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath) =>
             ZipAssetReferences.TryDecodeZip(assetReference, out zipPath, out entryPath);
 
-        private async void ImportMeshAssetFromPicker(string filePath)
-        {
-            try
-            {
-                var mouseHit = GetProjectedPlacementHit();
-                var dropPosition = mouseHit.Hit ? mouseHit.Position : (Vector3?)null;
-                if (ManaCore.Assets.ManaAssetCatalog.Current is { } catalog)
-                    await catalog.EnsureAsync(filePath);
-                _fileImportService.ImportFile(filePath, dropPosition, Context.World, _viewModel);
-            }
-            catch (Exception ex)
-            {
-                Trace.TraceWarning($"Failed to import mesh asset '{filePath}': {ex}");
-                ManaConsole.WriteDiagnostic($"Failed to import mesh asset '{filePath}': {ex}");
-            }
-        }
     }
 }
+
+
+

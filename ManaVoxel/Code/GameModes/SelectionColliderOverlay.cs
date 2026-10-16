@@ -1,32 +1,13 @@
 using BepuPhysics.Collidables;
-using ManaUI;
-using System.Linq;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
 using Mana.Code.UI;
-using ManaVoxel.Code.Services;
-using ManaVoxel.Code.Tools;
-using ManaVoxel.Code.Assets;
-using ManaVoxel.Code.Levels;
-using ManaVoxel.Code.Search;
-using ManaVoxel.Code.UI;
-using ManaVoxel.Code.UI.ManaUi;
-using ManaCore.Diagnostics;
-using ManaCore.Graphics;
-using ManaCore.Loading;
-using ManaGraphics.Code.Diagnostics;
-using ManaGraphics.Code.Graphics;
-using ManaGeoTools.Code;
-using ManaGeoTools.Code.Planet;
-using System.Diagnostics;
-using System.IO.Compression;
-using System.Text;
 
 namespace Mana.Code.GameModes
 {
     // The yellow wireframes showing the selection's colliders.
-    public partial class VoxelEditorGameMode
+    internal sealed class SelectionColliderOverlay(ManaContext context, HashSet<ManaSceneNode> pickingExclusions)
     {
         private static readonly Vector4 ColliderDebugColor = new(1.0f, 0.86f, 0.05f, 1.0f);
         private ManaSceneNode? _selectionColliderDebugRoot;
@@ -38,7 +19,7 @@ namespace Mana.Code.GameModes
             ManaSceneNode Node,
             Vector3 Size);
 
-        private void SyncSelectionColliderDebug(ManaSceneNode? selectedNode)
+        public void Sync(ManaSceneNode? selectedNode)
         {
             var collisions = new List<ManaCollisionComponent>();
             CollectSelectedBoxCollisions(selectedNode, collisions);
@@ -46,7 +27,7 @@ namespace Mana.Code.GameModes
 
             if (collisions.Count == 0 || !ManaEditorGizmos.Visible)
             {
-                ClearSelectionColliderDebug();
+                Clear();
                 return;
             }
 
@@ -57,7 +38,7 @@ namespace Mana.Code.GameModes
 
             if (!UpdateColliderDebugTransforms())
             {
-                ClearSelectionColliderDebug();
+                Clear();
             }
         }
 
@@ -88,9 +69,9 @@ namespace Mana.Code.GameModes
 
         private void CollectPinnedBoxCollisions(List<ManaCollisionComponent> output)
         {
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                foreach (var scene in Context.World.Scenes)
+                foreach (var scene in context.World.Scenes)
                 {
                     foreach (var child in scene.Children)
                     {
@@ -131,7 +112,7 @@ namespace Mana.Code.GameModes
                 }
 
                 if (collision.Shape is not (Box or ConvexHull)
-                    || !Context.Physics.Simulation.Bodies.BodyExists(collision.Body))
+                    || !context.Physics.Simulation.Bodies.BodyExists(collision.Body))
                 {
                     continue;
                 }
@@ -174,11 +155,11 @@ namespace Mana.Code.GameModes
             ManaSceneNode? selectedNode,
             IReadOnlyList<ManaCollisionComponent> collisions)
         {
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
                 ClearSelectionColliderDebugNoLock();
 
-                var root = new ManaSceneNode(Context, Matrix4x4.Identity)
+                var root = new ManaSceneNode(context, Matrix4x4.Identity)
                 {
                     Name = "Selection Collider Debug (Transient)",
                     IncludeInEnvironmentCapture = false,
@@ -186,8 +167,8 @@ namespace Mana.Code.GameModes
                     LevelSource = null
                 };
 
-                Context.World.DefaultScene.Children.Add(root);
-                _pickingExclusions.Add(root);
+                context.World.DefaultScene.Children.Add(root);
+                pickingExclusions.Add(root);
 
                 _selectionColliderDebugRoot = root;
                 _selectionColliderDebugTarget = selectedNode;
@@ -197,7 +178,7 @@ namespace Mana.Code.GameModes
                     var size = CollisionSize(collision);
                     var debugMesh = CreateColliderDebugMesh(collision, size);
 
-                    var node = new ManaSceneNode(Context, Matrix4x4.Identity)
+                    var node = new ManaSceneNode(context, Matrix4x4.Identity)
                     {
                         Name = $"Collider {CollisionOwnerName(collision.Owner)}",
                         IncludeInEnvironmentCapture = false,
@@ -211,7 +192,7 @@ namespace Mana.Code.GameModes
                     });
 
                     root.AddChild(node);
-                    _pickingExclusions.Add(node);
+                    pickingExclusions.Add(node);
                     _selectionColliderDebugEntries.Add(new ColliderDebugEntry(collision, node, size));
                 }
             }
@@ -221,12 +202,12 @@ namespace Mana.Code.GameModes
         {
             foreach (var entry in _selectionColliderDebugEntries)
             {
-                if (!Context.Physics.Simulation.Bodies.BodyExists(entry.Collision.Body))
+                if (!context.Physics.Simulation.Bodies.BodyExists(entry.Collision.Body))
                 {
                     return false;
                 }
 
-                var pose = Context.Physics.Simulation.Bodies[entry.Collision.Body].Pose;
+                var pose = context.Physics.Simulation.Bodies[entry.Collision.Body].Pose;
                 var transform = Matrix4x4.CreateFromQuaternion(pose.Orientation)
                     * Matrix4x4.CreateTranslation(pose.Position);
                 entry.Node.SetLocalTransform(transform);
@@ -236,9 +217,9 @@ namespace Mana.Code.GameModes
             return true;
         }
 
-        private void ClearSelectionColliderDebug()
+        public void Clear()
         {
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
                 ClearSelectionColliderDebugNoLock();
             }
@@ -248,15 +229,15 @@ namespace Mana.Code.GameModes
         {
             foreach (var entry in _selectionColliderDebugEntries)
             {
-                _pickingExclusions.Remove(entry.Node);
+                pickingExclusions.Remove(entry.Node);
             }
 
             if (_selectionColliderDebugRoot != null)
             {
-                _pickingExclusions.Remove(_selectionColliderDebugRoot);
+                pickingExclusions.Remove(_selectionColliderDebugRoot);
                 _selectionColliderDebugRoot.Parent?.RemoveChild(_selectionColliderDebugRoot);
 
-                foreach (var scene in Context.World.Scenes)
+                foreach (var scene in context.World.Scenes)
                 {
                     scene.Children.Remove(_selectionColliderDebugRoot);
                 }
@@ -288,7 +269,7 @@ namespace Mana.Code.GameModes
             if (collision.Shape is not ConvexHull hull)
             {
                 return new ManaWireframeCage(
-                    Context,
+                    context,
                     ColliderDebugColor,
                     Vector3.Max(size * 0.5f, new Vector3(0.025f)),
                     thickness: 0.035f);
@@ -312,7 +293,7 @@ namespace Mana.Code.GameModes
             }
 
             return new ManaLineMesh(
-                Context,
+                context,
                 faces,
                 thickness: 0.035f,
                 ColliderDebugColor,

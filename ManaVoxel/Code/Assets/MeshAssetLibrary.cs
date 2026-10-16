@@ -613,6 +613,14 @@ namespace ManaVoxel.Code.Assets
             return asset;
         }
 
+        public static bool TryDecodeZip(string asset, out string zipPath, out string entryPath)
+            => ZipAssetReferences.TryDecodeZip(asset, out zipPath, out entryPath);
+        public static string EncodeReadableZip(string zipFileName, string entryPath)
+            => ZipAssetReferences.EncodeReadableZip(zipFileName, entryPath);
+        public static string ToReadableReference(string asset) => ZipAssetReferences.ToReadableReference(asset);
+        public static ZipArchiveEntry? FindZipEntry(ZipArchive archive, string entryPath)
+            => ZipAssetReferences.FindZipEntry(archive, entryPath);
+
         public static string EncodeZip(string zipPath, string entryPath)
             => ZipAssetReferences.EncodeZip(zipPath, entryPath);
 

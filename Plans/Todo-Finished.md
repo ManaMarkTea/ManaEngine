@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Review partial classes and extract separate responsibilities (2026-10-16): audited all 31 original families; extracted 21 classes for editor tools, bindings, audio, importing, previews, game policy/camera/batching and renderer helpers. Six owners no longer need partial declarations; generated, platform and cohesive coordination partials remain. Decisions: Plans/PartialClassReview.md. All 3455 headless checks pass; desktop editor/game/zoom automation and Release browser AOT publish plus Chrome play/editor checks pass.
+
 [x] - Retire the OpenGL backend (2026-10-15): WebGPU is the only renderer. Removed the legacy backend, GLSL assets, shader compiler, immediate mesh/texture paths, Silk.NET.OpenGL packages and VS Code backend choices. Material uniform types now belong to ManaCore, with their saved numeric values preserved. Desktop solution and iOS compile passed; all 3455 headless checks passed. Release browser AOT publish and Chrome play/editor smoke checks passed without WebGPU errors, with editor/play captures in Artifacts/Automation and DevPhotos/2026-10-15 webgpu-only.png.
 
 [x] - Remove the standalone ManaSceneViewer (2026-10-15): deleted its project and unused SceneViewerMode demo, removed VS Code build/run/debug entries and browser exclusion, and cleaned up the OpenGL window title. Rendering remains available through ManaVoxel. Desktop solution build passed.

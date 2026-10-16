@@ -16,6 +16,39 @@ namespace ManaUI
     /// </summary>
     public abstract partial class UiElement
     {
+        private UiElementBindings? bindings;
+        internal bool HasPolledBindings => bindings?.HasPolledBindings == true;
+        /// <summary>True while bindings update this control; edit handlers should avoid writing back then.</summary>
+        public bool IsApplyingBinding => bindings?.IsApplyingBinding == true;
+        internal void AddBinding(IUiBinding binding) => (bindings ??= new()).AddBinding(binding);
+        internal void AddPolledBinding(IUiBinding binding)
+        {
+            (bindings ??= new()).AddPolledBinding(binding);
+            // A binding added after attachment must join the root's next polling pass.
+            Root?.NotifyPolledBindingsChanged();
+        }
+        internal void BeginBindingApply() => (bindings ??= new()).BeginBindingApply();
+        internal void EndBindingApply() => bindings?.EndBindingApply();
+        internal void RefreshPolledBindings() => bindings?.RefreshPolledBindings();
+
+        /// <summary>Re-reads every binding on this element.</summary>
+        public void RefreshBindings() => bindings?.RefreshBindings();
+
+        internal void SetBindingsActive(bool active)
+        {
+            bindings?.SetBindingsActive(active);
+            var count = VisualChildCount;
+            for (var i = 0; i < count; i++) GetVisualChild(i).SetBindingsActive(active);
+        }
+
+        /// <summary>Permanently releases bindings in this subtree; detachment only suspends them.</summary>
+        public void ClearBindings()
+        {
+            bindings?.ClearBindings();
+            var count = VisualChildCount;
+            for (var i = 0; i < count; i++) GetVisualChild(i).ClearBindings();
+        }
+
         private string? _profileName;
         private string? _measureProfile;
         private string? _arrangeProfile;

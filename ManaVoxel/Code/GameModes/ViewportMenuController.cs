@@ -1,4 +1,5 @@
 using Mana.Code.Nodes;
+using ManaVoxel.Code.UI;
 using ManaUI;
 using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.UI.ManaUi;
@@ -7,7 +8,7 @@ using Silk.NET.Input;
 namespace Mana.Code.GameModes
 {
     // The viewport's right-click menu (add a node where the pointer points) and the X key for snapping.
-    public partial class VoxelEditorGameMode
+    internal sealed class ViewportMenuController(ManaContext context, VoxelEditorViewModel viewModel, HashSet<ManaSceneNode> pickingExclusions, Func<UiRoot?> rootProvider)
     {
         private const float RightClickSlopPixels = 5.0f;
         private const long RightClickMilliseconds = 500;
@@ -22,9 +23,9 @@ namespace Mana.Code.GameModes
         /// A right click in the viewport -- press and release without moving or flying -- opens the Add Node menu at
         /// the point under the pointer. A right drag stays the camera's look.
         /// </summary>
-        private void UpdateViewportContextMenu(bool uiWantsMouse)
+        public void UpdateViewportContextMenu(bool uiWantsMouse, bool isPlaying)
         {
-            var mouse = Context.Input.Mice.FirstOrDefault();
+            var mouse = context.Input.Mice.FirstOrDefault();
             if (mouse == null)
             {
                 return;
@@ -34,7 +35,7 @@ namespace Mana.Code.GameModes
             if (down && !_contextRightWasDown)
             {
                 // Painting a grid map has its own right click (clearing a tile), and measuring owns the pointer.
-                _contextPressCounts = !uiWantsMouse && !IsPlaying && GridMapEditing.Target == null && !_viewModel.Measure.Active;
+                _contextPressCounts = !uiWantsMouse && !isPlaying && GridMapEditing.Target == null && !viewModel.Measure.Active;
                 _contextPressedAt = mouse.Position;
                 _contextPressedTime = Environment.TickCount64;
             }
@@ -54,13 +55,13 @@ namespace Mana.Code.GameModes
 
         private bool FlyKeyHeld()
         {
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             return keyboard != null && new[] { Key.W, Key.A, Key.S, Key.D, Key.Q, Key.E }.Any(keyboard.IsKeyPressed);
         }
 
         private void OpenViewportContextMenu(Vector2 pointer)
         {
-            if (ManaUi?.Root is { } root && BuildViewportContextMenu(pointer) is { } items)
+            if (rootProvider() is { } root && BuildViewportContextMenu(pointer) is { } items)
             {
                 // The UI is laid out at the window size over the display scale; the pointer is in window pixels.
                 MenuFlyout.ShowAt(root, pointer / MathF.Max(root.ScreenScale, 0.01f), items);
@@ -69,13 +70,13 @@ namespace Mana.Code.GameModes
 
         private List<MenuItem>? BuildViewportContextMenu(Vector2 pointer)
         {
-            if (Context.World.MainCamera is not { } camera)
+            if (context.World.MainCamera is not { } camera)
             {
                 return null;
             }
 
             var ray = camera.ProjectScreenToWorld(new Vector3(pointer, 0.0f), new Vector3(pointer, 1.0f));
-            var hit = ManaScenePicker.PickWithHit(Context.World.Scenes, ray.Origin, ray.Direction, _pickingExclusions);
+            var hit = ManaScenePicker.PickWithHit(context.World.Scenes, ray.Origin, ray.Direction, pickingExclusions);
             if (hit is { } backdrop && IsBackdrop(backdrop.Node))
             {
                 // A parallax backdrop is scenery far behind: what is added belongs in front, with the level.
@@ -84,7 +85,7 @@ namespace Mana.Code.GameModes
             var scene = TargetScene(hit?.Node);
             Vector3? normal = hit?.Normal;
             var position = hit?.Position ?? MissedPoint(scene, ray.Origin, ray.Direction, out normal);
-            var selection = Context.World.Selection;
+            var selection = context.World.Selection;
 
             var items = new List<MenuItem>
             {
@@ -93,7 +94,7 @@ namespace Mana.Code.GameModes
             };
 
             // Which scene, chosen in a tick list that stays open, so the header above follows the choice.
-            var scenes = Context.World.Scenes.ToList();
+            var scenes = context.World.Scenes.ToList();
             if (scenes.Count > 1)
             {
                 var choose = new MenuItem("Change Scene");
@@ -116,14 +117,14 @@ namespace Mana.Code.GameModes
         /// For scripts: the viewport menu at a world point (projected to where the pointer would be), shown, or with
         /// <paramref name="item"/> that entry chosen at once and the new node logged.
         /// </summary>
-        private void RunViewportMenuCommand(string? item, float[]? position)
+        public void RunViewportMenuCommand(string? item, float[]? position)
         {
-            if (position is not { Length: 3 } || Context.World.MainCamera is not { } camera)
+            if (position is not { Length: 3 } || context.World.MainCamera is not { } camera)
             {
                 throw new InvalidDataException("viewport_menu: needs a world 'position' to open at.");
             }
 
-            var window = new Vector2(Context.Window.Size.X, Context.Window.Size.Y);
+            var window = new Vector2(context.Window.Size.X, context.Window.Size.Y);
             if (!ManaVoxel.Code.UI.ManaUi.VoxelPlacementDepthOverlay.TryProject(camera._ViewMatrix * camera._ProjectionMatrix, window,
                     new Vector3(position[0], position[1], position[2]), out var pointer, out _))
             {
@@ -140,7 +141,7 @@ namespace Mana.Code.GameModes
                     string.Equals(candidate.Text, item, StringComparison.OrdinalIgnoreCase))
                 ?? throw new InvalidDataException($"viewport_menu: no '{item}' in the menu.");
             entry.Invoke();
-            var created = Context.World.Selection.SelectedNode;
+            var created = context.World.Selection.SelectedNode;
             ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
                 $"Command file: viewport_menu {item} -> {created?.Name} at {created?.Position} in {(created != null ? SceneOf(created)?.Name : null)}");
         }
@@ -151,7 +152,7 @@ namespace Mana.Code.GameModes
         /// </summary>
         private ManaScene TargetScene(ManaSceneNode? clicked)
         {
-            var world = Context.World;
+            var world = context.World;
             if (clicked != null && SceneOf(clicked) is { LevelPath: not null } clickedScene)
             {
                 return clickedScene;
@@ -191,7 +192,7 @@ namespace Mana.Code.GameModes
                 root = root.Parent;
             }
 
-            return Context.World.Scenes.FirstOrDefault(scene => scene.Children.Contains(root));
+            return context.World.Scenes.FirstOrDefault(scene => scene.Children.Contains(root));
         }
 
         /// <summary>
@@ -250,9 +251,9 @@ namespace Mana.Code.GameModes
             FormattableString.Invariant($"{point.X:0.#}, {point.Y:0.#}, {point.Z:0.#}");
 
         /// <summary>X turns grid snapping on or off, as Edit > Snap to Grid does.</summary>
-        private void UpdateSnapShortcut()
+        public void UpdateSnapShortcut(bool isPlaying, bool uiWantsKeyboard)
         {
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             if (keyboard == null)
             {
                 return;
@@ -260,11 +261,11 @@ namespace Mana.Code.GameModes
 
             var control = keyboard.IsKeyPressed(Key.ControlLeft) || keyboard.IsKeyPressed(Key.ControlRight)
                 || keyboard.IsKeyPressed(Key.SuperLeft) || keyboard.IsKeyPressed(Key.SuperRight);
-            var keyDown = !UiWantsKeyboard && !IsPlaying && !control && keyboard.IsKeyPressed(Key.X);
+            var keyDown = !uiWantsKeyboard && !isPlaying && !control && keyboard.IsKeyPressed(Key.X);
             if (keyDown && !_snapKeyWasDown)
             {
-                _viewModel.Snap.Enabled = !_viewModel.Snap.Enabled;
-                _viewModel.Levels.SetStatus(_viewModel.Snap.Enabled ? "Snap to grid on." : "Snap to grid off.");
+                viewModel.Snap.Enabled = !viewModel.Snap.Enabled;
+                viewModel.Levels.SetStatus(viewModel.Snap.Enabled ? "Snap to grid on." : "Snap to grid off.");
             }
 
             _snapKeyWasDown = keyDown;

@@ -27,6 +27,34 @@ namespace Mana.Code.GameModes
 {
     public partial class VoxelEditorGameMode : BaseGameMode
     {
+        private AssetPlacementController? assetPlacement;
+        private AssetPlacementController AssetPlacement => assetPlacement ??= new(
+            Context, _viewModel, GridMapInput, () => ManaUi?.Root, GetProjectedPlacementHit,
+            () => _openingLevel, () => UiWantsMouse, () => UiWantsKeyboard);
+        private GridMapInputController? gridMapInput;
+        private GridMapInputController GridMapInput => gridMapInput ??= new(Context, _viewModel, _pickingExclusions, () => ManaUi?.Root);
+        public static IEnumerable<ManaVoxel.Code.GridMaps.GridMapCell> GridStrokePath(
+            ManaVoxel.Code.GridMaps.GridMapCell? from, ManaVoxel.Code.GridMaps.GridMapCell to)
+            => GridMapInputController.GridStrokePath(from, to);
+        internal void AddToGridPalette(ManaVoxel.Code.GridMaps.ManaGridMapNode target, string asset)
+            => GridMapInput.AddToGridPalette(target, asset);
+
+        private ViewportMenuController? viewportMenu;
+        private ViewportMenuController ViewportMenu => viewportMenu ??= new(Context, _viewModel, _pickingExclusions, () => ManaUi?.Root);
+        private MeasureInputController? measureInput;
+        private MeasureInputController MeasureInput => measureInput ??= new(Context, _viewModel, _pickingExclusions);
+        private PolygonEditingController? polygonEditing;
+        private PolygonEditingController PolygonEditing => polygonEditing ??= new(Context, _viewModel, _pickingExclusions);
+        public static int NearestPolygonPoint(float[] points, Vector2 at, float radius)
+            => PolygonEditingController.NearestPolygonPoint(points, at, radius);
+        public static (float[] Points, int Index)? InsertPolygonPoint(float[] points, Vector2 at, float reach)
+            => PolygonEditingController.InsertPolygonPoint(points, at, reach);
+
+        private SelectionColliderOverlay? colliderOverlay;
+        private SelectionColliderOverlay ColliderOverlay => colliderOverlay ??= new(Context, _pickingExclusions);
+        private EditorRoom? editorRoom;
+        private EditorRoom Room => editorRoom ??= new(Context, _pickingExclusions, () => ManaUi?.Root?.Theme, GridSize);
+
         private readonly GameModePreviewController gameModePreviews = new();
         private const string ManaWindowTitle = "Mana";
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
@@ -230,11 +258,11 @@ namespace Mana.Code.GameModes
                     // capture from the drag that started it. See ManaUiInputBridge.SuppressScroll.
                     if (ManaUi?.InputBridge != null)
                     {
-                        ManaUi.InputBridge.SuppressScroll = () => _meshPickerPreviewNode != null;
+                        ManaUi.InputBridge.SuppressScroll = () => AssetPlacement.PreviewNode != null;
                     }
 
                     bool rounded = ManaUi?.Root?.Theme?.Kind == UiThemeKind.Lcars;
-                    BuildGridRoom(rounded);
+                    Room.BuildGridRoom(rounded);
 
                     // Probe for optional KML placemarks. Deliberately only
                     // a file-existence check -- the actual parse/mesh build happens lazily the first time
@@ -436,7 +464,7 @@ namespace Mana.Code.GameModes
         {
             for (var current = node; current != null; current = current.Parent)
             {
-                if (ReferenceEquals(current, _meshPickerPreviewNode)) { return true; }
+                if (ReferenceEquals(current, AssetPlacement.PreviewNode)) { return true; }
             }
             return false;
         }
@@ -528,9 +556,10 @@ namespace Mana.Code.GameModes
             SyncWireframeViewOption();
             SyncNormalsViewOption();
             _planetScenery.SyncKmlAirspaceVisibility();
-            SyncGridRoomShape();
-            SyncGridRoomWalls();
-            SyncVisualBoundsColliders();
+            Room.SyncGridRoomShape();
+            Room.SyncGridRoomWalls(!IsPlaying || _gameModes.KeepsEditorFloor,
+                !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive));
+            Room.SyncVisualBoundsColliders();
             _planetScenery.ProcessPendingRegionRequest();
 
             _planetScenery.PumpStreaming(UpdateFrame);
@@ -612,9 +641,6 @@ namespace Mana.Code.GameModes
         }
 
 
-        private string? _meshDownloadPath;
-        private string? _meshDownloadFailedPath;
-        private int _meshDownloadGeneration;
 
         private void UpdateVoxelPointerInteraction(bool inputCaptured)
         {
@@ -625,23 +651,23 @@ namespace Mana.Code.GameModes
             }
 
             // Measuring owns the pointer while it is on: a click places a point rather than selecting.
-            UpdateMeasureShortcut();
-            if (UpdateMeasuring(inputCaptured, MouseState))
+            MeasureInput.UpdateMeasureShortcut(IsPlaying, UiWantsKeyboard);
+            if (MeasureInput.UpdateMeasuring(inputCaptured, MouseState, IsPlaying, UiWantsKeyboard))
             {
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
                 _transformGizmo?.Hide();
-                HidePolygonOverlay();
+                PolygonEditing.HidePolygonOverlay();
                 return;
             }
 
             // Painting a grid map owns the pointer outright: clicks paint cells rather than selecting.
-            if (UpdateGridMapPainting(inputCaptured, MouseState))
+            if (GridMapInput.UpdateGridMapPainting(inputCaptured, MouseState, IsPlaying, UiWantsKeyboard))
             {
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();
                 _transformGizmo?.Hide();
-                HidePolygonOverlay();
+                PolygonEditing.HidePolygonOverlay();
                 return;
             }
 
@@ -651,7 +677,7 @@ namespace Mana.Code.GameModes
                 _viewModel.ClearToolPreview();
                 _viewModel.ClearHoveredVoxel();
                 // A polygon's point handles come before the gizmo: a handle is smaller, so it is the likelier aim.
-                var polygonCaptured = UpdatePolygonEditing(inputCaptured, MouseState);
+                var polygonCaptured = PolygonEditing.UpdatePolygonEditing(inputCaptured, MouseState, IsPlaying);
                 var gizmoCaptured = _transformGizmo?.Update(
                     Context.World.Selection.SelectedNode,
                     _viewModel.TransformGizmoMode,
@@ -663,7 +689,7 @@ namespace Mana.Code.GameModes
             }
 
             _transformGizmo?.Hide();
-            HidePolygonOverlay();
+            PolygonEditing.HidePolygonOverlay();
 
             var toolKind = VoxelToolCatalog.GetToolKind(_viewModel.SelectedToolIndex);
             if (toolKind is VoxelToolKind.Paint or VoxelToolKind.FloodFill or VoxelToolKind.Erase)
@@ -891,7 +917,7 @@ namespace Mana.Code.GameModes
             // A live placement preview claims the scroll wheel for its own rotation (see
             // UpdateMeshPickerPlacementPreviewTransform) whether or not a mouse button happens to be
             // held -- the right-click "Place" flow positions the preview with no button down at all.
-            if (_meshPickerPreviewNode != null)
+            if (AssetPlacement.PreviewNode != null)
             {
                 return true;
             }
@@ -962,9 +988,9 @@ namespace Mana.Code.GameModes
             if (IsPlaying)
             {
                 _transformGizmo?.Hide();
-                HidePolygonOverlay();
-                ClearSelectionColliderDebug();
-                HideGridMapEditorVisuals();
+                PolygonEditing.HidePolygonOverlay();
+                ColliderOverlay.Clear();
+                GridMapInput.HideGridMapEditorVisuals();
                 _planetScenery.PumpStreaming(UpdateFrame);
                 _pawnController?.UpdateDriveInput(UiWantsKeyboard);
                 return;
@@ -1010,7 +1036,7 @@ namespace Mana.Code.GameModes
             // sibling stuck outlined forever.
             var selectedNode = Context.World.Selection.SelectedNode;
             var selectedComponent = Context.World.Selection.SelectedComponent as MeshRendererComponent;
-            SyncSelectionColliderDebug(_viewModel.ShowSelectedColliderBounds ? selectedNode : null);
+            ColliderOverlay.Sync(_viewModel.ShowSelectedColliderBounds ? selectedNode : null);
 
             HashSet<MeshRendererComponent> targetOutlinedComponents;
             if (selectedComponent != null)
@@ -1073,9 +1099,10 @@ namespace Mana.Code.GameModes
             SyncWireframeViewOption();
             SyncNormalsViewOption();
             _planetScenery.SyncKmlAirspaceVisibility();
-            SyncGridRoomShape();
-            SyncGridRoomWalls();
-            SyncVisualBoundsColliders();
+            Room.SyncGridRoomShape();
+            Room.SyncGridRoomWalls(!IsPlaying || _gameModes.KeepsEditorFloor,
+                !IsPlaying && (Context.World.Selection.SelectedNode is ManaVoxelsNode || !_viewModel.IsSelectToolActive));
+            Room.SyncVisualBoundsColliders();
             _planetScenery.ProcessPendingRegionRequest();
 
             _planetScenery.PumpStreaming(UpdateFrame);
@@ -1100,15 +1127,15 @@ namespace Mana.Code.GameModes
             _viewModel.DebugRayOrigin = rayOrigin;
             _viewModel.DebugRayDirection = rayDirection;
 
-            ProcessMeshPickerPlacement(mouseState, sceneMin, sceneMax);
+            AssetPlacement.ProcessMeshPickerPlacement(mouseState, sceneMin, sceneMax);
 
             // The gizmo used to have to report back whether it was under the pointer, because an ImGui
             // window drawn over the scene is invisible to the scene. As part of the ManaUI tree it is
             // hit-tested like anything else, and UiWantsMouse already knows.
             UpdateVoxelPointerInteraction(UiWantsMouse);
             _viewModel.ScaleBoxHighlight = _transformGizmo?.HighlightedBoxHandle;
-            UpdateViewportContextMenu(UiWantsMouse);
-            UpdateSnapShortcut();
+            ViewportMenu.UpdateViewportContextMenu(UiWantsMouse, IsPlaying);
+            ViewportMenu.UpdateSnapShortcut(IsPlaying, UiWantsKeyboard);
             UpdateFrameSelectedShortcut();
             UpdateDropSelectedToFloorShortcut();
             UpdateEscapeSelectionShortcut();

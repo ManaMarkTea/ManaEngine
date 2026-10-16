@@ -641,28 +641,6 @@ namespace ManaGraphics.Code.Graphics
                 .ToList();
         }
 
-        private static Matrix4x4 CreateNormalizedWorldTransform(ManaMeshCpuData meshData)
-        {
-            if (meshData.Positions.Length == 0)
-            {
-                return Matrix4x4.Identity;
-            }
-
-            var min = meshData.Positions[0];
-            var max = meshData.Positions[0];
-            foreach (var position in meshData.Positions)
-            {
-                min = Vector3.Min(min, position);
-                max = Vector3.Max(max, position);
-            }
-
-            var center = (min + max) * 0.5f;
-            var extents = max - min;
-            var maxExtent = MathF.Max(extents.X, MathF.Max(extents.Y, extents.Z));
-            var scale = maxExtent <= 0.0001f ? 1.0f : 2.0f / maxExtent;
-            return Matrix4x4.CreateTranslation(-center) * Matrix4x4.CreateScale(scale);
-        }
-
         // internal, not private: the overlay passes under Overlays/ take one of these per draw call.
         internal sealed class ManaWebGpuSceneMesh : IDisposable
         {

@@ -1,4 +1,6 @@
 using Mana.Code.Nodes;
+using ManaUI;
+using ManaVoxel.Code.UI;
 using ManaCore.Assets;
 using ManaCore.Diagnostics;
 using Mana.Code.UI;
@@ -15,7 +17,7 @@ namespace Mana.Code.GameModes
     /// R turns the brush (Shift+R the other way), - and + change floor, and Escape stops.
     /// Each stroke is one undo step.
     /// </summary>
-    public partial class VoxelEditorGameMode
+    internal sealed class GridMapInputController(ManaContext context, VoxelEditorViewModel viewModel, HashSet<ManaSceneNode> pickingExclusions, Func<UiRoot?> rootProvider)
     {
         private static readonly Vector4 GridBrushOutline = new(0.35f, 0.8f, 1.0f, 1.0f);
         private static readonly Vector4 GridEraseOutline = new(1.0f, 0.3f, 0.25f, 1.0f);
@@ -46,13 +48,13 @@ namespace Mana.Code.GameModes
         /// Runs the brush for this frame. True when painting owned the pointer, so selection and the voxel
         /// tools must leave it alone.
         /// </summary>
-        private bool UpdateGridMapPainting(bool inputCaptured, IMouse mouse)
+        public bool UpdateGridMapPainting(bool inputCaptured, IMouse mouse, bool isPlaying, bool uiWantsKeyboard)
         {
             CompleteGridPaletteDownloads();
-            UpdateGridGeneratorArea();
+            UpdateGridGeneratorArea(isPlaying);
 
             var target = GridMapEditing.Target;
-            if (target != null && (IsPlaying || !ReferenceEquals(Context.World.Selection.SelectedNode, target) || !IsInWorld(target)))
+            if (target != null && (isPlaying || !ReferenceEquals(context.World.Selection.SelectedNode, target) || !IsInWorld(target)))
             {
                 // Selecting something else, deleting the map or starting play all end painting.
                 GridMapEditing.Stop();
@@ -60,7 +62,7 @@ namespace Mana.Code.GameModes
             }
 
             // Q is the eyedropper while painting, so it only flies the camera down during a look drag.
-            if (Context.World.MainCamera is { } camera)
+            if (context.World.MainCamera is { } camera)
             {
                 camera.VerticalFlyKeysNeedLook = target != null;
             }
@@ -74,10 +76,10 @@ namespace Mana.Code.GameModes
                 return false;
             }
 
-            UpdateGridMapKeys(target);
+            UpdateGridMapKeys(target, uiWantsKeyboard);
             UpdateGridFilledOverlay(target);
 
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
             var shift = keyboard != null && (keyboard.IsKeyPressed(Key.ShiftLeft) || keyboard.IsKeyPressed(Key.ShiftRight));
             var control = keyboard != null && (keyboard.IsKeyPressed(Key.ControlLeft) || keyboard.IsKeyPressed(Key.ControlRight));
             var leftDown = mouse.IsButtonPressed(MouseButton.Left);
@@ -97,7 +99,7 @@ namespace Mana.Code.GameModes
 
             // Q: the eyedropper. The tile under the pointer, turned as it is, becomes the brush -- or Blank over an
             // empty cell. Not during a look drag, where Q flies the camera down.
-            var eyedropDown = keyboard != null && !UiWantsKeyboard && keyboard.IsKeyPressed(Key.Q)
+            var eyedropDown = keyboard != null && !uiWantsKeyboard && keyboard.IsKeyPressed(Key.Q)
                 && !mouse.IsButtonPressed(MouseButton.Right) && !mouse.IsButtonPressed(MouseButton.Middle);
             if (eyedropDown && !_gridEyedropWasDown)
             {
@@ -116,14 +118,14 @@ namespace Mana.Code.GameModes
             // T turns the tile under the pointer where it stands (Shift+T the other way): fixing one already
             // placed without repainting it. A turned big tile can knock out what it now lands on, so the whole
             // grid is the undo step, as for a stroke.
-            var turnDown = keyboard != null && !UiWantsKeyboard && keyboard.IsKeyPressed(Key.T);
+            var turnDown = keyboard != null && !uiWantsKeyboard && keyboard.IsKeyPressed(Key.T);
             if (turnDown && !_gridTurnTileWasDown && target.TryGetTileCovering(cell.Value, out var turnAnchor, out var turning))
             {
                 EndGridStroke();
                 var before = target.CaptureState();
                 target.SetTile(turnAnchor, turning with { Orientation = turning.Orientation + (shift ? -1 : 1) });
                 var after = target.CaptureState();
-                _viewModel.History.Record("Turn grid tile", () => target.RestoreState(before), () => target.RestoreState(after));
+                viewModel.History.Record("Turn grid tile", () => target.RestoreState(before), () => target.RestoreState(after));
             }
 
             _gridTurnTileWasDown = turnDown;
@@ -146,7 +148,7 @@ namespace Mana.Code.GameModes
                 var before = target.CaptureState();
                 target.ClearTile(cell.Value);
                 var after = target.CaptureState();
-                _viewModel.History.Record("Clear grid tile", () => target.RestoreState(before), () => target.RestoreState(after));
+                viewModel.History.Record("Clear grid tile", () => target.RestoreState(before), () => target.RestoreState(after));
             }
 
             _gridRightWasDown = rightDown;
@@ -156,9 +158,9 @@ namespace Mana.Code.GameModes
 
             // A click in the viewport ends typing in the panel: otherwise a cell size field keeps the keyboard
             // and R types an "r" into it instead of turning the brush.
-            if (leftDown && !_gridPickWasDown && UiWantsKeyboard)
+            if (leftDown && !_gridPickWasDown && uiWantsKeyboard)
             {
-                ManaUi?.Root.FocusManager.Focus(null);
+                rootProvider()?.FocusManager.Focus(null);
             }
 
             if (control)
@@ -283,10 +285,10 @@ namespace Mana.Code.GameModes
                 : null;
         }
 
-        private void UpdateGridMapKeys(ManaGridMapNode target)
+        private void UpdateGridMapKeys(ManaGridMapNode target, bool uiWantsKeyboard)
         {
-            var keyboard = Context.Input.Keyboards.FirstOrDefault();
-            if (keyboard == null || UiWantsKeyboard)
+            var keyboard = context.Input.Keyboards.FirstOrDefault();
+            if (keyboard == null || uiWantsKeyboard)
             {
                 _gridRotateWasDown = _gridFloorUpWasDown = _gridFloorDownWasDown = _gridStopWasDown = false;
                 return;
@@ -328,7 +330,7 @@ namespace Mana.Code.GameModes
         /// <summary>The cell under the pointer on the brush's floor, cut against that floor's plane.</summary>
         private GridMapCell? HoveredGridCell(ManaGridMapNode target, IMouse mouse)
         {
-            var camera = Context.World.MainCamera;
+            var camera = context.World.MainCamera;
             if (camera == null || !Matrix4x4.Invert(target.WorldTransform, out var worldToGrid))
             {
                 return null;
@@ -388,7 +390,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            _viewModel.History.Record("Paint grid map", () => target.RestoreState(before), () => target.RestoreState(after));
+            viewModel.History.Record("Paint grid map", () => target.RestoreState(before), () => target.RestoreState(after));
         }
 
         /// <summary>
@@ -420,13 +422,13 @@ namespace Mana.Code.GameModes
                 }
 
                 SetOutline(_gridBrushPreview, GridBrushOutline);
-                lock (Context.World.SceneLock)
+                lock (context.World.SceneLock)
                 {
-                    Context.World.DefaultScene.Children.Add(_gridBrushPreview);
+                    context.World.DefaultScene.Children.Add(_gridBrushPreview);
                 }
 
                 // Never something a click lands on: the pointer is always over it.
-                _pickingExclusions.Add(_gridBrushPreview);
+                pickingExclusions.Add(_gridBrushPreview);
             }
 
             _gridBrushPreview?.SetLocalTransform(target.TileTransform(cell, brush) * target.WorldTransform);
@@ -444,12 +446,12 @@ namespace Mana.Code.GameModes
         {
             if (_gridBrushPreview != null)
             {
-                lock (Context.World.SceneLock)
+                lock (context.World.SceneLock)
                 {
-                    Context.World.DefaultScene.Children.Remove(_gridBrushPreview);
+                    context.World.DefaultScene.Children.Remove(_gridBrushPreview);
                 }
 
-                _pickingExclusions.Remove(_gridBrushPreview);
+                pickingExclusions.Remove(_gridBrushPreview);
             }
 
             _gridBrushPreview = null;
@@ -612,12 +614,12 @@ namespace Mana.Code.GameModes
             }
 
             var mesh = new ManaLineMesh(
-                Context,
+                context,
                 lines,
                 thickness: thicknessPerCell * MathF.Min(target.CellSize.X, target.CellSize.Z),
                 color,
                 emissionStrength: 0.8f);
-            var node = new ManaSceneNode(Context, Matrix4x4.Identity)
+            var node = new ManaSceneNode(context, Matrix4x4.Identity)
             {
                 Name = name,
                 IncludeInEnvironmentCapture = false,
@@ -628,12 +630,12 @@ namespace Mana.Code.GameModes
             var renderer = new MeshRendererComponent(node, mesh) { DrawAfterScene = true, AlwaysOnTop = true };
             renderer.Material.Opacity.Value = opacity;
             node.Components.Add(renderer);
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                Context.World.DefaultScene.Children.Add(node);
+                context.World.DefaultScene.Children.Add(node);
             }
 
-            _pickingExclusions.Add(node);
+            pickingExclusions.Add(node);
             overlay = node;
             PlaceGridOverlay(overlay, target);
         }
@@ -651,12 +653,12 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                Context.World.DefaultScene.Children.Remove(overlay);
+                context.World.DefaultScene.Children.Remove(overlay);
             }
 
-            _pickingExclusions.Remove(overlay);
+            pickingExclusions.Remove(overlay);
             overlay = null;
         }
 
@@ -666,10 +668,10 @@ namespace Mana.Code.GameModes
         private (ManaGridMapNode Map, int X, int Z, int Width, int Depth, int Floor, Vector3 CellSize)? _gridGeneratorOverlayKey;
 
         /// <summary>Outlines the area the Generator window fills, while it is up over a selected grid map.</summary>
-        private void UpdateGridGeneratorArea()
+        private void UpdateGridGeneratorArea(bool isPlaying)
         {
-            if (!GridMapWfcEditing.WindowOpen || !ManaEditorGizmos.Visible || IsPlaying
-                || GridMapWfcEditing.MapFor(Context.World.Selection.SelectedNode, IsInWorld) is not { } map)
+            if (!GridMapWfcEditing.WindowOpen || !ManaEditorGizmos.Visible || isPlaying
+                || GridMapWfcEditing.MapFor(context.World.Selection.SelectedNode, IsInWorld) is not { } map)
             {
                 HideGridOverlay(ref _gridGeneratorOverlay);
                 _gridGeneratorOverlayKey = null;
@@ -692,7 +694,7 @@ namespace Mana.Code.GameModes
         /// Takes every grid map helper out of the scene -- brush, outlines, the generator's area -- and stops
         /// painting. For play, where the update that would otherwise keep them in step does not run.
         /// </summary>
-        private void HideGridMapEditorVisuals()
+        public void HideGridMapEditorVisuals()
         {
             GridMapEditing.Stop();
             EndGridStroke();
@@ -711,77 +713,14 @@ namespace Mana.Code.GameModes
                 root = root.Parent;
             }
 
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                return Context.World.Scenes.Any(scene => scene.Children.Contains(root));
+                return context.World.Scenes.Any(scene => scene.Children.Contains(root));
             }
-        }
-
-        /// <summary>
-        /// A model dragged out of the asset browser and let go over the Grid Map window's palette joins the
-        /// selected map's palette as the brush -- painting or not. True when that happened.
-        /// </summary>
-        private bool TakeGridPaletteDrop(IMouse mouse)
-        {
-            var leftDown = mouse.IsButtonPressed(MouseButton.Left);
-            if (leftDown || !_meshPickerDragWasDown
-                || MeshImportRequests.Dragging == null
-                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
-                || Context.World.Selection.SelectedNode is not ManaGridMapNode map
-                || ManaUi is not { } ui
-                || !GridMapToolManaView.IsOverPalette(ui.Root.Input.PointerPosition))
-            {
-                return false;
-            }
-
-            AddAllToGridPalette(map, MeshImportRequests.TakeDragAll());
-
-            MeshAssetRow.ForceEndActiveDrag();
-            _meshPickerDragWasDown = false;
-            return true;
-        }
-
-        /// <summary>
-        /// While painting, choosing a model in the asset browser adds it to the palette as the brush instead of
-        /// placing it. True when that happened, so the ordinary placement path stands down.
-        /// </summary>
-        private bool TakeGridPaletteRequest(IMouse mouse)
-        {
-            var target = GridMapEditing.Target;
-            if (target == null
-                || Path.GetExtension(MeshImportRequests.PendingPlacement) == ManaVoxel.Code.Assets.ManaPrefab.Extension
-                || Path.GetExtension(MeshImportRequests.Dragging) == ManaVoxel.Code.Assets.ManaPrefab.Extension
-                || _meshPickerPreviewNode?.PrefabLink != null)
-            {
-                return false;
-            }
-
-            if (MeshImportRequests.TakePlacement() is { Length: > 0 } picked)
-            {
-                AddToGridPalette(target, picked);
-            }
-
-            AddAllToGridPalette(target, MeshImportRequests.TakePaletteAdd());
-
-            var leftDown = mouse.IsButtonPressed(MouseButton.Left);
-            if (!leftDown && _meshPickerDragWasDown && MeshImportRequests.Dragging != null)
-            {
-                var overUi = MeshImportRequests.PointerOverUi;
-                var dropped = MeshImportRequests.TakeDragAll();
-                if (!overUi)
-                {
-                    AddAllToGridPalette(target, dropped);
-                }
-
-                MeshAssetRow.ForceEndActiveDrag();
-            }
-
-            _meshPickerDragWasDown = leftDown;
-            return true;
         }
 
         /// <summary>Adds several models, in order, and makes the first of them the brush.</summary>
-        private void AddAllToGridPalette(ManaGridMapNode target, IReadOnlyList<string> assets)
+        public void AddAllToGridPalette(ManaGridMapNode target, IReadOnlyList<string> assets)
         {
             foreach (var asset in assets)
             {
@@ -802,7 +741,7 @@ namespace Mana.Code.GameModes
         {
             if (ManaAssetCatalog.Current is { } catalog && !catalog.IsReady(asset))
             {
-                _viewModel.Levels.SetStatus($"Downloading {MeshAssetLibrary.DisplayName(asset)} for the grid map palette...");
+                viewModel.Levels.SetStatus($"Downloading {MeshAssetLibrary.DisplayName(asset)} for the grid map palette...");
                 _gridPaletteDownloads.Add((catalog.EnsureAsync(asset), target, asset));
                 return;
             }
@@ -824,12 +763,12 @@ namespace Mana.Code.GameModes
                 if (download.IsFaulted)
                 {
                     ManaLog.WriteDiagnostic($"Grid map palette download failed for '{asset}': {download.Exception?.GetBaseException().Message}");
-                    _viewModel.Levels.SetStatus($"Could not download {MeshAssetLibrary.DisplayName(asset)}.");
+                    viewModel.Levels.SetStatus($"Could not download {MeshAssetLibrary.DisplayName(asset)}.");
                     continue;
                 }
 
                 GridMapEditing.Brush = map.AddPaletteItem(asset);
-                _viewModel.Levels.SetStatus(string.Empty);
+                viewModel.Levels.SetStatus(string.Empty);
             }
         }
     }

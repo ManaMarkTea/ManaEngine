@@ -10,6 +10,9 @@ namespace ManaVoxel.Code.Services
 {
     public class VoxelFileImportService
     {
+        public static Func<string, byte[]?> CreateZipSidecarResolver(ZipArchive archive, string modelEntryPath)
+            => ZipModelSidecars.CreateZipSidecarResolver(archive, modelEntryPath);
+
         private const string ZipAssetPrefix = "zipasset:";
         private readonly Vector3 _startImportPos = new Vector3(30.0f, 0, 20);
         private Vector3 _lastImportPos = new Vector3(30.0f, 0, 20);

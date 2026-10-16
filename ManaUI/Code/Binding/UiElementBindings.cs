@@ -1,6 +1,6 @@
 namespace ManaUI
 {
-    public abstract partial class UiElement
+    internal sealed class UiElementBindings
     {
         private List<IUiBinding>? _bindings;
         private List<IUiBinding>? _polledBindings;
@@ -21,11 +21,6 @@ namespace ManaUI
         {
             (_polledBindings ??= new List<IUiBinding>()).Add(binding);
             AddBinding(binding);
-
-            // The root keeps a flat list of elements carrying polled bindings and only rebuilds it when
-            // the tree changed. A binding added to an element that is already attached and laid out would
-            // otherwise never join that list, and so would never be evaluated.
-            Root?.NotifyPolledBindingsChanged();
         }
 
         private int _bindingApplyDepth;
@@ -80,7 +75,7 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Activates or suspends every binding in this subtree, following attachment to the tree.
+        /// Activates or suspends every owned binding, following attachment to the tree.
         /// <para>
         /// Suspending rather than disposing is what lets a subtree be removed and put back -- a dock tab
         /// switch, a collapsed panel -- without losing its bindings. It also stops a detached subtree from
@@ -96,15 +91,9 @@ namespace ManaUI
                     binding.SetActive(active);
                 }
             }
-
-            var count = VisualChildCount;
-            for (var i = 0; i < count; i++)
-            {
-                GetVisualChild(i).SetBindingsActive(active);
-            }
         }
 
-        /// <summary>Disposes every binding on this element and its subtree. Permanent, unlike suspension.</summary>
+        /// <summary>Disposes every owned binding. Permanent, unlike suspension.</summary>
         public void ClearBindings()
         {
             if (_bindings != null)
@@ -116,12 +105,6 @@ namespace ManaUI
 
                 _bindings.Clear();
                 _polledBindings?.Clear();
-            }
-
-            var count = VisualChildCount;
-            for (var i = 0; i < count; i++)
-            {
-                GetVisualChild(i).ClearBindings();
             }
         }
     }

@@ -254,7 +254,7 @@ namespace Mana.Code.GameModes
             }
 
             StopPlayBeforeEditing();
-            CancelMeshPickerPlacementPreview();
+            AssetPlacement.CancelMeshPickerPlacementPreview();
             _viewModel.History.Clear();
             ResetLoadedPlanet();
             _water = null;
@@ -281,11 +281,11 @@ namespace Mana.Code.GameModes
             try
             {
                 _openingLevel = true;
-                CancelMeshPickerPlacementPreview();
+                AssetPlacement.CancelMeshPickerPlacementPreview();
                 var level = ManaLevel.Load(path);
                 _viewModel.Levels.SetStatus("Preparing level assets…");
                 await ManaLevelLoader.EnsureAssetsAsync(level);
-                CancelMeshPickerPlacementPreview();
+                AssetPlacement.CancelMeshPickerPlacementPreview();
                 _viewModel.History.Clear();
                 ResetLoadedPlanet();
                 _water = null;
@@ -505,7 +505,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            CancelMeshPickerPlacementPreview();
+            AssetPlacement.CancelMeshPickerPlacementPreview();
             gameModePreviews.Hide(Context);
             if (!_playMode.Start())
             {
@@ -526,7 +526,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            CancelMeshPickerPlacementPreview();
+            AssetPlacement.CancelMeshPickerPlacementPreview();
             gameModePreviews.Hide(Context);
             if (!_playMode.Start(_playMode.GetPlayFromCameraPosition()))
             {
@@ -758,13 +758,13 @@ namespace Mana.Code.GameModes
                     DropSelectedToFloor);
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
-                _commandRunner.Register("measure", command => RunMeasureCommand(command.Name, command.Position));
+                _commandRunner.Register("measure", command => MeasureInput.RunMeasureCommand(command.Name, command.Position));
                 _commandRunner.Register("gizmo_mode", command =>
                     _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));
                 _commandRunner.Register("scale_box", command => RunScaleBoxCommand(command.Name, command.Position));
-                _commandRunner.Register("viewport_menu", command => RunViewportMenuCommand(command.Name, command.Position));
+                _commandRunner.Register("viewport_menu", command => ViewportMenu.RunViewportMenuCommand(command.Name, command.Position));
 #if !MANA_BROWSER
-                _commandRunner.Register("live_scan", command => RunLiveScanCommand(command.Name, command.Path));
+                _commandRunner.Register("live_scan", command => LiveScanCommands.Run(Context, _viewModel, command.Name, command.Path));
 #endif
             }
 
