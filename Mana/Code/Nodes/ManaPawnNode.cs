@@ -12,8 +12,6 @@ namespace Mana.Code.Nodes
     // overridden here instead of this being a component.
     public class ManaPawnNode : ManaSkeletalActorNode
     {
-        private readonly ManaPawnAudio movementAudio;
-
         private const float DirectionEpsilon = 1e-6f;
 
         private Vector3? destination;
@@ -27,7 +25,6 @@ namespace Mana.Code.Nodes
         public ManaPawnNode(ManaContext context, Matrix4x4 localTransform) : base(context, localTransform)
         {
             Name = "Pawn";
-            movementAudio = new ManaPawnAudio(this);
         }
 
         // Clip names are looked up on the animation component, so a rig using different names just
@@ -412,7 +409,6 @@ namespace Mana.Code.Nodes
 
             // Base handles the skeletal chain: pose bones, propagate world transforms, skin.
             base.UpdateTransform();
-            movementAudio.UpdateMovementAudio(deltaSeconds);
         }
 
         private void StepLocomotion(float deltaSeconds)
@@ -564,6 +560,11 @@ namespace Mana.Code.Nodes
         /// <summary>Raised after a fall below <see cref="FallResetHeight"/> has already put the pawn back at <see cref="RespawnPoint"/>.</summary>
         public event Action? FellOutOfWorld;
 
+        /// <summary>Raised when a buffered jump actually takes off.</summary>
+        public event Action? Jumped;
+        /// <summary>Raised when physics ground contact resumes after being airborne.</summary>
+        public event Action? Landed;
+
         // Ground contact is suppressed for this long right after take-off. Without it the capsule is
         // still inside the ground probe on the frame after a jump, which reads as an instant landing
         // and refills the jump budget -- infinite jumps from a held button.
@@ -693,7 +694,7 @@ namespace Mana.Code.Nodes
             if (grounded && !wasGrounded)
             {
                 JumpsUsed = 0;
-                movementAudio.EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Land);
+                Landed?.Invoke();
             }
 
             coyoteTimer = grounded ? CoyoteTimeSeconds : MathF.Max(coyoteTimer - deltaSeconds, 0.0f);
@@ -761,13 +762,13 @@ namespace Mana.Code.Nodes
                 var runShare = Math.Clamp(horizontal.Length() / MathF.Max(RunSpeed * SpeedScale, 0.01f), 0.0f, 1.0f);
                 velocity.Y = JumpVelocityFor(JumpHeight * (1.0f + MathF.Max(RunJumpBonus, 0.0f) * runShare));
                 inJumpArc = true;
-                movementAudio.EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Jump);
                 JumpsUsed = canGroundJump ? 1 : JumpsUsed + 1;
                 jumpBufferTimer = 0.0f;
                 coyoteTimer = 0.0f;
                 jumpLockoutTimer = JumpLockoutSeconds;
                 isGrounded = false;
                 wasGrounded = false;
+                Jumped?.Invoke();
             }
             else if (grounded)
             {

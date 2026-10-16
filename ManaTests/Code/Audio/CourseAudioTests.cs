@@ -44,7 +44,9 @@ public static class CourseAudioChecks
         world.DefaultScene = new ManaScene(context);
         world.Scenes.Add(world.DefaultScene);
         var player = new ManaPawnNode(context, Matrix4x4.Identity) { SkinningEnabled = false };
+        player.Components.Add(new ManaPawnAudioComponent(player));
         world.GameState.Player = player;
+        world.DefaultScene.Children.Add(player);
         ManaTime.GlobalTime.DeltaTime = TimeSpan.FromSeconds(0.05);
 
         ManaSceneNode Node(string name)
@@ -63,6 +65,9 @@ public static class CourseAudioChecks
             return source;
         }
         var profile = Node("Profile");
+        Source(profile, ManaSoundCue.Footstep, true);
+        Source(profile, ManaSoundCue.Jump, true);
+        Source(profile, ManaSoundCue.Land, true);
         var hurt = Source(profile, ManaSoundCue.Hurt, true);
         Source(profile, ManaSoundCue.LowHealth, true);
         Source(profile, ManaSoundCue.Death, true);
@@ -91,6 +96,13 @@ public static class CourseAudioChecks
         pickup.Trigger.UpdateComponent(); pickup.Trigger.UpdateComponent();
         Check("one coin emits one pickup and one all-coins cue", recording.Starts.Count == 2);
         int before = recording.Starts.Count;
+        player.DriveDirection = Vector3.UnitX;
+        for (int frame = 0; frame < 30 && recording.Starts.Count == before; frame++) { player.UpdateTransform(); }
+        Check("the component emits footsteps through the node update", recording.Starts.Count == before + 1);
+        player.DriveDirection = Vector3.Zero;
+        player.Position = Vector3.Zero;
+        player.UpdateTransform();
+        before = recording.Starts.Count;
         world.GameState.Damage(1); world.GameState.Damage(1);
         Check("invulnerability prevents repeated hurt sounds", recording.Starts.Count == before + 1);
         world.GameState.Tick(2);
@@ -142,6 +154,13 @@ public static class CourseAudioChecks
         before = recording.Starts.Count;
         world.AudioCues.Emit(ManaSoundCue.Hurt);
         Check("removing a source unregisters it", recording.Starts.Count == before);
+        var pawnAudio = player.GetComponent<ManaPawnAudioComponent>()!;
+        SceneEditorOperations.RemoveComponent(null, pawnAudio);
+        before = recording.Starts.Count;
+        player.DriveDirection = Vector3.UnitX;
+        for (int frame = 0; frame < 30; frame++) { player.UpdateTransform(); }
+        Check("removing the pawn audio component stops movement cues", recording.Starts.Count == before);
+        player.DriveDirection = Vector3.Zero;
         world.EndPlay();
 
         string levelPath = FindLevel();
@@ -182,6 +201,7 @@ public static class CourseAudioChecks
         bad.BeginPlay(); bad.UpdateComponent(); ManaAudioCueRouter.EmitAt(bad.Owner, ManaSoundCue.Pickup);
         Check("missing audio is reported without crashing playback", bad.LoadError != null && bad.Voice == null);
         bad.Dispose();
+        world.DefaultScene.Children.Remove(bad.Owner);
         foreach (var source in sources) { source.Dispose(); }
 
         context.Physics = new ManaPhysics(context);
@@ -195,6 +215,30 @@ public static class CourseAudioChecks
             body.Teleport(new Vector3(0, 10, 0));
             body.RefreshGroundState();
             Check("airborne ground probes clear the previous surface", !body.IsGrounded && body.GroundNode == null);
+            var jumper = new ManaPawnNode(context, Matrix4x4.Identity) { SkinningEnabled = false };
+            jumper.Components.Add(new ManaPawnAudioComponent(jumper));
+            world.DefaultScene.Children.Add(jumper);
+            world.GameState.Player = jumper;
+            jumper.EnablePhysics();
+            world.BeginPlay();
+            before = recording.Starts.Count;
+            jumper.PressJump();
+            jumper.UpdateTransform();
+            Check("a physics jump reaches the audio component through its event", recording.Starts.Count == before + 1);
+            jumper.ReleaseJump();
+            var movement = jumper.GetComponent<ManaPawnAudioComponent>()!;
+            movement.EndPlay();
+            movement.BeginPlay();
+            movement.BeginPlay();
+            jumper.TeleportTo(Vector3.Zero);
+            before = recording.Starts.Count;
+            for (int frame = 0; frame < 8; frame++) { jumper.UpdateTransform(); }
+            Check("restarting the component subscribes to landing only once", recording.Starts.Count == before + 1);
+            world.EndPlay();
+            before = recording.Starts.Count;
+            jumper.PressJump();
+            jumper.UpdateTransform();
+            Check("ending play detaches pawn audio events", recording.Starts.Count == before);
         }
         finally
         {

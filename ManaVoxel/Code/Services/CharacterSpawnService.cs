@@ -213,6 +213,7 @@ namespace ManaVoxel.Code.Services
                     return null;
                 }
 
+                pawn.Components.Add(new Mana.Code.Components.ManaPawnAudioComponent(pawn));
                 pawn.Name = asset.DisplayName;
                 pawn.SourcePackName = asset.PackName;
 

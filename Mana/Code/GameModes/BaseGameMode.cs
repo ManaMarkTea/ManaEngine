@@ -78,6 +78,7 @@ namespace Mana.Code
             if (Muted)
             {
                 Context.Audio.MasterVolume = 0.0f;
+                ManaLog.WriteDiagnostic("Audio muted (--mute).");
             }
 
             world.Initialize(Context);

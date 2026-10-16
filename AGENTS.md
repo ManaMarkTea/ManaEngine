@@ -105,6 +105,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `bow` | `name` (`hold`, `hold_up`, `release`) | Holds or lets go of the Bow's fire key while playing, so a script can shoot |
 | `import_filter` | `name` | Types into the Import panel's filter (e.g. a pack name) to bring its models into view |
 | `profile_reset` / `profile_dump` | `path` | Frame profiler: start fresh; write the per-scope report |
+| `audio_test` / `audio_status` | | Plays a diagnostic tone and logs device availability/volume; reports source, playing-loop and loading-error counts. Pass `-Sound` to the automation runner to hear playback. Startup logs the selected desktop output device. |
 | `measure` | `name`, `position` | The measuring tool: `distance`/`radius`/`path`/`ray` (turn it on in that mode; `ray_out`/`ray_up`/`ray_down` set the ray), `click`/`hover` at a world `position` (projected to the screen and snapped exactly as the pointer would be; logs what it snapped to and the last measurement), `finish`, `clear`, `stay`/`free`, `metric`/`imperial`, `off` |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 

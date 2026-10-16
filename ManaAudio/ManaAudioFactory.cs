@@ -30,12 +30,14 @@ public static class ManaAudioFactory
                 ? new ManaAudioSystem(new Browser.ManaBrowserAudioBackend())
                 : CreateSilent();
 #else
-            return new ManaAudioSystem(new Desktop.ManaOpenAlBackend());
+            var backend = new Desktop.ManaOpenAlBackend();
+            reportUnavailable?.Invoke($"Audio output: {backend.OutputDeviceName} (OpenAL Soft)");
+            return new ManaAudioSystem(backend);
 #endif
         }
         catch (Exception ex)
         {
-            reportUnavailable?.Invoke($"Audio unavailable: {ex.Message}");
+            reportUnavailable?.Invoke($"Audio unavailable: {ex.Message}; using silent audio");
             return CreateSilent();
         }
     }

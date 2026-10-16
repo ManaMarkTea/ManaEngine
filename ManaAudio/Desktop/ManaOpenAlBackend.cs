@@ -14,6 +14,7 @@ public sealed unsafe class ManaOpenAlBackend : IManaAudioBackend
     private Context* context;
     private readonly Dictionary<ManaAudioClip, uint> buffers = new();
     private readonly HashSet<uint> sources = new();
+    public string OutputDeviceName { get; private set; } = string.Empty;
     public bool IsAvailable => context != null;
     public bool IsUnlocked => IsAvailable;
 
@@ -32,6 +33,11 @@ public sealed unsafe class ManaOpenAlBackend : IManaAudioBackend
             {
                 throw new InvalidOperationException("OpenAL could not create an audio context.");
             }
+            // ALC_ALL_DEVICES_SPECIFIER names the endpoint; the basic specifier may only say "OpenAL Soft".
+            var deviceNameToken = alc.IsExtensionPresent(device, "ALC_ENUMERATE_ALL_EXT")
+                ? (GetContextString)0x1013 : GetContextString.DeviceSpecifier;
+            OutputDeviceName = alc.GetContextProperty(device, deviceNameToken)
+                ?? alc.GetContextProperty(device, GetContextString.DeviceSpecifier) ?? "Default output";
             al = AL.GetApi(soft: true);
             al.DistanceModel(DistanceModel.InverseDistanceClamped);
             al.DopplerFactor(0); // Match the shared API, which currently has no velocity input.

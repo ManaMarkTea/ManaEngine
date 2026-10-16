@@ -223,6 +223,21 @@ namespace Mana.Code.Automation
 
         private void RegisterBuiltIns()
         {
+            Register("audio_test", _ =>
+            {
+                var audio = Context.Audio;
+                var voice = audio.Play(ManaAudio.ManaAudioDiagnostics.TestTone);
+                ManaLog.WriteDiagnostic($"Command file: audio available {audio.IsAvailable}, unlocked {audio.IsUnlocked}, volume {audio.MasterVolume}, tone playing {voice.IsPlaying}");
+            });
+            Register("audio_status", _ =>
+            {
+                var sources = Context.World.Scenes.SelectMany(scene => scene.Children).SelectMany(Walk)
+                    .SelectMany(node => node.Components).OfType<Mana.Code.Components.ManaAudioSourceComponent>().ToList();
+                ManaLog.WriteDiagnostic($"Command file: audio sources {sources.Count}, playing {sources.Count(source => source.Voice?.IsPlaying == true)}, load errors {sources.Count(source => source.LoadError != null)}, master volume {Context.Audio.MasterVolume}");
+                foreach (var source in sources.Where(source => source.LoadError != null))
+                    ManaLog.WriteDiagnostic($"Command file: audio error {source.Owner.Name}: {source.LoadError}");
+            });
+
             Register("set_theme", command =>
             {
                 if (!Enum.TryParse<ManaUI.UiThemeKind>(command.Name?.Replace("Windows 3.1", "Windows31", StringComparison.OrdinalIgnoreCase).Replace("Windows 11", "Windows11", StringComparison.OrdinalIgnoreCase), true, out var kind) || !Enum.IsDefined(kind))

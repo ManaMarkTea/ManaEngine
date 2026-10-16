@@ -8,7 +8,7 @@ Partial classes are still object-oriented classes. The criterion here was whethe
 
 | Original owner | Separate responsibility |
 |---|---|
-| `ManaPawnNode` | `ManaPawnAudio`: movement history, footsteps, falling and player sound gating |
+| `ManaPawnNode` | `ManaPawnAudioComponent`: movement history, footsteps, falling and player sound gating. Character spawning attaches it; the node exposes jump/landing events and has no audio dependency. |
 | `ManaWorld` | `ManaWorldModelImporter`: glTF loading, timing and scene adoption |
 | `MeshAssetLibrary` | `ZipAssetReferences`: portable archive references, encoding, decoding and entry lookup |
 | `VoxelFileImportService` | `ZipModelSidecars`: resolving textures directly from an archive |

@@ -1,16 +1,50 @@
 using Mana.Code.Audio;
+using Mana.Code.Nodes;
 using ManaCore.Audio;
 
-namespace Mana.Code.Nodes;
+namespace Mana.Code.Components;
 
-internal sealed class ManaPawnAudio(ManaPawnNode pawn)
+public sealed class ManaPawnAudioComponent(ManaPawnNode pawn) : ManaComponent(pawn), IDisposable
 {
     private Vector3 previousAudioPosition;
     private float stepDistance, fallingSeconds;
     private bool audioInitialized, fallSoundPlayed;
     private int audioDeaths;
 
-    internal void EmitPlayerSound(ManaSoundCue cue)
+    private bool subscribed;
+
+    public override void BeginPlay()
+    {
+        if (subscribed) { return; }
+        pawn.Jumped += OnJumped;
+        pawn.Landed += OnLanded;
+        subscribed = true;
+        ResetMovement();
+    }
+
+    public override void EndPlay()
+    {
+        if (subscribed)
+        {
+            pawn.Jumped -= OnJumped;
+            pawn.Landed -= OnLanded;
+            subscribed = false;
+        }
+        ResetMovement();
+    }
+
+    public void Dispose() => EndPlay();
+    private void OnJumped() => EmitPlayerSound(ManaSoundCue.Jump);
+    private void OnLanded() => EmitPlayerSound(ManaSoundCue.Land);
+
+    private void ResetMovement()
+    {
+        audioInitialized = false;
+        stepDistance = fallingSeconds = 0;
+        fallSoundPlayed = false;
+    }
+
+    private void EmitPlayerSound(ManaSoundCue cue)
     {
         var world = pawn.Context.World;
         if (world != null && world.IsPlaying && ReferenceEquals(world.GameState.Player, pawn)
@@ -20,15 +54,14 @@ internal sealed class ManaPawnAudio(ManaPawnNode pawn)
         }
     }
 
-    internal void UpdateMovementAudio(float dt)
+    public override void UpdateComponent()
     {
+        float dt = (float)ManaTime.GlobalTime.DeltaTime.TotalSeconds;
         var world = pawn.Context.World;
-        if (world == null || !world.IsPlaying || !ReferenceEquals(world.GameState.Player, pawn)
+        if (!subscribed || world == null || !world.IsPlaying || !ReferenceEquals(world.GameState.Player, pawn)
             || world.GameState.Status != ManaGameStatus.Playing)
         {
-            audioInitialized = false;
-            stepDistance = fallingSeconds = 0;
-            fallSoundPlayed = false;
+            ResetMovement();
             return;
         }
         var position = pawn.WorldTransform.Translation;
