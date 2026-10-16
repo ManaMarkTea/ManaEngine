@@ -19,7 +19,7 @@ def publish(root: Path, output: Path):
     if not files:
         raise ValueError("No repository source files found for the screensaver")
     (output / "sources.json").write_text(json.dumps(files, separators=(",", ":")), encoding="utf-8")
-    for name in ("index.html", "screensaver.js"):
+    for name in ("index.html", "screensaver.js", "agent-ledger.js"):
         shutil.copyfile(Path(__file__).with_name("screensaver") / name, output / name)
     return len(files)
 

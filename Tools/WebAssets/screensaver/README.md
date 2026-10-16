@@ -8,6 +8,11 @@ screen borders; only their contents scroll. The newest line types character by c
 scrolls, with independent pauses and bursts. This standalone Canvas page needs no WASM, GPU or external
 libraries. Text is drawn at the device pixel ratio without CSS scaling or blur.
 
+One pane is the “finance department”: a live spend tally, input/output tokens, throughput chart, per-agent
+costs and rotating commentary. Usage is simulated from source reading and characters typed (four characters
+per token), with fictional $3/$15 input/output tariffs per million tokens. It makes no API calls. Pause
+freezes the tally; Stop/Start resets it. The engine uses the same rules in `AgentLedger.cs`.
+
 The full-width top bar holds Pause, Stop/Start, Sound, the current session status and a local clock
 that updates every second, including while paused. Full screen is
 centered at the top in HTML. Sound starts off until clicked, as browsers require. P pauses, S stops or

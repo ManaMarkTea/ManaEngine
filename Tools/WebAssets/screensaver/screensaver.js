@@ -1,3 +1,5 @@
+import { AgentLedger, renderLedger } from './agent-ledger.js';
+
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
 const status = document.querySelector('#status');
@@ -24,6 +26,8 @@ const random = (low, high) => low + Math.random() * (high - low);
 const pick = () => sources[Math.floor(Math.random() * sources.length)];
 const snap = value => Math.round(value * dpr) / dpr;
 const tokens = new WeakMap();
+let ledger = new AgentLedger();
+const sourceCharacters = file => file.lines.reduce((sum, line) => sum + line.length, 0);
 
 function resize() {
     width = canvas.clientWidth; height = canvas.clientHeight; dpr = devicePixelRatio || 1;
@@ -50,6 +54,14 @@ function resize() {
             y = bottom;
         }
     }
+    const meterIndex = panes.findIndex(p => p.x === snap(width * (columns - 1) / columns) && p.y === 0);
+    const meter = panes[meterIndex];
+    meter.isLedger = true;
+    if (columns > 1 && rows > 1) {
+        meter.h += panes[meterIndex + 1].h;
+        panes.splice(meterIndex + 1, 1);
+    }
+    for (const pane of panes.filter(p => !p.isLedger)) ledger.register(pane.id, sourceCharacters(pane.file));
     render(0);
     controls();
 }
@@ -82,16 +94,23 @@ function label(text, x, y, color) {
 function render(delta) {
     ctx.fillStyle = '#050a0e'; ctx.fillRect(0, 0, width, height);
     for (const pane of panes) {
+        if (pane.isLedger) { renderLedger(ctx, pane, ledger, time, family, dpr); continue; }
         if (delta) {
             const burst = Math.sin(time * .65 + pane.phase);
-            if (pane.typed < pane.typingLength)
+            if (pane.typed < pane.typingLength) {
+                const before = pane.typed;
                 pane.typed += delta * pane.rate * 24 * (burst > .65 ? 3 : burst < -.7 ? .06 : 1);
+                ledger.type(pane.id, Math.min(pane.typed, pane.typingLength) - before);
+            }
             else {
                 const next = Math.floor(pane.scroll) + 1;
                 pane.scroll += delta * 8;
-                if (pane.scroll >= next) { pane.scroll = next; pane.typed = 0; }
+                if (pane.scroll >= next) { pane.scroll = next; pane.typed = 0; ledger.read(pane.id, 64); }
             }
-            if (pane.scroll >= pane.file.lines.length) { pane.file = pick(); pane.scroll = 0; pane.typed = 0; }
+            if (pane.scroll >= pane.file.lines.length) {
+                pane.file = pick(); pane.scroll = 0; pane.typed = 0;
+                ledger.read(pane.id, sourceCharacters(pane.file));
+            }
         }
         const x = pane.x, y = pane.y, w = pane.w, h = pane.h;
         if (x + w < 0 || x > width || y + h < 0 || y > height) continue;
@@ -139,6 +158,7 @@ function render(delta) {
         ctx.fillStyle = pane.accent; ctx.fillRect(x + 2, y + 2, 2, 22);
     }
     ctx.globalAlpha = 1;
+    if (delta) ledger.advance(delta);
 }
 
 function makeAudio() {
@@ -198,7 +218,7 @@ stopButton.onclick = async () => {
     stopped = !stopped;
     paused = false;
     last = 0;
-    if (!stopped) { time = 0; resize(); }
+    if (!stopped) { time = 0; ledger = new AgentLedger(); resize(); }
     controls();
     if (audio) await (stopped || !sound ? audio.suspend() : audio.resume());
 };

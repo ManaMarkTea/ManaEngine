@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { AgentLedger } from './screensaver/agent-ledger.js';
+
+const ledger = new AgentLedger();
+ledger.register(1, 4000);
+ledger.register(1, 4000);
+assert.equal(ledger.input, 1000, 'registering the same pane after resize must not charge twice');
+ledger.type(1, 400);
+ledger.type(1, -10);
+assert.equal(ledger.output, 100);
+assert.ok(Math.abs(ledger.cost - .0045) < 1e-10);
+ledger.advance(1);
+assert.equal(ledger.tokensPerSecond, 100, 'startup context is excluded from live throughput');
+ledger.read(1, 64);
+ledger.advance(1);
+assert.equal(ledger.tokensPerSecond, 16);
+for (let i = 0; i < 100; i++) ledger.advance(1);
+assert.equal(ledger.history.length, 32);
+assert.equal(new AgentLedger().cost, 0, 'a new session starts with a clean ledger');
+console.log('Agent ledger checks passed');
