@@ -55,9 +55,6 @@ namespace Mana.Code.Shapes
         protected virtual void GenerateData() 
         {
             DynamicGeometryContainer = new ManaDynamicGeometryContainer();
-#if !MANA_BROWSER
-            VertexBufferObject = null;
-#endif
 
             if (Materials.Length == 0)
             {

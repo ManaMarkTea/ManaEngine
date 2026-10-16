@@ -149,7 +149,7 @@ namespace Mana.Code.Nodes
         {
             get
             {
-                // OpenGL is Right handed coordinates... so -z is forward
+                // The scene uses right-handed coordinates, so -z is forward.
 
                 var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(Rotation.Y, Rotation.X, Rotation.Z);
                 var up = Vector3.TransformNormal(-Vector3.UnitZ, rotationMatrix);
@@ -398,12 +398,12 @@ namespace Mana.Code.Nodes
             {
                 Vector4? packed = entry.Value.Type switch
                 {
-                    Silk.NET.OpenGL.UniformType.Float => new Vector4(entry.Value.FloatValue, 0.0f, 0.0f, 0.0f),
-                    Silk.NET.OpenGL.UniformType.FloatVec2 => new Vector4(entry.Value.Vector2Value, 0.0f, 0.0f),
-                    Silk.NET.OpenGL.UniformType.FloatVec3 => new Vector4(entry.Value.Vector3Value, 0.0f),
-                    Silk.NET.OpenGL.UniformType.FloatVec4 => entry.Value.Vector4Value,
-                    Silk.NET.OpenGL.UniformType.Int => new Vector4(entry.Value.IntValue, 0.0f, 0.0f, 0.0f),
-                    Silk.NET.OpenGL.UniformType.Bool => new Vector4(entry.Value.BoolValue ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f),
+                    ManaCore.Graphics.ManaUniformType.Float => new Vector4(entry.Value.FloatValue, 0.0f, 0.0f, 0.0f),
+                    ManaCore.Graphics.ManaUniformType.FloatVec2 => new Vector4(entry.Value.Vector2Value, 0.0f, 0.0f),
+                    ManaCore.Graphics.ManaUniformType.FloatVec3 => new Vector4(entry.Value.Vector3Value, 0.0f),
+                    ManaCore.Graphics.ManaUniformType.FloatVec4 => entry.Value.Vector4Value,
+                    ManaCore.Graphics.ManaUniformType.Int => new Vector4(entry.Value.IntValue, 0.0f, 0.0f, 0.0f),
+                    ManaCore.Graphics.ManaUniformType.Bool => new Vector4(entry.Value.BoolValue ? 1.0f : 0.0f, 0.0f, 0.0f, 0.0f),
                     _ => null
                 };
 

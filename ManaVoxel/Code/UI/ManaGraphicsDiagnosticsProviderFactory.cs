@@ -14,13 +14,6 @@ namespace ManaVoxel.Code.UI
                 return webGpuContext;
             }
 
-#if !MANA_BROWSER
-            if (context.OpenGl != null)
-            {
-                return context.GameMode.GraphicsDiagnosticsProvider ??
-                    new ManaOpenGlDiagnosticsProvider(context);
-            }
-#endif
 
             return null;
         }

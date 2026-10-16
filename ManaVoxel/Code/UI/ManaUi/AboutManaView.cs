@@ -87,8 +87,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>
-        /// One row. Backend-specific values are tinted rather than filtered out: which of them came from
-        /// OpenGL and which from WebGPU is most of what makes a comparison worth reading.
+        /// One diagnostic row, optionally compared with a previously captured snapshot.
         /// </summary>
         private static UiElement Row(
             UiTheme theme,
@@ -106,7 +105,6 @@ namespace ManaVoxel.Code.UI.ManaUi
             var foreground = heading ? theme.Text
                 : scope switch
                 {
-                    ManaGraphicsDiagnosticScope.OpenGl => theme.Success,
                     ManaGraphicsDiagnosticScope.WebGpu => theme.Accent,
                     _ => theme.Text
                 };

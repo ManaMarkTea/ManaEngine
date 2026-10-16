@@ -265,9 +265,7 @@ namespace Mana.Code.Shapes
         /// changes nothing else -- this is the difference between a per-frame stall and nearly free. A full
         /// regenerate allocates a heap object per vertex and then copies six arrays out of them, measured at
         /// 15-80ms and around 40MB per call for a border dataset; this writes into the arrays already there.
-        /// Both backends pick the result up: CpuDataVersion drives the WebGPU path's in-place geometry update
-        /// (same topology, so its buffers, bind groups and texture bindings all survive), and OpenGL gets the
-        /// same dynamic VBO write a skinned rig uses.
+        /// CpuDataVersion drives WebGPU's in-place geometry update; buffers and bindings survive.
         /// </para>
         /// <para>
         /// Flat and shader-expanded ribbons only. The tube profile shares vertices between four sides at every
@@ -383,9 +381,6 @@ namespace Mana.Code.Shapes
             // Same instance, same arrays -- this call is purely the version bump the backends key off, exactly
             // as ManaSkinnedMeshComponent.PublishSkinnedGeometry does for a skinned rig.
             SetCpuData(cpuData);
-#if !MANA_BROWSER
-            VertexBufferObject?.UpdateDynamicData(positions, normals, colors);
-#endif
             return true;
         }
 

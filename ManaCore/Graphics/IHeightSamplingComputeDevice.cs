@@ -16,8 +16,7 @@ namespace ManaCore.Graphics
     }
 
     // Optional capability, implemented by backends that can sample a height source on the GPU instead of
-    // per-vertex on the CPU -- mirrors IOpenGlGraphicsDevice's pattern of extending IManaGraphicsDevice
-    // for a backend-specific capability, checked via `Context.GraphicsDevice is IHeightSamplingComputeDevice`.
+    // per-vertex on the CPU, checked via `Context.GraphicsDevice is IHeightSamplingComputeDevice`.
     public interface IHeightSamplingComputeDevice : IManaGraphicsDevice
     {
         // tilesNewestFirst: the caller's own "which source wins where multiple overlap" ordering (see

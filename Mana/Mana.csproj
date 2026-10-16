@@ -18,42 +18,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Assets\Shaders\basic_texture.frag" />
-    <None Remove="Assets\Shaders\basic_texture_cube.frag" />
-    <None Remove="Assets\Shaders\Khronos\animation.glsl" />
-    <None Remove="Assets\Shaders\Khronos\brdf.glsl" />
-    <None Remove="Assets\Shaders\Khronos\cubemap.frag" />
-    <None Remove="Assets\Shaders\Khronos\cubemap.vert" />
-    <None Remove="Assets\Shaders\Khronos\functions.glsl" />
-    <None Remove="Assets\Shaders\Khronos\ibl.glsl" />
-    <None Remove="Assets\Shaders\Khronos\iridescence.glsl" />
-    <None Remove="Assets\Shaders\Khronos\material_info.glsl" />
-    <None Remove="Assets\Shaders\Khronos\pbr.frag" />
-    <None Remove="Assets\Shaders\Khronos\primitive.vert" />
-    <None Remove="Assets\Shaders\Khronos\punctual.glsl" />
-    <None Remove="Assets\Shaders\Khronos\textures.glsl" />
-    <None Remove="Assets\Shaders\Khronos\tonemapping.glsl" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\background.frag" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\background.vert" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\brdf.frag" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\brdf.vert" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\cubemap.vert" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\equirectangular_to_cubemap.frag" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\irradiance_convolution.frag" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\pbr.frag" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\pbr.vert" />
-    <None Remove="Assets\Shaders\LearnSpecularTextured\prefilter.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\background.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\background.vert" />
-    <None Remove="Assets\Shaders\LearnSpecular\brdf.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\brdf.vert" />
-    <None Remove="Assets\Shaders\LearnSpecular\cubemap.vert" />
-    <None Remove="Assets\Shaders\LearnSpecular\equirectangular_to_cubemap.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\irradiance_convolution.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\pbr.frag" />
-    <None Remove="Assets\Shaders\LearnSpecular\pbr.vert" />
-    <None Remove="Assets\Shaders\LearnSpecular\prefilter.frag" />
-    <None Remove="Assets\Shaders\Math\FractalGlowRings.frag" />
     <None Remove="Assets\Textures\DebugTexture_Grid.png" />
     <None Remove="Assets\Textures\Environments\chromatic.jpg" />
     <None Remove="Assets\Textures\Environments\field.jpg" />
@@ -93,114 +57,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Assets\Shaders\basic_texture.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\basic_texture_cube.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\animation.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\brdf.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\cubemap.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\cubemap.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\functions.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\ibl.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\iridescence.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\material_info.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\pbr.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\primitive.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\punctual.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\textures.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Khronos\tonemapping.glsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\background.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\background.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\brdf.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\brdf.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\cubemap.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\equirectangular_to_cubemap.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\irradiance_convolution.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\pbr.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\pbr.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecularTextured\prefilter.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\background.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\background.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\brdf.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\brdf.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\cubemap.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\equirectangular_to_cubemap.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\irradiance_convolution.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\pbr.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\pbr.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\LearnSpecular\prefilter.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\Math\FractalGlowRings.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Assets\Textures\Sky\moon_lroc_1k.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -322,34 +178,10 @@
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Maths" Version="2.23.0" />
     <PackageReference Include="Stateless" Version="5.14.0" />
-    <!-- Pure managed bindings, no native runtime asset at all; see ManaGraphics.csproj. Core
-         types (ManaContext, ManaTexture, ManaMaterial, ManaMesh) reference GL/GLEnum/TextureTarget
-         etc. directly even though they're also usable under WebGPU (Context.OpenGl is already
-         nullable and null-checked throughout for exactly that case), so excluding the package
-         itself isn't needed or wanted for the browser target. -->
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
-    <PackageReference Include="Silk.NET.OpenGL.Extensions.APPLE" Version="2.23.0" />
   </ItemGroup>
-
-  <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
-       GLFW is desktop windowing, unused on the WebGPU-only browser target. Assimp used to be here
-       too (glTF/OBJ/FBX/DAE/STL/PLY import) until ManaWorld.Gltf.cs standardized on the pure-managed
-       SharpGLTF loader everywhere; see that file's own comment for why.
-       Silk.NET.OpenGL.Extensions.ImGui was here as well, until the editor UI finished moving to
-       ManaUI and ImGui was removed outright. -->
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <PackageReference Include="Silk.NET.GLFW" Version="2.23.0" />
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
-  </ItemGroup>
-
-  <!-- ManaIrradianceRenderer/ManaDeferredRenderer are only ever constructed when
-       ManaWorld.Initialize's createRenderer parameter is true, which the WebGPU path
-       (ManaWorld.Renderer stays null there; rendering goes through ManaWebGpuContext
-       instead) never passes; confirmed via BaseGameMode.LoadForGraphicsBackend's only
-       caller. Genuinely OpenGL-legacy-only, not just OpenGL-adjacent. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Remove="Code\Renderers\ManaDeferredRenderer.cs" />
-    <Compile Remove="Code\Renderers\ManaIrradianceRenderer.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -420,84 +252,6 @@
       <CopyToOutputDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToOutputDirectory>
       <CopyToPublishDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToPublishDirectory>
     </None>
-    <None Update="Assets\Shaders\BardPbr.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\BardPbr.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\basic_pos_uv.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\basic_pos_uv_only.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\Edge.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\Edge_Classic.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\empty.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\FullScreenQuad\Edge.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\FullScreenQuad\empty.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\FullScreenQuad\full_screen_quad.geom">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\FullScreenQuad\RayTracing_001.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\full_screen_quad.geom">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\Grids\grid.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\Grids\grid.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\julia.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\julia2.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\julia3.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\mandel.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\pbr.glsl.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\PBR_Emeiri\pbr.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\PBR_Emeiri\pbr.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\PBR_Emeiri\shadow.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\PBR_Emeiri\shadow.vert">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Shaders\ratio.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\ShaderToys\LiquidFill.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\ShaderToys\Sunflowers.frag">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -518,9 +272,6 @@
     <None Update="Assets\Fonts\**\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Assets\Shaders\LearnSpecularTextured\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
 
   <ItemGroup>
@@ -529,32 +280,17 @@
     <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>
 
-  <!-- Transitional bridge: these implementations now live with the graphics
-       subsystem, but still compile into Mana until their ManaContext-era
-       dependencies are replaced with ManaCore contracts.
-       Desktop only: the OpenGL Legacy files need the OpenGL backend, which the
-       WebGPU-only browser target excludes entirely. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
-    <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\**\*.cs"
-             Link="Code\Graphics\OpenGL\Legacy\%(RecursiveDir)%(Filename)%(Extension)" />
-    <!-- GameSilkOpenGl.cs (above) calls ManaWindowIcon; Mana has no ProjectReference to
-         ManaGraphics (see ManaGraphics.csproj), so the file is compiled into this assembly
-         too, same as the Legacy files above. -->
-    <Compile Include="..\ManaGraphics\Code\Graphics\ManaWindowIcon.cs"
-             Link="Code\Graphics\ManaWindowIcon.cs" />
-  </ItemGroup>
-
   <!-- ManaGameModeGraphicsBridge.cs is the one exception to the exclusion above; see
        ManaGraphics.csproj for why. BaseGameMode.cs (compiled into this same assembly)
        calls it directly regardless of backend. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Include="..\ManaGraphics\Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs"
-             Link="Code\Graphics\OpenGL\Legacy\ManaGameModeGraphicsBridge.cs" />
-  </ItemGroup>
 
 
   <ItemGroup>
     <Content Include="Assets\Materials\**\*.zip" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Assets\Models\ShaderBall\ShaderBall.glb" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <Compile Include="..\ManaGraphics\Code\Graphics\ManaWindowIcon.cs"
+             Link="Code\Graphics\ManaWindowIcon.cs" />
   </ItemGroup>
 </Project>

@@ -394,26 +394,6 @@ namespace Mana
             LastSavedVertexCount = Math.Max(0, LastNaiveVertexCount - LastGeneratedVertexCount);
 
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
-#if !MANA_BROWSER
-            if (Context.OpenGl != null)
-            {
-                if (VertexBufferObject != null)
-                {
-                    var meshData = DynamicGeometryContainer.CreateCpuData();
-                    VertexBufferObject.indexes = meshData.Indexes;
-                    VertexBufferObject.positions = meshData.Positions;
-                    VertexBufferObject.normals = meshData.Normals;
-                    VertexBufferObject.colors = meshData.Colors;
-                    VertexBufferObject.textureCoordinates0 = meshData.TextureCoordinates0;
-                    VertexBufferObject.textureCoordinates1 = meshData.TextureCoordinates1;
-                    VertexBufferObject.ConstructVBO();
-                }
-                else
-                {
-                    VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
-                }
-            }
-#endif
 
             if (logStats && (inputVoxelCount > 0 || duplicateVoxelCount > 0))
             {

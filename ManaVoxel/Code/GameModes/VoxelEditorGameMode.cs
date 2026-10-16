@@ -70,7 +70,7 @@ namespace Mana.Code.GameModes
         protected override string? WindowIconPath =>
             Path.Combine(AppContext.BaseDirectory, "Assets", "Icons", "AppIcon.ico");
 
-        public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL) : base(graphicsBackend)
+        public VoxelEditorGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.WebGpu) : base(graphicsBackend)
         {
             // Before any UI is built: the preferences panel and the placement panel both read it as they construct.
             _viewModel.Snap.Restore();
@@ -215,15 +215,6 @@ namespace Mana.Code.GameModes
 
                     // 0. Pre-decode environment reflection map CPU data
                     Loading.Report(new ManaLoadingProgress("Loading environment reflection map", 0.05f));
-                    // Only OpenGL reads the photo through the texture cache; WebGPU draws the sky into its reflections and
-                    // decodes the photo itself, only for the Photo sky.
-                    if (GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
-                    {
-                        var envPath = world.EnvironmentReflectionSource.SourcePath;
-                        var envTexture = TextureManager.GetInstance(Context).CreateTexture(envPath);
-                        envTexture.OriginalFilename = envPath;
-                        envTexture.Load();
-                    }
 
                     // 1. Generate shapes CPU data
                     Loading.Report(new ManaLoadingProgress("Generating procedural shapes", 0.2f));
@@ -912,8 +903,7 @@ namespace Mana.Code.GameModes
         public override void Render(double deltaTime)
         {
             // See ManaWebGpuContext.SuspendSceneWork. Set before base.Render so it is in place before
-            // ClearFrame runs later in the same frame, on the WebGPU path only -- null on OpenGL, which
-            // already gets this for free from BaseGameMode.Render never calling DrawWorld while loading.
+            // ClearFrame runs later in the same frame and must skip scene uploads during loading.
             if (_webGpuContext != null)
             {
                 _webGpuContext.SuspendSceneWork = IsLoading;

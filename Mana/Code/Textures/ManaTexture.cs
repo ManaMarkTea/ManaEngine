@@ -2,7 +2,6 @@ using Mana.Code;
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
 using ManaCore.Imaging;
-using Silk.NET.OpenGL;
 
 namespace Mana
 {
@@ -23,34 +22,8 @@ namespace Mana
         public bool IsWrapU { get; set; }
         public bool IsWrapV { get; set; }
         public IManaGpuTexture? GpuTexture { get; private set; }
-        public IManaBindableGpuTexture? BindableGpuTexture => GpuTexture as IManaBindableGpuTexture;
 
         public bool IsCube { get; set; }
-        public TextureMinFilter MinFilter { get; set; }
-        public TextureMagFilter MagFilter { get; set; }
-
-        public bool HasMipMaps { get; set; }
-        public bool isBlendRequired { get; set; }
-
-        public GLEnum FboAttachmentType { get; set; }
-
-        public InternalFormat InternalDataFormat { get; set; }
-        public PixelFormat InternalPixelFormat { get; set; }
-        public GLEnum InternalPixelType { get; set; }
-
-        public TextureTarget TextureTargetType
-        {
-            get
-            {
-                TextureTarget targetType = TextureTarget.Texture2D;
-                if (IsCube)
-                {
-                    targetType = TextureTarget.TextureCubeMap;
-                }
-                return targetType;
-            }
-        }
-
         public ManaTexture(ManaContext context) : base(context)
         {
             PixelData = new byte[0];
@@ -63,35 +36,7 @@ namespace Mana
             IsLoaded = false;
             IsWrapU = true;
             IsWrapV = true;
-            MinFilter = TextureMinFilter.Nearest;
-            MagFilter = TextureMagFilter.Nearest;
-
-            InternalDataFormat = InternalFormat.Rgba8;
-            InternalPixelFormat = PixelFormat.Rgba;
-            InternalPixelType = GLEnum.UnsignedByte;
         }
-
-        public void UpdateParameters()
-        {
-            var gl = Context.OpenGl!;
-
-            var targetType = TextureTargetType;
-
-            // Load texture
-            gl.BindTexture(targetType, Handle);
-            gl.TexParameter(targetType, TextureParameterName.TextureWrapS, IsWrapU ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            gl.TexParameter(targetType, TextureParameterName.TextureWrapT, IsWrapV ? (int)TextureWrapMode.Repeat : (int)TextureWrapMode.ClampToEdge);
-            gl.TexParameter(targetType, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
-
-            gl.TexParameter(targetType, TextureParameterName.TextureMinFilter, (uint)MinFilter);
-            gl.TexParameter(targetType, TextureParameterName.TextureMagFilter, (uint)MagFilter);
-        }
-
-        public void UpdateTextureSize()
-        {
-            EnsureOpenGlTexture().UpdateTextureSize();
-        }
-
 
         public void LoadCpuPixelData()
         {
@@ -110,7 +55,17 @@ namespace Mana
             if (PixelStream != null)
             {
                 using var memory = new MemoryStream();
-                PixelStream.CopyTo(memory);
+                // Clones share the source stream; decoding must leave it usable by the next material.
+                var position = PixelStream.CanSeek ? PixelStream.Position : 0;
+                try
+                {
+                    if (PixelStream.CanSeek) PixelStream.Position = 0;
+                    PixelStream.CopyTo(memory);
+                }
+                finally
+                {
+                    if (PixelStream.CanSeek) PixelStream.Position = position;
+                }
                 return ManaImageCodec.Load(memory.ToArray()).FlipVertical();
             }
             if (!string.IsNullOrEmpty(OriginalFilename))
@@ -122,64 +77,8 @@ namespace Mana
 
         public virtual void Load()
         {
-#if MANA_BROWSER
-            // CPU pixels are the whole job on the browser target: there is no OpenGL, and WebGPU
-            // uploads textures through its own bind groups from this data rather than through a
-            // bound texture unit. Without this branch, anything that loads a texture while
-            // DeferGpuUploads is false takes the OpenGL path below and throws
-            // PlatformNotSupportedException -- which is exactly what happened in
-            // ManaGameModeGraphicsBridge.FinalizeGpuUploads: it clears DeferGpuUploads first, then
-            // walks every material calling Load(). The throw was swallowed by
-            // ManaLoadingCoordinator.Update()'s catch into Fail(), so loading simply never
-            // completed and, because BaseGameMode.update() only ticks the loading coordinator
-            // while IsLoading, the game never simulated a single frame: no physics, no input, and
-            // no finalized GPU uploads, with nothing logged anywhere.
             LoadCpuPixelData();
-#else
-            if (Context.DeferGpuUploads)
-            {
-                LoadCpuPixelData();
-            }
-            else
-            {
-                EnsureOpenGlTexture().Load();
-            }
-#endif
-        }
-
-        internal void LoadOpenGlTextureData()
-        {
-            LoadTextureData();
-        }
-
-        protected virtual unsafe void LoadTextureData()
-        {
-            var gl = Context.OpenGl!;
-
-            if (PixelData != null && PixelData.Length > 0)
-            {
-                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
-                fixed (void* data = PixelData)
-                {
-                    gl.TexSubImage2D(TextureTargetType, 0, 0, 0, Width, Height, InternalPixelFormat, InternalPixelType, data);
-                }
-            }
-            else if (DecodeSource() is { } image)
-            {
-                Width = (uint)image.Width;
-                Height = (uint)image.Height;
-                SizeInBytes = image.Width * image.Height * 8;
-                AllocateEmptyTextImage2D(gl, TextureTargetType, Width, Height);
-                fixed (void* data = image.Pixels)
-                {
-                    gl.TexSubImage2D(TextureTargetType, 0, 0, 0, Width, Height, InternalPixelFormat, InternalPixelType, data);
-                }
-            }
-            else
-            {
-                // Create an empty texture with allocated space (Common for Render Targets)
-                UpdateTextureSize();
-            }
+            IsLoaded = true;
         }
 
         /// <summary>
@@ -221,54 +120,6 @@ namespace Mana
             }
 
             return texturePath;
-        }
-
-        internal unsafe void AllocateEmptyTextImage2D(GL gl, TextureTarget textureType, uint width, uint height)
-        {
-            gl.TexImage2D(textureType, 0, InternalDataFormat, width, height, 0, InternalPixelFormat, InternalPixelType, null);
-        }
-
-        protected unsafe void SubTextImage2D(GL gl, TextureTarget textureType, int x, int y, uint width, uint height, ReadOnlySpan<byte> data)
-        {
-            gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
-        }
-
-        protected unsafe void SubTextImage2D(GL gl, TextureTarget textureType, int x, int y, uint width, uint height, ReadOnlySpan<float> data)
-        {
-            gl.TexSubImage2D(textureType, 0, x, y, width, height, InternalPixelFormat, InternalPixelType, data);
-        }
-
-        public virtual void Bind(int channel)
-        {
-            if (!IsLoaded && Context.OpenGl != null && (OriginalFilename.Length > 0 || PixelStream != null))
-            {
-                Load();
-            }
-            EnsureOpenGlTexture().Bind(channel);
-        }
-
-        public void UnBind(int channel)
-        {
-            BindableGpuTexture?.UnBind(channel);
-        }
-
-        private IManaBindableGpuTexture EnsureOpenGlTexture()
-        {
-            if (GpuTexture is IManaBindableGpuTexture openGlTexture)
-            {
-                return openGlTexture;
-            }
-
-#if MANA_BROWSER
-            // No OpenGL on the browser target (WebGPU-only) -- this
-            // legacy per-texture-unit Bind(int) path is OpenGL-only; WebGPU binds
-            // textures through its own bind groups instead, never through here.
-            throw new PlatformNotSupportedException(
-                "ManaTexture.Bind (OpenGL texture units) is not supported on the browser target.");
-#else
-            GpuTexture = new ManaOpenGlTexture(this);
-            return (IManaBindableGpuTexture)GpuTexture;
-#endif
         }
 
         /// <summary>

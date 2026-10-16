@@ -72,9 +72,6 @@ namespace Mana.Code.Shapes
         {
             var previous = CpuData ?? _first;
             SetCpuData(Describe(previous.Indexes, previous.TextureCoordinates0));
-#if !MANA_BROWSER
-            VertexBufferObject?.UpdateDynamicData(Positions, _normals, Colors);
-#endif
         }
     }
 }

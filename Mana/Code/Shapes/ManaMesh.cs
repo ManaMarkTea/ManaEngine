@@ -21,25 +21,6 @@ namespace Mana.Code.Shapes
         public string RenderKey { get; } = Guid.NewGuid().ToString("N");
         public ulong CpuDataVersion { get; private set; }
 
-#if !MANA_BROWSER
-        private ManaVertexBufferObject? vertexBufferObject;
-#endif
-
-        public IManaGpuMesh? GpuMesh { get; private set; }
-
-        public IManaImmediateGpuMesh? ImmediateGpuMesh => GpuMesh as IManaImmediateGpuMesh;
-
-#if !MANA_BROWSER
-        public ManaVertexBufferObject? VertexBufferObject
-        {
-            get => vertexBufferObject;
-            internal set
-            {
-                vertexBufferObject = value;
-                GpuMesh = value == null ? null : new ManaOpenGlMesh(value);
-            }
-        }
-#endif
 
         public ManaDynamicGeometryContainer DynamicGeometryContainer { get; internal set; }
 
@@ -51,37 +32,6 @@ namespace Mana.Code.Shapes
             Modifiers = new List<ManaMeshModifier>();
             Materials = new ManaMaterial[0];
             DynamicGeometryContainer = new ManaDynamicGeometryContainer();
-        }
-
-        public void Draw(ManaSceneNode owner, MeshRendererComponent? meshRenderer)
-        {
-            // Snapshotted: ImmediateGpuMesh recomputes from GpuMesh on every read, and GpuMesh is nulled
-            // whenever VertexBufferObject is reassigned (procedural rebuilds, planet patch splits). Testing
-            // the property and then dereferencing it again is a null between the two.
-            var gpuMesh = ImmediateGpuMesh;
-            if (gpuMesh != null)
-            {
-                ManaMaterial material = Materials[0];
-                if (meshRenderer != null)
-                {
-                    material = meshRenderer.Material;
-                }
-
-                material.Bind(owner.WorldTransform, owner);
-
-                gpuMesh.Draw();
-
-                material.UnBind();
-            }
-        }
-
-        public void RenderDirectly()
-        {
-            var gpuMesh = ImmediateGpuMesh;
-            if (gpuMesh != null)
-            {
-                gpuMesh.Draw();
-            }
         }
 
         public void SetSize(float minSize, float maxSize)
@@ -121,25 +71,6 @@ namespace Mana.Code.Shapes
                 return meshData;
             }
 
-#if !MANA_BROWSER
-            if (VertexBufferObject != null)
-            {
-                var meshData = new ManaMeshCpuData
-                {
-                    Indexes = VertexBufferObject.indexes.ToArray(),
-                    Positions = VertexBufferObject.positions.ToArray(),
-                    Normals = VertexBufferObject.normals.ToArray(),
-                    Colors = VertexBufferObject.colors.ToArray(),
-                    TextureCoordinates0 = VertexBufferObject.textureCoordinates0.ToArray(),
-                    TextureCoordinates1 = VertexBufferObject.textureCoordinates1.ToArray(),
-                    AlbedoTexturePath = null,
-                    AlbedoFactor = null
-                };
-                SetCpuData(meshData);
-
-                return meshData;
-            }
-#endif
 
             throw new InvalidOperationException($"Mesh '{Name}' does not have CPU geometry data available.");
         }
@@ -167,8 +98,7 @@ namespace Mana.Code.Shapes
         /// </para>
         /// <para>
         /// Not for a mesh that keeps editing its own build data (see ManaVoxelShape, which clears and refills
-        /// the same container per edit), nor for the small primitives whose OpenGL path re-reads the container
-        /// to build a VBO afterwards.
+        /// the same container per edit).
         /// </para>
         /// </summary>
         public ManaMeshCpuData PublishGeneratedGeometry()

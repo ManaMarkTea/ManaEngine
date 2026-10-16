@@ -54,11 +54,11 @@ namespace Mana.Code
 
         public ManaGraphicsBackendKind GraphicsBackend { get; }
 
-        public BaseGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.OpenGL)
+        public BaseGameMode(ManaGraphicsBackendKind graphicsBackend = ManaGraphicsBackendKind.WebGpu)
         {
             GraphicsBackend = graphicsBackend;
             LoadingCoordinator = new ManaLoadingCoordinator(
-                InitializeRendererForLoading,
+                () => { },
                 FinalizeGpuUploads,
                 CanCompleteLoading,
                 OnLoadingComplete);
@@ -67,7 +67,7 @@ namespace Mana.Code
         /// <summary>No sound at all (<c>--mute</c>): set before the app runs.</summary>
         public bool Muted { get; init; }
 
-        public virtual void LoadForGraphicsBackend(IWindow window, IInputContext input, IManaGraphicsDevice graphicsDevice, bool initializeWorldRenderer = false)
+        public virtual void LoadForGraphicsBackend(IWindow window, IInputContext input, IManaGraphicsDevice graphicsDevice)
         {
             var world = new ManaWorld();
             Context = new ManaContext(window, input, world, graphicsDevice);
@@ -80,7 +80,7 @@ namespace Mana.Code
                 Context.Audio.MasterVolume = 0.0f;
             }
 
-            world.Initialize(Context, DeferGpuUploadsOnStartup ? false : initializeWorldRenderer);
+            world.Initialize(Context);
 
             Context.Physics = new ManaPhysics(Context);
 
@@ -104,7 +104,7 @@ namespace Mana.Code
         /// <summary>
         /// Puts the loading screen over whatever <see cref="BuildManaUi"/> just built.
         /// <para>
-        /// Shared by both graphics backends rather than each remembering to call it: a mode that opted into
+        /// A mode that opts into
         /// ManaUI gets the loading screen as part of that, not as a second thing to wire up.
         /// </para>
         /// </summary>
@@ -237,17 +237,12 @@ namespace Mana.Code
             if (IsLoading)
             {
                 LogFirstLoadingFrameOnce();
-                ManaGameModeGraphicsBridge.ClearLoadingFrame(Context, GraphicsBackend);
 
                 // The loading screen is part of the ManaUI tree -- see WrapManaUiWithLoadingScreen, which
                 // wrapped it in one before the first frame ever ran. A mode that opted out of ManaUI shows
                 // no loading screen at all now; the ImGui window that used to stand in for one is gone.
                 ManaUi?.Render(deltaTime);
 
-                // OpenGL draws immediately and nothing else will submit this frame's ManaUI draw list, so
-                // it has to happen here too. The WebGPU path submits inside its own frame regardless of
-                // which branch this is, so the call is a no-op there.
-                ManaGameModeGraphicsBridge.DrawManaUi(Context, GraphicsBackend, ManaUi?.Root);
                 return;
             }
 
@@ -257,36 +252,23 @@ namespace Mana.Code
                 ManaUi?.Render(deltaTime);
             }
 
-            // Nests the backend's own finer-grained scopes (scene collect, upload, draw, present).
-            using (ManaFrameProfiler.Measure("DrawWorld Total"))
-            {
-                ManaGameModeGraphicsBridge.DrawWorld(Context, GraphicsBackend);
-            }
-
-            ManaGameModeGraphicsBridge.DrawManaUi(Context, GraphicsBackend, ManaUi?.Root);
         }
 
         protected virtual void OnLoadingComplete() { }
 
         protected virtual bool CanCompleteLoading() => true;
 
-        private void InitializeRendererForLoading()
-        {
-            ManaGameModeGraphicsBridge.InitializeRendererForLoading(Context, GraphicsBackend);
-        }
-
         protected virtual void FinalizeGpuUploads()
         {
-            ManaGameModeGraphicsBridge.FinalizeGpuUploads(Context, GraphicsBackend);
+            ManaGameModeGraphicsBridge.FinalizeGpuUploads(Context);
         }
 
         public virtual void Closing()
         {
             Context.Audio.Dispose();
-            ManaGameModeGraphicsBridge.DisposeManaUi();
             ManaUi?.Dispose();
             ManaUi = null;
-            ManaGameModeGraphicsBridge.Dispose(Context);
+            Context.Input?.Dispose();
         }
     }
 

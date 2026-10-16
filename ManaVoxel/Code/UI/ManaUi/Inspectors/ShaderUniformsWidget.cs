@@ -4,9 +4,7 @@ using ManaUI;
 // ManaVoxel has a global `using Silk.NET.Input`, which also defines Button.
 using Button = ManaUI.Button;
 
-// Aliased rather than importing Silk.NET.OpenGL wholesale: this file needs exactly one type from it, and
-// the namespace collides with several the UI already uses.
-using UniformType = Silk.NET.OpenGL.UniformType;
+using UniformType = ManaCore.Graphics.ManaUniformType;
 
 namespace ManaVoxel.Code.UI.ManaUi.Inspectors
 {

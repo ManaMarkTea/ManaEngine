@@ -43,19 +43,8 @@ namespace Mana
                         OffersLevelSelect = launchOptions.PlayMenu,
                         Muted = launchOptions.Mute
                     };
-#if !MANA_BROWSER
-                    if (backendKind == ManaGraphicsBackendKind.WebGpu)
-                    {
-                        play.RunWebGpu(launchOptions.WebGpuBackend);
-                        return;
-                    }
-
-                    play.Run();
-                    return;
-#else
                     play.RunWebGpu(launchOptions.WebGpuBackend);
                     return;
-#endif
                 }
 
                 var game = new VoxelEditorGameMode(backendKind)
@@ -64,27 +53,7 @@ namespace Mana
                     CommandFilePath = launchOptions.CommandFilePath,
                     Muted = launchOptions.Mute
                 };
-#if !MANA_BROWSER
-                if (backendKind == ManaGraphicsBackendKind.WebGpu)
-                {
-                    game.RunWebGpu(launchOptions.WebGpuBackend);
-                    return;
-                }
-
-                game.Run();
-#else
-                // PurgeStaleDockLayout is ImGui docking-layout housekeeping (BaseGameMode.ImGuiDocking.cs),
-                // excluded on browser; Run() is GLFW's WindowExtensions.Run(IView), desktop-only -- browser
-                // is WebGPU-only and browser-wasm's Main() can't block synchronously the way this whole
-                // Program.cs assumes (see ManaVoxel.Web/Program.cs's own bring-up sequence, which awaits
-                // ManaBrowserInterop.InitializeAsync() before touching a game mode at all). A real browser
-                // launcher for the editor is a separate entry-point project, not this file -- same relationship
-                // ManaVoxel.Web already has to VoxelPlayGameMode: ManaVoxel.csproj compiling for browser-wasm
-                // (this build) is what makes that project possible, not a replacement for it.
-                throw new PlatformNotSupportedException(
-                    "ManaVoxel.exe's own Program.cs is not the browser entry point for the editor. " +
-                    "See ManaVoxel.Web/Program.cs for the pattern a browser-hosted editor launcher should follow.");
-#endif
+                game.RunWebGpu(launchOptions.WebGpuBackend);
             }
             finally
             {

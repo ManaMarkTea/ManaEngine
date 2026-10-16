@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Retire the OpenGL backend (2026-10-15): WebGPU is the only renderer. Removed the legacy backend, GLSL assets, shader compiler, immediate mesh/texture paths, Silk.NET.OpenGL packages and VS Code backend choices. Material uniform types now belong to ManaCore, with their saved numeric values preserved. Desktop solution and iOS compile passed; all 3455 headless checks passed. Release browser AOT publish and Chrome play/editor smoke checks passed without WebGPU errors, with editor/play captures in Artifacts/Automation and DevPhotos/2026-10-15 webgpu-only.png.
+
 [x] - Remove the standalone ManaSceneViewer (2026-10-15): deleted its project and unused SceneViewerMode demo, removed VS Code build/run/debug entries and browser exclusion, and cleaned up the OpenGL window title. Rendering remains available through ManaVoxel. Desktop solution build passed.
 
 [x] - Orthographic viewport clipping and camera settings (2026-10-14): the editor-only free camera retreats along its view direction as the ortho volume grows, preserving the pivot and restoring the perspective range on switching back. Camera settings open from the sliders button under the navigation gizmo or Camera > Settings (projection, FOV/ortho height, clips, move/pan speeds). CameraComponent, ViewportCameraGizmoManaView/ViewportToolbarManaView. Added Orthographic Navigation reference level and automation; visual before/after verified, full 3469 checks passed plus final 1796 ManaUI checks.

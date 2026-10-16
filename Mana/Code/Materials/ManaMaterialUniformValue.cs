@@ -1,4 +1,4 @@
-using Silk.NET.OpenGL;
+using UniformType = ManaCore.Graphics.ManaUniformType;
 
 namespace Mana.Code.Materials
 {

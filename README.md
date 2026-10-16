@@ -1,14 +1,13 @@
 # ManaRenderer
 
-ManaRenderer is a C# renderer and game engine with a voxel-level editor. WebGPU is the primary graphics backend;
-OpenGL remains available as a fallback. The projects target .NET 10, Windows, and macOS (arm64).
+ManaRenderer is a C# renderer and game engine with a voxel-level editor. WebGPU is the graphics backend. The projects target .NET 10, Windows, and macOS (arm64).
 
 ## Projects
 
 | Project | Purpose |
 | --- | --- |
 | `ManaCore` | Shared interfaces and data types |
-| `ManaGraphics` | WebGPU and OpenGL backends and shaders |
+| `ManaGraphics` | WebGPU backend and WGSL shaders |
 | `Mana` | Engine, scene graph, components, and game modes |
 | `ManaUI` | Retained-mode UI framework |
 | `ManaTests` | Headless test suite |

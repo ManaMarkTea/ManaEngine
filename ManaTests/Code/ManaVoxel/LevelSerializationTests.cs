@@ -920,11 +920,19 @@ public static class LevelSerializationChecks
         Check("--level opens the editor on a level, not the game",
             editArgs.EditLevelPath == "sample.manalevel" && editArgs.PlayLevelPath == null);
 
+        foreach (var removedBackend in new[] { "opengl", "gl" })
+        {
+            var rejected = false;
+            try { ManaLaunchOptions.Parse(new[] { "--graphics", removedBackend }); }
+            catch (ArgumentException ex) { rejected = ex.Message.Contains("removed"); }
+            Check($"removed backend {removedBackend} reports a useful error", rejected);
+        }
+
         var combined = ManaLaunchOptions.Parse(
-            new[] { "--play", "a.manalevel", "--graphics", "opengl", "--wgpu-backend", "vulkan" });
+            new[] { "--play", "a.manalevel", "--graphics", "webgpu", "--wgpu-backend", "vulkan" });
         Check("play survives alongside the graphics flags it is launched with",
             combined.PlayLevelPath == "a.manalevel"
-            && combined.GraphicsBackend == ManaGraphicsBackendKind.OpenGL
+            && combined.GraphicsBackend == ManaGraphicsBackendKind.WebGpu
             && combined.WebGpuBackend == "vulkan",
             $"{combined.PlayLevelPath}, {combined.GraphicsBackend}, {combined.WebGpuBackend}");
 

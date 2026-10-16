@@ -95,7 +95,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     new TextBlock().Text("Mana Renderer").FontFamily(theme.FontFamilyMedium).FontSize(theme.FontSizeHeading + 6.0f),
                     badge),
                 new TextBlock()
-                    .Text("A C# renderer and voxel level editor -- WebGPU first, OpenGL as a fallback.")
+                    .Text("A C# renderer and voxel level editor -- powered by WebGPU.")
                     .Foreground(theme.TextMuted)
                     .Wrap());
         }

@@ -83,7 +83,6 @@ namespace ManaCore.Graphics
     public enum ManaGraphicsDiagnosticScope
     {
         Common,
-        OpenGl,
         WebGpu
     }
 

@@ -1,5 +1,3 @@
-#if !MANA_BROWSER
-#endif
 using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
@@ -22,7 +20,6 @@ namespace Mana
 
     public partial class ManaWorld : ManaObject
     {
-        public bool UseRayTracing = false;
 
         public new ManaContext Context = null!;
 
@@ -63,14 +60,10 @@ namespace Mana
 
         public readonly object SceneLock = new();
 
-        public List<Action> PostDrawFutures { get; set; }
-        public List<Action> PreDrawFutures { get; set; }
         public List<Action> PreUpdateFutures { get; set; }
         public List<Action> PostUpdateFutures { get; set; }
 
 
-        private List<Action> activePostDrawFutures { get; set; }
-        private List<Action> activePreDrawFutures { get; set; }
         private List<Action> activePreUpdateFutures { get; set; }
         private List<Action> activePostUpdateFutures { get; set; }
 
@@ -92,7 +85,6 @@ namespace Mana
         /// <summary>True between <see cref="BeginPlay"/> and <see cref="EndPlay"/>.</summary>
         public bool IsPlaying { get; private set; }
 
-        public ManaRenderer Renderer = null!;
         public ManaIrradianceSettings IrradianceSettings { get; } = new();
         public ManaEnvironmentReflectionSource EnvironmentReflectionSource { get; set; } = new();
         
@@ -103,29 +95,22 @@ namespace Mana
         public ManaWorld() : base(null!)
         {
             GameState.SoundRequested += AudioCues.Emit;
-#if !MANA_BROWSER
-#endif
 
             Meshes = new List<ManaMesh>();
             Scenes = new List<ManaScene>();
             Materials = new List<ManaMaterial>();
 
-            activePostDrawFutures = new List<Action>();
-            activePreDrawFutures = new List<Action>();
             activePreUpdateFutures = new List<Action>();
             activePostUpdateFutures = new List<Action>();
 
-            PostDrawFutures = new List<Action>();
-            PreDrawFutures = new List<Action>();
             PreUpdateFutures = new List<Action>();
             PostUpdateFutures = new List<Action>();
         }
 
-        public void Initialize(ManaContext context, bool createRenderer = true)
+        public void Initialize(ManaContext context)
         {
             Context = context;
 
-            Context.Window.Resize += _Window_Resize;
             CameraNode = new ManaSceneNode(context, Matrix4x4.Identity);
             CameraNode.Position = new Vector3(6, 3, 10);
             CameraNode.Name = "Main Camera";
@@ -133,18 +118,6 @@ namespace Mana
             CameraNode.Components.Add(MainCamera);
 
 
-#if !MANA_BROWSER
-            if (createRenderer)
-            {
-                //this.Renderer = new ManaDeferredRenderer(context);
-                //this.Renderer = new ManaForwardRenderer(context);
-                this.Renderer = new ManaIrradianceRenderer(context);
-                if (!context.DeferGpuUploads)
-                {
-                    this.Renderer.Initialize();
-                }
-            }
-#endif
 
             DefaultScene = new ManaScene(context);
             DefaultScene.Name = "Default Scene";
@@ -153,10 +126,6 @@ namespace Mana
             irradianceDebugScene.SyncMembership();
         }
 
-        private void _Window_Resize(Vector2D<int> obj)
-        {
-            Renderer?.Resize(obj.X, obj.Y);
-        }
        
 
         private void RunFutures(List<Action> futures, List<Action> activeFutures)
@@ -293,31 +262,6 @@ namespace Mana
                 ViewMatrix = MainCamera._ViewMatrix;
             }
         }
-
-        public void Draw()
-        {
-            if (Renderer == null)
-            {
-                return;
-            }
-
-            Renderer.Clear();
-
-            Action drawScenes = () =>
-            {
-                RunFutures(PreDrawFutures, activePreDrawFutures);
-
-                foreach (var scene in Scenes)
-                {
-                    scene.Draw();
-                }
-
-                RunFutures(PostDrawFutures, activePostDrawFutures);
-            };
-
-            Renderer.Render(drawScenes);
-        }
-
 
         // A placed light of intensity 1 lights a table-lamp's worth of floor a metre or so below it.
         private const float LocalLightPowerScale = 8.0f;

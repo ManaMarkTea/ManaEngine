@@ -15,8 +15,7 @@ namespace Mana
 
         /// <summary>
         /// Draws over the whole scene rather than into it, so the mesh is never hidden behind geometry
-        /// that happens to be nearer the camera. For editor handles; needs <see cref="DrawAfterScene"/> on
-        /// OpenGL, which draws it after the scene with depth testing off.
+        /// that happens to be nearer the camera. Used for editor handles.
         /// </summary>
         public bool AlwaysOnTop { get; set; }
 
@@ -242,52 +241,6 @@ namespace Mana
                 Material = mesh.Materials[0];
             }
 
-        }
-
-        public override void DrawComponent()
-        {
-            base.DrawComponent();
-#if !MANA_BROWSER
-            if (!IsVisible || Mesh == null || Mesh.VertexBufferObject == null || Mesh.VertexBufferObject.indexes.Length == 0)
-            {
-                return;
-            }
-#else
-            // Same visibility contract as desktop; the VertexBufferObject half of that check is
-            // OpenGL-only and has no browser equivalent (WebGPU uploads through its own path).
-            if (!IsVisible || Mesh == null)
-            {
-                return;
-            }
-#endif
-
-            if (DrawAfterScene)
-            {
-                Context.World.PostDrawFutures.Add(DrawAfterSceneNow);
-                return;
-            }
-
-            Mesh.Draw(Owner, this);
-        }
-
-        private void DrawAfterSceneNow()
-        {
-#if !MANA_BROWSER
-            if (AlwaysOnTop && Context.GraphicsBackend == ManaGraphicsBackendKind.OpenGL)
-            {
-                var gl = Context.RequireOpenGl();
-                var depthWasOn = gl.IsEnabled(Silk.NET.OpenGL.EnableCap.DepthTest);
-                gl.Disable(Silk.NET.OpenGL.EnableCap.DepthTest);
-                Mesh.Draw(Owner, this);
-                if (depthWasOn)
-                {
-                    gl.Enable(Silk.NET.OpenGL.EnableCap.DepthTest);
-                }
-
-                return;
-            }
-#endif
-            Mesh.Draw(Owner, this);
         }
 
         // World-space axis-aligned bounds of this renderer's mesh -- for "frame selected" camera framing

@@ -1,5 +1,4 @@
 ﻿using Mana.Code;
-using Silk.NET.OpenGL;
 
 namespace Mana
 {
@@ -16,9 +15,6 @@ namespace Mana
             Width = 1; Height = 1;
             ElementCount = 3;
 
-            InternalDataFormat = InternalFormat.Rgb16f;
-            InternalPixelFormat = PixelFormat.Rgb;
-            InternalPixelType = GLEnum.Float;
 
             Load();
         }

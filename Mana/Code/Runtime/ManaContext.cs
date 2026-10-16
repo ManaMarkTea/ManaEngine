@@ -1,6 +1,5 @@
 using Mana.Code.Graphics;
 using ManaCore.Graphics;
-using Silk.NET.OpenGL;
 using Silk.NET.Windowing;
 
 namespace Mana.Code
@@ -9,15 +8,6 @@ namespace Mana.Code
     {
         /// <summary>Silent in headless contexts; the game mode installs the platform device at startup.</summary>
         public ManaCore.Audio.IManaAudio Audio { get; set; } = ManaAudio.ManaAudioFactory.CreateSilent();
-#if !MANA_BROWSER
-        public GL gl => RequireOpenGl();
-        public GL? OpenGl => (GraphicsDevice as IOpenGlGraphicsDevice)?.Gl;
-#else
-        // No OpenGL on the browser target at all (WebGPU-only) --
-        // always null, matching the existing "this ManaContext has no OpenGL context"
-        // case every caller already checks for on desktop.
-        public GL? OpenGl => null;
-#endif
         public IManaGraphicsDevice? GraphicsDevice { get; private set; }
         public ManaGraphicsBackendKind GraphicsBackend => GraphicsDevice?.Backend ?? ManaGraphicsBackendKind.None;
         public IInputContext Input { get; set; } = null!;
@@ -44,23 +34,5 @@ namespace Mana.Code
             GraphicsDevice = graphicsDevice;
         }
 
-#if !MANA_BROWSER
-        public ManaContext(IWindow window, GL gl, IInputContext input, ManaWorld world)
-            : this(window, input, world, new ManaOpenGlGraphicsDevice(gl))
-        {
-        }
-
-        public GL RequireOpenGl()
-        {
-            return RequireOpenGlDevice().Gl;
-        }
-
-        public IOpenGlGraphicsDevice RequireOpenGlDevice()
-        {
-            return GraphicsDevice as IOpenGlGraphicsDevice ?? throw new InvalidOperationException(
-                $"This ManaContext is using {GraphicsBackend} and does not have an OpenGL context. " +
-                "Move this call behind a graphics backend abstraction or use an OpenGL-specific path.");
-        }
-#endif
     }
 }

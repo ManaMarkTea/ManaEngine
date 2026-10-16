@@ -136,7 +136,7 @@ namespace ManaGraphics.Code.Graphics
                     "d3d11" or "dx11" => InstanceBackend.DX11,
                     "metal" => InstanceBackend.Metal,
                     "vulkan" or "vk" => InstanceBackend.Vulkan,
-                    "opengl" or "gl" => InstanceBackend.GL,
+                    "opengl" or "gl" => throw new ArgumentException("OpenGL support has been removed. Choose Vulkan, Metal or Direct3D."),
                     "all" => InstanceBackend.All,
                     "primary" => InstanceBackend.Primary,
                     "secondary" => InstanceBackend.Secondary,

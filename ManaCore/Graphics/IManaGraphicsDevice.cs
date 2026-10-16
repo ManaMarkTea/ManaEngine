@@ -3,8 +3,7 @@ namespace ManaCore.Graphics
     public enum ManaGraphicsBackendKind
     {
         None,
-        OpenGL,
-        WebGpu
+        WebGpu = 2
     }
 
     public interface IManaGraphicsDevice

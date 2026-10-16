@@ -411,10 +411,7 @@ namespace ManaVoxel.Code.Assets
         }
 
         /// <summary>
-        /// One world, reused for every request rather than one per request -- ManaWorld.Initialize
-        /// subscribes to Context.Window.Resize with no teardown path, so a fresh world per thumbnail would
-        /// leak one subscription (and the whole world) per asset ever generated. createRenderer: false
-        /// skips building a renderer this world never needs.
+        /// Reuses the thumbnail scene and camera across requests to avoid allocating a world per asset.
         /// </summary>
         private ManaWorld GetOrCreateThumbnailWorld()
         {
@@ -424,7 +421,7 @@ namespace ManaVoxel.Code.Assets
             }
 
             var world = new ManaWorld();
-            world.Initialize(_context, createRenderer: false);
+            world.Initialize(_context);
             _thumbnailWorld = world;
             return world;
         }

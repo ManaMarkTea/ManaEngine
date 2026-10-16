@@ -7,12 +7,4 @@ namespace ManaCore.Graphics
         uint Height { get; }
         bool IsLoaded { get; }
     }
-
-    public interface IManaBindableGpuTexture : IManaGpuTexture
-    {
-        void Load();
-        void UpdateTextureSize();
-        void Bind(int channel);
-        void UnBind(int channel);
-    }
 }

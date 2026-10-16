@@ -15,146 +15,31 @@ namespace ManaTests;
 /// </summary>
 public static class MaterialMapChecks
 {
-    /// <summary>
-    /// The single- and vector-valued channels a material keeps for its scalars. These are real GPU
-    /// textures a pixel wide, and they are pushed to whenever their value changes -- which nothing did
-    /// until the sliders were wired up, so a latent crash sat here unnoticed.
-    /// </summary>
     private static void CheckDynamicTextures(Action<string, bool, string> Check)
     {
         var world = new Mana.ManaWorld();
-        var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var context = new Mana.Code.ManaContext(null!, null!, world);
         var material = new Mana.Code.Materials.ManaMaterial(context);
-
-        // Cloning is what a dynamic material does the moment anything edits a shared one. The copy owns
-        // no GPU resources -- Clone clears them -- and pushing a changed value into a texture that was
-        // never allocated is a GL_INVALID_VALUE rather than a no-op.
-        var copy = material.Clone() as Mana.Code.Materials.ManaMaterial;
-        Check("a material clones", copy != null, string.Empty);
-
-        if (copy == null)
-        {
-            return;
-        }
-
-        Check("the copy's channels are its own",
-            !ReferenceEquals(copy.Opacity, material.Opacity)
-                && !ReferenceEquals(copy.Occlusion, material.Occlusion),
-            "cloned, not shared");
-
-        Check("and they hold no GPU texture", copy.Opacity.GpuTexture == null && !copy.Opacity.IsLoaded,
-            "cleared by Clone");
-
-        // Changing a value marks the channel dirty; binding it then pushes. Headless there is no GL to
-        // push to, so what is being checked is that it declines rather than throwing -- the same guard
-        // that stops it writing into an unallocated texture when there is one.
+        var copy = (Mana.Code.Materials.ManaMaterial)material.Clone();
+        Check("cloned material channels are independent", !ReferenceEquals(copy.Opacity, material.Opacity)
+            && !ReferenceEquals(copy.Occlusion, material.Occlusion), "independent values");
         copy.Opacity.Value = 0.25f;
-        Check("a changed value marks the channel dirty", copy.Opacity.IsDirty(), "dirty");
+        Check("editing the copy preserves the source", material.Opacity.Value == 1.0f, "source opacity");
+        Check("a changed channel is dirty", copy.Opacity.IsDirty(), "changed value");
+        copy.Opacity.Load();
+        Check("loading records the current channel value", !copy.Opacity.IsDirty() && copy.Opacity.IsLoaded,
+            "CPU channel needs no GPU context");
+        Check("material values need no GPU texture", copy.Opacity.GpuTexture == null, "WebGPU packs material uniforms");
 
-        try
-        {
-            copy.Opacity.Bind(9);
-            Check("binding a dirty unallocated channel does not throw", true, "declined cleanly");
-        }
-        catch (Exception ex)
-        {
-            Check("binding a dirty unallocated channel does not throw", false, ex.GetType().Name + ": " + ex.Message);
-        }
-
-        // Every scalar channel, since they all take the same path and the crash was only found on one.
-        foreach (var (name, channel) in new (string, Mana.ManaTextureDynamic)[]
-        {
-            ("Metallic", material.Metallic),
-            ("Roughness", material.Roughness),
-            ("Occlusion", material.Occlusion),
-            ("Opacity", material.Opacity),
-            ("Albedo", material.Albedo)
-        })
-        {
-            try
-            {
-                channel.Bind(3);
-                Check($"{name} binds without throwing", true, string.Empty);
-            }
-            catch (Exception ex)
-            {
-                Check($"{name} binds without throwing", false, ex.GetType().Name);
-            }
-        }
-    }
-
-    /// <summary>
-    /// The OpenGL path held to the same contract as the WebGPU one. It is the fallback backend, so it is
-    /// the one that quietly drifts: nothing here fails a build, and a missing uniform simply does nothing.
-    /// </summary>
-    private static void CheckOpenGl(Action<string, bool, string> Check)
-    {
-        var path = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }
-            .Select(root => Path.Combine(root, "Assets", "Shaders", "LearnSpecularTextured", "pbr.frag"))
-            .FirstOrDefault(File.Exists);
-
-        if (path == null)
-        {
-            Check("the OpenGL PBR shader is beside the tests", false, AppContext.BaseDirectory);
-            return;
-        }
-
-        var frag = File.ReadAllText(path);
-
-        // The same packing bug the WebGPU shader had, and for the same reason: one texture holds all
-        // three, so reading R everywhere gives the unused channel.
-        Check("GL metallic reads blue", frag.Contains("texture(metallicMap, uv).b", StringComparison.Ordinal),
-            "glTF packs metallic in B");
-        Check("GL roughness reads green", frag.Contains("texture(roughnessMap, uv).g", StringComparison.Ordinal),
-            "glTF packs roughness in G");
-        Check("GL occlusion reads red", frag.Contains("texture(aoMap, uv).r", StringComparison.Ordinal),
-            "glTF packs occlusion in R");
-
-        // These were absent entirely, so the maps were the only source and every slider was inert.
-        foreach (var uniform in new[] { "albedoColor", "materialFactors", "opacityMap", "opacityFactor", "opacityMode", "uvTransform" })
-        {
-            Check($"GL declares {uniform}",
-                frag.Contains($" {uniform} =", StringComparison.Ordinal)
-                    || frag.Contains($" {uniform};", StringComparison.Ordinal),
-                uniform);
-        }
-
-        Check("GL applies the uv transform once",
-            frag.Contains("vec2 uv = TexCoords * uvTransform.xy + uvTransform.zw;", StringComparison.Ordinal),
-            "one coordinate for every map");
-
-        // The tangent frame has to tile with the material or a repeated normal map lights the wrong way.
-        Check("and its tangent frame follows the transformed coordinate",
-            frag.Contains("st1 = dFdx(uv)", StringComparison.Ordinal), "derivatives of uv");
-
-        Check("GL cuts out below the threshold",
-            frag.Contains("alpha < materialFactors.w", StringComparison.Ordinal)
-                && frag.Contains("discard", StringComparison.Ordinal), "cutout implemented");
-
-        // Was hardcoded to 1.0, so nothing the shader computed about alpha could ever reach the blend.
-        Check("and blend keeps its alpha",
-            frag.Contains("mode == 3 ? alpha : 1.0", StringComparison.Ordinal), "no longer hardcoded");
-
-        // The C# half has to actually send them.
-        var shaderSource = new[] { AppContext.BaseDirectory, Directory.GetCurrentDirectory() }
-            .Select(root => Path.Combine(root, "..", "..", "..", "..", "Mana", "Code", "ManaShaders", "ManaPbrShader.cs"))
-            .Select(Path.GetFullPath)
-            .FirstOrDefault(File.Exists);
-
-        if (shaderSource == null)
-        {
-            return;
-        }
-
-        var binder = File.ReadAllText(shaderSource);
-        foreach (var uniform in new[] { "albedoColor", "materialFactors", "opacityFactor", "opacityMode", "uvTransform" })
-        {
-            Check($"and the binder sets {uniform}",
-                binder.Contains($"FindUniform(\"{uniform}\")", StringComparison.Ordinal), uniform);
-        }
-
-        Check("and binds the opacity map",
-            binder.Contains("material.Opacity.Bind(9)", StringComparison.Ordinal), "slot 9");
+        using var source = new MemoryStream(Convert.FromBase64String(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6qCEAAAAASUVORK5CYII="));
+        var texture = new Mana.ManaTexture(context) { PixelStream = source };
+        texture.Load();
+        var clonedTexture = (Mana.ManaTexture)texture.Clone();
+        clonedTexture.Load();
+        Check("cloned textures can decode their shared source again",
+            texture.PixelData.SequenceEqual(clonedTexture.PixelData) && clonedTexture.Width == 1,
+            "source stream remains reusable");
     }
 
     /// <summary>
@@ -253,7 +138,6 @@ public static class MaterialMapChecks
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         CheckLoadedGltf(Check);
-        CheckOpenGl(Check);
         CheckDynamicTextures(Check);
 
         // Both roots: `dotnet run` leaves the working directory at the repository, while the built output

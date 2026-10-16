@@ -27,23 +27,6 @@
     <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>
 
-  <!-- See Mana.csproj. Remove this exclusion as each legacy implementation is
-       detached from ManaContext and becomes owned by this assembly. -->
-  <ItemGroup>
-    <Compile Remove="Code\Graphics\OpenGL\Legacy\**\*.cs" />
-  </ItemGroup>
-
-  <!-- Browser target is WebGPU-only; OpenGL has no browser-wasm
-       backend and isn't needed there. Unlike Mana.csproj (whose BaseGameMode.cs calls
-       ManaGameModeGraphicsBridge directly and so re-includes it via a Link for browser),
-       nothing inside ManaGraphics itself references that dispatcher outside this same
-       excluded OpenGL/Legacy folder, so no re-include is needed here: the unconditional
-       exclusion above already covers it correctly for both desktop and browser. A
-       browser-only re-include used to sit here too (copied from Mana.csproj's fix without
-       checking whether ManaGraphics needed the same treatment) and broke standalone
-       `dotnet build ManaGraphics.csproj -r browser-wasm`; the file needs Mana.Code.*
-       types (ManaContext, ManaSceneNode, ManaMaterial, ManaTexture) that only Mana.csproj
-       can see; ManaGraphics has no reference to Mana.csproj (that would be circular). -->
 
   <ItemGroup>
     <PackageReference Include="Silk.NET.WebGPU" Version="2.23.0" />
@@ -52,12 +35,6 @@
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <!-- Pure managed bindings, no native runtime asset at all (GL functions are loaded via a
-         GetProcAddress delegate supplied at runtime, e.g. from a live GLFW/GL context); unlike
-         GLFW/Assimp/wgpu-native below, nothing here stops it compiling for
-         browser-wasm, even though the actual OpenGL backend files (excluded below) never run
-         there. Verified via the package's own lack of a runtimes/ folder. -->
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.23.0" />
   </ItemGroup>
 
   <!-- Desktop-only native backends: no browser-wasm runtime asset exists for these.
@@ -73,9 +50,6 @@
   <ItemGroup>
     <!-- Recursive: include/ holds the shared uniform declarations pulled in via #include. -->
     <Content Include="Assets\Shaders\WebGpu\**\*.wgsl">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Shaders\OpenGL\*.glsl">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="..\Mana\Assets\Models\FlightHelmet\glTF\**\*">

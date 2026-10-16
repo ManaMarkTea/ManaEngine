@@ -1,8 +1,5 @@
 using Mana.Code.Animation;
 using Mana.Code.Nodes;
-#if !MANA_BROWSER
-using Mana.Code.Graphics;
-#endif
 using Mana.Code.ManaShaders;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
@@ -301,16 +298,6 @@ namespace Mana.Code.Shapes.Loaders
             };
 
             output.SetCpuData(meshData);
-#if !MANA_BROWSER
-            if (Context.OpenGl != null && !Context.DeferGpuUploads)
-            {
-                var gpuMesh = Context.RequireOpenGlDevice().CreateMesh(Context, meshData);
-                if (gpuMesh is ManaOpenGlMesh openGlMesh)
-                {
-                    output.VertexBufferObject = openGlMesh.VertexBufferObject;
-                }
-            }
-#endif
 
             if (bakeMaterialColors && firstMaterial != null)
             {
@@ -518,10 +505,6 @@ namespace Mana.Code.Shapes.Loaders
                 : image.Name ?? string.Empty;
 
             texture.PixelStream = new System.IO.MemoryStream(bytes, writable: false);
-            if (Context.OpenGl != null && !texture.IsLoaded)
-            {
-                texture.Load();
-            }
 
             return texture;
         }

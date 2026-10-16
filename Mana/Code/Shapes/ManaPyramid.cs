@@ -53,12 +53,6 @@ namespace Mana
 
             DynamicGeometryContainer.AddQuad(Vector3.Zero, CubeSize, rotations[5], scaleRotations[5], this.DefaultVertexColor);
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
-            if (Context.OpenGl != null)
-            {
-#if !MANA_BROWSER
-                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
-#endif
-            }
         }
 
     }

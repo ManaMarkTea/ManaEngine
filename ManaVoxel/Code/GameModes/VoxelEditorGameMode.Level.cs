@@ -573,7 +573,7 @@ namespace Mana.Code.GameModes
                 startInfo.ArgumentList.Add("--play");
                 startInfo.ArgumentList.Add(scratchPath);
                 startInfo.ArgumentList.Add("--graphics");
-                startInfo.ArgumentList.Add(GraphicsBackend == ManaGraphicsBackendKind.WebGpu ? "webgpu" : "opengl");
+                startInfo.ArgumentList.Add("webgpu");
 
                 if (!string.IsNullOrWhiteSpace(_requestedWebGpuBackend))
                 {

@@ -9,8 +9,7 @@ using ManaCore.Imaging;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// The environment shown as a background, behind every mesh -- WebGPU's counterpart to what
-    /// ManaIrradianceRenderer.RenderEnvironmentBackground already does on OpenGL.
+    /// The environment shown as a background, behind every mesh.
     /// <para>
     /// Standalone rather than another slice of <see cref="ManaWebGpuContext"/>, the same shape as
     /// <see cref="ManaWebGpuUiBackdrop"/>: everything it touches (api/device/queue/depth format, and a
@@ -141,7 +140,7 @@ namespace ManaGraphics.Code.Graphics
 
         private void UpdateUniform(int slot, ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
         {
-            // Same trick ManaIrradianceRenderer.RenderEnvironmentBackground uses on OpenGL: the view's
+            // The view's
             // translation is zeroed before combining with the projection, so unprojecting a screen position
             // through the inverse yields a direction straight away rather than a point that would still
             // need the camera's position subtracted back out of it.

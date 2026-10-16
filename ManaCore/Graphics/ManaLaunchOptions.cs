@@ -122,7 +122,7 @@ namespace ManaCore.Graphics
             return value.Trim().ToLowerInvariant() switch
             {
                 "webgpu" or "wgpu" => ManaGraphicsBackendKind.WebGpu,
-                "opengl" or "gl" => ManaGraphicsBackendKind.OpenGL,
+                "opengl" or "gl" => throw new ArgumentException("OpenGL support has been removed. Use WebGPU (--graphics webgpu)."),
                 _ => ManaGraphicsBackendKind.WebGpu
             };
         }

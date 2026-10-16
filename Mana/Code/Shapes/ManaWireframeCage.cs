@@ -47,12 +47,6 @@ namespace Mana
             DynamicGeometryContainer.AddCube(new Vector3(c.X, c.Y, 0), new Vector3(t, t, c.Z * 2), DefaultVertexColor);
 
             SetCpuData(DynamicGeometryContainer.CreateCpuData());
-            if (Context?.OpenGl != null)
-            {
-#if !MANA_BROWSER
-                VertexBufferObject = DynamicGeometryContainer.CreateVertexBufferObject(Context);
-#endif
-            }
         }
     }
 }

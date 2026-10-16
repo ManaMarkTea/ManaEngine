@@ -96,12 +96,10 @@
         "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
         "-c",
         "${input:configuration}",
-        "--",
-        "--graphics",
-        "${input:backend}"
+        "--"
       ],
       "problemMatcher": "$msCompile",
-      "detail": "Builds and runs the desktop app. Choose WebGPU or OpenGL."
+      "detail": "Builds and runs the desktop app with WebGPU."
     },
     {
       "label": "Deploy: ManaLidar to iPhone",
@@ -431,16 +429,6 @@
         "Release"
       ],
       "default": "Debug"
-    },
-    {
-      "id": "backend",
-      "type": "pickString",
-      "description": "Graphics backend",
-      "options": [
-        "webgpu",
-        "opengl"
-      ],
-      "default": "webgpu"
     },
     {
       "id": "appBundle",

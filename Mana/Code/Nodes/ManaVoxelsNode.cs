@@ -1,7 +1,6 @@
 using BepuPhysics;
 using Mana.Code.Components;
 using Mana.Code.Shapes;
-using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -148,12 +147,6 @@ namespace Mana.Code.Nodes
             ManaVoxelShape.ConfigureVoxelPbrMaterial(Context, sharedMaterial);
             bakedMesh.Materials = new ManaMaterial[] { sharedMaterial };
             bakedMesh.SetCpuData(geom.CreateCpuData());
-            if (Context.OpenGl != null)
-            {
-#if !MANA_BROWSER
-                bakedMesh.VertexBufferObject = geom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
-#endif
-            }
 
             // Add updater (runs first) then renderer — order matters
             _bakedMeshUpdater = new BakedVoxelsMeshUpdater(this, _bakedBodies, bakedMesh);
@@ -422,12 +415,6 @@ namespace Mana.Code.Nodes
             previewMaterial.Occlusion.Value = 1.0f;
             previewMesh.Materials = new[] { previewMaterial };
             previewMesh.SetCpuData(previewGeom.CreateCpuData());
-            if (Context.OpenGl != null)
-            {
-#if !MANA_BROWSER
-                previewMesh.VertexBufferObject = previewGeom.CreateVertexBufferObject(Context, BufferUsageARB.DynamicDraw);
-#endif
-            }
 
             _lockPreviewMeshUpdater = new LockPreviewMeshUpdater(this, _bakedBodies, previewMesh);
             Components.Add(_lockPreviewMeshUpdater);
@@ -624,7 +611,6 @@ namespace Mana.Code.Nodes
                     AlbedoFactor = currentData.AlbedoFactor
                 });
 
-                _mesh.ImmediateGpuMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void UpdateBodyGeometry(ManaPhysics physics, int bodyIndex)
@@ -795,7 +781,6 @@ namespace Mana.Code.Nodes
                     AlbedoFactor = currentData.AlbedoFactor
                 });
 
-                _mesh.ImmediateGpuMesh?.UpdateDynamicData(_positions, _normals, _colors);
             }
 
             private void WritePreviewCube(int voxelIndex, ManaVoxelData voxel)
