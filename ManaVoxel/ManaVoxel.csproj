@@ -40,6 +40,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Source-only fallback for the code screensaver when no checkout is present. -->
+    <EmbeddedResource Include="..\Mana\Code\Components\*.cs;..\ManaUI\Code\Controls\*.cs;..\ManaGraphics\Assets\Shaders\WebGpu\*.wgsl">
+      <LogicalName>TerminalSource/%(Identity)</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
     <PackageReference Include="Silk.NET.Input" Version="2.23.0" />

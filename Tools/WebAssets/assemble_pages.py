@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 from pathlib import Path
+from publish_screensaver import publish as publish_screensaver
 
 
 def assemble(bundle: Path, output: Path, build: str):
@@ -27,6 +28,7 @@ def assemble(bundle: Path, output: Path, build: str):
             encoding="utf-8",
         )
     shutil.copyfile(Path(__file__).with_name("pages-index.html"), output / "index.html")
+    publish_screensaver(Path(__file__).resolve().parents[2], output / "code-screensaver")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#050a0e">
+  <meta name="description" content="A quiet wall of working terminals, scrolling real code from ManaRenderer.">
+  <title>Code Screensaver · ManaRenderer</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #050a0e; color: #b9cbd1; font: 12px ui-monospace, Consolas, monospace; }
+    canvas { display: block; width: 100%; height: 100%; }
+    nav { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; padding: 7px; border: 1px solid #28414b; border-radius: 9px; background: #0b151ef2; transition: opacity .5s; white-space: nowrap; }
+    body.idle nav { opacity: 0; pointer-events: none; }
+    body.idle nav:focus-within { opacity: 1; pointer-events: auto; }
+    button, a { font: inherit; color: #b9cbd1; background: transparent; border: 0; border-radius: 4px; padding: 9px 12px; cursor: pointer; text-decoration: none; }
+    button:hover, a:hover { background: #21363e; color: #80e5a1; }
+    #sound { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); background: #0b151ee8; border: 1px solid #28414b; color: #80dfa0; }
+    :focus-visible { outline: 2px solid #80e5a1; outline-offset: 2px; }
+    #status { position: fixed; top: 50%; width: 100%; text-align: center; color: #80e5a1; }
+    .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    @media (prefers-reduced-motion: reduce) { nav { transition: none; } }
+    @media (max-width: 480px) { button, a { padding: 9px 7px; } }
+  </style>
+</head>
+<body>
+  <h1 class="sr">ManaRenderer Code Screensaver</h1>
+  <canvas aria-label="Animated terminal windows scrolling real ManaRenderer source code"></canvas>
+  <p id="status" role="status">Opening sessions…</p>
+  <button id="sound" aria-pressed="false" title="Toggle soft typing sounds (M)">Sound off</button>
+  <nav aria-label="Screensaver controls">
+    <button id="pause" aria-pressed="false" title="Pause or resume (P)">Pause</button>
+    <button id="fullscreen" title="Toggle full screen (F)">Full screen</button>
+    <a href="https://github.com/ManaMarkTea/ManaRenderer" target="_blank" rel="noopener noreferrer" title="View the source repository">Source ↗</a>
+  </nav>
+  <script type="module" src="screensaver.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Code Screensaver",
+  "camera": { "position": [64, 40, 100], "rotation": [-0.3, 0, 0] },
+  "gameModes": [
+    { "id": "77f46c6d76ba4b20a8c51bf6da9fa283", "type": "CodeScreensaver", "properties": { "columns": 4, "scrollSpeed": 2.4, "seed": 0, "keyboardVolume": 0.16 } }
+  ],
+  "nodes": []
+}

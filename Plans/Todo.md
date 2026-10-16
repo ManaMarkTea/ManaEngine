@@ -1,3 +1,7 @@
+[x] - Code Screensaver: dense, drifting terminal windows scroll random real repository source, with soft typing.
+    Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
+    Standalone Pages route: /code-screensaver/ (Tools/WebAssets/screensaver), with a right-side sound toggle.
+
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);
     it reads fine at night there, so I can't tell which sprite looks wrong. Tell me one (a level and a sprite) and I'll
