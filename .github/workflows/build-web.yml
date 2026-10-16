@@ -6,6 +6,11 @@ on:
   schedule:
     - cron: "17 10 * * *"
   workflow_dispatch:
+    inputs:
+      pages_only:
+        description: "Deploy GitHub Pages without uploading the editor to itch.io"
+        type: boolean
+        default: false
 
 # One deploy at a time; a manual run can supersede the daily deployment.
 concurrency:
@@ -148,7 +153,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
       - name: Upload web editor to itch.io
-        if: github.repository == 'ManaMarkTea/ManaRenderer'
+        if: github.repository == 'ManaMarkTea/ManaRenderer' && inputs.pages_only != true
         # Pages is already live; an itch.io API timeout shouldn't fail the run (the next push re-uploads).
         continue-on-error: true
         # Pin the action source to the reviewed v0.0.3 commit; this step receives the Butler secret.
