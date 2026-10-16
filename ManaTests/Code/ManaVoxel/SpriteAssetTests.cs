@@ -70,7 +70,7 @@ public static class SpriteAssetChecks
         check("a loose picture is a sprite when it sits in a Sprites folder",
             MeshAssetLibrary.IsSpritePicture("Game/Sprites/hero.png", false, looseFile: true) && !MeshAssetLibrary.IsSpritePicture("Textures/wood.png", false, looseFile: true));
         check("a pack picture is stored by the pack's name and its path inside",
-            MeshAssetLibrary.SpritePicture(MeshAssetLibrary.EncodeReadableZip("kenney_new-platformer-pack-1.1.zip", "Sprites/Tiles/Default/coin_gold.png"))
+            MeshAssetLibrary.SpritePicture(ZipAssetReferences.EncodeReadableZip("kenney_new-platformer-pack-1.1.zip", "Sprites/Tiles/Default/coin_gold.png"))
                 == Tiles + "coin_gold.png");
 
         // A sheet or slice naming a picture that is not there draws nothing at all, so every one in Content is checked.

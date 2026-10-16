@@ -170,7 +170,7 @@ public static class MeshAssetLibraryChecks
         var zipRef = MeshAssetLibrary.EncodeZip(zipPath, "models/ship.glb");
 
         Check("an archive entry round-trips",
-            MeshAssetLibrary.TryDecodeZip(zipRef, out var zip, out var entry)
+            ZipAssetReferences.TryDecodeZip(zipRef, out var zip, out var entry)
                 && zip == zipPath && entry == "models/ship.glb",
             zipRef);
 
@@ -194,7 +194,7 @@ public static class MeshAssetLibraryChecks
             "Models" + Path.DirectorySeparatorChar + "GLB format" + Path.DirectorySeparatorChar + "train-diesel-a.glb");
 
         Check("a Windows path with a drive letter survives",
-            MeshAssetLibrary.TryDecodeZip(windowsRef, out var winZip, out var winEntry)
+            ZipAssetReferences.TryDecodeZip(windowsRef, out var winZip, out var winEntry)
                 && winZip.EndsWith("kenney_train-kit.zip", StringComparison.Ordinal)
                 && winEntry.EndsWith("train-diesel-a.glb", StringComparison.Ordinal)
                 && !winEntry.Contains('\\'),
@@ -228,7 +228,7 @@ public static class MeshAssetLibraryChecks
             MeshAssetLibrary.Tooltip(genericChair));
 
         Check("a plain path is not mistaken for one",
-            !MeshAssetLibrary.TryDecodeZip("/w/Assets/ship.glb", out _, out _));
+            !ZipAssetReferences.TryDecodeZip("/w/Assets/ship.glb", out _, out _));
 
     }
 }

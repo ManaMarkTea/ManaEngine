@@ -8,7 +8,7 @@ using System.Text;
 
 namespace ManaVoxel.Code.Services
 {
-    public partial class VoxelFileImportService
+    public class VoxelFileImportService
     {
         private const string ZipAssetPrefix = "zipasset:";
         private readonly Vector3 _startImportPos = new Vector3(30.0f, 0, 20);
@@ -99,7 +99,7 @@ namespace ManaVoxel.Code.Services
             using var entryStream = entry.Open();
             using var memory = new MemoryStream();
             entryStream.CopyTo(memory);
-            var sidecarResolver = CreateZipSidecarResolver(archive, entryPath);
+            var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
 
             // No temp extraction: the scene file is imported directly from the zip entry's bytes.
             var model = world.LoadFromGltfMemory(

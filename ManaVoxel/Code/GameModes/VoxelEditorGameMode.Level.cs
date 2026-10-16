@@ -506,7 +506,7 @@ namespace Mana.Code.GameModes
             }
 
             CancelMeshPickerPlacementPreview();
-            HideGameModePreviews();
+            gameModePreviews.Hide(Context);
             if (!_playMode.Start())
             {
                 _viewModel.Levels.SetStatus(_playMode.LastError ?? "Could not start play mode.");
@@ -527,7 +527,7 @@ namespace Mana.Code.GameModes
             }
 
             CancelMeshPickerPlacementPreview();
-            HideGameModePreviews();
+            gameModePreviews.Hide(Context);
             if (!_playMode.Start(_playMode.GetPlayFromCameraPosition()))
             {
                 _viewModel.Levels.SetStatus(_playMode.LastError ?? "Could not start play mode.");

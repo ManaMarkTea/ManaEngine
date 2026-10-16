@@ -27,6 +27,7 @@ namespace Mana.Code.GameModes
 {
     public partial class VoxelEditorGameMode : BaseGameMode
     {
+        private readonly GameModePreviewController gameModePreviews = new();
         private const string ManaWindowTitle = "Mana";
         // The demo grid room's full width/depth -- see the matching comment where the room is built for
         // why this can't just change there alone.
@@ -519,7 +520,7 @@ namespace Mana.Code.GameModes
                 _playMode?.Tick((float)deltaTime);
             }
 
-            SyncGameModePreviews();
+            gameModePreviews.Sync(Context, !IsMatchRunning && !IsLoading && !_openingLevel);
             PumpMeshThumbnails();
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();

@@ -2,12 +2,8 @@ using System.IO.Compression;
 
 namespace ManaVoxel.Code.Services
 {
-    // Reading a glTF's sibling textures back out of the zip it was imported from. Split into its
-    // own partial so the browser build can compile just this half: the rest of
-    // VoxelFileImportService is editor-facing (VoxelEditorViewModel, ManaVoxel.Code.UI) and has no
-    // browser-wasm build, but level loading needs exactly this resolver to bring in zipped meshes.
-    // Pure managed -- ZipArchive plus string handling, no native or UI dependencies.
-    public partial class VoxelFileImportService
+    // Resolves a model's sibling assets without extracting the archive.
+    public static class ZipModelSidecars
     {
         public static Func<string, byte[]?> CreateZipSidecarResolver(ZipArchive archive, string modelEntryPath)
         {

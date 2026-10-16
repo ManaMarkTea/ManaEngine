@@ -3,47 +3,46 @@ using ManaCore.Diagnostics;
 namespace Mana.Code.GameModes
 {
     // Level game modes' editor previews: what play would build, shown while the level is open and not playing.
-    public partial class VoxelEditorGameMode
+    internal sealed class GameModePreviewController
     {
         private readonly HashSet<ManaLevelGameMode> _previewed = new();
 
-        private void SyncGameModePreviews()
+        public void Sync(ManaContext context, bool showing)
         {
-            var showing = !IsMatchRunning && !IsLoading && !_openingLevel;
             List<ManaLevelGameMode> modes;
-            lock (Context.World.SceneLock)
+            lock (context.World.SceneLock)
             {
-                modes = Context.World.Scenes.SelectMany(scene => scene.GameModes).ToList();
+                modes = context.World.Scenes.SelectMany(scene => scene.GameModes).ToList();
             }
 
             // A mode taken off its level (or the level closed) takes its preview with it.
             foreach (var gone in _previewed.Where(mode => !modes.Contains(mode)).ToList())
             {
-                Preview(gone, false);
+                Preview(context, gone, false);
                 _previewed.Remove(gone);
             }
 
             foreach (var mode in modes)
             {
-                Preview(mode, showing);
+                Preview(context, mode, showing);
                 _previewed.Add(mode);
             }
         }
 
         // Down before play starts, so the match never shares the board with its own preview.
-        private void HideGameModePreviews()
+        public void Hide(ManaContext context)
         {
             foreach (var mode in _previewed)
             {
-                Preview(mode, false);
+                Preview(context, mode, false);
             }
         }
 
-        private void Preview(ManaLevelGameMode mode, bool visible)
+        private static void Preview(ManaContext context, ManaLevelGameMode mode, bool visible)
         {
             try
             {
-                mode.EditorPreview(Context, visible);
+                mode.EditorPreview(context, visible);
             }
             catch (Exception exception)
             {

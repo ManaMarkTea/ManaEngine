@@ -10,8 +10,10 @@ namespace Mana.Code.Nodes
     // Extends ManaSkeletalActorNode rather than wrapping one so the pose/propagate/skin ordering is
     // inherited as-is; movement is applied before that whole chain, which is why UpdateTransform is
     // overridden here instead of this being a component.
-    public partial class ManaPawnNode : ManaSkeletalActorNode
+    public class ManaPawnNode : ManaSkeletalActorNode
     {
+        private readonly ManaPawnAudio movementAudio;
+
         private const float DirectionEpsilon = 1e-6f;
 
         private Vector3? destination;
@@ -25,6 +27,7 @@ namespace Mana.Code.Nodes
         public ManaPawnNode(ManaContext context, Matrix4x4 localTransform) : base(context, localTransform)
         {
             Name = "Pawn";
+            movementAudio = new ManaPawnAudio(this);
         }
 
         // Clip names are looked up on the animation component, so a rig using different names just
@@ -409,7 +412,7 @@ namespace Mana.Code.Nodes
 
             // Base handles the skeletal chain: pose bones, propagate world transforms, skin.
             base.UpdateTransform();
-            UpdateMovementAudio(deltaSeconds);
+            movementAudio.UpdateMovementAudio(deltaSeconds);
         }
 
         private void StepLocomotion(float deltaSeconds)
@@ -690,7 +693,7 @@ namespace Mana.Code.Nodes
             if (grounded && !wasGrounded)
             {
                 JumpsUsed = 0;
-                EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Land);
+                movementAudio.EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Land);
             }
 
             coyoteTimer = grounded ? CoyoteTimeSeconds : MathF.Max(coyoteTimer - deltaSeconds, 0.0f);
@@ -758,7 +761,7 @@ namespace Mana.Code.Nodes
                 var runShare = Math.Clamp(horizontal.Length() / MathF.Max(RunSpeed * SpeedScale, 0.01f), 0.0f, 1.0f);
                 velocity.Y = JumpVelocityFor(JumpHeight * (1.0f + MathF.Max(RunJumpBonus, 0.0f) * runShare));
                 inJumpArc = true;
-                EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Jump);
+                movementAudio.EmitPlayerSound(ManaCore.Audio.ManaSoundCue.Jump);
                 JumpsUsed = canGroundJump ? 1 : JumpsUsed + 1;
                 jumpBufferTimer = 0.0f;
                 coyoteTimer = 0.0f;

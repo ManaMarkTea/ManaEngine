@@ -857,7 +857,7 @@ namespace ManaVoxel.Code.GridMaps
         public static string TileName(string asset)
         {
             asset = AssetOf(asset);
-            var path = MeshAssetLibrary.TryDecodeZip(asset, out _, out var entry) ? entry : asset;
+            var path = ZipAssetReferences.TryDecodeZip(asset, out _, out var entry) ? entry : asset;
             return Path.GetFileNameWithoutExtension(path.Replace('\\', '/'));
         }
 

@@ -9,7 +9,7 @@ namespace Mana
     // Pure-managed (SharpGLTF) glTF/GLB import, used on every platform. The old Assimp path
     // also read OBJ/FBX/DAE/STL/PLY, but no shipped content uses those formats and carrying a
     // native dependency for them was not worthwhile. Assimp is no longer referenced anywhere.
-    public partial class ManaWorld
+    internal sealed class ManaWorldModelImporter(ManaWorld world, List<ManaPerformanceLog> performanceLogs)
     {
         /// <param name="sceneFile">Path to the glTF or GLB model to load.</param>
         /// <param name="skeletalActorFactory">Optional factory for skeletal actor nodes; null uses the default actor type.</param>
@@ -25,11 +25,11 @@ namespace Mana
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            ManaSharpGltfLoader loader = new ManaSharpGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
+            ManaSharpGltfLoader loader = new ManaSharpGltfLoader(world.Context) { SkeletalActorFactory = skeletalActorFactory };
             var rootSceneNode = loader.LoadFile(sceneFile);
 
             stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
+            performanceLogs.Add(new ManaPerformanceLog() { Name = $"Loading {sceneFile}", Duration = stopwatch.Elapsed });
 
             Adopt(loader, into);
 
@@ -45,11 +45,11 @@ namespace Mana
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
 
-            ManaSharpGltfLoader loader = new ManaSharpGltfLoader(Context) { SkeletalActorFactory = skeletalActorFactory };
+            ManaSharpGltfLoader loader = new ManaSharpGltfLoader(world.Context) { SkeletalActorFactory = skeletalActorFactory };
             var rootSceneNode = loader.LoadFileFromMemory(sceneBytes.Span, virtualFileName, externalAssetResolver);
 
             stopwatch.Stop();
-            manaPerformanceLogs.Add(new ManaPerformanceLog()
+            performanceLogs.Add(new ManaPerformanceLog()
             {
                 Name = $"Loading {virtualFileName} (memory)",
                 Duration = stopwatch.Elapsed
@@ -65,17 +65,17 @@ namespace Mana
             if (into == null)
             {
                 // Under the scene lock: levels load on a background thread while the render thread walks
-                // Scenes, and an unguarded AddRange there is "collection was modified" on a big enough level.
-                lock (SceneLock)
+                // world.Scenes, and an unguarded AddRange there is "collection was modified" on a big enough level.
+                lock (world.SceneLock)
                 {
-                    Scenes.AddRange(loader.Scenes);
+                    world.Scenes.AddRange(loader.Scenes);
                 }
             }
             else
             {
                 // The loader wraps what it read in a scene of its own. The caller wanted it in this one, so the
                 // nodes move across and the wrapper is simply never added to the world.
-                lock (SceneLock)
+                lock (world.SceneLock)
                 {
                     foreach (var wrapper in loader.Scenes)
                     {
@@ -85,8 +85,8 @@ namespace Mana
                 }
             }
 
-            Meshes.AddRange(loader.Meshes);
-            Materials.AddRange(loader.Materials);
+            world.Meshes.AddRange(loader.Meshes);
+            world.Materials.AddRange(loader.Materials);
         }
     }
 }

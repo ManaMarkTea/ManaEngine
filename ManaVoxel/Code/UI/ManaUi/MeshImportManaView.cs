@@ -1085,7 +1085,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return;
             }
             var path = _entry.PrimaryPath;
-            var isZip = MeshAssetLibrary.TryDecodeZip(path, out var zipPath, out var entryPath);
+            var isZip = ZipAssetReferences.TryDecodeZip(path, out var zipPath, out var entryPath);
 
             var items = new List<MenuItem>
             {

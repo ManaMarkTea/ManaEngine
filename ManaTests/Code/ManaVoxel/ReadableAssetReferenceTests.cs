@@ -37,10 +37,10 @@ public static class ReadableAssetReferenceChecks
             Environment.CurrentDirectory = originalDirectory;
         }
 
-        var readable = MeshAssetLibrary.EncodeReadableZip(Pack, Entry);
+        var readable = ZipAssetReferences.EncodeReadableZip(Pack, Entry);
         Check("a reference reads as the pack and the model", readable == "zip:" + Pack + "/" + Entry, readable);
 
-        var hasPack = MeshAssetLibrary.TryDecodeZip(readable, out var zipPath, out var entryPath) && File.Exists(zipPath);
+        var hasPack = ZipAssetReferences.TryDecodeZip(readable, out var zipPath, out var entryPath) && File.Exists(zipPath);
         Check("it decodes to the model's entry", entryPath == Entry, entryPath);
 
         if (hasPack)
@@ -50,27 +50,27 @@ public static class ReadableAssetReferenceChecks
             // A level saved when the packs lived elsewhere: the folder it names is wrong, the file name is not.
             var moved = "zip:Some/Old/Folder/" + Pack + "/" + Entry;
             Check("a pack that has moved folders is still found, by its name",
-                MeshAssetLibrary.TryDecodeZip(moved, out var movedZip, out _) && File.Exists(movedZip)
+                ZipAssetReferences.TryDecodeZip(moved, out var movedZip, out _) && File.Exists(movedZip)
                 && Path.GetFileName(movedZip).Equals(Pack, StringComparison.OrdinalIgnoreCase),
                 movedZip);
 
             Check("and the reference is matched without regard to case",
-                MeshAssetLibrary.TryDecodeZip("ZIP:" + Pack.ToUpperInvariant() + "/" + Entry, out var shouted, out _) && File.Exists(shouted),
+                ZipAssetReferences.TryDecodeZip("ZIP:" + Pack.ToUpperInvariant() + "/" + Entry, out var shouted, out _) && File.Exists(shouted),
                 shouted);
 
             var oldStyle = MeshAssetLibrary.EncodeRelativeZip("Assets/" + Pack, Entry);
             Check("an old encoded reference is rewritten in the readable form",
-                MeshAssetLibrary.ToReadableReference(oldStyle) == readable, MeshAssetLibrary.ToReadableReference(oldStyle));
+                ZipAssetReferences.ToReadableReference(oldStyle) == readable, ZipAssetReferences.ToReadableReference(oldStyle));
 
             using var archive = ZipFile.OpenRead(zipPath);
-            Check("and the model is really in the pack", MeshAssetLibrary.FindZipEntry(archive, entryPath) != null);
+            Check("and the model is really in the pack", ZipAssetReferences.FindZipEntry(archive, entryPath) != null);
         }
 
-        Check("a reference already readable is left alone", MeshAssetLibrary.ToReadableReference(readable) == readable);
-        Check("as is a plain path", MeshAssetLibrary.ToReadableReference("Mana/Assets/Models/x.gltf") == "Mana/Assets/Models/x.gltf");
+        Check("a reference already readable is left alone", ZipAssetReferences.ToReadableReference(readable) == readable);
+        Check("as is a plain path", ZipAssetReferences.ToReadableReference("Mana/Assets/Models/x.gltf") == "Mana/Assets/Models/x.gltf");
         var elsewhere = MeshAssetLibrary.EncodeZip(Path.Combine(Path.GetTempPath(), "somewhere-else", "mine.zip"), "a/b.glb");
         Check("a zip outside every Assets folder keeps the encoded form that carries its full path",
-            MeshAssetLibrary.ToReadableReference(elsewhere) == elsewhere);
+            ZipAssetReferences.ToReadableReference(elsewhere) == elsewhere);
 
         // ---------------------------------------------------------------- entries inside a pack
         using var stream = new MemoryStream();
@@ -85,15 +85,15 @@ public static class ReadableAssetReferenceChecks
 
         stream.Position = 0;
         using var pack = new ZipArchive(stream, ZipArchiveMode.Read);
-        Check("an entry is found by the exact path", MeshAssetLibrary.FindZipEntry(pack, "Models/GLB format/tree.glb")?.FullName == "Models/GLB format/tree.glb");
-        Check("or with backslashes", MeshAssetLibrary.FindZipEntry(pack, "Models\\GLB format\\tree.glb")?.FullName == "Models/GLB format/tree.glb");
+        Check("an entry is found by the exact path", ZipAssetReferences.FindZipEntry(pack, "Models/GLB format/tree.glb")?.FullName == "Models/GLB format/tree.glb");
+        Check("or with backslashes", ZipAssetReferences.FindZipEntry(pack, "Models\\GLB format\\tree.glb")?.FullName == "Models/GLB format/tree.glb");
         Check("or, when it has moved within the pack, by its name",
-            MeshAssetLibrary.FindZipEntry(pack, "Old Folder/tree.glb")?.Name == "tree.glb");
+            ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.Name == "tree.glb");
         Check("preferring the GLB format copy when there are several",
-            MeshAssetLibrary.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName == "Models/GLB format/tree.glb",
-            MeshAssetLibrary.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName);
-        Check("regardless of case", MeshAssetLibrary.FindZipEntry(pack, "elsewhere/CONE.GLB")?.FullName == "Other/Cone.glb");
-        Check("and a model that is not there is not there", MeshAssetLibrary.FindZipEntry(pack, "Models/GLB format/nothing.glb") == null);
+            ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName == "Models/GLB format/tree.glb",
+            ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName);
+        Check("regardless of case", ZipAssetReferences.FindZipEntry(pack, "elsewhere/CONE.GLB")?.FullName == "Other/Cone.glb");
+        Check("and a model that is not there is not there", ZipAssetReferences.FindZipEntry(pack, "Models/GLB format/nothing.glb") == null);
 
         // ---------------------------------------------------------------- saving a level
         var world = new ManaWorld();
@@ -161,7 +161,7 @@ public static class ReadableAssetReferenceChecks
             var level = ManaLevel.Load(file);
             foreach (var node in Walk(level.Nodes))
             {
-                if (node.Asset == null || !MeshAssetLibrary.TryDecodeZip(node.Asset, out var zip, out var entry))
+                if (node.Asset == null || !ZipAssetReferences.TryDecodeZip(node.Asset, out var zip, out var entry))
                 {
                     continue;
                 }
@@ -174,7 +174,7 @@ public static class ReadableAssetReferenceChecks
                 }
 
                 using var levelArchive = ZipFile.OpenRead(zip);
-                if (MeshAssetLibrary.FindZipEntry(levelArchive, entry) == null)
+                if (ZipAssetReferences.FindZipEntry(levelArchive, entry) == null)
                 {
                     missing.Add($"{Path.GetFileName(file)}: {node.Name} -> {entry} not in {Path.GetFileName(zip)}");
                 }

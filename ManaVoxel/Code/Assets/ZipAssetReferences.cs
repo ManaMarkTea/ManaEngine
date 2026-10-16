@@ -3,13 +3,38 @@ using System.Text;
 
 namespace ManaVoxel.Code.Assets
 {
-    // Encoding/decoding the "zipasset:" and "zipasset-rel:" references a level stores for a mesh
-    // that lives inside a zip. Split into its own partial so the browser build can compile just
-    // this half: the rest of MeshAssetLibrary is an editor concern (directory scanning,
-    // FileSystemWatcher, thumbnail siblings) with no browser-wasm story, while level loading needs
-    // only this decoding. Pure string/base64/path work.
-    public sealed partial class MeshAssetLibrary
+    // Portable references to models inside asset packs, shared by level loading and the editor.
+    public static class ZipAssetReferences
     {
+        /// <summary>
+        /// A reference to a mesh inside an archive.
+        /// <para>
+        /// Both halves are base64 rather than written plainly, because a Windows path contains a colon and
+        /// an archive entry can contain very nearly anything -- there is no punctuation left to separate
+        /// them with. This is the format the importer decodes, and the two have to stay identical: a
+        /// reference it does not recognise is passed on as a filename, and the load fails on a path that is
+        /// not one.
+        /// </para>
+        /// </summary>
+        public static string EncodeZip(string zipPath, string entryPath)
+        {
+            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(zipPath)));
+            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
+            return $"{ZipAssetPrefix}{zip}:{entry}";
+        }
+
+        /// <summary>
+        /// A zip-packed mesh reference that stays valid when a built-in level is moved with the repo.
+        /// Runtime resolution tries the working directory and the executable's project roots.
+        /// </summary>
+        public static string EncodeRelativeZip(string zipPath, string entryPath)
+        {
+            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(zipPath.Replace('\\', '/')));
+            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
+            return $"{RelativeZipAssetPrefix}{zip}:{entry}";
+        }
+
+
         private const string ZipAssetPrefix = "zipasset:";
         private const string RelativeZipAssetPrefix = "zipasset-rel:";
 

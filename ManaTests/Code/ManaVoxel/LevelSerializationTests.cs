@@ -951,7 +951,7 @@ public static class LevelSerializationChecks
 
         var relativeZipAsset = MeshAssetLibrary.EncodeRelativeZip("Assets/pack.zip", "Models/train.glb");
         Check("a relative zip asset keeps its zip filename and entry",
-            MeshAssetLibrary.TryDecodeZip(relativeZipAsset, out var decodedZip, out var decodedEntry)
+            ZipAssetReferences.TryDecodeZip(relativeZipAsset, out var decodedZip, out var decodedEntry)
             && Path.GetFileName(decodedZip).Equals("pack.zip", StringComparison.OrdinalIgnoreCase)
             && decodedEntry == "Models/train.glb",
             $"{decodedZip} | {decodedEntry}");

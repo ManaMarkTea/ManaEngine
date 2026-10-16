@@ -194,8 +194,8 @@ namespace ManaVoxel.Code.Levels
                     }
 
                     // Written readably (and findable by name) whenever the zip is one of ours; see
-                    // MeshAssetLibrary.ToReadableReference.
-                    entry.Asset = MeshAssetLibrary.ToReadableReference(source.Asset);
+                    // ZipAssetReferences.ToReadableReference.
+                    entry.Asset = ZipAssetReferences.ToReadableReference(source.Asset);
                     var overrides = new Dictionary<int, ManaLevelMaterial>();
                     var meshIndex = 0;
                     foreach (var meshRenderer in ManaLevelMaterial.MeshRenderers(node))

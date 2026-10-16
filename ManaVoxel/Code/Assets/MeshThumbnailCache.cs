@@ -307,7 +307,7 @@ namespace ManaVoxel.Code.Assets
         }
 
         private static bool IsModelLocallyAvailable(string assetPath) =>
-            MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out _) ? File.Exists(zipPath) : File.Exists(assetPath);
+            ZipAssetReferences.TryDecodeZip(assetPath, out var zipPath, out _) ? File.Exists(zipPath) : File.Exists(assetPath);
 
         /// <summary>
         /// A pre-built preview staged by Tools/ThumbnailBaker, if the catalog has one for this exact model
@@ -370,7 +370,7 @@ namespace ManaVoxel.Code.Assets
             {
                 try
                 {
-                    var rootNode = MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
+                    var rootNode = ZipAssetReferences.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
                         ? LoadGpuPreviewFromZip(world, zipPath, entryPath)
                         : world.LoadFromGltf(assetPath);
 
@@ -406,7 +406,7 @@ namespace ManaVoxel.Code.Assets
             using var memory = new MemoryStream();
             entryStream.CopyTo(memory);
 
-            var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+            var resolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
             return world.LoadFromGltfMemory(memory.ToArray(), entryPath, resolver);
         }
 
@@ -477,7 +477,7 @@ namespace ManaVoxel.Code.Assets
             // CPU-only either way: this loads geometry and material colour, nothing else, so it touches no
             // graphics device and is safe away from the render thread. A full LoadFile would build materials
             // and upload buffers.
-            var cpuData = MeshAssetLibrary.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
+            var cpuData = ZipAssetReferences.TryDecodeZip(assetPath, out var zipPath, out var entryPath)
                 ? GenerateFromZipStandalone(context, zipPath, entryPath)
                 : GenerateFromFileStandalone(context, assetPath, externalAssetResolver);
 
@@ -647,7 +647,7 @@ namespace ManaVoxel.Code.Assets
             using var memory = new MemoryStream();
             entryStream.CopyTo(memory);
 
-            var resolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+            var resolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
             var loader = new ManaSharpGltfLoader(context);
             var root = loader.LoadFileFromMemory(memory.ToArray(), entryPath, resolver);
             return FlattenSharpGltfSceneToCpuMesh(root);

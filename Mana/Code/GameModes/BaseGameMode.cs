@@ -11,7 +11,7 @@ using ManaCore.Diagnostics;
 
 namespace Mana.Code
 {
-    public abstract partial class BaseGameMode
+    public abstract class BaseGameMode
     {
         public ManaLoadingCoordinator LoadingCoordinator { get; }
         public ManaLoadingViewModel Loading => LoadingCoordinator.Progress;

@@ -15,7 +15,7 @@ namespace ManaVoxel.Code.Assets
     /// the part worth testing. A view on top of this only has to render rows.
     /// </para>
     /// </summary>
-    public sealed partial class MeshAssetLibrary : IDisposable
+    public sealed class MeshAssetLibrary : IDisposable
     {
         /// <summary>
         /// Extensions worth scanning for. Used to cover whatever Assimp would open; narrowed to what
@@ -489,7 +489,7 @@ namespace ManaVoxel.Code.Assets
 
         private static string VariantGroupKey(string asset)
         {
-            if (TryDecodeZip(asset, out var zip, out var entry))
+            if (ZipAssetReferences.TryDecodeZip(asset, out var zip, out var entry))
             {
                 return $"{zip}|{PathWithoutExtension(entry.Replace('\\', '/'))}";
             }
@@ -551,12 +551,12 @@ namespace ManaVoxel.Code.Assets
 
         public static string FileName(string asset)
         {
-            return TryDecodeZip(asset, out _, out var entry) ? Path.GetFileName(entry) : Path.GetFileName(asset);
+            return ZipAssetReferences.TryDecodeZip(asset, out _, out var entry) ? Path.GetFileName(entry) : Path.GetFileName(asset);
         }
 
         public static string DisplayName(string asset)
         {
-            if (!TryDecodeZip(asset, out _, out var entry))
+            if (!ZipAssetReferences.TryDecodeZip(asset, out _, out var entry))
             {
                 return Path.GetFileName(asset);
             }
@@ -573,7 +573,7 @@ namespace ManaVoxel.Code.Assets
 
         public static string Extension(string asset)
         {
-            return TryDecodeZip(asset, out _, out var entry) ? Path.GetExtension(entry) : Path.GetExtension(asset);
+            return ZipAssetReferences.TryDecodeZip(asset, out _, out var entry) ? Path.GetExtension(entry) : Path.GetExtension(asset);
         }
 
         private static bool IsGenericArchiveFileName(string stem)
@@ -594,7 +594,7 @@ namespace ManaVoxel.Code.Assets
         /// <summary>The path as shown in the tree -- workspace relative, forward slashed, archives prefixed.</summary>
         public static string Label(string asset)
         {
-            if (TryDecodeZip(asset, out var zip, out var entry))
+            if (ZipAssetReferences.TryDecodeZip(asset, out var zip, out var entry))
             {
                 return $"zip/{Relative(zip)}/{entry.Replace('\\', '/')}";
             }
@@ -605,7 +605,7 @@ namespace ManaVoxel.Code.Assets
         /// <summary>The full path, for a tooltip. Which file a row means is not obvious from a relative label.</summary>
         public static string Tooltip(string asset)
         {
-            if (TryDecodeZip(asset, out var zip, out var entry))
+            if (ZipAssetReferences.TryDecodeZip(asset, out var zip, out var entry))
             {
                 return $"{zip}{Environment.NewLine}{entry.Replace('\\', '/')}";
             }
@@ -613,34 +613,11 @@ namespace ManaVoxel.Code.Assets
             return asset;
         }
 
-        /// <summary>
-        /// A reference to a mesh inside an archive.
-        /// <para>
-        /// Both halves are base64 rather than written plainly, because a Windows path contains a colon and
-        /// an archive entry can contain very nearly anything -- there is no punctuation left to separate
-        /// them with. This is the format the importer decodes, and the two have to stay identical: a
-        /// reference it does not recognise is passed on as a filename, and the load fails on a path that is
-        /// not one.
-        /// </para>
-        /// </summary>
         public static string EncodeZip(string zipPath, string entryPath)
-        {
-            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(Path.GetFullPath(zipPath)));
-            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
-            return $"{ZipAssetPrefix}{zip}:{entry}";
-        }
+            => ZipAssetReferences.EncodeZip(zipPath, entryPath);
 
-        /// <summary>
-        /// A zip-packed mesh reference that stays valid when a built-in level is moved with the repo.
-        /// Runtime resolution tries the working directory and the executable's project roots.
-        /// </summary>
         public static string EncodeRelativeZip(string zipPath, string entryPath)
-        {
-            var zip = Convert.ToBase64String(Encoding.UTF8.GetBytes(zipPath.Replace('\\', '/')));
-            var entry = Convert.ToBase64String(Encoding.UTF8.GetBytes(entryPath.Replace('\\', '/')));
-            return $"{RelativeZipAssetPrefix}{zip}:{entry}";
-        }
-
+            => ZipAssetReferences.EncodeRelativeZip(zipPath, entryPath);
 
         private static string Relative(string path)
         {
@@ -677,9 +654,9 @@ namespace ManaVoxel.Code.Assets
         /// </summary>
         public static string SpritePicture(string asset)
         {
-            if (TryDecodeZip(asset, out var zipPath, out var entryPath))
+            if (ZipAssetReferences.TryDecodeZip(asset, out var zipPath, out var entryPath))
             {
-                return EncodeReadableZip(Path.GetFileName(zipPath), entryPath);
+                return ZipAssetReferences.EncodeReadableZip(Path.GetFileName(zipPath), entryPath);
             }
             var project = Path.GetDirectoryName(Mana.Code.Content.ManaContentAssets.Root) ?? Environment.CurrentDirectory;
             var full = Path.GetFullPath(asset);

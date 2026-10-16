@@ -730,7 +730,7 @@ namespace ManaVoxel.Code.Levels
         {
             try
             {
-                var file = MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out _) ? zipPath : ResolveAssetPath(assetReference);
+                var file = ZipAssetReferences.TryDecodeZip(assetReference, out var zipPath, out _) ? zipPath : ResolveAssetPath(assetReference);
                 return File.Exists(file) ? $"{assetReference}|{File.GetLastWriteTimeUtc(file).Ticks}" : null;
             }
             catch (Exception)
@@ -781,17 +781,17 @@ namespace ManaVoxel.Code.Levels
 
         private static ManaSceneNode ReadMeshAsset(string assetReference, ManaWorld world, ManaScene? into)
         {
-            if (MeshAssetLibrary.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
+            if (ZipAssetReferences.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
             {
                 using var archive = ZipFile.OpenRead(zipPath);
-                var entry = MeshAssetLibrary.FindZipEntry(archive, entryPath)
+                var entry = ZipAssetReferences.FindZipEntry(archive, entryPath)
                     ?? throw new FileNotFoundException($"Entry '{entryPath}' is no longer inside '{zipPath}'.", zipPath);
 
                 using var entryStream = entry.Open();
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
 
-                var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+                var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
                 return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: into);
             }
 

@@ -200,7 +200,7 @@ namespace ManaVoxel.Code.Services
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
 
-                var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entry.FullName);
+                var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entry.FullName);
                 var loaded = world.LoadFromGltfMemory(
                     memory.ToArray(),
                     entry.FullName,

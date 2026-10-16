@@ -646,10 +646,10 @@ public static class GridMapChecks
         Check("a mesh collider is solid on the side its faces point", quadRest > 0.1f && quadRest < 0.3f,
             $"came to rest at y={quadRest:0.###}");
 
-        var road = MeshAssetLibrary.EncodeReadableZip(RoadPack, "Models/GLB format/road-straight.glb");
-        var corridor = MeshAssetLibrary.EncodeReadableZip(DungeonPack, "Models/GLB format/corridor.glb");
-        if (!MeshAssetLibrary.TryDecodeZip(road, out var roadZip, out _) || !File.Exists(roadZip)
-            || !MeshAssetLibrary.TryDecodeZip(corridor, out var dungeonZip, out _) || !File.Exists(dungeonZip))
+        var road = ZipAssetReferences.EncodeReadableZip(RoadPack, "Models/GLB format/road-straight.glb");
+        var corridor = ZipAssetReferences.EncodeReadableZip(DungeonPack, "Models/GLB format/corridor.glb");
+        if (!ZipAssetReferences.TryDecodeZip(road, out var roadZip, out _) || !File.Exists(roadZip)
+            || !ZipAssetReferences.TryDecodeZip(corridor, out var dungeonZip, out _) || !File.Exists(dungeonZip))
         {
             Check("the road and dungeon kits are present for the collider checks", false, roadZip);
             return;
@@ -712,7 +712,7 @@ public static class GridMapChecks
             var context = CreateContext(physics: true);
             var gridMap = AddGridMap(context);
             gridMap.CellSize = new Vector3(4.0f);
-            var item = gridMap.AddPaletteItem(MeshAssetLibrary.EncodeReadableZip(DungeonPack, "Models/GLB format/" + model));
+            var item = gridMap.AddPaletteItem(ZipAssetReferences.EncodeReadableZip(DungeonPack, "Models/GLB format/" + model));
             var span = model.StartsWith("room-large", StringComparison.Ordinal) ? 5 : 1;
             // Smoothed as the dungeon rules smooth it, which is how a generated dungeon lays it.
             var smooth = GridMapWfcPresets.Dungeon().Tiles.FirstOrDefault(tile => tile.Asset?.EndsWith("/" + model, StringComparison.Ordinal) == true)?.Smooth ?? 0.0f;

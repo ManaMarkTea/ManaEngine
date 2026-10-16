@@ -704,7 +704,7 @@ public static class MeshThumbnailChecks
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
         var loader = new ManaSharpGltfLoader(context);
-        return loader.LoadFileFromMemory(memory.ToArray(), entryPath, VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath));
+        return loader.LoadFileFromMemory(memory.ToArray(), entryPath, ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath));
     }
 
     private static void CheckFurnitureMultiMaterialImport(string zipPath, Action<string, bool, string> Check)

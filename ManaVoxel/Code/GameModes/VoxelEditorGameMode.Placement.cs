@@ -471,7 +471,7 @@ namespace Mana.Code.GameModes
                 using var entryStream = entry.Open();
                 using var memory = new MemoryStream();
                 entryStream.CopyTo(memory);
-                var sidecarResolver = VoxelFileImportService.CreateZipSidecarResolver(archive, entryPath);
+                var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
                 return Context.World.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: scene);
             }
 
@@ -517,7 +517,7 @@ namespace Mana.Code.GameModes
         /// produced, and every archived mesh was passed on as a filename and failed to open.
         /// </summary>
         private static bool TryDecodeZipAssetReference(string assetReference, out string zipPath, out string entryPath) =>
-            MeshAssetLibrary.TryDecodeZip(assetReference, out zipPath, out entryPath);
+            ZipAssetReferences.TryDecodeZip(assetReference, out zipPath, out entryPath);
 
         private async void ImportMeshAssetFromPicker(string filePath)
         {

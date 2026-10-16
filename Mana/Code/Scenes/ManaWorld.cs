@@ -18,7 +18,7 @@ namespace Mana
         public TimeSpan Duration { get; set; }
     }
 
-    public partial class ManaWorld : ManaObject
+    public class ManaWorld : ManaObject
     {
 
         public new ManaContext Context = null!;
@@ -92,8 +92,20 @@ namespace Mana
         public ManaGameState GameState { get; } = new();
         public Mana.Code.Audio.ManaAudioCueRouter AudioCues { get; } = new();
 
+        private readonly ManaWorldModelImporter modelImporter;
+
+        public ManaSceneNode LoadFromGltf(string sceneFile,
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null, ManaScene? into = null)
+            => modelImporter.LoadFromGltf(sceneFile, skeletalActorFactory, into);
+
+        public ManaSceneNode LoadFromGltfMemory(ReadOnlyMemory<byte> sceneBytes, string virtualFileName,
+            Func<string, byte[]?>? externalAssetResolver = null,
+            Func<ManaContext, Matrix4x4, ManaSkeletalActorNode>? skeletalActorFactory = null, ManaScene? into = null)
+            => modelImporter.LoadFromGltfMemory(sceneBytes, virtualFileName, externalAssetResolver, skeletalActorFactory, into);
+
         public ManaWorld() : base(null!)
         {
+            modelImporter = new ManaWorldModelImporter(this, manaPerformanceLogs);
             GameState.SoundRequested += AudioCues.Emit;
 
             Meshes = new List<ManaMesh>();
