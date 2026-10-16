@@ -7,6 +7,8 @@ The Pages assembly exports real `.cs` and `.wgsl` files from the engine's source
 screen borders; only their contents scroll. The newest line types character by character before the pane
 scrolls, with independent pauses and bursts. This standalone Canvas page needs no WASM, GPU or external
 libraries. Text is drawn at the device pixel ratio without CSS scaling or blur.
+Cached C#/WGSL syntax highlighting colors keywords, types, methods, strings, numbers, comments and
+directives, retaining multiline comment and string state when a pane starts partway through a file.
 
 One pane is the “finance department”: a live spend tally, input/output tokens, throughput chart, per-agent
 costs and rotating commentary. Usage is simulated from source reading and characters typed (four characters

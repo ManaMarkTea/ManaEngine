@@ -23,6 +23,7 @@ class ScreensaverExportTests(unittest.TestCase):
             self.assertTrue((output / "index.html").is_file())
             self.assertTrue((output / "screensaver.js").is_file())
             self.assertTrue((output / "agent-ledger.js").is_file())
+            self.assertTrue((output / "code-syntax.js").is_file())
 
     def test_missing_sources_fails_the_publish(self):
         with tempfile.TemporaryDirectory() as scratch:

@@ -1,4 +1,5 @@
 import { AgentLedger, renderLedger } from './agent-ledger.js';
+import { highlightSource } from './code-syntax.js';
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
@@ -68,22 +69,8 @@ function resize() {
 
 function sourceTokens(file, line) {
     let cache = tokens.get(file);
-    if (!cache) { cache = new Map(); tokens.set(file, cache); }
-    if (cache.has(line)) return cache.get(line);
-    const text = file.lines[line];
-    const parts = [];
-    const pattern = /(\/\/.*$|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|\b(?:public|private|protected|internal|static|sealed|class|struct|void|return|if|else|for|foreach|new|using|namespace|var|let|fn|float|bool|int|override|readonly|const|async|await)\b|\b\d+(?:\.\d+)?[fu]?\b|[{}()[\];])/g;
-    let start = 0;
-    for (const match of text.matchAll(pattern)) {
-        if (match.index > start) parts.push([text.slice(start, match.index), colors.ink]);
-        const value = match[0];
-        parts.push([value, value.startsWith('//') ? colors.muted : /^["']/.test(value) ? colors.green
-            : /^\d/.test(value) ? colors.red : /^[{}()[\];]$/.test(value) ? colors.blue : colors.red]);
-        start = match.index + value.length;
-    }
-    if (start < text.length) parts.push([text.slice(start), colors.ink]);
-    cache.set(line, parts);
-    return parts;
+    if (!cache) { cache = highlightSource(file.lines); tokens.set(file, cache); }
+    return cache[line];
 }
 
 function label(text, x, y, color) {

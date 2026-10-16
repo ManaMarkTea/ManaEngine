@@ -9,6 +9,7 @@
     The top bar also shows the current local time, updating each second even while sessions are paused.
     “Finance department” pane tracks simulated token usage/spend from typing, with a throughput graph,
     per-agent costs and rotating quips; clearly labeled fictional tariffs, no API calls.
+    Cached C#/WGSL syntax colors distinguish keywords, types, methods, strings, numbers, comments and directives.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);
