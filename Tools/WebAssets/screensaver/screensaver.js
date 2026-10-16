@@ -3,10 +3,13 @@ const ctx = canvas.getContext('2d', { alpha: false });
 const status = document.querySelector('#status');
 const pauseButton = document.querySelector('#pause');
 const soundButton = document.querySelector('#sound');
+const stopButton = document.querySelector('#stop');
+const runStatus = document.querySelector('#run-status');
 const colors = { ink: '#b9cbd1', green: '#80dfa0', red: '#f47980', muted: '#52727e', blue: '#78afc2' };
 const family = 'ui-monospace, "Cascadia Mono", Consolas, "Liberation Mono", monospace';
 let sources = [], panes = [], width = 0, height = 0, dpr = 1, time = 0, last = 0;
 let paused = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let stopped = false;
 let sound = false, audio, keys = [], nextKey = 0, phrase = 0;
 const random = (low, high) => low + Math.random() * (high - low);
 const pick = () => sources[Math.floor(Math.random() * sources.length)];
@@ -14,7 +17,7 @@ const snap = value => Math.round(value * dpr) / dpr;
 const tokens = new WeakMap();
 
 function resize() {
-    width = innerWidth; height = innerHeight; dpr = devicePixelRatio || 1;
+    width = canvas.clientWidth; height = canvas.clientHeight; dpr = devicePixelRatio || 1;
     canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.textBaseline = 'top';
@@ -39,6 +42,7 @@ function resize() {
         }
     }
     render(0);
+    controls();
 }
 
 function sourceTokens(file, line) {
@@ -163,6 +167,9 @@ function typing(delta) {
 function controls() {
     pauseButton.textContent = paused ? 'Resume' : 'Pause';
     pauseButton.setAttribute('aria-pressed', String(paused));
+    pauseButton.disabled = stopped;
+    stopButton.textContent = stopped ? 'Start' : 'Stop';
+    runStatus.textContent = `${stopped ? 'Stopped' : paused ? 'Paused' : 'Running'} · ${panes.length} sessions`;
     soundButton.textContent = sound ? 'Sound on' : 'Sound off';
     soundButton.setAttribute('aria-pressed', String(sound));
 }
@@ -174,43 +181,47 @@ soundButton.onclick = async () => {
     try {
         if (!audio) makeAudio();
         sound = !sound;
-        await (sound && !paused ? audio.resume() : audio.suspend());
+        await (sound && !paused && !stopped ? audio.resume() : audio.suspend());
         controls();
     } catch (error) { sound = false; controls(); status.hidden = false; status.textContent = `Sound unavailable: ${error.message}`; }
+};
+stopButton.onclick = async () => {
+    stopped = !stopped;
+    paused = false;
+    last = 0;
+    if (!stopped) { time = 0; resize(); }
+    controls();
+    if (audio) await (stopped || !sound ? audio.suspend() : audio.resume());
 };
 document.querySelector('#fullscreen').onclick = async () => {
     try { await (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()); }
     catch { /* Fullscreen can be unavailable in an embedded browser. */ }
 };
-let idle;
-function wake() { document.body.classList.remove('idle'); clearTimeout(idle); idle = setTimeout(() => document.body.classList.add('idle'), 3500); }
-addEventListener('pointermove', wake); addEventListener('pointerdown', wake); addEventListener('focusin', wake);
 addEventListener('keydown', event => {
-    wake();
     if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('button,a')) return;
-    const button = { p: pauseButton, m: soundButton, f: document.querySelector('#fullscreen') }[event.key.toLowerCase()];
+    const button = { p: pauseButton, s: stopButton, m: soundButton, f: document.querySelector('#fullscreen') }[event.key.toLowerCase()];
     if (button) { event.preventDefault(); button.click(); }
 });
 document.addEventListener('visibilitychange', async () => {
     last = 0;
-    if (audio) await (document.hidden || paused || !sound ? audio.suspend() : audio.resume());
+    if (audio) await (document.hidden || paused || stopped || !sound ? audio.suspend() : audio.resume());
 });
 addEventListener('resize', resize);
 function frame(now) {
     requestAnimationFrame(frame);
     if (document.hidden) { last = 0; return; }
     if (last && now - last < 1000 / 30) return;
-    const delta = paused || !last ? 0 : Math.min(.1, (now - last) / 1000);
+    const delta = paused || stopped || !last ? 0 : Math.min(.1, (now - last) / 1000);
     last = now;
     time += delta;
-    if (!paused || !canvas.width) render(delta);
-    typing(delta);
+    if (!paused && !stopped) render(delta);
+    if (!paused && !stopped) typing(delta);
 }
 try {
     const response = await fetch('sources.json');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     sources = await response.json();
     if (!sources.length) throw new Error('No source files');
-    status.hidden = true; resize(); controls(); wake(); requestAnimationFrame(frame);
+    status.hidden = true; resize(); controls(); requestAnimationFrame(frame);
     console.log(`[CodeWall] Ready: ${sources.length} real source files`);
 } catch (error) { status.textContent = `Could not open source files. Reload to retry. (${error.message})`; }

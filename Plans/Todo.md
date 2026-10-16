@@ -5,6 +5,7 @@
     Green terminal borders separate the panes. Engine implementation lives in Games/CodeScreensaver.
     Each pane types its newest line character by character, then scrolls, with its own pace and cursor.
     Line fitting uses the actual rasterized glyph widths, so text fills each pane at any display scale.
+    Full-width top status bar holds Pause/Stop/Sound; the HTML full-screen button is centered above the panes.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

@@ -8,9 +8,10 @@ screen borders; only their contents scroll. The newest line types character by c
 scrolls, with independent pauses and bursts. This standalone Canvas page needs no WASM, GPU or external
 libraries. Text is drawn at the device pixel ratio without CSS scaling or blur.
 
-The right-side button toggles soft synthesized keyboard sounds (off until clicked, as browsers require).
-P pauses, M toggles sound, and F toggles full screen. Bottom controls fade after inactivity. Hidden
-tabs suspend audio and drawing; reduced-motion users start paused.
+The full-width top bar holds Pause, Stop/Start, Sound and the current session status. Full screen is
+centered at the top in HTML. Sound starts off until clicked, as browsers require. P pauses, S stops or
+starts fresh sessions, M toggles sound, and F toggles full screen. Hidden tabs suspend audio and drawing;
+reduced-motion users start paused. The engine's Stop button leaves play mode.
 
 Local preview:
 
