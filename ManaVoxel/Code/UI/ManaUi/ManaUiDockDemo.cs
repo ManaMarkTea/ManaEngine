@@ -58,7 +58,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [UiDesignerManaView.PanelId] = "UI Designer",
             ["livescan"] = "Live Scan",
             ["showcase"] = "ManaUI",
-            ["about"] = "Graphics Diagnostics",
+            ["about"] = "Diagnostics",
             ["worldperf"] = "World Perf",
             ["debug"] = "Debug",
             ["preferences"] = "Preferences"
@@ -273,11 +273,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                 },
 
                 // Null until the backend has reported its start-up snapshot; the panel says so rather than showing an empty frame.
-                "about" => new DockItem("Graphics Diagnostics", new DynamicContent()
+                "about" => new DockItem("Diagnostics", new DynamicContent()
                     .Showing<ManaGraphicsDiagnosticsSnapshot>(
                         () => ManaUiDiagnostics.Snapshot,
-                        captured => AboutManaView.Build(theme, captured, ManaUiDiagnostics.BackendName))
-                    .Empty(AboutManaView.Build(theme, null, ManaUiDiagnostics.BackendName)))
+                        captured => AboutManaView.Build(theme, captured, ManaUiDiagnostics.BackendName, world?.Context.Audio))
+                    .Empty(AboutManaView.Build(theme, null, ManaUiDiagnostics.BackendName, world?.Context.Audio)))
                 {
                     Id = "about"
                 },

@@ -20,6 +20,7 @@ public sealed class ManaAudioSystem : IManaAudio
     public const int MaxVoices = 64;
 
     public ManaAudioSystem(IManaAudioBackend backend) => this.backend = backend;
+    public string OutputDeviceName { get { lock (gate) { return backend.OutputDeviceName; } } }
     public bool IsAvailable { get { lock (gate) { return !disposed && backend.IsAvailable; } } }
     public bool IsUnlocked { get { lock (gate) { return !disposed && backend.IsUnlocked; } } }
 

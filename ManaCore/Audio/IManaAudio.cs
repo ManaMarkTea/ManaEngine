@@ -28,6 +28,7 @@ public interface IManaAudioVoice : IDisposable
 
 public interface IManaAudio : IDisposable
 {
+    string OutputDeviceName { get; }
     bool IsAvailable { get; }
     bool IsUnlocked { get; }
     float MasterVolume { get; set; }

@@ -8,7 +8,7 @@ using Button = ManaUI.Button;
 namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
-    /// View > About: what this is, which build, what it runs on, and who made what. The graphics diagnostics
+    /// View > About: what this is, which build, what it runs on, and who made what. The diagnostics
     /// table is a panel of its own (dock id "about"), a click away.
     /// </summary>
     public static class AboutBoxManaView
@@ -58,7 +58,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var buttons = new StackPanel().Horizontal(theme.Spacing).Right();
             if (openDiagnostics != null)
             {
-                buttons.Children.Add(new Button().Label("Graphics Diagnostics").OnClick(openDiagnostics));
+                buttons.Children.Add(new Button().Label("Diagnostics").OnClick(openDiagnostics));
             }
 
             buttons.Children.Add(new Button().Label("Close").Variant(ButtonVariant.Primary).OnClick(close));

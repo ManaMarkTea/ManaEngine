@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Add audio routing to Diagnostics (2026-10-16): renamed Graphics Diagnostics in the panel menu/tab and About button, preserving its saved dock id. A live Audio section shows the output device, availability, playback unlock and app master volume through IManaAudio. Desktop build, 1796 ManaUI checks and 61 Audio checks pass; in-app capture: DevPhotos/2026-10-16 diagnostics-audio.png.
+
 [x] - Make pawn audio a node component and log desktop audio routing (2026-10-16): CharacterSpawnService attaches ManaPawnAudioComponent; it ticks with the node and subscribes/unsubscribes to jump/landing events through BeginPlay/EndPlay. Added audio_test/audio_status automation and startup logging of the actual OpenAL output endpoint and explicit --mute state. All 3460 headless checks and the browser build pass; a sound-enabled Sample Course run reports an available device, an active voice and no loading errors.
 
 [x] - Review partial classes and extract separate responsibilities (2026-10-16): audited all 31 original families; extracted 21 classes for editor tools, bindings, audio, importing, previews, game policy/camera/batching and renderer helpers. Six owners no longer need partial declarations; generated, platform and cohesive coordination partials remain. Decisions: Plans/PartialClassReview.md. All 3455 headless checks pass; desktop editor/game/zoom automation and Release browser AOT publish plus Chrome play/editor checks pass.

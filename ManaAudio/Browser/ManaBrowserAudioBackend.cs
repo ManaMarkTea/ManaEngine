@@ -15,6 +15,7 @@ public sealed partial class ManaBrowserAudioBackend : IManaAudioBackend
     private static Task? initialization;
     public static Task InitializeAsync() => initialization ??= JSHost.ImportAsync(Module, "../mana_audio.js");
     public ManaBrowserAudioBackend() => device = CreateDevice();
+    public string OutputDeviceName => "Browser default output";
     public bool IsAvailable => device != 0;
     public bool IsUnlocked => device != 0 && Unlocked(device);
 

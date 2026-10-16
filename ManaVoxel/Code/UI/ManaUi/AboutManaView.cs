@@ -1,19 +1,13 @@
 using ManaCore.Graphics;
+using ManaCore.Audio;
 using ManaUI;
 
 namespace ManaVoxel.Code.UI.ManaUi
 {
-    /// <summary>
-    /// The graphics diagnostics snapshot, ported from ImGui.
-    /// <para>
-    /// A snapshot rather than a live readout, and it says when it was taken: these are the values the
-    /// backend reported at start-up, and a panel that quietly re-read them would hide the difference
-    /// between what was negotiated and what is true now.
-    /// </para>
-    /// </summary>
+    /// <summary>Graphics startup capabilities alongside live audio output and playback status.</summary>
     public static class AboutManaView
     {
-        public static UiElement Build(UiTheme theme, ManaGraphicsDiagnosticsSnapshot? snapshot, string backend)
+        public static UiElement Build(UiTheme theme, ManaGraphicsDiagnosticsSnapshot? snapshot, string backend, IManaAudio? audio = null)
         {
             var body = new StackPanel().Vertical(theme.Spacing).Padding(10.0f).Children(
                 new TextBlock().Text("Mana Renderer").FontFamily(theme.FontFamilyMedium).FontSize(theme.FontSizeHeading),
@@ -22,6 +16,11 @@ namespace ManaVoxel.Code.UI.ManaUi
                     .Foreground(theme.TextMuted)
                     .FontSize(theme.FontSizeSmall)
                     .Wrap());
+
+            if (audio != null)
+            {
+                body.Children.Add(AudioSection(theme, audio));
+            }
 
             if (snapshot == null)
             {
@@ -46,6 +45,26 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             return body.Scrollable();
+        }
+
+        private static UiElement AudioSection(UiTheme theme, IManaAudio audio)
+        {
+            var rows = new StackPanel().Vertical(0);
+            var values = new (string Label, Func<string> Read)[]
+            {
+                ("Output device", () => audio.OutputDeviceName),
+                ("Device available", () => audio.IsAvailable ? "Yes" : "No"),
+                ("Playback unlocked", () => audio.IsUnlocked ? "Yes" : "No"),
+                ("App master volume", () => $"{audio.MasterVolume:P0}")
+            };
+            for (var i = 0; i < values.Length; i++)
+            {
+                var (label, read) = values[i];
+                rows.Children.Add(Row(theme, label, read(), null, false, i % 2 == 1,
+                    ManaGraphicsDiagnosticScope.Common, read));
+            }
+            return new Expander().Header("Audio (live)")
+                .Content(new Border().Outline(theme.Border, 1).Rounded(theme.CornerRadius).Content(rows));
         }
 
         private static UiElement Section(UiTheme theme, ManaGraphicsDiagnosticSection section)
@@ -96,7 +115,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             string? comparison,
             bool heading,
             bool striped,
-            ManaGraphicsDiagnosticScope scope)
+            ManaGraphicsDiagnosticScope scope,
+            Func<string>? valueFrom = null)
         {
             // The column rules are 1px columns of their own. Border carries a uniform thickness, and a
             // rule on one edge is what separates columns without boxing every cell in.
@@ -109,10 +129,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                     _ => theme.Text
                 };
 
+            var valueCell = Cell(theme, value, foreground, heading);
+            if (valueFrom != null)
+            {
+                valueCell.BindPolled(cell => cell.Text, valueFrom);
+                valueCell.BindPolled(cell => cell.Tooltip, () => valueFrom());
+            }
             var grid = new Grid().Columns(columns, 0.0f).Rows("Auto").Children(
                 Cell(theme, label, heading ? theme.Text : theme.TextMuted, heading).GridColumn(0),
                 Rule(theme).GridColumn(1),
-                Cell(theme, value, foreground, heading).GridColumn(2));
+                valueCell.GridColumn(2));
 
             if (comparison != null)
             {
@@ -139,7 +165,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         private static UiElement Rule(UiTheme theme) => new Border().Fill(theme.Divider).Width(1.0f);
 
-        private static UiElement Cell(UiTheme theme, string text, Vector4 foreground, bool heading)
+        private static TextBlock Cell(UiTheme theme, string text, Vector4 foreground, bool heading)
         {
             return new TextBlock()
                 .Text(text)

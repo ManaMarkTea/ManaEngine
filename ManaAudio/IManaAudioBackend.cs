@@ -6,6 +6,7 @@ namespace ManaAudio;
 /// <summary>Playback commands only: backends own their buffers and release them on disposal.</summary>
 public interface IManaAudioBackend : IDisposable
 {
+    string OutputDeviceName => "System default output";
     bool IsAvailable { get; }
     bool IsUnlocked { get; }
     int Play(ManaAudioClip clip, ManaAudioPlayOptions options);
@@ -17,6 +18,7 @@ public interface IManaAudioBackend : IDisposable
 
 public sealed class ManaNullAudioBackend : IManaAudioBackend
 {
+    public string OutputDeviceName => "None (silent audio)";
     public bool IsAvailable => false;
     public bool IsUnlocked => false;
     public int Play(ManaAudioClip clip, ManaAudioPlayOptions options) => 0;
