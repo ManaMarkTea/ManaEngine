@@ -2,16 +2,12 @@ name: Build web editor and play, deploy to GitHub Pages
 
 # Publish the directory directly: immutable assets remain separate files and Butler uploads deltas.
 on:
-  push:
-    branches: [master]
-    # Notes, docs and photos can't change either app; a push of only those doesn't rebuild.
-    paths-ignore:
-      - "**/*.md"
-      - "DevPhotos/**"
-      - ".gitignore"
+  # 10:17 UTC is 03:17 PDT / 02:17 PST; away from the busy top of the hour.
+  schedule:
+    - cron: "17 10 * * *"
   workflow_dispatch:
 
-# One deploy at a time, the newest winning: two pushes close together otherwise race to Pages.
+# One deploy at a time; a manual run can supersede the daily deployment.
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -23,7 +19,64 @@ permissions:
   id-token: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      deploy: ${{ steps.changes.outputs.deploy }}
+    steps:
+      - name: Checkout history for change detection
+        if: github.event_name == 'schedule'
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Check changes since the last successful deployment
+        id: changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Successful no-change checks also complete the workflow; find an actual publish job.
+          gh api --method GET "repos/$GH_REPO/actions/workflows/build-web.yml/runs" \
+            -f branch="$DEFAULT_BRANCH" -f status=success -f per_page=100 \
+            --jq '.workflow_runs[] | [.id, .head_sha] | @tsv' > "$RUNNER_TEMP/web-runs"
+          previous=""
+          while read -r run_id sha; do
+            published=$(gh api "repos/$GH_REPO/actions/runs/$run_id/jobs" \
+              --jq '[.jobs[] | select(.name == "publish" and .conclusion == "success")] | length')
+            if [[ "$published" != "0" ]]; then
+              previous="$sha"
+              break
+            fi
+          done < "$RUNNER_TEMP/web-runs"
+
+          deploy=true
+          if [[ -n "$previous" ]] && git cat-file -e "$previous^{commit}" 2>/dev/null; then
+            # Keep the original docs/photo exclusions; compare the whole range, not just today's commits.
+            if git diff --quiet "$previous" "$GITHUB_SHA" -- . \
+              ':(exclude,glob)**/*.md' ':(exclude)DevPhotos/**' ':(exclude).gitignore'; then
+              deploy=false
+            fi
+          fi
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "Daily web deployment needed: $deploy (previous: ${previous:-none})" >> "$GITHUB_STEP_SUMMARY"
+
   publish:
+    needs: changes
+    if: needs.changes.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     # RunAOTCompilation + the emscripten native build are slow; give real headroom without letting a
     # stuck build hang for the default 6 hours.
