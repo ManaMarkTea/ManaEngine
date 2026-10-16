@@ -342,14 +342,6 @@
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
   </ItemGroup>
 
-  <!-- SceneViewerMode.cs is Mana's own desktop test harness (GLFW-windowed scene viewer; its Main()
-       lives in the separate ManaSceneViewer project now), not part of what a browser host needs.
-      Every other file this group used to exclude was ImGui-era editor UI, and those are deleted
-      rather than excluded now. The browser editor and play hosts use their own entry points. -->
-  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">
-    <Compile Remove="Code\GameModes\SceneViewerMode.cs" />
-  </ItemGroup>
-
   <!-- ManaIrradianceRenderer/ManaDeferredRenderer are only ever constructed when
        ManaWorld.Initialize's createRenderer parameter is true, which the WebGPU path
        (ManaWorld.Renderer stays null there; rendering goes through ManaWebGpuContext

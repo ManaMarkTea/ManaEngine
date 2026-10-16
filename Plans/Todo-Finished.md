@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Remove the standalone ManaSceneViewer (2026-10-15): deleted its project and unused SceneViewerMode demo, removed VS Code build/run/debug entries and browser exclusion, and cleaned up the OpenGL window title. Rendering remains available through ManaVoxel. Desktop solution build passed.
+
 [x] - Orthographic viewport clipping and camera settings (2026-10-14): the editor-only free camera retreats along its view direction as the ortho volume grows, preserving the pivot and restoring the perspective range on switching back. Camera settings open from the sliders button under the navigation gizmo or Camera > Settings (projection, FOV/ortho height, clips, move/pan speeds). CameraComponent, ViewportCameraGizmoManaView/ViewportToolbarManaView. Added Orthographic Navigation reference level and automation; visual before/after verified, full 3469 checks passed plus final 1796 ManaUI checks.
 
 [x] - Detached panel resize/presentation mitigations (2026-10-14): present once per normal tick instead of twice in resize callbacks, choose supported Immediate/Mailbox presentation with FIFO fallback, retain a valid surface on acquisition timeout, and profile panel Acquire/Present independently. ManaUiDesktopWindows/ManaWebGpuContext.UiSurface; desktop_panel automation and Tools/Automation/Checks/desktop-panel-resize.json. Repeated shrink/expand check held 119.9 FPS, 11.2 ms worst frame, no settled hitches; all 1795 ManaUI checks passed.

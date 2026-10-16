@@ -459,7 +459,7 @@ namespace Mana
         }
 
         // Both fractions are 1 (the whole window) when nothing has published a viewport yet -- headless
-        // tests, ManaSceneViewer, or the first frame -- which reproduces the old unconstrained behaviour.
+        // tests or the first frame -- which reproduces the old unconstrained behaviour.
         private static (float Width, float Height) GetVisibleViewportFraction(UiRect viewport, Vector2D<int> windowSize)
         {
             if (viewport.IsEmpty || windowSize.X <= 0 || windowSize.Y <= 0)

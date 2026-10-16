@@ -78,21 +78,6 @@
       }
     },
     {
-      "name": "Scene viewer: OpenGL",
-      "type": "coreclr",
-      "request": "launch",
-      "preLaunchTask": "Build: ManaSceneViewer (Debug)",
-      "program": "${workspaceFolder}/Artifacts/Bin/ManaSceneViewer/Debug/net10.0/ManaSceneViewer.dll",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "presentation": {
-        "group": "3. Tools",
-        "order": 1
-      }
-    },
-    {
       "name": "Tests: all (headless)",
       "type": "coreclr",
       "request": "launch",

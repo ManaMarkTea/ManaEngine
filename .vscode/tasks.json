@@ -73,20 +73,6 @@
       }
     },
     {
-      "label": "Build: ManaSceneViewer (Debug)",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "build",
-        "${workspaceFolder}/ManaSceneViewer/ManaSceneViewer.csproj",
-        "-c",
-        "Debug",
-        "--nologo"
-      ],
-      "problemMatcher": "$msCompile",
-      "group": "build"
-    },
-    {
       "label": "Build: ManaTests (Debug)",
       "type": "process",
       "command": "dotnet",
@@ -116,20 +102,6 @@
       ],
       "problemMatcher": "$msCompile",
       "detail": "Builds and runs the desktop app. Choose WebGPU or OpenGL."
-    },
-    {
-      "label": "Run: ManaSceneViewer",
-      "type": "process",
-      "command": "dotnet",
-      "args": [
-        "run",
-        "--project",
-        "${workspaceFolder}/ManaSceneViewer/ManaSceneViewer.csproj",
-        "-c",
-        "${input:configuration}"
-      ],
-      "problemMatcher": "$msCompile",
-      "detail": "Builds and runs the standalone OpenGL scene viewer."
     },
     {
       "label": "Deploy: ManaLidar to iPhone",
@@ -402,10 +374,6 @@
         {
           "label": "ManaVoxel",
           "value": "ManaVoxel/ManaVoxel.csproj"
-        },
-        {
-          "label": "ManaSceneViewer",
-          "value": "ManaSceneViewer/ManaSceneViewer.csproj"
         },
         {
           "label": "ManaTests",
