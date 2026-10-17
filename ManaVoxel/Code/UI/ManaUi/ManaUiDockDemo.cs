@@ -37,32 +37,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static string DefaultLayoutPath =>
             ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
 
-        /// <summary>What each panel is called, for the Panels menu. Kept separate from the factory so drawing the menu doesn't require building every panel.</summary>
-        public static readonly Dictionary<string, string> PanelTitles = new(StringComparer.Ordinal)
-        {
-            ["level"] = "Level",
-            ["tools"] = "Toolbar",
-            ["import"] = "Import",
-            ["project"] = "Project",
-            ["scenes"] = "Scenes",
-            ["blurtest"] = "Blur Test",
-            ["outliner"] = "Outliner",
-            ["inspector"] = "Inspector",
-            // Named for its tab, though it never appears in the Panels menu: it follows the selection.
-            [GridMapToolManaView.PanelId] = "Grid Map",
-            [MeasureToolManaView.PanelId] = "Measure",
-            [VoxelToolsPanelId] = "Voxel Tools",
-            [GridMapWfcManaView.PanelId] = "Generator",
-            [SpriteAssetManaView.PanelId] = "Sprite Asset",
-            [PrefabChangesManaView.PanelId] = "Review Changes",
-            [UiDesignerManaView.PanelId] = "UI Designer",
-            ["livescan"] = "Live Scan",
-            ["showcase"] = "ManaUI",
-            ["about"] = "Diagnostics",
-            ["worldperf"] = "World Perf",
-            ["debug"] = "Debug",
-            ["preferences"] = "Preferences"
-        };
+        public static IReadOnlyDictionary<string, string> PanelTitles => EditorPanelRegistry.Titles;
 
         private static readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
         private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, EventHandler<UiTheme>> ThemeHandlers = new();
@@ -87,31 +62,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// </summary>
         public static MeshThumbnailCache? MeshThumbnails { get; set; }
 
-        /// <summary>Every panel this workspace can build, in merge order. Must agree with the factory below, or newly added panels silently never merge in.</summary>
-        public static readonly string[] PanelIds =
-        {
-            "level",
-            "tools",
-            "import",
-            "project",
-            "scenes",
-            "blurtest",
-            "outliner",
-            "inspector",
-            GridMapToolManaView.PanelId,
-            MeasureToolManaView.PanelId,
-            VoxelToolsPanelId,
-            GridMapWfcManaView.PanelId,
-            SpriteAssetManaView.PanelId,
-            PrefabChangesManaView.PanelId,
-            UiDesignerManaView.PanelId,
-            "livescan",
-            "showcase",
-            "about",
-            "worldperf",
-            "debug",
-            "preferences"
-        };
+        public static IReadOnlyList<string> PanelIds => EditorPanelRegistry.Ids;
 
         /// <summary>Builds the workspace over a <see cref="UiRoot"/> so it can be exercised headlessly. Panels needing <paramref name="editor"/>/<paramref name="world"/> just don't appear without them.</summary>
         public static UiElement Attach(
@@ -244,84 +195,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return item;
             }
 
-            DockItem? BuildPanel(string id) => id switch
-            {
-                "showcase" => new DockItem("ManaUI", ManaUiShowcaseView.BuildContent(theme, vm, liveStat).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)))
-                {
-                    Id = "showcase"
-                },
-                // Build() already wraps itself in a horizontal ScrollViewer -- this is a toolbar strip now,
-                // not a side column, so it scrolls sideways rather than the usual vertical wrap.
-                "level" when editor != null => new DockItem(
-                    "Level",
-                    LevelManaView.Build(theme, editor.Levels).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f))) { Id = "level" },
-
-                "tools" when editor != null => new DockItem(
-                    "Toolbar",
-                    VoxelEditorToolbarManaView.Build(theme, editor, world)) { Id = "tools" },
-
-                "import" when editor != null => new DockItem(
-                    "Import",
-                    MeshImportManaView.Build(theme, editor, MeshAssets, MeshThumbnails)) { Id = "import" },
-                "project" when editor != null && world != null => new DockItem(
-                    "Project", ProjectManaView.Build(theme, world, editor, () => projectFolderWidth())) { Id = "project" },
-                "scenes" when editor != null => new DockItem(
-                    "Scenes", ScenesManaView.Build(theme, editor.Levels)) { Id = "scenes" },
-                "blurtest" => new DockItem("Blur Test", BackdropTestManaView.Build(theme).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)))
-                {
-                    Id = "blurtest"
-                },
-
-                // Null until the backend has reported its start-up snapshot; the panel says so rather than showing an empty frame.
-                "about" => new DockItem("Diagnostics", new DynamicContent()
-                    .Showing<ManaGraphicsDiagnosticsSnapshot>(
-                        () => ManaUiDiagnostics.Snapshot,
-                        captured => AboutManaView.Build(theme, captured, ManaUiDiagnostics.BackendName, world?.Context.Audio))
-                    .Empty(AboutManaView.Build(theme, null, ManaUiDiagnostics.BackendName, world?.Context.Audio)))
-                {
-                    Id = "about"
-                },
-                // world.Selection is the same instance the ImGui outliner and viewport use, so they can't drift apart.
-                "outliner" when world != null => new DockItem(
-                    "Outliner",
-                    SceneOutlinerManaView.Build(theme, world, world.Selection, saveScene, sceneHasChanges, editor?.History)) { Id = "outliner" },
-                "inspector" when world != null => new DockItem(
-                    "Inspector",
-                    SceneInspectorManaView.Build(
-                        theme,
-                        world.Selection,
-                        world.Context,
-                        history: editor?.History)) { Id = "inspector" },
-                MeasureToolManaView.PanelId when editor != null => new DockItem(
-                    "Measure",
-                    MeasureToolManaView.Build(theme, editor)) { Id = MeasureToolManaView.PanelId },
-                GridMapToolManaView.PanelId when world != null => new DockItem(
-                    "Grid Map",
-                    GridMapToolManaView.Build(theme, world, editor?.History)) { Id = GridMapToolManaView.PanelId },
-                UiDesignerManaView.PanelId => new DockItem("UI Designer", UiDesignerManaView.Build(theme)) { Id = UiDesignerManaView.PanelId },
-#if !MANA_BROWSER
-                "livescan" when world != null && editor != null => new DockItem("Live Scan", LiveScanManaView.Build(theme, world, editor)) { Id = "livescan" },
-#endif
-                PrefabChangesManaView.PanelId when world != null => new DockItem(
-                    "Review Changes", PrefabChangesManaView.Build(theme, world)) { Id = PrefabChangesManaView.PanelId },
-                SpriteAssetManaView.PanelId => new DockItem("Sprite Asset", SpriteAssetManaView.Build(theme)) { Id = SpriteAssetManaView.PanelId },
-                GridMapWfcManaView.PanelId when world != null => new DockItem(
-                    "Generator",
-                    GridMapWfcManaView.Build(theme, world, editor?.History)) { Id = GridMapWfcManaView.PanelId },
-                VoxelToolsPanelId when editor != null => new DockItem(
-                    "Voxel Tools",
-                    VoxelToolPaletteManaView.BuildWindow(theme, editor)) { Id = VoxelToolsPanelId },
-                "worldperf" when world != null => new DockItem(
-                    "World Perf",
-                    WorldPerfManaView.Build(theme, world).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f))) { Id = "worldperf" },
-                "debug" when editor != null => new DockItem(
-                    "Debug",
-                    DebugManaView.Build(theme, editor)) { Id = "debug" },
-                "preferences" when editor != null => new DockItem(
-                    "Preferences",
-                    PreferencesManaView.Build(theme, editor)) { Id = "preferences" },
-                _ => null
-            };
+            var panelContext = new EditorPanelRegistry.BuildContext(
+                theme, vm, liveStat, editor, world, () => projectFolderWidth(), saveScene, sceneHasChanges);
+            DockItem? BuildPanel(string id) => EditorPanelRegistry.Build(id, panelContext);
 
             var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
             var state = new WorkspaceState
@@ -1175,30 +1051,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Only new and reset layouts are affected: a saved layout is restored as it was saved.
         /// </para>
         /// </summary>
-        private static bool OpensByDefault(string id)
-        {
-            return id switch
-            {
-                "level" => false,
-                "showcase" => false,
-                "blurtest" => false,
-                "about" => false,
-                "worldperf" => false,
-                "debug" => false,
-                // Opened on demand from Edit > Preferences, not something to leave in front of the tools.
-                "preferences" => false,
-                // Opened by selecting a grid map, and closed again with it.
-                GridMapToolManaView.PanelId => false,
-                MeasureToolManaView.PanelId => false,
-                VoxelToolsPanelId => false,
-                GridMapWfcManaView.PanelId => false,
-                SpriteAssetManaView.PanelId => false,
-                PrefabChangesManaView.PanelId => false,
-                UiDesignerManaView.PanelId => false,
-                "livescan" => false,
-                _ => true
-            };
-        }
+        private static bool OpensByDefault(string id) => EditorPanelRegistry.OpensByDefault(id);
 
         /// <summary>One-time migration: moves a panel that used to live in a column into its own dedicated strip.</summary>
         private static void RelocateToStrip(
@@ -1481,24 +1334,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                             .Checkable(() => vm.SelectedToolIndex == index)).ToArray())));
         }
 
-        /// <summary>Panel ids grouped for the Panels menu: the ones used all day first, debugging last.</summary>
-        private static readonly (string Heading, string[] Ids)[] PanelGroups =
-        {
-            ("Editor", new[] { "level", "outliner", "inspector", "tools" }),
-            ("Assets", new[] { "import", "project", "scenes", UiDesignerManaView.PanelId }),
-            ("Debugging", new[] { "worldperf", "debug", "about", "showcase", "blurtest" }),
-            ("Settings", new[] { "preferences" })
-        };
-
         private static MenuItem[] BuildPanelsMenu(UiRoot root, Func<string, bool> isPanelOpen, Action<string> togglePanel, Action<string> openPanel)
         {
-            // The tool windows follow the selection; opening them by hand would only show nothing.
-            var hidden = new HashSet<string>
-            {
-                GridMapToolManaView.PanelId, MeasureToolManaView.PanelId, VoxelToolsPanelId, GridMapWfcManaView.PanelId,
-                SpriteAssetManaView.PanelId, PrefabChangesManaView.PanelId
-            };
-            var available = PanelIds.Where(id => !hidden.Contains(id)).ToList();
+            var available = EditorPanelRegistry.Panels.Where(panel => panel.MenuGroup != null).Select(panel => panel.Id).ToList();
             string TitleOf(string id) => PanelTitles.TryGetValue(id, out var title) ? title : id;
 
             var items = new List<MenuItem>
@@ -1506,7 +1344,6 @@ namespace ManaVoxel.Code.UI.ManaUi
                 new MenuItem("Find Panel…", () => PanelSearchManaView.Show(root, available.Select(id => (id, TitleOf(id))).ToList(), openPanel))
             };
 
-            var placed = new HashSet<string>();
             void AddGroup(string heading, IEnumerable<string> ids)
             {
                 var members = ids.Where(available.Contains).ToList();
@@ -1519,18 +1356,16 @@ namespace ManaVoxel.Code.UI.ManaUi
                 items.Add(MenuItem.Label(heading));
                 foreach (var id in members)
                 {
-                    placed.Add(id);
                     items.Add(new MenuItem(TitleOf(id), () => togglePanel(id)).Checkable(() => isPanelOpen(id)));
                 }
             }
 
-            foreach (var (heading, ids) in PanelGroups)
+            foreach (var group in EditorPanelRegistry.Panels.Where(panel => panel.MenuGroup != null)
+                .GroupBy(panel => panel.MenuGroup)
+                .OrderBy(group => group.Key switch { "Editor" => 0, "Assets" => 1, "Debugging" => 2, "Settings" => 3, _ => 4 }))
             {
-                AddGroup(heading, ids);
+                AddGroup(group.Key ?? "Other", group.OrderBy(panel => panel.MenuOrder).Select(panel => panel.Id));
             }
-
-            // A panel added later still shows up, under Other, until someone files it.
-            AddGroup("Other", available.Where(id => !placed.Contains(id)));
             return items.ToArray();
         }
 

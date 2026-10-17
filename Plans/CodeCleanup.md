@@ -14,7 +14,8 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 2. Separate the editor workspace responsibilities
 
-- [ ] Replace repeated panel IDs, titles, factories and menu metadata with one panel registry.
+- [x] Replace repeated panel IDs, titles, factories and menu metadata with one panel registry.
+  - EditorPanelRegistry owns factories, titles, merge order, default visibility and menu membership/order. Existing saved IDs remain stable; exposed ID/title collections are read-only.
 - [ ] Extract layout persistence/restoration from ManaUiDockDemo, then rename the production workspace class.
 - [ ] Move mutable workspace state to an instance owned by its UI root; preserve theme rebuild behavior.
 - Validate docking, persistence, theme changes and tool windows headlessly and with in-app automation captures.
@@ -57,3 +58,4 @@ This is a structural review, not a claim that every large file needs splitting.
 - Prefab test isolation implemented: ManaContentLibrary binds an immutable root to each world; editing, Inspector views, runtime loading and thumbnail worlds use it. Standalone prefab loading accepts an explicit root and carries it through variant chains.
 - Added checks for identical prefab IDs in separate worlds, variant thumbnails and protection of bundled sources. No test changes the process working directory.
 - Prefab isolation validation: all 3,466 headless checks passed. Browser/iOS runtime validation was not run for this step.
+- Panel registry validation: all 3,466 headless checks passed and the desktop app builds without warnings. In-app automation opens panels and switches Dark/Light themes; captures live under Artifacts/Automation/cleanup-panels-*.png. User workspace settings are restored after the check.
