@@ -52,7 +52,8 @@ This is a structural review, not a claim that every large file needs splitting.
   - Retired nodes reject detail requests, skip remaining baseline tiles and discard results before terrain mutation. The scheduler rejects new work/handoffs and clears queued completions; pending flags and snapshots are cleared under the rebuild lock.
   - Shared fetches and already-dispatched native readbacks finish normally. Sampling checks retirement after admission, so waiting work skips native dispatch; admission slots remain held until active readbacks settle.
   - Check: Tools/Automation/Checks/planet-retirement.json closes during baseline decode, closes during refinement, then reopens and refines a fresh planet.
-- [ ] Extract remaining geometry work from PlanetNode.
+- [x] Extract remaining geometry work from PlanetNode.
+  - PlanetPatchGeometry owns patch-local bounds, baseline tile overlap/source measurements and CPU/precomputed-height application. PlanetNode retains scene integration, synchronization and retirement gates; mesh vertex generation remains in PlanetPatchMesh.
   - Check: Tools/Automation/Checks/planet-streaming.json requests zoom 7, expects 219 leaves and idle counters after refinement, merges root F4/R0/C2, then expects 216 leaves and idle counters.
 - Preserve main-thread scene mutation, cancellation and resource ownership. Validate LOD transitions visually.
 
@@ -94,3 +95,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Patch planner validation: all 3,498 headless checks passed in 26.0s; desktop build has no warnings. Planet Showcase refined 4/4 children from 42/42 tiles to 219 leaves and merged back to 216, with all busy counters zero at both checkpoints. In-app orbit capture inspected; captures/logs use Artifacts/Automation/cleanup-planner. Saved workspace settings were restored after a successful reopen. Removal/reload lifetime requirements are recorded above; cancellation is not implemented in this extraction. Browser/iOS were not run.
 
 - Planet retirement validation: all 3,502 headless checks passed in 25.9s; the focused planet suite passed 17 checks in 0.1s. Desktop build has no warnings. Live automation unloaded during baseline decode and an active 42-tile refinement, then reopened and refined a fresh planet to 219 leaves with all busy counters zero. Editor and standalone-play quit during loading and reopened successfully; shutdown logs confirm retirement. Captures/logs use Artifacts/Automation/cleanup-retire*, and saved workspace settings were restored. Browser/iOS were not run.
+
+- Planet geometry extraction validation: all 3,502 headless checks passed in 25.6s; desktop build has no warnings. Planet Showcase refined 4/4 children from 42/42 tiles to 219 leaves, then merged to 216; both checkpoints had all busy counters zero. Detail and orbit captures inspected under Artifacts/Automation/cleanup-geometry*.png. User workspace settings were restored. Geometry formulas, source-quality thresholds, shaders and authored content are unchanged; browser/iOS were not run.

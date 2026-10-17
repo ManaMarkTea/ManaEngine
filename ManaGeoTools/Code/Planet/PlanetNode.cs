@@ -1,3 +1,4 @@
+using static ManaGeoTools.Code.Planet.PlanetPatchGeometry;
 using static ManaGeoTools.Code.Planet.PlanetPatchPlanner;
 using System.Collections.Concurrent;
 using Mana;
@@ -106,10 +107,6 @@ namespace ManaGeoTools.Code.Planet
             // entirely), so auto-LOD's per-frame coverage scan never needs to re-sample corners.
             public required PatchBoundsSphere LocalBoundsSphere { get; init; }
         }
-
-        // A patch's approximate bounding sphere in PlanetNode's own LOCAL space, derived from just its
-        // FaceNormal/MinU/MaxU/MinV/MaxV (see ComputePatchLocalBoundsSphere).
-        private readonly record struct PatchBoundsSphere(Vector3 LocalCenter, float LocalRadius);
 
         private readonly Dictionary<PatchKey, PatchLeaf> _leaves = new();
         private readonly Dictionary<MeshRendererComponent, PatchKey> _componentToPatchKey = new();
@@ -353,7 +350,7 @@ namespace ManaGeoTools.Code.Planet
                             leaf.Mesh.Resolution,
                             Math.Min(sourceResolution, DefaultBaselineMaxPatchMeshResolution));
 
-                        leaf.Mesh.ApplyHeightDataWithResolution(HeightLibrary!, meshResolution);
+                        ApplyHeightData(leaf.Mesh, HeightLibrary!, meshResolution);
                         leaf.SourceResolution = sourceResolution;
                         leaf.SourceMetersPerPixel = sourceMetersPerPixel;
                         leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
@@ -775,14 +772,7 @@ namespace ManaGeoTools.Code.Planet
                     var precomputedHeights = precomputedHeightsResults[childIndex];
                     using (ManaLog.TimeVerbose($"[SplitTiming] child={childIndex} meshResolution={plan.MeshResolution} usedGpu={precomputedHeights != null}"))
                     {
-                        if (precomputedHeights != null)
-                        {
-                            pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
-                        }
-                        else
-                        {
-                            pending.ChildMeshes[childIndex].ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
-                        }
+                        ApplyHeightData(pending.ChildMeshes[childIndex], HeightLibrary!, plan.MeshResolution, precomputedHeights);
                     }
 
                     pending.ChildZoom[childIndex] = plan.Zoom;
@@ -1020,7 +1010,7 @@ namespace ManaGeoTools.Code.Planet
                 {
                     return;
                 }
-                pending.MergedMesh.ApplyHeightDataWithResolution(HeightLibrary!, pending.MergedMeshResolution);
+                ApplyHeightData(pending.MergedMesh, HeightLibrary!, pending.MergedMeshResolution);
                 _rebuilds.Enqueue(PlanetRebuildKind.Merge, () => FinalizeMerge(pending));
             }
 
@@ -1496,14 +1486,7 @@ namespace ManaGeoTools.Code.Planet
                     HeightLibrary!.AddTile(tile);
                 }
 
-                if (precomputedHeights != null)
-                {
-                    patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution, precomputedHeights);
-                }
-                else
-                {
-                    patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
-                }
+                ApplyHeightData(patch, HeightLibrary!, plan.MeshResolution, precomputedHeights);
 
                 _rebuilds.Enqueue(PlanetRebuildKind.Upres, () =>
                 {
@@ -1567,42 +1550,6 @@ namespace ManaGeoTools.Code.Planet
             return !currentMetersPerPixel.HasValue || currentMetersPerPixel.Value <= targetMetersPerPixel;
         }
 
-        private static int EstimateGeoTiffSourceResolutionForPatch(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
-        {
-            var pixelSize = tile.Area.PixelSize;
-            if (pixelSize.X <= 0f || pixelSize.Y <= 0f)
-            {
-                return FallbackPatchResolution;
-            }
-
-            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(patch);
-            var lonSpanPixels = Math.Abs(lonMax - lonMin) / pixelSize.X;
-            var latSpanPixels = Math.Abs(latMax - latMin) / pixelSize.Y;
-            var sourceSamplesAcrossPatch = Math.Max(lonSpanPixels, latSpanPixels);
-            if (float.IsNaN(sourceSamplesAcrossPatch) || float.IsInfinity(sourceSamplesAcrossPatch))
-            {
-                return FallbackPatchResolution;
-            }
-
-            return Math.Max(2, (int)MathF.Ceiling(sourceSamplesAcrossPatch) + 1);
-        }
-
-        private static double EstimateGeoTiffMetersPerPixel(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
-        {
-            var pixelSize = tile.Area.PixelSize;
-            if (pixelSize.X <= 0f || pixelSize.Y <= 0f)
-            {
-                return 0.0;
-            }
-
-            var (_, _, latMin, latMax) = ComputePatchLonLatBounds(patch);
-            var centerLatitude = Math.Clamp((latMin + latMax) * 0.5, -90.0f, 90.0f);
-            var metersPerDegree = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters / 360.0;
-            var latMetersPerPixel = metersPerDegree * pixelSize.Y;
-            var lonMetersPerPixel = metersPerDegree * pixelSize.X * Math.Cos(centerLatitude * Math.PI / 180.0);
-            return Math.Max(0.0, Math.Max(latMetersPerPixel, lonMetersPerPixel));
-        }
-
         // Caller must already hold _rebuildLock.
         private static bool TryCreateSplitPlanLocked(PatchKey parentKey, PatchLeaf parentLeaf, bool includeTileIndices, out PatchSplitPlan splitPlan)
         {
@@ -1631,68 +1578,6 @@ namespace ManaGeoTools.Code.Planet
 
             splitPlan = new PatchSplitPlan { Children = children };
             return true;
-        }
-
-        // Samples 4 corners + center through the real vertex-generation formula and tests each against
-        // the tile's lat/long bounding box, rather than building a bounding box FOR the patch -- a
-        // cube-face patch is a *curved* quadrilateral in lat/long space, so its own bounding box breaks
-        // at the antimeridian and near the poles. A missed partial overlap just skips a rebuild trigger
-        // this round, not a correctness bug -- each vertex re-samples its own tile at generation time.
-        private static bool TileOverlapsPatch(ManaGeoTools.Code.GeoTiff.GeoTiff tile, PlanetPatchMesh patch)
-        {
-            var axisA = new Vector3(patch.FaceNormal.Y, patch.FaceNormal.Z, patch.FaceNormal.X);
-            var axisB = Vector3.Cross(patch.FaceNormal, axisA);
-            var midU = (patch.MinU + patch.MaxU) * 0.5f;
-            var midV = (patch.MinV + patch.MaxV) * 0.5f;
-
-            var sampleUVs = new[]
-            {
-                (patch.MinU, patch.MinV), (patch.MaxU, patch.MinV),
-                (patch.MinU, patch.MaxV), (patch.MaxU, patch.MaxV),
-                (midU, midV),
-            };
-
-            foreach (var (u, v) in sampleUVs)
-            {
-                var pointOnUnitCube = patch.FaceNormal + (u * axisA) + (v * axisB);
-                var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
-                var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
-                if (tile.Area.Contains(latLong))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        // Same corner+center sampling idiom as ComputePatchLonLatBounds/TileOverlapsPatch above, just
-        // projected through Radius instead of converted to lat/long -- gives a cheap, approximate
-        // bounding sphere for a patch (center = the actual mid-UV point, radius = the farthest corner
-        // from it) good enough for a screen-coverage LOD trigger without needing per-vertex data. Only
-        // recomputed at leaf creation (root construction, FinalizeSplit, FinalizeMerge); invariant across
-        // an in-place up-res since MinU/MaxU/MinV/MaxV never change until the leaf itself is replaced.
-        private static PatchBoundsSphere ComputePatchLocalBoundsSphere(
-            Vector3 faceNormal, float minU, float maxU, float minV, float maxV, float radius)
-        {
-            var axisA = new Vector3(faceNormal.Y, faceNormal.Z, faceNormal.X);
-            var axisB = Vector3.Cross(faceNormal, axisA);
-            var midU = (minU + maxU) * 0.5f;
-            var midV = (minV + maxV) * 0.5f;
-
-            var centerOnUnitCube = faceNormal + (midU * axisA) + (midV * axisB);
-            var center = CubeSphere.WarpCubeToSphere(centerOnUnitCube) * radius;
-
-            var cornerUVs = new[] { (minU, minV), (maxU, minV), (minU, maxV), (maxU, maxV) };
-            var boundsRadius = 0f;
-            foreach (var (u, v) in cornerUVs)
-            {
-                var cornerOnUnitCube = faceNormal + (u * axisA) + (v * axisB);
-                var corner = CubeSphere.WarpCubeToSphere(cornerOnUnitCube) * radius;
-                boundsRadius = MathF.Max(boundsRadius, Vector3.Distance(center, corner));
-            }
-
-            return new PatchBoundsSphere(center, boundsRadius);
         }
 
         private void RebuildAllPatches()
