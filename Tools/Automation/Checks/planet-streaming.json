@@ -1,0 +1,19 @@
+[
+  {"type": "open_level", "path": "Content/Levels/Planet Showcase.manalevel"},
+  {"type": "sky", "name": "Space"},
+  {"type": "gizmos", "visible": false},
+  {"type": "wait", "frames": 1200},
+  {"type": "move_camera", "position": [56, 40, 73.5692], "target": [52, 40, 66.641]},
+  {"type": "wait", "frames": 180},
+  {"type": "planet_detail", "name": "Earth", "position": [-150, 0], "count": 7},
+  {"type": "wait", "frames": 900},
+  {"type": "planet_status", "name": "Earth"},
+  {"type": "screenshot", "path": "@@OUT@@.detail.png"},
+  {"type": "planet_merge", "name": "Earth", "position": [4, 0, 2]},
+  {"type": "wait", "frames": 300},
+  {"type": "planet_status", "name": "Earth"},
+  {"type": "move_camera", "position": [32, 60, 144], "target": [32, 40, 32]},
+  {"type": "wait", "frames": 120},
+  {"type": "screenshot", "path": "@@OUT@@.orbit.png"},
+  {"type": "quit"}
+]

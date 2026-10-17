@@ -19,6 +19,38 @@ namespace ManaVoxel.Code.Automation
         {
             var context = runner.Context;
 
+#if !MANA_BROWSER
+            runner.Register("planet_detail", command =>
+            {
+                var planet = runner.FindNode(command.Name ?? "Earth") as ManaGeoTools.Code.Planet.PlanetNode
+                    ?? throw new InvalidDataException("planet_detail: planet not found.");
+                if (command.Position is not { Length: >= 2 } coordinates)
+                {
+                    throw new InvalidDataException("planet_detail: position needs longitude and latitude.");
+                }
+                var zoom = command.Count > 0 ? command.Count : 7;
+                planet.RequestDetailAt(coordinates[0], coordinates[1], zoom);
+                Console.WriteLine($"Command file: planet detail {planet.Name} at {coordinates[0]}, {coordinates[1]}, zoom {zoom}.");
+            });
+            runner.Register("planet_status", command =>
+            {
+                var planet = runner.FindNode(command.Name ?? "Earth") as ManaGeoTools.Code.Planet.PlanetNode
+                    ?? throw new InvalidDataException("planet_status: planet not found.");
+                Console.WriteLine($"Command file: planet {planet.Name}: {planet.GetStreamingStatus()}, snapshots {planet.PendingChangedPatchCount}.");
+            });
+            runner.Register("planet_merge", command =>
+            {
+                var planet = runner.FindNode(command.Name ?? "Earth") as ManaGeoTools.Code.Planet.PlanetNode
+                    ?? throw new InvalidDataException("planet_merge: planet not found.");
+                if (command.Position is not { Length: >= 3 } cell)
+                {
+                    throw new InvalidDataException("planet_merge: position needs root face, row and column.");
+                }
+                var key = ManaGeoTools.Code.Planet.PatchKey.Root((int)cell[0], (int)cell[1], (int)cell[2]);
+                Console.WriteLine($"Command file: planet merge {planet.Name}: {planet.TryMergeSiblingGroup(key)}.");
+            });
+#endif
+
             runner.Register("camera_settings", _ => ManaVoxel.Code.UI.ManaUi.ViewportToolbarManaView.OpenCameraOptions());
 
             runner.Register("camera_projection", command =>

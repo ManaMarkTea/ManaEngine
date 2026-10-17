@@ -125,8 +125,6 @@ namespace ManaGeoTools.Code.Planet
             public required IReadOnlyList<(int X, int Y)> TileIndices { get; init; }
         }
 
-        private readonly record struct TerrariumTileKey(int Zoom, int X, int Y);
-
         private sealed class PatchSplitPlan
         {
             public required IReadOnlyList<PlannedPatch> Children { get; init; }
@@ -143,16 +141,6 @@ namespace ManaGeoTools.Code.Planet
         // Parent keys with a split currently in flight -- guards against double-triggering a second
         // split for the same parent before the first one's children finish (see TrySplitPatch).
         private readonly ConcurrentDictionary<PatchKey, byte> _splitPending = new();
-
-        private sealed class PendingSplitChildReady
-        {
-            public required PendingSplit Pending { get; init; }
-            public required int ChildIndex { get; init; }
-        }
-
-        // Child splits that have finished building, waiting for ProcessPendingSplits to swap each one
-        // into the scene graph on the main thread as it becomes ready -- see UpresPendingChildrenAsync.
-        private readonly Queue<PendingSplitChildReady> _readyToFinalize = new();
 
         // Child keys with a merge (of their sibling group) currently in flight -- one entry per child,
         // not per synthesized parent key, since the children (not the not-yet-existing merged patch)
@@ -173,10 +161,6 @@ namespace ManaGeoTools.Code.Planet
             public required double? MergedSourceMetersPerPixel { get; init; }
         }
 
-        // Merges whose off-thread rebuild has finished, waiting for ProcessPendingMerges to actually
-        // swap them into the scene graph on the main thread -- mirrors _readyToFinalize.
-        private readonly Queue<PendingMerge> _readyToFinalizeMerge = new();
-
         private readonly PlanetOceanController _ocean;
 
         // Set once LoadHeightDataAsync's decode has applied every baseline tile. Volatile: written on the
@@ -189,7 +173,6 @@ namespace ManaGeoTools.Code.Planet
         // highest zoom Terrarium serves directly (14/15 need oversampling, out of scope).
         private const int UpresMaxTiles = 1024;
         private const int UpresMaxZoom = 13;
-        private const int UpresMaxConcurrentFetches = 24;
 
         // SourceResolution records the approximate Terrarium sample span, which can be thousands of
         // pixels for a high-zoom cached patch. This is a per-leaf mesh ceiling, not a final density
@@ -213,15 +196,7 @@ namespace ManaGeoTools.Code.Planet
         // with snapshot count, so the drain itself has to be bounded too.
         public const int DefaultMaxChangedPatchesPerDrain = 4;
 
-        private static readonly SemaphoreSlim UpresFetchThrottle = new(UpresMaxConcurrentFetches);
-
-        // Caps concurrent GPU height-sample dispatches (see TrySampleHeightsOnGpuAsync), mirroring
-        // UpresFetchThrottle's role for network fetches above. Lower than the network throttle -- GPU
-        // submission from many threads still serializes at the driver/queue level, so higher concurrency
-        // here mostly adds contention rather than throughput.
-        private const int HeightSampleMaxConcurrentDispatches = 8;
-        private static readonly TimeSpan HeightSampleTimeout = TimeSpan.FromSeconds(5);
-        private static readonly SemaphoreSlim HeightSampleReadbackThrottle = new(HeightSampleMaxConcurrentDispatches);
+        private readonly PlanetRebuildScheduler _rebuilds = new();
 
         // UpdateAutoLod's activation/deactivation radius is great-circle distance from the sub-camera
         // point, scaled by altitude expressed as a fraction of Radius (not raw world units) so these
@@ -316,21 +291,12 @@ namespace ManaGeoTools.Code.Planet
         /// waiting on it. Each patch swaps from smooth placeholder to real elevation/color as soon as
         /// its own tile finishes, independently of the others.
         /// </summary>
-        private static void SetCurrentThreadName(string name)
-        {
-            if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
-            {
-                System.Threading.Thread.CurrentThread.Name = name;
-            }
-        }
-
         public void LoadHeightDataAsync(GeoTiffLibrary heightLibrary)
         {
             HeightLibrary = heightLibrary;
             _baselineHeightDataLoaded = false;
-            Task.Run(() =>
+            _ = _rebuilds.RunAsync("Planet height decode", () =>
             {
-                SetCurrentThreadName("Planet height decode");
                 try
                 {
                     heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches);
@@ -342,7 +308,8 @@ namespace ManaGeoTools.Code.Planet
                     _baselineHeightDataLoaded = true;
                     Console.WriteLine("[Planet] Baseline height data decoded; ocean mask is now valid.");
                 }
-            });
+                return Task.CompletedTask;
+            }, _ => { });
         }
 
         /// <summary>
@@ -525,11 +492,7 @@ namespace ManaGeoTools.Code.Planet
                 if (splitPlan.Children.Count == 1 && splitPlan.Children[0].Key.Equals(key))
                 {
                     _upresStatus[key] = PatchUpresStatus.InProgress;
-                    Task.Run(() =>
-                {
-                    SetCurrentThreadName("Planet patch up-res");
-                    return UpresPatchAsync(key, leaf.Mesh, splitPlan.Children[0].Plan);
-                });
+                    SchedulePatchUpres(key, leaf, splitPlan.Children[0].Plan);
                     return;
                 }
 
@@ -606,11 +569,7 @@ namespace ManaGeoTools.Code.Planet
             _upresStatus[key] = PatchUpresStatus.InProgress;
             if (plannedPatches.Count == 1 && plannedPatches[0].Key.Equals(key))
             {
-                Task.Run(() =>
-                {
-                    SetCurrentThreadName("Planet patch up-res");
-                    return UpresPatchAsync(key, leaf.Mesh, plannedPatches[0].Plan);
-                });
+                SchedulePatchUpres(key, leaf, plannedPatches[0].Plan);
                 return;
             }
 
@@ -695,12 +654,18 @@ namespace ManaGeoTools.Code.Planet
                 _upresStatus[child.Key] = PatchUpresStatus.InProgress;
             }
 
-            Task.Run(() =>
-            {
-                SetCurrentThreadName("Planet split child build");
-                return UpresPendingChildrenAsync(pending);
-            });
+            _ = _rebuilds.RunAsync("Planet split child build", () => UpresPendingChildrenAsync(pending),
+                _ =>
+                {
+                    for (var i = 0; i < pending.ChildKeys.Length; i++)
+                    {
+                        QueueSplitCompletion(pending, i);
+                    }
+                });
         }
+
+        private void QueueSplitCompletion(PendingSplit pending, int childIndex) =>
+            _rebuilds.Enqueue(PlanetRebuildKind.Split, () => FinalizeSplitChild(pending, childIndex));
 
         private async Task UpresPendingChildrenAsync(PendingSplit pending)
         {
@@ -718,10 +683,10 @@ namespace ManaGeoTools.Code.Planet
             ManaLog.WriteVerboseElapsed($"[SplitTiming] fetch {tileKeys.Count} tile(s)", fetchStart);
             var fetchedByKey = fetched.ToDictionary(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY));
 
-            // GPU height-sampling path (see TrySampleHeightsOnGpuAsync), attempted per child -- outside
+            // GPU height-sampling path (see PlanetHeightSampler), attempted per child -- outside
             // the lock below since it involves awaiting a GPU dispatch+readback, which lock (a
             // synchronous primitive) can't contain. Each child is independent, so run them concurrently
-            // rather than one at a time (HeightSampleReadbackThrottle still bounds how many actually
+            // rather than one at a time (PlanetHeightSampler still bounds how many actually
             // dispatch to the GPU at once).
             var precomputedHeightsTasks = new Task<float[,]?>[pending.ChildPlans.Length];
             for (var childIndex = 0; childIndex < pending.ChildPlans.Length; childIndex++)
@@ -733,7 +698,7 @@ namespace ManaGeoTools.Code.Planet
                     .Where(tile => tile != null)
                     .Select(tile => tile!)
                     .ToList();
-                precomputedHeightsTasks[childIndex] = TrySampleHeightsOnGpuAsync(
+                precomputedHeightsTasks[childIndex] = PlanetHeightSampler.Shared.TrySampleAsync(
                     Context, childMesh.FaceNormal, childMesh.MinU, childMesh.MaxU, childMesh.MinV, childMesh.MaxV,
                     plan.MeshResolution, childFetchedTiles, plan.TileIndices.Count);
             }
@@ -764,11 +729,7 @@ namespace ManaGeoTools.Code.Planet
                     {
                         pending.ChildZoom[childIndex] = plan.Zoom;
                         pending.ChildSucceeded[childIndex] = false;
-                        _readyToFinalize.Enqueue(new PendingSplitChildReady
-                        {
-                            Pending = pending,
-                            ChildIndex = childIndex,
-                        });
+                        QueueSplitCompletion(pending, childIndex);
                         continue;
                     }
 
@@ -787,11 +748,7 @@ namespace ManaGeoTools.Code.Planet
 
                     pending.ChildZoom[childIndex] = plan.Zoom;
                     pending.ChildSucceeded[childIndex] = true;
-                    _readyToFinalize.Enqueue(new PendingSplitChildReady
-                    {
-                        Pending = pending,
-                        ChildIndex = childIndex,
-                    });
+                    QueueSplitCompletion(pending, childIndex);
                 }
 
                 // Metadata (zoom/resolution/status) is finalized on the main thread, not here -- _leaves
@@ -804,8 +761,7 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>
-        /// Finalizes pending split children on the main thread, one per frame, so the scene graph
-        /// updates progressively as each child becomes ready rather than all at once.
+        /// Applies ready upres metadata and split children on the main thread with separate frame budgets.
         /// </summary>
         public void ProcessPendingSplits()
         {
@@ -816,13 +772,8 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                var processedThisFrame = 0;
-                while (processedThisFrame < MaxPendingSplitFinalizationsPerFrame && _readyToFinalize.Count > 0)
-                {
-                    var readySplit = _readyToFinalize.Dequeue();
-                    FinalizeSplitChild(readySplit.Pending, readySplit.ChildIndex);
-                    processedThisFrame++;
-                }
+                _rebuilds.Drain(PlanetRebuildKind.Upres, 1);
+                _rebuilds.Drain(PlanetRebuildKind.Split, MaxPendingSplitFinalizationsPerFrame);
             }
             finally
             {
@@ -995,11 +946,17 @@ namespace ManaGeoTools.Code.Planet
 
             Console.WriteLine($"[Terrarium] Merging {childKeys.Length} sibling patches under {PatchName(parentKey, meshResolution: mergedMeshResolution)} back into one (children stay visible until ready).");
 
-            Task.Run(() =>
+            _ = _rebuilds.RunAsync("Planet merge rebuild", () =>
             {
-                SetCurrentThreadName("Planet merge rebuild");
                 RebuildMergedPatchOffThread(pending);
-            });
+                return Task.CompletedTask;
+            }, exception => _rebuilds.Enqueue(PlanetRebuildKind.Merge, () =>
+            {
+                foreach (var childKey in pending.ChildKeys)
+                {
+                    _mergePending.TryRemove(childKey, out _);
+                }
+            }));
         }
 
         // Off-main-thread (Task.Run), but unlike UpresPendingChildrenAsync there is no async I/O to
@@ -1013,7 +970,7 @@ namespace ManaGeoTools.Code.Planet
             lock (_rebuildLock)
             {
                 pending.MergedMesh.ApplyHeightDataWithResolution(HeightLibrary!, pending.MergedMeshResolution);
-                _readyToFinalizeMerge.Enqueue(pending);
+                _rebuilds.Enqueue(PlanetRebuildKind.Merge, () => FinalizeMerge(pending));
             }
 
             Console.WriteLine($"[Terrarium] Merge {PatchName(pending.MergedKey, pending.MergedZoom, pending.MergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel)}: rebuilt at {pending.MergedMesh.Resolution}v (pending swap-in).");
@@ -1034,14 +991,7 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                // Bounded like ProcessPendingSplits, and for the same reason: the rest stay queued in
-                // arrival order and finalize on later frames.
-                var processedThisFrame = 0;
-                while (processedThisFrame < MaxPendingMergeFinalizationsPerFrame && _readyToFinalizeMerge.Count > 0)
-                {
-                    FinalizeMerge(_readyToFinalizeMerge.Dequeue());
-                    processedThisFrame++;
-                }
+                _rebuilds.Drain(PlanetRebuildKind.Merge, MaxPendingMergeFinalizationsPerFrame);
             }
             finally
             {
@@ -1362,8 +1312,8 @@ namespace ManaGeoTools.Code.Planet
                 PatchesUpresInProgress: upresInProgress,
                 PatchesSplitting: _splitPending.Count,
                 PatchesMerging: _mergePending.Count / 4,
-                ActiveTileFetches: UpresMaxConcurrentFetches - UpresFetchThrottle.CurrentCount,
-                MaxConcurrentTileFetches: UpresMaxConcurrentFetches);
+                ActiveTileFetches: PlanetTileStream.Shared.ActiveFetches,
+                MaxConcurrentTileFetches: PlanetTileStream.Shared.MaxConcurrentFetches);
         }
 
         /// <summary>
@@ -1427,96 +1377,18 @@ namespace ManaGeoTools.Code.Planet
                 .ToList();
         }
 
-        // GPU height-sampling path for one patch's up-res (see IHeightSamplingComputeDevice) -- one
-        // batched compute dispatch instead of GenerateData()'s per-vertex CPU FindCurrentTile loop.
-        // Returns null (CPU fallback) if no compute device is available, a requested tile failed to
-        // fetch, or the dispatch throws for any reason (e.g. context tearing down mid-flight).
-        private static async Task<float[,]?> TrySampleHeightsOnGpuAsync(
-            ManaContext context,
-            Vector3 faceNormal,
-            float minU,
-            float maxU,
-            float minV,
-            float maxV,
-            int meshResolution,
-            IReadOnlyList<TerrariumHeightTile> fetchedTiles,
-            int requestedTileCount)
-        {
-            if (context.GraphicsDevice is not IHeightSamplingComputeDevice computeDevice)
+        private void SchedulePatchUpres(PatchKey key, PatchLeaf leaf, PatchUpresPlan plan) =>
+            _ = _rebuilds.RunAsync("Planet patch up-res", () => UpresPatchAsync(key, leaf.Mesh, plan),
+                _ => QueuePatchFailure(key, leaf.Mesh));
+
+        private void QueuePatchFailure(PatchKey key, PlanetPatchMesh patch) =>
+            _rebuilds.Enqueue(PlanetRebuildKind.Upres, () =>
             {
-                return null;
-            }
-
-            if (fetchedTiles.Count != requestedTileCount)
-            {
-                return null;
-            }
-
-            try
-            {
-                var lonLatGrid = PlanetPatchMesh.ComputeLonLatGrid(faceNormal, minU, maxU, minV, maxV, meshResolution);
-                var resolution = lonLatGrid.GetLength(0);
-                var points = new Vector2[resolution * resolution];
-                for (var y = 0; y < resolution; y++)
+                if (_leaves.TryGetValue(key, out var current) && ReferenceEquals(current.Mesh, patch))
                 {
-                    for (var x = 0; x < resolution; x++)
-                    {
-                        points[(y * resolution) + x] = lonLatGrid[x, y];
-                    }
+                    _upresStatus[key] = PatchUpresStatus.Failed;
                 }
-
-                var tileDescriptors = new HeightSampleTileDescriptor[fetchedTiles.Count];
-                for (var i = 0; i < fetchedTiles.Count; i++)
-                {
-                    var tile = fetchedTiles[i];
-                    tileDescriptors[i] = new HeightSampleTileDescriptor
-                    {
-                        LonMin = tile.Area.UpperLeft.Longitude,
-                        LonMax = tile.Area.LowerRight.Longitude,
-                        LatMin = tile.Area.LowerLeft.Latitude,
-                        LatMax = tile.Area.UpperRight.Latitude,
-                        Width = TerrariumHeightTile.TileSize,
-                        Height = TerrariumHeightTile.TileSize,
-                        HeightData = tile.HeightData,
-                    };
-                }
-
-                float[] heights;
-                await HeightSampleReadbackThrottle.WaitAsync();
-                try
-                {
-                    var sampleTask = computeDevice.SampleHeightsAsync(points, tileDescriptors);
-                    var completedTask = await Task.WhenAny(sampleTask, Task.Delay(HeightSampleTimeout));
-                    if (completedTask != sampleTask)
-                    {
-                        Console.WriteLine($"[Terrarium] GPU height sampling timed out after {HeightSampleTimeout.TotalSeconds:0.#}s, falling back to CPU.");
-                        return null;
-                    }
-
-                    heights = await sampleTask;
-                }
-                finally
-                {
-                    HeightSampleReadbackThrottle.Release();
-                }
-
-                var result = new float[resolution, resolution];
-                for (var y = 0; y < resolution; y++)
-                {
-                    for (var x = 0; x < resolution; x++)
-                    {
-                        result[x, y] = heights[(y * resolution) + x];
-                    }
-                }
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Terrarium] GPU height sampling failed, falling back to CPU: {ex.Message}");
-                return null;
-            }
-        }
+            });
 
         private async Task UpresPatchAsync(PatchKey key, PlanetPatchMesh patch, PatchUpresPlan plan)
         {
@@ -1524,11 +1396,11 @@ namespace ManaGeoTools.Code.Planet
             if (fetched is not { Count: > 0 })
             {
                 Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: no tiles fetched successfully, leaving patch as-is.");
-                lock (_rebuildLock) { _upresStatus[key] = PatchUpresStatus.Failed; }
+                QueuePatchFailure(key, patch);
                 return;
             }
 
-            var precomputedHeights = await TrySampleHeightsOnGpuAsync(
+            var precomputedHeights = await PlanetHeightSampler.Shared.TrySampleAsync(
                 Context, patch.FaceNormal, patch.MinU, patch.MaxU, patch.MinV, patch.MaxV,
                 plan.MeshResolution, fetched, plan.TileIndices.Count);
 
@@ -1548,15 +1420,19 @@ namespace ManaGeoTools.Code.Planet
                     patch.ApplyHeightDataWithResolution(HeightLibrary!, plan.MeshResolution);
                 }
 
-                _upresStatus[key] = PatchUpresStatus.Done;
-                if (_leaves.TryGetValue(key, out var leaf))
+                _rebuilds.Enqueue(PlanetRebuildKind.Upres, () =>
                 {
-                    leaf.Zoom = plan.Zoom;
-                    leaf.SourceResolution = plan.SourceResolution;
-                    leaf.SourceMetersPerPixel = plan.SourceMetersPerPixel;
-                    leaf.Renderer.Name = PatchName(key, plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
-                    _patchDetails[key] = new PatchDetailInfo(plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
-                }
+                    if (_leaves.TryGetValue(key, out var leaf) && ReferenceEquals(leaf.Mesh, patch))
+                    {
+                        _upresStatus[key] = PatchUpresStatus.Done;
+                        leaf.Zoom = plan.Zoom;
+                        leaf.SourceResolution = plan.SourceResolution;
+                        leaf.SourceMetersPerPixel = plan.SourceMetersPerPixel;
+                        leaf.Renderer.Name = PatchName(key, plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
+                        _patchDetails[key] = new PatchDetailInfo(plan.Zoom, patch.Resolution, plan.SourceResolution, plan.SourceMetersPerPixel);
+                        EnqueuePatchSnapshotLocked(key);
+                    }
+                });
             }
 
             Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: applied {fetched.Count} tile(s){(precomputedHeights != null ? " (GPU)" : "")}.");
@@ -1573,22 +1449,8 @@ namespace ManaGeoTools.Code.Planet
             return await FetchTilesAsync(tileKeys);
         }
 
-        private static async Task<List<TerrariumHeightTile>> FetchTilesAsync(IReadOnlyList<TerrariumTileKey> tileKeys)
-        {
-            var fetchTasks = tileKeys.Select(async tileKey =>
-            {
-                await UpresFetchThrottle.WaitAsync();
-                try
-                {
-                    return await TerrariumTileFetcher.FetchTileAsync(tileKey.Zoom, tileKey.X, tileKey.Y);
-                }
-                finally
-                {
-                    UpresFetchThrottle.Release();
-                }
-            });
-            return (await Task.WhenAll(fetchTasks)).Where(tile => tile != null).Select(tile => tile!).ToList();
-        }
+        private static Task<List<TerrariumHeightTile>> FetchTilesAsync(IReadOnlyList<TerrariumTileKey> tileKeys) =>
+            PlanetTileStream.Shared.FetchAsync(tileKeys);
 
         private static IReadOnlyList<PlannedPatch>? CreateSourceMatchedPatchPlan(PatchKey key, PlanetPatchMesh patch, int targetZoom, bool includeTileIndices)
         {

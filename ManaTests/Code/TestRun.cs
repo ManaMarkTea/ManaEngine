@@ -128,6 +128,7 @@ public static class TestRunner
         ("ManaVoxel", "polygon editing", PolygonEditChecks.Run),
         ("ManaVoxel", "sprite assets", SpriteAssetChecks.Run),
         ("ManaVoxel", "sprite asset dependencies", SpriteAssetDependencyChecks.Run),
+        ("ManaGeoTools", "planet streaming and rebuild handoff", PlanetStreamingChecks.Run),
         ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaVoxel", "particles", ParticleChecks.Run),
         ("TrainYardWars", "rail rendering batches", TrackBatchChecks.Run),
