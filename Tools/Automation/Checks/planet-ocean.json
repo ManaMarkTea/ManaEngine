@@ -1,0 +1,22 @@
+[
+  { "type": "open_level", "path": "Content/Levels/Planet Showcase.manalevel" },
+  { "type": "gizmos", "visible": false },
+  { "type": "sky", "name": "Space" },
+  { "type": "wait", "frames": 1200 },
+  { "type": "move_camera", "position": [32, 60, 144], "target": [32, 40, 32] },
+  { "type": "wait", "frames": 90 },
+  { "type": "screenshot", "path": "@@OUT@@.orbit.png" },
+  { "type": "move_camera", "position": [56, 40, 73.5692], "target": [52, 40, 66.641] },
+  { "type": "wait", "frames": 180 },
+  { "type": "screenshot", "path": "@@OUT@@.near.png" },
+  { "type": "move_camera", "position": [58, 40, 77.0333], "target": [52, 40, 66.641] },
+  { "type": "wait", "frames": 120 },
+  { "type": "screenshot", "path": "@@OUT@@.middle.png" },
+  { "type": "move_camera", "position": [62, 40, 83.9615], "target": [52, 40, 66.641] },
+  { "type": "wait", "frames": 120 },
+  { "type": "screenshot", "path": "@@OUT@@.far.png" },
+  { "type": "move_camera", "position": [62.8538, 40, 68.7701], "target": [57.7115, 40, 62.6418] },
+  { "type": "wait", "frames": 180 },
+  { "type": "screenshot", "path": "@@OUT@@.recentered.png" },
+  { "type": "quit" }
+]

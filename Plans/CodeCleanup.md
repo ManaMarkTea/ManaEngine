@@ -37,7 +37,9 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 4. Extract coherent planet subsystems
 
-- [ ] Separate ocean management from PlanetNode.
+- [x] Separate ocean management from PlanetNode.
+  - PlanetOceanController owns far/near meshes, visibility, camera-driven rebuilds, altitude hysteresis and shader uniforms. PlanetNode forwards the existing public setting/update API; the controller shares the terrain rebuild lock.
+  - Check: Tools/Automation/Checks/planet-ocean.json. After the baseline decodes, expect the far shell to attach, the near patch to attach at altitude 0.2 radii, stay at 0.3, detach at 0.5, then attach at a new ocean location. The screenshots check coverage across these transitions.
 - [ ] Separate tile fetch scheduling and split/merge work from scene integration.
 - Preserve main-thread scene mutation, cancellation and resource ownership. Validate LOD transitions visually.
 
@@ -73,3 +75,4 @@ This is a structural review, not a claim that every large file needs splitting.
 - Asset ownership validation: all 3,478 checks passed. Coverage includes independent browser filters, browser state across theme rebuilds, separate atlas coordinates, shared-atlas roots, late cache availability and native-popout service ownership. Desktop build has no warnings. Automation displayed Import previews, Project tiles and a sprite sheet, switched theme, detached Import and reopened its saved layout; artifacts use the cleanup-assets prefix. User workspace settings were restored. Browser/iOS were not run.
 - Asset loading separation validation: all 3,485 checks passed. Sample Course opened with 245 nodes and zero warnings and entered desktop play; captures use cleanup-mesh-loading. Browser Release/AOT publish and Chrome 2D Sample passed, including character/background/slice pictures and bow input, with no premature image-load or WebGPU validation errors; captures/logs are in Artifacts/WebDrive/cleanup-asset-preloader-settled.
 - SDK follow-up: 10.0.402 lacks its wasm-tools registration; workload restore requires administrator privileges. Browser validation used the retained 10.0.300 SDK directly, without adding a global.json. Register the new workload with `sudo dotnet workload restore ManaVoxel.Web/ManaVoxel.Web.csproj`. iOS was not run.
+- Ocean extraction validation: all 3,485 headless checks passed; desktop build has no warnings. Planet Showcase opened with zero warnings, decoded its baseline, and logged far attach / near attach / near detach / near attach in the expected order. In-app orbit, near, middle-band, far and recentered captures are under Artifacts/Automation/cleanup-ocean-*.png. Original user workspace settings were restored. No shader or authored level changes; browser/iOS were not run.

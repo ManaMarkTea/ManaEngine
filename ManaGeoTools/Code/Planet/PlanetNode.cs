@@ -177,35 +177,11 @@ namespace ManaGeoTools.Code.Planet
         // swap them into the scene graph on the main thread -- mirrors _readyToFinalize.
         private readonly Queue<PendingMerge> _readyToFinalizeMerge = new();
 
-        private readonly PlanetOceanMesh _oceanMesh;
-        private readonly ManaMeshSceneNode _oceanNode;
-        private readonly MeshRendererComponent _oceanRenderer;
-        private bool _oceanAttached;
+        private readonly PlanetOceanController _ocean;
 
         // Set once LoadHeightDataAsync's decode has applied every baseline tile. Volatile: written on the
         // decode task, read on the main thread every frame.
         private volatile bool _baselineHeightDataLoaded;
-
-        // Near tier of the ocean (see PlanetNearOceanMesh). The node is a permanent child; the
-        // RENDERER is what gets attached/detached, so the patch costs nothing at all from orbit --
-        // there is no per-mesh visibility flag in the scene graph, and adding/removing the component is
-        // the pattern BeginSplitLocked/FinalizeMerge already use for exactly this.
-        private readonly PlanetNearOceanMesh _nearOceanMesh;
-        private readonly ManaSceneNode _nearOceanNode;
-        private readonly MeshRendererComponent _nearOceanRenderer;
-        private bool _nearOceanAttached;
-
-        // Written by the rebuild task, read every frame by the main thread -- volatile rather than
-        // locked because UpdateNearOcean must never block on a rebuild it is only polling for.
-        private volatile bool _nearOceanRebuildInFlight;
-        private volatile bool _nearOceanReady;
-        private volatile bool _nearOceanHeightDataDirty;
-
-        // Meters of real-world distance per scene unit -- the same EarthRadiusMeters/Radius ratio
-        // ComputeTargetMetersPerPixel and VoxelSearchPanelView already use. Every near-ocean threshold
-        // below is written in meters and converted through this, because scene units are a poor unit to
-        // reason about waves in (one is ~160km at the default planet scale).
-        private readonly float _metersPerUnit;
 
         // Caps how many Terrarium tiles a single patch up-res will fetch (see SlippyMapMath.PickZoom).
         // A lower cap (16) used to force the zoom picker down to z5 (~4.9km/px), coarser than the
@@ -258,41 +234,6 @@ namespace ManaGeoTools.Code.Planet
         // near-zero radius and trigger nothing.
         private const float AutoLodMinAltitudeFraction = 0.025f;
 
-        // Altitude band the near-ocean patch exists in, as a fraction of the planet's radius rather
-        // than an absolute distance -- the same "planet scale" framing the AutoLod constants above use,
-        // and for the same reason: it means the same thing at any planet size.
-        //
-        // These were originally absolute (20km/30km, physically the altitude where real waves become
-        // visible), which made the patch effectively unreachable: at the demo's 40-unit radius standing
-        // in for 6371km, 20km of altitude is 0.126 scene units -- barely outside the 0.1 near clip
-        // plane. The patch has to earn its place from orbit down, so the band is wide and the SHADER is
-        // what scales wave size to the altitude (see near_ocean.wgsl's effective_wavelength_meters).
-        private const float NearOceanActivationAltitudeFraction = 0.25f;
-        private const float NearOceanDeactivationAltitudeFraction = 0.4f;
-
-        // Half-span of the patch as an ANGLE, sized from altitude: a camera at altitude h sees roughly
-        // h-worth of ground around the point below it. Clamped at both ends -- the floor keeps a camera
-        // sitting AT sea level from collapsing the patch to nothing, and the ceiling is the gnomonic
-        // projection's usable limit (see PlanetNearOceanMesh.MaxHalfSpanRadians).
-        private const float NearOceanSpanAltitudeMultiplier = 3f;
-        private const float NearOceanMinHalfSpanRadians = 0.0005f;
-
-        // How far the camera has to drift, as a fraction of the current half-span, before the patch
-        // re-centers. Rebuilding is ~66k vertices of bathymetry sampling, so this deliberately trades a
-        // little wasted footprint for far fewer rebuilds.
-        private const float NearOceanRecenterFraction = 0.125f;
-        private const float NearOceanRespanFraction = 0.25f;
-
-        // How many depth-buffer quanta of clearance the ocean tiers are lifted by, and the ceiling on
-        // that lift. 3 quanta is enough to win the depth test reliably without the lift becoming
-        // visible; the cap is in meters because what it is really guarding against is the water
-        // standing proud of a coastline, which is a real-world-scale judgement. See ComputeDepthLift.
-        private const float OceanDepthLiftQuanta = 3f;
-        private const float OceanDepthLiftMaxMeters = 2500f;
-
-        // Depth24Plus (see ManaWebGpuContext._depthFormat).
-        private const float DepthBufferLevels = 16777216f;
-
         // Hard cap on the altitude-scaled radius -- otherwise it grows unbounded with distance, and
         // viewing from far away (including the engine's default starting camera) would make every patch
         // on the globe register as "close" and stream in at once.
@@ -321,7 +262,7 @@ namespace ManaGeoTools.Code.Planet
         /// Live toggle for UpdateNearOcean, mirroring AutoLodEnabled. On by default: unlike auto-LOD it
         /// streams nothing and costs nothing until the camera is already near the surface.
         /// </summary>
-        public bool NearOceanEnabled { get; set; } = true;
+        public bool NearOceanEnabled { get => _ocean.Enabled; set => _ocean.Enabled = value; }
 
         public PlanetNode(
             ManaContext context,
@@ -367,38 +308,7 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
-            _metersPerUnit = PlanetLoader.EarthRadiusMeters / MathF.Max(radius, 1e-6f);
-
-            // Far tier: a single un-tiled, wave-free shell covering the whole globe (not one per
-            // terrain patch), masked to real ocean coverage once height data arrives.
-            _oceanMesh = new PlanetOceanMesh(context, radius, oceanResolution, heightLibrary: null);
-            _oceanNode = new ManaMeshSceneNode(context, _oceanMesh) { Name = "Ocean" };
-            _oceanRenderer = _oceanNode.MeshRenderer;
-            AddChild(_oceanNode);
-
-            // The mask that decides where this shell is water comes from the baseline height data, so
-            // until that has decoded the shell is an unmasked sphere at sea-level radius: ocean over every
-            // continent, with the placeholder terrain poking through it. Start hidden and let
-            // UpdateNearOcean attach it once IsOceanMaskReady -- ManaMeshSceneNode builds its renderer for
-            // us, so hiding means detaching that rather than not creating it.
-            _oceanAttached = true;
-            DetachFarOcean();
-
-            // Near tier: starts detached, and stays that way until UpdateNearOcean sees the camera drop
-            // into the altitude band where waves are actually resolvable.
-            _nearOceanMesh = new PlanetNearOceanMesh(
-                context, radius, _metersPerUnit, Vector3.UnitY, NearOceanMinHalfSpanRadians, heightLibrary: null);
-            _nearOceanNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Near Ocean" };
-            _nearOceanRenderer = new MeshRendererComponent(_nearOceanNode, _nearOceanMesh) { Name = "Near Ocean" };
-            AddChild(_nearOceanNode);
-
-            SetFarOceanNearFade(
-                active: false,
-                worldCenter: Vector3.Zero,
-                innerRadius: 0f,
-                outerRadius: 0f,
-                depthLiftCoefficient: 0f,
-                depthLiftMaxUnits: 0f);
+            _ocean = new PlanetOceanController(this, _rebuildLock);
         }
 
         /// <summary>
@@ -470,15 +380,7 @@ namespace ManaGeoTools.Code.Planet
                     }
                 }
 
-                // Unlike a patch, the ocean shell spans the whole globe, so every tile is potentially
-                // relevant to it -- no overlap test, just re-mask against whatever height data is
-                // loaded so far every time any tile finishes.
-                _oceanMesh.ApplyHeightData(HeightLibrary!);
-
-                // The near patch is only a few km across, so re-masking it per tile would be almost
-                // entirely wasted work (and it's usually detached during the initial load anyway).
-                // Flag it instead and let UpdateNearOcean fold the refresh into its next rebuild.
-                _nearOceanHeightDataDirty = true;
+                _ocean.ApplyHeightData(HeightLibrary!);
             }
         }
 
@@ -1320,267 +1222,8 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        /// <summary>
-        /// Camera-driven near ocean: keeps the high-density wave patch (PlanetNearOceanMesh) centered
-        /// under the camera and sized to its altitude while the camera is low enough for waves to be
-        /// resolvable, and detaches it entirely otherwise. Call once per frame from the main thread,
-        /// alongside UpdateAutoLod. Also drives the cross-fade uniforms on BOTH tiers every frame --
-        /// they describe where the near patch currently is, so they can't be baked into a material.
-        /// </summary>
-        public void UpdateNearOcean(CameraComponent camera)
-        {
-            // Applies to the far shell whether or not the near patch is active, so it is computed and
-            // pushed before any of the early-outs below.
-            var (depthLiftCoefficient, depthLiftMaxUnits) = ComputeDepthLift(camera);
-
-            // Neither tier is worth showing before the height data that masks it: the far shell would be an
-            // opaque sea-level sphere over every continent, and the near patch would sample bathymetry that
-            // has not decoded yet. This method already owns which tier is visible, so the gate lives here.
-            if (!IsOceanMaskReady)
-            {
-                DetachFarOcean();
-                DetachNearOcean();
-                _nearOceanReady = false;
-                SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);
-                return;
-            }
-
-            AttachFarOcean();
-
-            if (!NearOceanEnabled)
-            {
-                DetachNearOcean();
-                SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);
-                return;
-            }
-
-            if (!Matrix4x4.Invert(WorldTransform, out var worldToLocal))
-            {
-                return;
-            }
-
-            // Same local-space framing UpdateAutoLod uses: the planet's own world transform is undone
-            // once here, so nothing below has to reapply it per vertex or per patch.
-            var cameraLocalPosition = Vector3.Transform(camera.Owner.Position, worldToLocal);
-            var cameraDistanceFromCenter = cameraLocalPosition.Length();
-            if (cameraDistanceFromCenter < 0.001f)
-            {
-                return;
-            }
-
-            var cameraDirection = cameraLocalPosition / cameraDistanceFromCenter;
-            var altitudeFraction = MathF.Max(0f, (cameraDistanceFromCenter - Radius) / Radius);
-
-            // Hysteresis: once attached, the patch only lets go at the higher ceiling.
-            var ceilingFraction = _nearOceanAttached
-                ? NearOceanDeactivationAltitudeFraction
-                : NearOceanActivationAltitudeFraction;
-            if (altitudeFraction > ceilingFraction)
-            {
-                DetachNearOcean();
-                SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);
-                // Forces a fresh rebuild rather than reattaching stale geometry on the way back down.
-                _nearOceanReady = false;
-                return;
-            }
-
-            // Altitude fraction IS an angle to good approximation: a camera one tenth of a radius up
-            // sees roughly a tenth of a radian of ground around the point below it.
-            var targetHalfSpanRadians = Math.Clamp(
-                altitudeFraction * NearOceanSpanAltitudeMultiplier,
-                NearOceanMinHalfSpanRadians,
-                PlanetNearOceanMesh.MaxHalfSpanRadians);
-
-            if (!_nearOceanRebuildInFlight)
-            {
-                var currentHalfSpanRadians = _nearOceanMesh.HalfSpanRadians;
-                // Great-circle distance / Radius is the angle between the patch center and the camera's
-                // sub-point, which is directly comparable to the span angle.
-                var driftRadians = GreatCircleDistanceFromCameraDirection(_nearOceanMesh.CenterDirection, cameraDirection) / Radius;
-                var needsRebuild = !_nearOceanReady
-                    || _nearOceanHeightDataDirty
-                    || driftRadians > currentHalfSpanRadians * NearOceanRecenterFraction
-                    || MathF.Abs(targetHalfSpanRadians - currentHalfSpanRadians) > currentHalfSpanRadians * NearOceanRespanFraction;
-
-                if (needsRebuild)
-                {
-                    BeginNearOceanRebuild(cameraDirection, targetHalfSpanRadians);
-                }
-            }
-
-            // Only show the patch once a rebuild has actually placed it under this camera -- attaching
-            // sooner would flash the previous location's geometry for however long the rebuild takes.
-            if (!_nearOceanReady)
-            {
-                DetachNearOcean();
-                SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);
-                return;
-            }
-
-            AttachNearOcean();
-            PushNearOceanUniforms(depthLiftCoefficient, depthLiftMaxUnits);
-        }
-
-        /// <summary>
-        /// How far to lift the ocean surface along its radial to stay out of the terrain's depth
-        /// bucket, as (coefficient, capUnits) for a `coefficient * viewDistance^2` curve evaluated per
-        /// vertex in the shaders.
-        ///
-        /// A standard (non-reversed) depth buffer resolves about `d^2 / (near * levels)` of world
-        /// distance at view distance d, so the quadratic here is the precision curve itself rather than
-        /// a fudge factor -- one coefficient therefore covers sea level through orbit. The real fix for
-        /// this whole class of problem is a reversed-Z depth buffer with an infinite far plane, which
-        /// would make relative precision roughly uniform; short of that, raising the camera's near
-        /// plane is the strongest single lever, since the coefficient falls off linearly with it.
-        /// </summary>
-        private (float Coefficient, float MaxUnits) ComputeDepthLift(CameraComponent camera)
-        {
-            var nearPlane = MathF.Max(camera.NearClipPlane, 1e-4f);
-            var coefficient = OceanDepthLiftQuanta / (nearPlane * DepthBufferLevels);
-            var maxUnits = OceanDepthLiftMaxMeters / _metersPerUnit;
-            return (coefficient, maxUnits);
-        }
-
-        private void BeginNearOceanRebuild(Vector3 centerDirection, float halfSpanRadians)
-        {
-            _nearOceanRebuildInFlight = true;
-            _nearOceanHeightDataDirty = false;
-            var heightLibrary = HeightLibrary;
-
-            Task.Run(() =>
-            {
-                SetCurrentThreadName("Planet near ocean rebuild");
-                try
-                {
-                    // Held for the same reason PlanetPatchMesh's rebuilds hold it: the per-vertex
-                    // bathymetry sampling reads HeightLibrary, and ApplyTileToOverlappingPatches adds
-                    // tiles to it under this same lock.
-                    lock (_rebuildLock)
-                    {
-                        _nearOceanMesh.RecenterTo(centerDirection, halfSpanRadians, heightLibrary);
-                    }
-
-                    _nearOceanReady = true;
-                }
-                finally
-                {
-                    _nearOceanRebuildInFlight = false;
-                }
-            });
-        }
-
-        private void PushNearOceanUniforms(float depthLiftCoefficient, float depthLiftMaxUnits)
-        {
-            // The fade radii are patch-local lengths, so a scaled PlanetNode needs them scaled too --
-            // ocean.wgsl compares them against a world-space distance. Uniform scale is assumed, which
-            // is what every planet setup here uses.
-            var worldScale = new Vector3(WorldTransform.M11, WorldTransform.M12, WorldTransform.M13).Length();
-            var worldCenter = Vector3.Transform(_nearOceanMesh.CenterDirection * Radius, WorldTransform);
-            SetFarOceanNearFade(
-                active: true,
-                worldCenter,
-                _nearOceanMesh.EdgeFadeInnerRadiusUnits * worldScale,
-                _nearOceanMesh.EdgeFadeOuterRadiusUnits * worldScale,
-                depthLiftCoefficient,
-                depthLiftMaxUnits);
-
-            var material = _nearOceanRenderer.Material;
-            material.SetShaderUniform("depthLiftCoefficient", depthLiftCoefficient);
-            material.SetShaderUniform("depthLiftMaxUnits", depthLiftMaxUnits);
-            material.SetShaderUniform("waveEast", _nearOceanMesh.East);
-            material.SetShaderUniform("waveNorth", _nearOceanMesh.North);
-            material.SetShaderUniform("unitsPerMeter", 1f / _metersPerUnit);
-            material.SetShaderUniform("waveTileMeters", PlanetNearOceanMesh.WaveTileMeters);
-            material.SetShaderUniform("vertexSpacingMeters", _nearOceanMesh.VertexSpacingMeters);
-        }
-
-        private void SetFarOceanNearFade(
-            bool active,
-            Vector3 worldCenter,
-            float innerRadius,
-            float outerRadius,
-            float depthLiftCoefficient,
-            float depthLiftMaxUnits)
-        {
-            var material = _oceanRenderer.Material;
-            material.SetShaderUniform("nearFadeCenter", worldCenter);
-            material.SetShaderUniform("nearFadeInnerRadius", active ? innerRadius : 0f);
-            // ocean.wgsl reads a non-positive outer radius as "no near patch", so this one value is
-            // what actually switches the shell back to full coverage.
-            material.SetShaderUniform("nearFadeOuterRadius", active ? outerRadius : 0f);
-            material.SetShaderUniform("depthLiftCoefficient", depthLiftCoefficient);
-            material.SetShaderUniform("depthLiftMaxUnits", depthLiftMaxUnits);
-        }
-
-        private void AttachFarOcean()
-        {
-            if (_oceanAttached)
-            {
-                return;
-            }
-
-            _oceanNode.Components.Add(_oceanRenderer);
-            _oceanAttached = true;
-            Console.WriteLine("[Ocean] Far shell attached (baseline height data decoded, mask is valid).");
-        }
-
-        private void DetachFarOcean()
-        {
-            if (!_oceanAttached)
-            {
-                return;
-            }
-
-            // Same selection hand-off DetachNearOcean does, for the same reason: the renderer is about to
-            // leave the scene graph.
-            var selection = Context.World.Selection;
-            if (ReferenceEquals(selection.SelectedComponent, _oceanRenderer))
-            {
-                selection.SelectedComponent = null;
-            }
-
-            _oceanNode.Components.Remove(_oceanRenderer);
-            _oceanAttached = false;
-        }
-
-        private void AttachNearOcean()
-        {
-            if (_nearOceanAttached)
-            {
-                return;
-            }
-
-            _nearOceanNode.Components.Add(_nearOceanRenderer);
-            _nearOceanAttached = true;
-
-            // Logged because "the high-detail water isn't showing up" is otherwise indistinguishable
-            // from "it is showing up but looks like the flat shell" -- the span and vertex spacing say
-            // which, since they're what decide whether waves are big enough to see at this altitude.
-            Console.WriteLine(
-                $"[NearOcean] Attached: halfSpan={_nearOceanMesh.HalfSpanRadians:F4} rad "
-                + $"({_nearOceanMesh.HalfSpanMeters / 1000f:F1} km), vertexSpacing={_nearOceanMesh.VertexSpacingMeters:F1} m.");
-        }
-
-        private void DetachNearOcean()
-        {
-            if (!_nearOceanAttached)
-            {
-                return;
-            }
-
-            Console.WriteLine("[NearOcean] Detached (camera left the near-ocean altitude band).");
-
-            // The renderer is about to leave the scene graph; drop it as the selection first, the same
-            // way BeginSplitLocked/FinalizeMerge do before removing a patch's component.
-            var selection = Context.World.Selection;
-            if (ReferenceEquals(selection.SelectedComponent, _nearOceanRenderer))
-            {
-                selection.SelectedComponent = null;
-            }
-
-            _nearOceanNode.Components.Remove(_nearOceanRenderer);
-            _nearOceanAttached = false;
-        }
+        /// <summary>Updates ocean visibility and wave detail once per frame on the main thread.</summary>
+        public void UpdateNearOcean(CameraComponent camera) => _ocean.Update(camera);
 
         // Arc-length distance (in world units) between a patch's center and the point directly below
         // the camera, both expressed purely as directions from the planet's local origin -- this only
