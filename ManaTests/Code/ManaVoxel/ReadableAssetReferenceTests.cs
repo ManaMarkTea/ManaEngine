@@ -24,18 +24,11 @@ public static class ReadableAssetReferenceChecks
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         // Prefabs use source-relative paths even when launched outside the repository root.
-        var originalDirectory = Environment.CurrentDirectory;
-        try
-        {
-            Environment.CurrentDirectory = Path.GetTempPath();
-            var lamp = ManaLevelLoader.ResolveAssetPath("Assets/Models/Kenny/lightpost-single.glb");
-            Check("a prefab model resolves from the centralized build with an unrelated working directory",
-                File.Exists(lamp), lamp);
-        }
-        finally
-        {
-            Environment.CurrentDirectory = originalDirectory;
-        }
+        var lamp = ManaLevelLoader.ResolveAssetPath("Assets/Models/Kenny/lightpost-single.glb", Path.GetTempPath());
+        Check("a prefab model resolves from the centralized build with an unrelated working directory",
+            File.Exists(lamp), lamp);
+        var missingAssetPath = ManaLevelLoader.ResolveAssetPath("missing-" + Guid.NewGuid().ToString("N") + ".glb", Path.GetTempPath());
+        Check("missing assets fall back to the supplied launch directory", Path.GetDirectoryName(missingAssetPath) == Path.TrimEndingDirectorySeparator(Path.GetTempPath()), missingAssetPath);
 
         var readable = ZipAssetReferences.EncodeReadableZip(Pack, Entry);
         Check("a reference reads as the pack and the model", readable == "zip:" + Pack + "/" + Entry, readable);

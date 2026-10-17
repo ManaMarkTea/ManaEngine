@@ -11,6 +11,10 @@
     per-agent costs and rotating quips; clearly labeled fictional tariffs, no API calls.
     Cached C#/WGSL syntax colors distinguish keywords, types, methods, strings, numbers, comments and directives.
 
+[] - Project code cleanup: Plans/CodeCleanup.md.
+    Cody (2026-10-16): started with explicit asset-resolution paths to remove process-wide directory changes from tests.
+    Follow-ups: prefab content-root isolation, workspace panel registry, asset services, planet and game view responsibilities.
+
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);
     it reads fine at night there, so I can't tell which sprite looks wrong. Tell me one (a level and a sprite) and I'll

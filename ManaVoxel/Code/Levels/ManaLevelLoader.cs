@@ -913,7 +913,10 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
-        public static string ResolveAssetPath(string assetReference)
+        public static string ResolveAssetPath(string assetReference) => ResolveAssetPath(assetReference, Environment.CurrentDirectory);
+
+        /// <summary>Resolves assets for a launch directory without changing process-wide state.</summary>
+        public static string ResolveAssetPath(string assetReference, string workingDirectory)
         {
             // The browser has no checkout to search: a catalog asset is wherever the catalog downloaded it.
             if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(assetReference) is { } downloaded && File.Exists(downloaded))
@@ -929,8 +932,8 @@ namespace ManaVoxel.Code.Levels
             var normalized = assetReference.Replace('/', Path.DirectorySeparatorChar);
             string[] roots =
             {
-                Environment.CurrentDirectory,
-                Path.Combine(Environment.CurrentDirectory, "Mana"),
+                workingDirectory,
+                Path.Combine(workingDirectory, "Mana"),
                 AppContext.BaseDirectory
             };
 
@@ -964,7 +967,7 @@ namespace ManaVoxel.Code.Levels
                 break;
             }
 
-            return Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, normalized));
+            return Path.GetFullPath(Path.Combine(workingDirectory, normalized));
         }
 
         private static ManaVoxelsNode CreateVoxelsNode(ManaContext context, ManaScene scene, ManaLevelNode entry)
