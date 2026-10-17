@@ -106,7 +106,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 if (file() is { } path && image.Root is { } root)
                 {
                     MeshThumbnailImages.Touch(root, path);
-                    ManaUiDockDemo.MeshThumbnails?.Request(path);
+                    EditorWorkspace.MeshThumbnails?.Request(path);
                     image.Visibility = MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Hidden;
                     if (MeshThumbnailImages.HasImage(path))
                     {

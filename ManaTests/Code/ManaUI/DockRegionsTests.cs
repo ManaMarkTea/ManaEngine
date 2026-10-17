@@ -32,7 +32,7 @@ public static class DockRegionsChecks
             var world = new ManaWorld();
             _ = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
 
-            root.Content = ManaUiDockDemo.Attach(
+            root.Content = EditorWorkspace.Attach(
                 root, new ManaUiShowcaseViewModel(), null, persist: false, editor: vm, world: world);
             root.UpdateLayout(new Vector2(1920, 1080));
 
@@ -57,8 +57,8 @@ public static class DockRegionsChecks
                 strip?.Bounds.ToString() ?? "not found");
 
             // ---------------------------------------------------------------- Layers is gone
-            Check("layers is no longer a known panel", !ManaUiDockDemo.PanelIds.Contains("layers"), "removed");
-            Check("stats is no longer a known panel", !ManaUiDockDemo.PanelIds.Contains("stats"), "removed");
+            Check("layers is no longer a known panel", !EditorWorkspace.PanelIds.Contains("layers"), "removed");
+            Check("stats is no longer a known panel", !EditorWorkspace.PanelIds.Contains("stats"), "removed");
             Check("the Layers menu is gone from the bar",
                 !menuBar!.Menus.Any(m => m.Text == "Layers"),
                 string.Join(", ", menuBar.Menus.Select(m => m.Text)));
@@ -101,7 +101,7 @@ public static class DockRegionsChecks
                 string.Join(", ", rightHost.AllItems().Select(i => i.Id)));
 
             // All four docks are ResizablePanels -- the top toolbar strip's handle is switched off
-            // (AllowResize = false, see ManaUiDockDemo's topPanel) rather than the panel itself being
+            // (AllowResize = false, see EditorWorkspace's topPanel) rather than the panel itself being
             // dropped, since DockHost/DockTabGroup always measure to whatever height they are given rather
             // than to their own content.
             var panels = FindAll<ResizablePanel>(root.Content!);
@@ -150,7 +150,7 @@ public static class DockRegionsChecks
             File.WriteAllText(scratch, oldLayout.ToJson());
 
             var migratedRoot = new UiRoot(fonts);
-            migratedRoot.Content = ManaUiDockDemo.Attach(
+            migratedRoot.Content = EditorWorkspace.Attach(
                 migratedRoot, new ManaUiShowcaseViewModel(), null, persist: true,
                 editor: new VoxelEditorViewModel(), layoutPath: scratch);
             migratedRoot.UpdateLayout(new Vector2(1920, 1080));

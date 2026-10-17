@@ -9,7 +9,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 {
     /// <summary>
     /// The Grid Map tool window: the selected map's brush, palette and the brush tile's own settings. The
-    /// workspace floats it while a grid map is selected (see ManaUiDockDemo); painting happens in the viewport,
+    /// workspace floats it while a grid map is selected (see EditorWorkspace); painting happens in the viewport,
     /// in <c>VoxelEditorGameMode.GridMap</c>.
     /// </summary>
     public static class GridMapToolManaView
@@ -76,7 +76,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var add = new ManaUI.Button().Label("Add").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
-                if (ManaUiDockDemo.MeshAssets.SelectedAssets is { Count: > 0 } selected)
+                if (EditorWorkspace.MeshAssets.SelectedAssets is { Count: > 0 } selected)
                 {
                     // Through the requests the editor drains while painting, so a model still downloading on the
                     // web joins once it has arrived rather than as a tile that failed to load.
@@ -84,7 +84,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MeshImportRequests.RequestPaletteAdd(selected);
                 }
             });
-            add.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(ManaUiDockDemo.MeshAssets.SelectedAsset));
+            add.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
             add.WithTooltip("Add the models selected in the asset browser (Ctrl or Shift click to pick several).");
 
             var remove = new ManaUI.Button().Label("Remove").Variant(ButtonVariant.Subtle).OnClick(() =>
@@ -674,7 +674,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MeshThumbnailImages.Touch(root, asset);
                 }
 
-                if (!requested && ManaUiDockDemo.MeshThumbnails is { } cache)
+                if (!requested && EditorWorkspace.MeshThumbnails is { } cache)
                 {
                     cache.Request(asset);
                     requested = true;

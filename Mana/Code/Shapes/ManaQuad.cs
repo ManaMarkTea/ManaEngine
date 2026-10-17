@@ -67,7 +67,7 @@ namespace Mana
 
             // Floor and line tint for grid.wgsl/grid.frag, read back out of Albedo/Emission rather than a
             // dedicated field so the existing per-object material-colour upload carries them for free.
-            // Mirrors UiTheme's Dark default; ManaUiDockDemo overwrites both once the active theme is
+            // Mirrors UiTheme's Dark default; EditorWorkspace overwrites both once the active theme is
             // known, so this only matters until the first frame the UI has a theme to push.
             material.Albedo.Value = new Vector4(0.604f, 0.604f, 0.635f, 1.0f);
             material.Emission.Value = new Vector4(0.439f, 0.447f, 0.486f, 1.0f);

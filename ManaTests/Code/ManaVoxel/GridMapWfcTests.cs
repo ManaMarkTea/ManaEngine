@@ -177,8 +177,8 @@ public static class GridMapWfcChecks
         world.DefaultScene.Children.Add(gridMap);
 
         var root = new UiRoot(fonts);
-        root.Content = ManaUiDockDemo.Attach(root, new ManaUiShowcaseViewModel(), null, persist: false, editor: new VoxelEditorViewModel(), world: world);
-        UiWindow? Window() => ManaUiDockDemo.LastDragController?.FindFloating(GridMapWfcManaView.PanelId);
+        root.Content = EditorWorkspace.Attach(root, new ManaUiShowcaseViewModel(), null, persist: false, editor: new VoxelEditorViewModel(), world: world);
+        UiWindow? Window() => EditorWorkspace.For(root).DragController?.FindFloating(GridMapWfcManaView.PanelId);
         void Frame()
         {
             root.UpdateLayout(new Vector2(1600, 900));

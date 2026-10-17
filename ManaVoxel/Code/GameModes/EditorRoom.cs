@@ -24,7 +24,7 @@ namespace Mana.Code.GameModes
 
         /// <summary>
         /// Paints the ground-plane grid quads with the active UI theme's floor/line colours. Also called
-        /// from <see cref="ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo"/> on every later theme switch; this
+        /// from <see cref="ManaVoxel.Code.UI.ManaUi.EditorWorkspace"/> on every later theme switch; this
         /// call is the one that matters for the very first frame, since it runs after the planes exist.
         /// </summary>
         private void ApplyGridTheme(params ManaSceneNode?[] planes)

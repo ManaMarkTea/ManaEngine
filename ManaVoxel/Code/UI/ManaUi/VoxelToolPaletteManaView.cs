@@ -43,7 +43,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// <summary>
         /// The Voxel Tools window: the tools, whichever settings the current one uses, the work plane, and the
         /// node being drawn into. It floats while a voxel node is selected or a voxel tool is active (see
-        /// ManaUiDockDemo), so the toolbar keeps only the level, history, gizmo and play controls.
+        /// EditorWorkspace), so the toolbar keeps only the level, history, gizmo and play controls.
         /// </summary>
         public static UiElement BuildWindow(UiTheme theme, VoxelEditorViewModel vm)
         {

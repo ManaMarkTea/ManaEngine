@@ -267,7 +267,7 @@ public static class PersistenceChecks
             var themeRoot = new UiRoot(fonts);
             var themeVm = new ManaUiShowcaseViewModel();
 
-            themeRoot.Content = ManaUiDockDemo.Attach(
+            themeRoot.Content = EditorWorkspace.Attach(
                 themeRoot, themeVm, () => "frame", persist: true, layoutPath: scratch);
             themeRoot.UpdateLayout(new Vector2(1600, 900));
 
@@ -289,7 +289,7 @@ public static class PersistenceChecks
 
             // The real test: a fresh session against the same file.
             var reopened = new UiRoot(fonts);
-            reopened.Content = ManaUiDockDemo.Attach(
+            reopened.Content = EditorWorkspace.Attach(
                 reopened, new ManaUiShowcaseViewModel(), () => "frame", persist: true, layoutPath: scratch);
             reopened.UpdateLayout(new Vector2(1600, 900));
 
@@ -310,7 +310,7 @@ public static class PersistenceChecks
                 ManaUiWorkspaceLayout.Load(scratch)?.Theme.ToString() ?? "nothing written");
 
             var third = new UiRoot(fonts);
-            third.Content = ManaUiDockDemo.Attach(
+            third.Content = EditorWorkspace.Attach(
                 third, new ManaUiShowcaseViewModel(), () => "frame", persist: true, layoutPath: scratch);
             third.UpdateLayout(new Vector2(1600, 900));
 
@@ -438,12 +438,12 @@ public static class FloatingPersistenceChecks
             var root = new UiRoot(fonts);
             var vm = new ManaVoxel.Code.UI.VoxelEditorViewModel();
 
-            root.Content = ManaUiDockDemo.Attach(
+            root.Content = EditorWorkspace.Attach(
                 root, new ManaUiShowcaseViewModel(), null, persist: true, editor: vm, layoutPath: scratch);
 
             root.UpdateLayout(new Vector2(1600, 900));
 
-            var controller = ManaUiDockDemo.LastDragController;
+            var controller = EditorWorkspace.For(root).DragController;
             Check("the workspace built a drag controller", controller != null);
 
             var item = FindAll<DockHost>(root.Content!)
@@ -465,13 +465,13 @@ public static class FloatingPersistenceChecks
 
             // ---------------------------------------------------------------- reopening
             var reopened = new UiRoot(fonts);
-            reopened.Content = ManaUiDockDemo.Attach(
+            reopened.Content = EditorWorkspace.Attach(
                 reopened, new ManaUiShowcaseViewModel(), null, persist: true,
                 editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
 
             reopened.UpdateLayout(new Vector2(1600, 900));
 
-            var after = ManaUiDockDemo.LastDragController;
+            var after = EditorWorkspace.For(reopened).DragController;
             Check("it comes back floating rather than gone",
                 after?.FindFloating("import") != null, "restored");
 
@@ -500,7 +500,7 @@ public static class FloatingPersistenceChecks
             File.WriteAllText(scratch, onDisk.ToJson());
 
             var upgraded = new UiRoot(fonts);
-            upgraded.Content = ManaUiDockDemo.Attach(
+            upgraded.Content = EditorWorkspace.Attach(
                 upgraded, new ManaUiShowcaseViewModel(), null, persist: true,
                 editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
 
@@ -514,7 +514,7 @@ public static class FloatingPersistenceChecks
                 upgradedDocked == 0, $"{upgradedDocked} docked copies");
 
             Check("and leaves it floating",
-                ManaUiDockDemo.LastDragController?.FindFloating("import") != null, "still floating");
+                EditorWorkspace.For(upgraded).DragController?.FindFloating("import") != null, "still floating");
         }
         finally
         {

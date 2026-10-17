@@ -46,7 +46,7 @@ public static class ShowcaseChecks
             _ = new ManaContext(null!, null!, dockWorld) { DeferGpuUploads = true };
 
             // persist: false so the test never reads or writes the user's real layout file.
-            var dockHostElement = ManaUiDockDemo.Attach(
+            var dockHostElement = EditorWorkspace.Attach(
                 dockRoot, dockVm, () => "frame 0", persist: false, world: dockWorld);
 
             dockRoot.Content = dockHostElement;
@@ -84,7 +84,7 @@ public static class ShowcaseChecks
 
             // An empty strip collapses rather than leaving a resize handle against nothing. All four hosts
             // are ResizablePanels -- the top toolbar strip's handle is switched off (AllowResize = false,
-            // see ManaUiDockDemo's topPanel) rather than the panel itself being dropped, since
+            // see EditorWorkspace's topPanel) rather than the panel itself being dropped, since
             // DockHost/DockTabGroup always measure to whatever height they are given rather than to their
             // own content. Same walk order as the hosts: top, left, right, bottom.
             var panels = FindAll<ResizablePanel>(dockRoot);

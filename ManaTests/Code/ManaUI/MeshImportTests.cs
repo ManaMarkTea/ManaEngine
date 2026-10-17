@@ -134,7 +134,7 @@ public static class MeshImportChecks
             cacheDirectory: Path.Combine(Path.GetTempPath(), $"ManaTests-Thumbnails-{Guid.NewGuid():N}"));
         try
         {
-            ManaUiDockDemo.MeshThumbnails = lateCache;
+            EditorWorkspace.MeshThumbnails = lateCache;
             root.UpdateLayout(defaultSize);
             root.Render();
 
@@ -144,7 +144,7 @@ public static class MeshImportChecks
         }
         finally
         {
-            ManaUiDockDemo.MeshThumbnails = null;
+            EditorWorkspace.MeshThumbnails = null;
             lateCache.Dispose();
         }
 
@@ -163,7 +163,7 @@ public static class MeshImportChecks
         visibleRoot.Render();
         try
         {
-            ManaUiDockDemo.MeshThumbnails = visibleCache;
+            EditorWorkspace.MeshThumbnails = visibleCache;
             visibleRoot.UpdateLayout(new Vector2(defaultSize.X, 360.0f));
             visibleRoot.Render();
 
@@ -174,7 +174,7 @@ public static class MeshImportChecks
         }
         finally
         {
-            ManaUiDockDemo.MeshThumbnails = null;
+            EditorWorkspace.MeshThumbnails = null;
             visibleCache.Dispose();
         }
 
@@ -619,7 +619,7 @@ public static class MeshImportChecks
         Check("and closes the menu", !root.Popups.HasOpenPopups);
 
         // "Refresh Thumbnail" -- no cache exists in this test (Build was called with thumbnails: null and
-        // nothing else has set the static ManaUiDockDemo.MeshThumbnails), so this only has to not throw.
+        // nothing else has set the static EditorWorkspace.MeshThumbnails), so this only has to not throw.
         root.Input.InjectPointerMoved(rowCenter);
         root.Input.InjectPointerPressed(rowCenter, PointerButton.Right, 2.0);
         root.Input.InjectPointerReleased(rowCenter, PointerButton.Right);

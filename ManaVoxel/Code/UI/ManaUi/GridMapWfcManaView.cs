@@ -371,13 +371,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 name.BindPolled(text => text.Foreground, () => read() == null ? theme.TextMuted : theme.Text);
                 var use = new ManaUI.Button().Label("Use selected").Variant(ButtonVariant.Subtle).OnClick(() =>
                 {
-                    if (ManaUiDockDemo.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                    if (EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected)
                     {
                         write(selected);
                         GridMapWfcEditing.Dirty = true;
                     }
                 });
-                use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(ManaUiDockDemo.MeshAssets.SelectedAsset));
+                use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
                 var clear = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
                 {
                     write(null);
@@ -450,7 +450,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 rules.Tiles.Add(new GridMapWfcTile
                 {
                     Name = "Tile",
-                    Asset = ManaUiDockDemo.MeshAssets.SelectedAsset is { Length: > 0 } selected ? selected : null,
+                    Asset = EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected ? selected : null,
                     Sockets = new() { ["e"] = ["open"], ["n"] = ["wall"], ["w"] = ["open"], ["s"] = ["wall"] }
                 });
                 GridMapWfcEditing.Changed();
@@ -488,13 +488,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             model.BindPolled(text => text.Foreground, () => tile.Asset == null ? theme.TextMuted : theme.Text);
             var use = new ManaUI.Button().Label("Use selected").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
-                if (ManaUiDockDemo.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                if (EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected)
                 {
                     tile.Asset = selected;
                     Changed();
                 }
             });
-            use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(ManaUiDockDemo.MeshAssets.SelectedAsset));
+            use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
             use.WithTooltip("Use the model selected in the asset browser");
             var clear = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
             {

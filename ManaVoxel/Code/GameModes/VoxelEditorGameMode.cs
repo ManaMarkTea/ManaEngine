@@ -175,7 +175,7 @@ namespace Mana.Code.GameModes
             // RenderFrame is plain engine state with no change notification, which is exactly the case the
             // polled binding exists for.
             // The editor's one view model -- the toolbar, the menu and the panels all drive it.
-            var workspace = ManaUiDockDemo.Attach(
+            var workspace = EditorWorkspace.Attach(
                 host.Root,
                 _manaUiShowcase,
                 () => $"render frame {RenderFrame:N0}",
@@ -399,11 +399,11 @@ namespace Mana.Code.GameModes
         /// </summary>
         private void PumpMeshThumbnails()
         {
-            var cache = ManaUiDockDemo.MeshThumbnails;
+            var cache = EditorWorkspace.MeshThumbnails;
             if (cache == null)
             {
                 cache = new MeshThumbnailCache(Context, _webGpuContext);
-                ManaUiDockDemo.MeshThumbnails = cache;
+                EditorWorkspace.MeshThumbnails = cache;
             }
 
             if (ManaUi?.Root is { } root)

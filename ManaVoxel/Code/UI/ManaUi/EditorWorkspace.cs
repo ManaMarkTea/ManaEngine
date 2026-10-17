@@ -13,7 +13,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// The editor's ManaUI workspace: a full-width menu, a toolbar strip, two resizable
     /// columns, and a status bar -- arranged from a named preset and remembered across restarts.
     /// </summary>
-    public static class ManaUiDockDemo
+    public sealed class EditorWorkspace
     {
         // Both were set to comfortable round numbers; these are what the content actually needs at the
         // base theme's font size, and every pixel here is one the viewport does not get. MenuBarMinHeight
@@ -28,21 +28,31 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public static IReadOnlyDictionary<string, string> PanelTitles => EditorPanelRegistry.Titles;
 
-        private static readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
-        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, EventHandler<UiTheme>> ThemeHandlers = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, EditorWorkspace> Workspaces = new();
+        private EventHandler<UiTheme>? _themeChanged;
 
-        /// <summary>Brings a panel up on the next frame, from code with no hold on the workspace -- a command file.</summary>
-        public static void RequestPanel(string id) => PanelRequests.Enqueue(id);
+        private EditorWorkspace() { }
 
-        /// <summary>Test seam: the most recently built workspace's drag controller.</summary>
-        public static DockDragController? LastDragController { get; private set; }
-        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<UiRoot, DockDragController> Controllers = new();
+        public static EditorWorkspace For(UiRoot root) => Workspaces.GetValue(root, _ => new EditorWorkspace());
+
+        public void RequestPanel(string id) => PanelRequests.Enqueue(id);
+
+        public static void RequestPanel(ManaWorld world, string id)
+        {
+            if (world.Context.GameMode?.ManaUi?.Root is { } root)
+            {
+                For(root).RequestPanel(id);
+            }
+        }
+
+        public DockDragController? DragController { get; private set; }
 
         /// <summary>Shared, not per-panel, so a theme rebuild doesn't throw the scanned list away.</summary>
         public static MeshAssetLibrary MeshAssets { get; } = new();
 
         /// <summary>Shared for the same reason -- also keeps results across a theme rebuild.</summary>
-        public static PlaceSearchModel PlaceSearch { get; } = new();
+        public PlaceSearchModel PlaceSearch { get; } = new();
 
         /// <summary>
         /// Set by the host once it has a graphics context, since generating a preview means importing a mesh.
@@ -62,13 +72,18 @@ namespace ManaVoxel.Code.UI.ManaUi
             VoxelEditorViewModel? editor = null,
             global::Mana.ManaWorld? world = null,
             string? layoutPath = null)
+            => For(root).AttachCore(root, vm, liveStat, persist, editor, world, layoutPath);
+
+        private UiElement AttachCore(
+            UiRoot root, ManaUiShowcaseViewModel vm, Func<string>? liveStat, bool persist,
+            VoxelEditorViewModel? editor, ManaWorld? world, string? layoutPath)
         {
             // Overridable so persistence can be exercised against a scratch file rather than the user's real one.
             layoutPath ??= EditorWorkspaceLayout.DefaultPath;
-            if (ThemeHandlers.TryGetValue(root, out var oldThemeHandler))
+            if (_themeChanged is { } oldThemeHandler)
             {
                 root.ThemeChanged -= oldThemeHandler;
-                ThemeHandlers.Remove(root);
+                _themeChanged = null;
             }
 
             // Applied before anything is built: views read theme colours as they construct, not at render time.
@@ -95,19 +110,31 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Owned by the workspace so a theme switch can swap the whole thing out from under itself.
             var shell = new ContentHost();
 
-            // The density preset tightens the same tokens a theme sets, and controls read those as they
-            // are constructed -- so changing it rebuilds the tree, exactly as changing theme does. The
-            // previous subscription is dropped first: Attach runs once per app, but the tests call it many
-            // times, and a stale handler holds a dead root that would rebuild into nothing.
             ManaUiDensity.PresetChanged -= _densityChanged;
-            _densityChanged = (_, _) =>
-            {
-                root.Theme = UiTheme.Create(root.Theme.Kind);
-            };
+            _densityChanged = DensityHandler(root);
             ManaUiDensity.PresetChanged += _densityChanged;
 
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             return shell;
+        }
+
+        // The process-wide preference event must not keep closed workspace roots alive.
+        private static EventHandler DensityHandler(UiRoot root)
+        {
+            var weakRoot = new WeakReference<UiRoot>(root);
+            EventHandler? handler = null;
+            handler = (_, _) =>
+            {
+                if (weakRoot.TryGetTarget(out var target))
+                {
+                    target.Theme = UiTheme.Create(target.Theme.Kind);
+                }
+                else
+                {
+                    ManaUiDensity.PresetChanged -= handler;
+                }
+            };
+            return handler;
         }
 
         /// <summary>The Voxel Tools window, which floats while a voxel node is selected or a voxel tool is on.</summary>
@@ -115,7 +142,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         // Where each tool window was last left, for the next time it comes up. Per run: a window that opens by
         // itself should not come back somewhere a screen change has made odd.
-        private static readonly Dictionary<string, (Vector2? Position, Vector2 Size)> ToolWindowPlaces = new()
+        private readonly Dictionary<string, (Vector2? Position, Vector2 Size)> ToolWindowPlaces = new()
         {
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
             [MeasureToolManaView.PanelId] = (null, new Vector2(300.0f, 460.0f)),
@@ -129,9 +156,9 @@ namespace ManaVoxel.Code.UI.ManaUi
         };
 
         /// <summary>The live density subscription, so re-attaching replaces it rather than stacking a second one.</summary>
-        private static EventHandler? _densityChanged;
+        private EventHandler? _densityChanged;
 
-        private static UiElement Build(
+        private UiElement Build(
             UiRoot root,
             ContentHost shell,
             ManaUiShowcaseViewModel vm,
@@ -141,7 +168,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             global::Mana.ManaWorld? world,
             string layoutPath)
         {
-            if (Controllers.TryGetValue(root, out var previousController)) previousController.CloseDesktopWindows();
+            DragController?.CloseDesktopWindows();
             // Before anything reads a token: the preset tightens the theme's own metrics rather than being
             // consulted control by control.
             ManaUiDensity.Apply(root.Theme);
@@ -198,9 +225,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             // One controller over every host, so a panel torn out of any of them can be dropped into any other.
             var dragController = new DockDragController(root, new[] { top, left, right, bottom });
-            Controllers.Remove(root);
-            Controllers.Add(root, dragController);
-            LastDragController = dragController;
+            DragController = dragController;
 
             var layoutSession = new EditorWorkspaceLayout(root, top, left, right, bottom, dragController, Resolve, persist, layoutPath);
             layoutSession.Restore(saved, state.Preset);
@@ -344,10 +369,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             top.EmptyDropZone = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand * 0.6f);
             top.EmptyDropPreview = () => new UiRect(0.0f, menuBarHeight, root.Size.X, EmptyZoneBand);
 
-            if (ThemeHandlers.TryGetValue(root, out var previousThemeHandler))
+            if (_themeChanged is { } previousThemeHandler)
             {
                 root.ThemeChanged -= previousThemeHandler;
-                ThemeHandlers.Remove(root);
+                _themeChanged = null;
             }
             EventHandler<UiTheme> themeHandler = (_, changed) =>
             {
@@ -358,7 +383,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Save();
                 shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             };
-            ThemeHandlers.Add(root, themeHandler);
+            _themeChanged = themeHandler;
             root.ThemeChanged += themeHandler;
 
             void ChooseTheme(UiThemeKind kind) => root.RequestTheme(kind);
@@ -764,7 +789,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         // ----- menu ---------------------------------------------------------------------------------
 
         /// <summary>The editor's real menu bar, in ManaUI.</summary>
-        private static MenuBar BuildMenuBar(
+        private MenuBar BuildMenuBar(
             ManaUiShowcaseViewModel vm,
             EditorWorkspaceLayout.State state,
             Action<WorkspacePreset> choose,

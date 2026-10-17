@@ -259,7 +259,7 @@ public static class PortedMainMenuChecks
         UiElement? workspace = null;
         try
         {
-            workspace = ManaUiDockDemo.Attach(root, showcase, null, persist: false, editor: vm, layoutPath: scratch);
+            workspace = EditorWorkspace.Attach(root, showcase, null, persist: false, editor: vm, layoutPath: scratch);
         }
         catch (Exception ex)
         {
@@ -356,7 +356,7 @@ public static class PortedMainMenuChecks
             !docked.Contains("Outliner") && !docked.Contains("Inspector"), string.Join(", ", docked));
 
         Check("removed panels are absent from the panel registry",
-            !ManaUiDockDemo.PanelIds.Any(id => id is "placement" or "physics" or "voxelstats" or "lighting" or "search"),
+            !EditorWorkspace.PanelIds.Any(id => id is "placement" or "physics" or "voxelstats" or "lighting" or "search"),
             string.Join(", ", docked));
 
         var searchMenu = bars[0].Menus.First(menu => menu.Text == "View")
@@ -376,7 +376,7 @@ public static class PortedMainMenuChecks
         // workspace found nothing new to add and they appeared only after a reset. Every id the workspace
         // docks must be one the merge knows about, or it goes missing for exactly the people who already
         // use the editor.
-        var known = ManaUiDockDemo.PanelIds.ToHashSet(StringComparer.Ordinal);
+        var known = EditorWorkspace.PanelIds.ToHashSet(StringComparer.Ordinal);
 
         var missingFromList = docked
             .Select(TitleToId)
@@ -411,16 +411,16 @@ public static class PortedMainMenuChecks
         // The Panels menu is what makes a closed panel reachable again, and a newly added one findable
         // without waiting for a version merge. It draws from the same list, so a panel missing a title would
         // appear in it as a raw id.
-        var untitled = ManaUiDockDemo.PanelIds
-            .Where(id => !ManaUiDockDemo.PanelTitles.ContainsKey(id))
+        var untitled = EditorWorkspace.PanelIds
+            .Where(id => !EditorWorkspace.PanelTitles.ContainsKey(id))
             .ToList();
 
         Check("every panel has a name for the Panels menu",
             untitled.Count == 0,
-            untitled.Count == 0 ? $"{ManaUiDockDemo.PanelTitles.Count} named" : string.Join(", ", untitled));
+            untitled.Count == 0 ? $"{EditorWorkspace.PanelTitles.Count} named" : string.Join(", ", untitled));
 
         // And the other way, or the menu offers something the factory cannot build.
-        var unknownTitles = ManaUiDockDemo.PanelTitles.Keys
+        var unknownTitles = EditorWorkspace.PanelTitles.Keys
             .Where(id => !known.Contains(id))
             .ToList();
 

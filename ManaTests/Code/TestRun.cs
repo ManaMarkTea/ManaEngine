@@ -76,6 +76,7 @@ public static class TestRunner
         ("ManaUI", "floating windows", WindowChecks.Run),
         ("ManaUI", "desktop panel windows", DesktopWindowChecks.Run),
         ("ManaUI", "docking", DockingChecks.Run),
+        ("ManaUI", "workspace isolation", WorkspaceIsolationChecks.Run),
         ("ManaUI", "drag docking", DragDockingChecks.Run),
         ("ManaUI", "dock drop indicators", DockDropIndicatorChecks.Run),
         ("ManaUI", "tab rows", TabRowChecks.Run),

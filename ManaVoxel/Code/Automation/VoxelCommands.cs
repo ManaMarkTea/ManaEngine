@@ -121,7 +121,7 @@ namespace ManaVoxel.Code.Automation
             runner.Register("import_filter", command =>
             {
                 // Types into the Import panel's filter box, to bring one pack's models into view.
-                ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.MeshAssets.Filter = command.Name ?? string.Empty;
+                ManaVoxel.Code.UI.ManaUi.EditorWorkspace.MeshAssets.Filter = command.Name ?? string.Empty;
             });
 
             runner.Register("dirty_report", command =>
@@ -140,11 +140,12 @@ namespace ManaVoxel.Code.Automation
 
             runner.Register("open_tools", _ => ManaVoxel.Code.UI.ManaUi.ViewportToolbarManaView.OpenSnapOptions());
 
-            runner.Register("open_panel", command => ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.RequestPanel(command.Name ?? ""));
+            runner.Register("open_panel", command => ManaVoxel.Code.UI.ManaUi.EditorWorkspace.RequestPanel(context.World, command.Name ?? ""));
 
             runner.Register("desktop_panel", command =>
             {
-                var controller = ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.LastDragController
+                var controller = ManaVoxel.Code.UI.ManaUi.EditorWorkspace.For(context.GameMode?.ManaUi?.Root
+                    ?? throw new InvalidOperationException("desktop_panel: editor UI is unavailable.")).DragController
                     ?? throw new InvalidOperationException("desktop_panel: editor docking is unavailable.");
                 var root = context.GameMode?.ManaUi?.Root
                     ?? throw new InvalidOperationException("desktop_panel: editor UI is unavailable.");

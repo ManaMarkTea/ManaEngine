@@ -68,7 +68,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
                 Status = "Saved";
                 UpdatePreview();
-                ManaUiDockDemo.MeshThumbnails?.ForceRefresh(Path);
+                EditorWorkspace.MeshThumbnails?.ForceRefresh(Path);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -85,7 +85,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var path = Path;
             File.WriteAllText(path, _opened);
             Open(path);
-            ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
+            EditorWorkspace.MeshThumbnails?.ForceRefresh(path);
             Status = "Reverted to how it was when opened";
         }
 

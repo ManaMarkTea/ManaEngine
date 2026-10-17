@@ -17,7 +17,7 @@ A `Terrain` node kind, like `GridMap` and `Voxels`:
   today). Later: a terrain shader with tiling albedo/normal per layer and triplanar on steep slopes.
 - **Collision:** a heightfield collider in BepuPhysics v2 (a `Mesh` shape built from the patches is the fallback). The
   player must stand on it -- `teleport_player` + `log_player` checks, as for any level.
-- **Tool window:** floats while a terrain node is selected, like the Grid Map and Voxel Tools windows (`ManaUiDockDemo.SyncToolWindow`).
+- **Tool window:** floats while a terrain node is selected, like the Grid Map and Voxel Tools windows (`EditorWorkspace.SyncToolWindow`).
   Brushes: raise, lower, smooth, flatten-to-height, noise; paint layer; brush size, strength, falloff. Undo per stroke.
 - **Paths:** a spline tool that flattens and paints along a polyline (reuse the polygon-collider point handles in
   `VoxelEditorGameMode.Polygon.cs`), so a dirt road is a curve you can drag, not a stroke you must repeat.

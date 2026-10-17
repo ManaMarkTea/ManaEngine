@@ -37,7 +37,7 @@ public static class EditorToolbarChecks
         scene.Children.Add(node);
         world.Scenes.Add(scene);
 
-        root.Content = ManaUiDockDemo.Attach(
+        root.Content = EditorWorkspace.Attach(
             root, new ManaUiShowcaseViewModel(), null, persist: false, editor: editor, world: world);
 
         // ---------------------------------------------------------------- the strip fits
@@ -188,7 +188,7 @@ public static class EditorToolbarChecks
     private static void RunVoxelToolsWindowChecks(
         UiRoot root, VoxelEditorViewModel editor, ManaWorld world, ManaContext context, Action<string, bool, string> check)
     {
-        UiWindow? Window() => ManaUiDockDemo.LastDragController?.FindFloating(ManaUiDockDemo.VoxelToolsPanelId);
+        UiWindow? Window() => EditorWorkspace.For(root).DragController?.FindFloating(EditorWorkspace.VoxelToolsPanelId);
         void Frame()
         {
             root.UpdateLayout(new Vector2(1920, 1080));

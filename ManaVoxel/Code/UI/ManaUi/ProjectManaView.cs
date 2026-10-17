@@ -144,7 +144,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     if (kind?.HasThumbnail == true && MeshImportManaView.IsThumbnailRequestVisible(row))
                     {
                         if (row.Root is { } root) { MeshThumbnailImages.Touch(root, entry.Path); }
-                        ManaUiDockDemo.MeshThumbnails?.Request(entry.Path);
+                        EditorWorkspace.MeshThumbnails?.Request(entry.Path);
                     }
                     var hasImage = MeshThumbnailImages.HasImage(entry.Path);
                     preview.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
@@ -167,13 +167,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 items.Add(new MenuItem("Edit Prefab", () => model.OpenPrefab(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
                 items.Add(new MenuItem("Create Variant", () => model.CreateVariant(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing)
                     .WithTooltip("A prefab made from this one that keeps only what you change in it -- a blue lamp from a lamp."));
-                items.Add(new MenuItem("Refresh Thumbnail", () => ManaUiDockDemo.MeshThumbnails?.ForceRefresh(entry.Path)));
+                items.Add(new MenuItem("Refresh Thumbnail", () => EditorWorkspace.MeshThumbnails?.ForceRefresh(entry.Path)));
             }
             else if (entry.Kind == ManaContentKinds.SpriteSheet.Name || entry.Kind == ManaContentKinds.Slice.Name)
             {
                 items.Add(new MenuItem("Place", () => model.RequestPlacement(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
                 items.Add(new MenuItem("Edit", () => model.OpenAsset(entry.Path)));
-                items.Add(new MenuItem("Refresh Thumbnail", () => ManaUiDockDemo.MeshThumbnails?.ForceRefresh(entry.Path)));
+                items.Add(new MenuItem("Refresh Thumbnail", () => EditorWorkspace.MeshThumbnails?.ForceRefresh(entry.Path)));
             }
             else if (entry.Kind == ManaContentKinds.Generator.Name)
             {

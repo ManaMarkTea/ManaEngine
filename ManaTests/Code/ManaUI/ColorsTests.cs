@@ -624,14 +624,14 @@ public static class BackdropChecks
         // stronger. That is exactly how the first attempt at this shipped looking like it did nothing: the
         // sampler it borrowed clamped LOD to 1, so every radius resolved to a single halving.
         Check("every offered blur is one the backend can reach",
-            ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices
+            ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices
                 .All(blur => blur <= ManaUiDrawList.MaxBackdropBlur),
-            string.Join(", ", ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices));
+            string.Join(", ", ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices));
 
         // And the largest is worth offering -- a menu whose strongest setting is a quarter of what the
         // chain can do is leaving the effect on the table.
         Check("and the strongest one uses the whole chain",
-            ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices.Max() == ManaUiDrawList.MaxBackdropBlur,
-            $"{ManaVoxel.Code.UI.ManaUi.ManaUiDockDemo.BlurChoices.Max()} of {ManaUiDrawList.MaxBackdropBlur}");
+            ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max() == ManaUiDrawList.MaxBackdropBlur,
+            $"{ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max()} of {ManaUiDrawList.MaxBackdropBlur}");
     }
 }

@@ -327,7 +327,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MenuItem.Separator(),
 
                 // These set a view-model flag and nothing else now. The Appearance menu's own Theme
-                // submenu is what actually swaps ManaUI's palette -- see ManaUiDockDemo's ChooseTheme.
+                // submenu is what actually swaps ManaUI's palette -- see EditorWorkspace's ChooseTheme.
                 new MenuItem("Light Theme", () => viewModel.UseLightTheme = true)
                     .Checkable(() => viewModel.UseLightTheme),
 

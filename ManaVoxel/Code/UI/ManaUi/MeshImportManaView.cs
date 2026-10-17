@@ -465,7 +465,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                var cache = thumbnails ?? ManaUiDockDemo.MeshThumbnails;
+                var cache = thumbnails ?? EditorWorkspace.MeshThumbnails;
                 if (cache == null)
                 {
                     return;
@@ -1093,7 +1093,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MenuItem.Separator(),
 
                 new MenuItem("Refresh Thumbnail",
-                    () => (ManaUiDockDemo.MeshThumbnails)?.ForceRefresh(path)),
+                    () => (EditorWorkspace.MeshThumbnails)?.ForceRefresh(path)),
 
                 new MenuItem("Show in Explorer",
                     () =>

@@ -59,8 +59,8 @@ public static class DesktopWindowChecks
         workspace.CreateDesktopWindow = _ => new FakeWindow(fonts);
         try
         {
-            workspace.Content = ManaUiDockDemo.Attach(workspace, new ManaUiShowcaseViewModel(), layoutPath: path);
-            var docks = ManaUiDockDemo.LastDragController!;
+            workspace.Content = EditorWorkspace.Attach(workspace, new ManaUiShowcaseViewModel(), layoutPath: path);
+            var docks = EditorWorkspace.For(workspace).DragController!;
             var showcase = new DockItem("ManaUI", new TextBlock("test")) { Id = "showcase" };
             var external = (FakeWindow)docks.PopOut(showcase, 2)!;
             var menus = Descendants(workspace).OfType<MenuBar>().Single();
@@ -76,19 +76,19 @@ public static class DesktopWindowChecks
             var entry = saved.Floating.Single(panel => panel.Id == "showcase");
             Check("workspace saves native bounds and home", entry.Desktop && entry.X == -900 && entry.Width == 500 && entry.HomeHostIndex == 2);
             Check("workspace saves every panel in a native window", entry.Layout?.Items?.Contains("blurtest") == true && entry.ItemHomes?.ContainsKey("blurtest") == true);
-            workspace.Content = ManaUiDockDemo.Attach(workspace, new ManaUiShowcaseViewModel(), layoutPath: path);
+            workspace.Content = EditorWorkspace.Attach(workspace, new ManaUiShowcaseViewModel(), layoutPath: path);
             Check("workspace rebuild disposes previous native window", external.Disposed);
-            ManaUiDockDemo.LastDragController!.CloseDesktopWindows();
+            EditorWorkspace.For(workspace).DragController!.CloseDesktopWindows();
             var restored = new UiRoot(fonts) { CreateDesktopWindow = _ => new FakeWindow(fonts) };
-            restored.Content = ManaUiDockDemo.Attach(restored, new ManaUiShowcaseViewModel(), layoutPath: path);
-            var restoredController = ManaUiDockDemo.LastDragController!;
+            restored.Content = EditorWorkspace.Attach(restored, new ManaUiShowcaseViewModel(), layoutPath: path);
+            var restoredController = EditorWorkspace.For(restored).DragController!;
             Check("workspace restores native window", restoredController.FindDesktop("showcase")?.Position == new Vector2(-900, 80));
             Check("workspace restores panels sharing a native window",
                 restoredController.FindDesktop("blurtest") is { } shared && shared == restoredController.FindDesktop("showcase"));
             restoredController.CloseDesktopWindows();
             var fallback = new UiRoot(fonts);
-            fallback.Content = ManaUiDockDemo.Attach(fallback, new ManaUiShowcaseViewModel(), layoutPath: path);
-            Check("unsupported platform restores native panel as in-app float", ManaUiDockDemo.LastDragController!.FindFloating("showcase") != null);
+            fallback.Content = EditorWorkspace.Attach(fallback, new ManaUiShowcaseViewModel(), layoutPath: path);
+            Check("unsupported platform restores native panel as in-app float", EditorWorkspace.For(fallback).DragController!.FindFloating("showcase") != null);
         }
         finally { File.Delete(path); }
 

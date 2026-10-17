@@ -166,7 +166,7 @@ namespace ManaUI
         // ----- 3D viewport ---------------------------------------------------------------------------
         // Not part of the 2D UI, but a skin as thorough as LCARS reaches the editor's ground-plane grid
         // too, not just its panels. Mana/Code/GameModes/VoxelEditorGameMode.cs owns the actual grid
-        // quads; ManaUiDockDemo pushes these two into their material whenever the theme changes.
+        // quads; EditorWorkspace pushes these two into their material whenever the theme changes.
 
         /// <summary>Base tint of the 3D viewport's ground-plane grid -- the checkerboard cells.</summary>
         // Lifted off near-black (was #141518): the checkerboard's fixed 0.9645 odd/even ratio and the

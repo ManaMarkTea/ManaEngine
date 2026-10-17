@@ -153,7 +153,7 @@ namespace ManaVoxel.Code.UI
                 AssetName = $"{name} {suffix}";
             }
             CreatePrefab();
-            ManaUi.ManaUiDockDemo.RequestPanel("project");
+            ManaUi.EditorWorkspace.RequestPanel(_world, "project");
         }
 
         public void RequestPlacement(string path) => Run(() =>
@@ -277,7 +277,7 @@ namespace ManaVoxel.Code.UI
 
             var variantPath = ManaContentLibrary.NewPath(name, folder, ManaPrefab.Extension, ContentRoot);
             ManaPrefab.CreateVariant(source, path, name, ContentRoot).Save(variantPath);
-            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(variantPath);
+            ManaUi.EditorWorkspace.MeshThumbnails?.ForceRefresh(variantPath);
             _entries = ManaContentLibrary.List(ContentRoot);
             Status = $"Made {name}, a variant of {source.Name}. Edit it and save: only what you change is kept.";
         });
@@ -300,7 +300,7 @@ namespace ManaVoxel.Code.UI
             root.Scale = [1, 1, 1];
             var asset = new ManaPrefab { Name = AssetName.Trim(), Root = root };
             asset.Save(path);
-            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
+            ManaUi.EditorWorkspace.MeshThumbnails?.ForceRefresh(path);
             // Convert in place: existing selection, node data and components are retained beneath the link.
             var scene = SceneEditorOperations.FindOwningScene(_world, node) ?? throw new InvalidOperationException("Select a node in the world.");
             var parent = node.Parent;
@@ -409,7 +409,7 @@ namespace ManaVoxel.Code.UI
             }
             _editingAsset.Root = root;
             _editingAsset.Save(_editingPath);
-            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(_editingPath);
+            ManaUi.EditorWorkspace.MeshThumbnails?.ForceRefresh(_editingPath);
             _sourceOnOpen = File.ReadAllText(_editingPath);
             var id = _editingAsset.Id;
             var name = _editingAsset.Name;
@@ -644,7 +644,7 @@ namespace ManaVoxel.Code.UI
             var picked = reference.Overrides.Where(o => chosen.Any(c => c.Path.SequenceEqual(o.Path))).ToList();
             asset.Root = ManaPrefabOverrides.Resolve(asset.Root, picked);
             asset.Save(path);
-            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
+            ManaUi.EditorWorkspace.MeshThumbnails?.ForceRefresh(path);
 
             // What was applied is now the prefab's own value, so this copy no longer overrides it.
             var instanceId = instance.AuthoredId;
@@ -699,7 +699,7 @@ namespace ManaVoxel.Code.UI
             var asset = ManaPrefab.Load(path, ContentRoot);
             asset.Root = ManaPrefabOverrides.Resolve(asset.Root, reference.Overrides);
             asset.Save(path);
-            ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
+            ManaUi.EditorWorkspace.MeshThumbnails?.ForceRefresh(path);
             // The applying instance now inherits the values it just published.
             reference.Overrides.Clear();
             ManaPrefabRuntime.Replace(instance, reference);

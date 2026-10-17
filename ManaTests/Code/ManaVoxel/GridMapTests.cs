@@ -554,12 +554,12 @@ public static class GridMapChecks
             // The tools live in a window of their own, which comes up when a grid map is selected and goes with it.
             var root = new UiRoot(fonts);
             var editor = new VoxelEditorViewModel();
-            root.Content = ManaUiDockDemo.Attach(
+            root.Content = EditorWorkspace.Attach(
                 root, new ManaUiShowcaseViewModel(), null, persist: false, editor: editor, world: context.World);
             root.UpdateLayout(new Vector2(1600, 900));
 
             bool PanelOpen(UiRoot where) =>
-                ManaUiDockDemo.LastDragController?.FindFloating(GridMapToolManaView.PanelId) != null
+                EditorWorkspace.For(where).DragController?.FindFloating(GridMapToolManaView.PanelId) != null
                 || Hosts(where.Content!).Any(host => host.AllItems().Any(item => item.Id == GridMapToolManaView.PanelId));
             Check("the grid map window is not open with nothing selected", !PanelOpen(root));
             Check("and the inspector does not carry the grid map tools",
@@ -567,7 +567,7 @@ public static class GridMapChecks
 
             context.World.Selection.SelectedNode = gridMap;
             root.UpdateLayout(new Vector2(1600, 900));
-            var window = ManaUiDockDemo.LastDragController?.FindFloating(GridMapToolManaView.PanelId);
+            var window = EditorWorkspace.For(root).DragController?.FindFloating(GridMapToolManaView.PanelId);
             Check("selecting a grid map floats the grid map window", window != null);
             Check("leaving every docked panel where it was",
                 !Hosts(root.Content!).Any(host => host.AllItems().Any(item => item.Id == GridMapToolManaView.PanelId))
@@ -592,7 +592,7 @@ public static class GridMapChecks
             try
             {
                 var saving = new UiRoot(fonts);
-                saving.Content = ManaUiDockDemo.Attach(
+                saving.Content = EditorWorkspace.Attach(
                     saving, new ManaUiShowcaseViewModel(), null, persist: true, editor: editor, world: context.World, layoutPath: layout);
                 context.World.Selection.SelectedNode = gridMap;
                 saving.UpdateLayout(new Vector2(1600, 900));
@@ -600,7 +600,7 @@ public static class GridMapChecks
 
                 context.World.Selection.SelectedNode = null;
                 var reopened = new UiRoot(fonts);
-                reopened.Content = ManaUiDockDemo.Attach(
+                reopened.Content = EditorWorkspace.Attach(
                     reopened, new ManaUiShowcaseViewModel(), null, persist: true, editor: editor, world: context.World, layoutPath: layout);
                 reopened.UpdateLayout(new Vector2(1600, 900));
                 reopened.UpdateLayout(new Vector2(1600, 900));
