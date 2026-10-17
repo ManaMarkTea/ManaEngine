@@ -14,7 +14,8 @@
 [] - Project code cleanup: Plans/CodeCleanup.md.
     Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
     Panel metadata and factories now live together in EditorPanelRegistry; saved panel IDs and default layout behavior are preserved.
-    Follow-ups: extract workspace layout persistence, other mutable test hooks, asset services, planet and game view responsibilities.
+    EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.
+    Follow-ups: rename the workspace class and isolate its mutable state, other mutable test hooks, asset services, planet and game view responsibilities.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

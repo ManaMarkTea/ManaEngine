@@ -26,17 +26,6 @@ namespace ManaVoxel.Code.UI.ManaUi
         private const float DefaultRightWidth = 380.0f;
         private const float DefaultBottomHeight = 220.0f;
 
-        /// <summary>
-        /// Bump when a panel is added, removed or renamed; missing panels get merged in on load. Also bump
-        /// when a strip's content changes shape enough that a saved size for it is stale -- 18 is the compact
-        /// toolbar, whose old saved height was more than twice what its content now measures, and 21 is the
-        /// default panel set shrinking (see OpensByDefault). 23 adds the Grid Map tool panel; 25 adds Scenes.
-        /// </summary>
-        private const int LayoutVersion = 25;
-
-        private static string DefaultLayoutPath =>
-            ManaUiSettingsStorage.SharedSettingsFilePath("manaui-dock.json");
-
         public static IReadOnlyDictionary<string, string> PanelTitles => EditorPanelRegistry.Titles;
 
         private static readonly System.Collections.Concurrent.ConcurrentQueue<string> PanelRequests = new();
@@ -75,7 +64,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             string? layoutPath = null)
         {
             // Overridable so persistence can be exercised against a scratch file rather than the user's real one.
-            layoutPath ??= DefaultLayoutPath;
+            layoutPath ??= EditorWorkspaceLayout.DefaultPath;
             if (ThemeHandlers.TryGetValue(root, out var oldThemeHandler))
             {
                 root.ThemeChanged -= oldThemeHandler;
@@ -83,7 +72,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             // Applied before anything is built: views read theme colours as they construct, not at render time.
-            var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
+            var saved = EditorWorkspaceLayout.Load(layoutPath, persist);
             if (saved != null && root.Theme.Kind != saved.Theme)
             {
                 root.Theme = UiTheme.Create(saved.Theme);
@@ -199,8 +188,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 theme, vm, liveStat, editor, world, () => projectFolderWidth(), saveScene, sceneHasChanges);
             DockItem? BuildPanel(string id) => EditorPanelRegistry.Build(id, panelContext);
 
-            var saved = persist ? ManaUiWorkspaceLayout.Load(layoutPath) : null;
-            var state = new WorkspaceState
+            var saved = EditorWorkspaceLayout.Load(layoutPath, persist);
+            var state = new EditorWorkspaceLayout.State
             {
                 Preset = saved?.Preset ?? WorkspacePreset.RightColumn,
                 Theme = root.Theme.Kind,
@@ -213,33 +202,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             Controllers.Add(root, dragController);
             LastDragController = dragController;
 
-            // Before the columns are filled, so a floating panel doesn't also get placed in a column.
-            RestoreFloating(root, dragController, saved, Resolve);
-
-            HashSet<string> FloatingIds() => dragController.FloatingItems
-                .Select(item => item.Id ?? string.Empty)
-                .ToHashSet(StringComparer.Ordinal);
-
-            // Non-short-circuiting: every host must be restored, or && would skip later ones once one came back empty.
-            var restored = saved != null
-                && (DockLayout.Apply(top, saved.Top, Resolve)
-                    | DockLayout.Apply(left, saved.Left, Resolve)
-                    | DockLayout.Apply(right, saved.Right, Resolve)
-                    | DockLayout.Apply(bottom, saved.Bottom, Resolve));
-
-            if (!restored)
-            {
-                ApplyPreset(state.Preset, top, left, right, bottom, Resolve, FloatingIds());
-            }
-            else if (saved!.Version != LayoutVersion)
-            {
-                // Merges any panel that didn't exist when this was saved, so upgrades don't lose new panels.
-                MergeMissingPanels(top, left, right, bottom, Resolve, FloatingIds());
-
-                // Voxel Tools and Import used to live in a column; move each to its own strip once, on upgrade.
-                RelocateToStrip("tools", top, new[] { left, right, bottom }, Resolve, FloatingIds());
-                RelocateToStrip("import", bottom, new[] { left, right, top }, Resolve, FloatingIds());
-            }
+            var layoutSession = new EditorWorkspaceLayout(root, top, left, right, bottom, dragController, Resolve, persist, layoutPath);
+            layoutSession.Restore(saved, state.Preset);
 
             // AllowResize off rather than dropping ResizablePanel entirely: DockHost/DockTabGroup always
             // measure to whatever height they are given (DockTabGroup.MeasureOverride literally returns
@@ -301,39 +265,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 && bottom.AllItems().Any(item => item.Id == "project")
                 ? MathF.Max(120f, leftPanel.Size - 8f - theme.Spacing) : 210f;
 
-            void Save()
-            {
-                if (!persist)
-                {
-                    return;
-                }
-
-                // Only a genuine override is worth remembering -- saving whatever font happens to be
-                // active would just as happily capture the current theme's own default (e.g. LCARS's
-                // Antonio-Bold), and Attach re-applies a saved FontFamily unconditionally on top of
-                // whatever theme it loads. That is exactly how the "theme" font stopped working: it wasn't
-                // the Font dropdown overriding it on purpose, it was a completely incidental font getting
-                // baked in by the next unrelated Save() and then clobbering a differently-themed default
-                // on the next launch or theme switch.
-                var isDefaultFont = root.Theme.FontFamily == UiTheme.Create(state.Theme).FontFamily;
-
-                new ManaUiWorkspaceLayout
-                {
-                    Version = LayoutVersion,
-                    Preset = state.Preset,
-                    Theme = state.Theme,
-                    FontFamily = isDefaultFont ? null : root.Theme.FontFamily,
-                    BackdropBlur = state.BackdropBlur,
-                    LeftWidth = leftPanel.Size,
-                    RightWidth = rightPanel.Size,
-                    BottomHeight = bottomPanel.Size,
-                    Top = DockLayout.Capture(top),
-                    Left = DockLayout.Capture(left),
-                    Right = DockLayout.Capture(right),
-                    Bottom = DockLayout.Capture(bottom),
-                    Floating = CaptureFloating(dragController)
-                }.Save(layoutPath);
-            }
+            void Save() => layoutSession.Save(state, leftPanel.Size, rightPanel.Size, bottomPanel.Size);
 
             // An empty strip would leave a resize handle floating against nothing, so it hides itself until
             // it has something to hold.
@@ -477,7 +409,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                var docked = AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id);
+                var docked = layoutSession.Docked.FirstOrDefault(item => item.Id == id);
 
                 if (docked != null)
                 {
@@ -555,7 +487,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             // is already docked is on screen, so unlike TogglePanel this never closes it.
             void OpenPanel(string id)
             {
-                if (AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id) is not { } docked)
+                if (layoutSession.Docked.FirstOrDefault(item => item.Id == id) is not { } docked)
                 {
                     TogglePanel(id);
                     return;
@@ -572,7 +504,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             bool IsPanelOpen(string id) =>
-                AllDocked(top, left, right, bottom).Any(item => item.Id == id)
+                layoutSession.Docked.Any(item => item.Id == id)
                 || dragController.FindFloating(id) != null || dragController.FindDesktop(id) != null;
 
             // The tool windows exist only while there is something for them: the Grid Map window while a grid map
@@ -600,7 +532,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                var docked = AllDocked(top, left, right, bottom).FirstOrDefault(item => item.Id == id);
+                var docked = layoutSession.Docked.FirstOrDefault(item => item.Id == id);
                 docked?.Owner?.Remove(docked);
                 closingToolWindow = true;
                 try
@@ -672,7 +604,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             void Choose(WorkspacePreset preset)
             {
                 state.Preset = preset;
-                ApplyPreset(preset, top, left, right, bottom, Resolve, FloatingIds());
+                layoutSession.ApplyPreset(preset);
                 SyncColumnVisibility();
                 Save();
             }
@@ -829,397 +761,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             return selection.SelectedScene is { } scene ? scene.Name : "Nothing selected";
         }
 
-        private static IEnumerable<DockItem> AllDocked(DockHost top, DockHost left, DockHost right, DockHost bottom)
-        {
-            return top.AllItems().Concat(left.AllItems()).Concat(right.AllItems()).Concat(bottom.AllItems());
-        }
-
-        /// <summary>Mutable bits the menu and the save hook both need to see.</summary>
-        private sealed class WorkspaceState
-        {
-            public WorkspacePreset Preset { get; set; }
-
-            /// <summary>Theme to persist -- not always what the root is showing, since a switch saves before it swaps.</summary>
-            public UiThemeKind Theme { get; set; }
-
-            public float BackdropBlur { get; set; }
-        }
-
-        // ----- presets ------------------------------------------------------------------------------
-
-        /// <summary>Rebuilds every host from scratch. Only runs when a preset is chosen; edits afterward save over it.</summary>
-        private static void ApplyPreset(
-            WorkspacePreset preset,
-            DockHost top,
-            DockHost left,
-            DockHost right,
-            DockHost bottom,
-            Func<string, DockItem?> resolve,
-            HashSet<string>? alreadyOpen = null)
-        {
-            top.RootNode = null;
-            left.RootNode = null;
-            right.RootNode = null;
-            bottom.RootNode = null;
-
-            // Voxel Tools and Import get their own strips regardless of preset, so a preset only has to
-            // arrange the two columns.
-            Place(top, resolve, "tools", DockSide.Center);
-            var import = Place(bottom, resolve, "import", DockSide.Center);
-            Place(bottom, resolve, "project", DockSide.Center, import);
-            Place(bottom, resolve, "scenes", DockSide.Center, import);
-
-            switch (preset)
-            {
-                case WorkspacePreset.Unity:
-                    BuildUnity(left, right, resolve);
-                    break;
-                case WorkspacePreset.Unreal:
-                    BuildUnreal(left, right, resolve);
-                    break;
-                case WorkspacePreset.Split:
-                    BuildSplit(left, right, resolve);
-                    break;
-                default:
-                    BuildRightColumn(right, resolve);
-                    break;
-            }
-
-            // Anything a preset didn't name (a newly added panel) still needs a home rather than vanishing.
-            PlaceRemaining(top, left, right, bottom, resolve, alreadyOpen);
-        }
-
-        /// <summary>Docks whatever a preset didn't name, preferring the right column, same as an upgrade merge.</summary>
-        private static void PlaceRemaining(
-            DockHost top,
-            DockHost left,
-            DockHost right,
-            DockHost bottom,
-            Func<string, DockItem?> resolve,
-            HashSet<string>? alreadyOpen = null)
-        {
-            var present = AllDocked(top, left, right, bottom)
-                .Select(item => item.Id)
-                .ToHashSet(StringComparer.Ordinal);
-
-            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
-
-            foreach (var id in PanelIds)
-            {
-                if (present.Contains(id) || !OpensByDefault(id) || resolve(id) is not { } item)
-                {
-                    continue;
-                }
-
-                var host = right.RootNode != null ? right : left;
-                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
-            }
-        }
-
-        /// <summary>Everything tabbed in one column.</summary>
-        private static void BuildRightColumn(DockHost right, Func<string, DockItem?> resolve)
-        {
-            var outliner = Place(right, resolve, "outliner", DockSide.Center);
-
-            // Tabbed with the outliner: master and detail, and side by side in one column would leave
-            // neither enough width for a transform row.
-            Place(right, resolve, "inspector", DockSide.Bottom, outliner);
-            Place(right, resolve, "showcase", DockSide.Center, outliner);
-            Place(right, resolve, "about", DockSide.Center, outliner);
-        }
-
-        /// <summary>Hierarchy on the left and Inspector on the right, Unity's own arrangement.</summary>
-        private static void BuildUnity(DockHost left, DockHost right, Func<string, DockItem?> resolve)
-        {
-            Place(left, resolve, "outliner", DockSide.Center);
-
-            // The extras this editor has that Unity does not go where a custom add-on panel usually lands
-            // in Unity -- tabbed alongside the Inspector, rather than crowding the Hierarchy.
-            var inspector = Place(right, resolve, "inspector", DockSide.Center);
-            Place(right, resolve, "showcase", DockSide.Center, inspector);
-            Place(right, resolve, "about", DockSide.Center, inspector);
-        }
-
-        /// <summary>Outliner as a shallow top band, details filling below it -- roughly Unreal's proportions.</summary>
-        private static void BuildUnreal(DockHost left, DockHost right, Func<string, DockItem?> resolve)
-        {
-            var placement = Place(left, resolve, "debug", DockSide.Center);
-            Place(left, resolve, "about", DockSide.Center, placement);
-            Place(left, resolve, "showcase", DockSide.Bottom);
-
-            var outliner = Place(right, resolve, "outliner", DockSide.Center);
-            Place(right, resolve, "inspector", DockSide.Bottom, outliner);
-        }
-
-        /// <summary>Outliner far left, inspector far right, viewport clear between them.</summary>
-        private static void BuildSplit(DockHost left, DockHost right, Func<string, DockItem?> resolve)
-        {
-            var outliner = Place(left, resolve, "outliner", DockSide.Center);
-            Place(left, resolve, "about", DockSide.Center, outliner);
-
-            var inspector = Place(right, resolve, "inspector", DockSide.Center);
-            Place(right, resolve, "showcase", DockSide.Center, inspector);
-        }
-
-        /// <summary>Docks a panel by id, or no-ops if unavailable this session. Returns the node it landed in.</summary>
-        private static DockNode? Place(
-            DockHost host,
-            Func<string, DockItem?> resolve,
-            string id,
-            DockSide side,
-            DockNode? target = null)
-        {
-            // Checked here rather than by editing each preset's list, so a panel can be taken out of the
-            // default set in one place instead of four -- and so the two rules cannot drift apart.
-            if (!OpensByDefault(id))
-            {
-                return null;
-            }
-
-            var item = resolve(id);
-            if (item == null)
-            {
-                return null;
-            }
-
-            // Center with no target would land in the first group rather than beside the intended panel.
-            if (target == null && host.RootNode != null && side == DockSide.Center)
-            {
-                side = DockSide.Bottom;
-            }
-
-            return host.Dock(item, side, target);
-        }
-
-        /// <summary>Docks any panel no host contains. Only runs on a version mismatch, so closed panels stay closed otherwise.</summary>
-        private static void MergeMissingPanels(
-            DockHost top,
-            DockHost left,
-            DockHost right,
-            DockHost bottom,
-            Func<string, DockItem?> resolve,
-            HashSet<string>? alreadyOpen = null)
-        {
-            var present = AllDocked(top, left, right, bottom)
-                .Select(item => item.Id)
-                .ToHashSet(StringComparer.Ordinal);
-
-            present.UnionWith(alreadyOpen ?? Enumerable.Empty<string>());
-
-            foreach (var id in PanelIds)
-            {
-                if (present.Contains(id) || !OpensByDefault(id))
-                {
-                    continue;
-                }
-
-                var item = resolve(id);
-                if (item == null)
-                {
-                    continue;
-                }
-
-                // Voxel Tools and Import go straight to their own strips; everything else prefers the
-                // right column.
-                if (id == "tools")
-                {
-                    top.Dock(item, DockSide.Center, DockHost.FindFirstGroup(top.RootNode));
-                    continue;
-                }
-
-                if (id is "import" or "project" or "scenes")
-                {
-                    bottom.Dock(item, DockSide.Center, DockHost.FindFirstGroup(bottom.RootNode));
-                    continue;
-                }
-
-                var host = right.RootNode != null ? right : left;
-                host.Dock(item, DockSide.Center, DockHost.FindFirstGroup(host.RootNode));
-            }
-        }
-
-        /// <summary>
-        /// Whether a fresh layout puts this panel on screen.
-        /// <para>
-        /// Everything used to, which is how the right column arrived at eleven tabs in one strip -- four
-        /// visible and seven behind an overflow chip. Five of those seven are not editor panels at all:
-        /// ManaUI is the framework's own showcase, Blur Test is a shader toy, and About/World Perf/Debug
-        /// are diagnostics. They are worth keeping and worth reaching from the Panels menu; they are not
-        /// worth a tab each, every session, in front of the panels somebody is actually editing with.
-        /// </para>
-        /// <para>
-        /// Only new and reset layouts are affected: a saved layout is restored as it was saved.
-        /// </para>
-        /// </summary>
-        private static bool OpensByDefault(string id) => EditorPanelRegistry.OpensByDefault(id);
-
-        /// <summary>One-time migration: moves a panel that used to live in a column into its own dedicated strip.</summary>
-        private static void RelocateToStrip(
-            string id,
-            DockHost home,
-            IReadOnlyList<DockHost> others,
-            Func<string, DockItem?> resolve,
-            HashSet<string> floatingIds)
-        {
-            if (home.AllItems().Any(item => item.Id == id) || floatingIds.Contains(id))
-            {
-                return;
-            }
-
-            var existing = others.SelectMany(host => host.AllItems()).FirstOrDefault(item => item.Id == id);
-            if (existing != null)
-            {
-                existing.Owner?.Remove(existing);
-                home.Dock(existing, DockSide.Center, DockHost.FindFirstGroup(home.RootNode));
-                return;
-            }
-
-            if (resolve(id) is { } item)
-            {
-                home.Dock(item, DockSide.Center, DockHost.FindFirstGroup(home.RootNode));
-            }
-        }
-
-        private static List<FloatingPanelLayout> CaptureFloating(DockDragController controller)
-        {
-            var captured = new List<FloatingPanelLayout>();
-
-            foreach (var window in controller.DesktopWindows)
-            {
-                var items = window.Frame.Dock.AllItems().Where(item => !string.IsNullOrEmpty(item.Id)).ToList();
-                if (items.Count == 0)
-                {
-                    continue;
-                }
-
-                var grouped = items.Count > 1;
-                captured.Add(new FloatingPanelLayout
-                {
-                    Id = items[0].Id!,
-                    Desktop = true,
-                    HomeHostIndex = controller.DesktopHomeIndex(window),
-                    Layout = grouped ? DockLayout.Capture(window.Frame.Dock) : null,
-                    ItemHomes = grouped ? items.ToDictionary(item => item.Id!, controller.HomeIndexOf) : null,
-                    X = window.Position.X, Y = window.Position.Y,
-                    Width = window.Size.X, Height = window.Size.Y
-                });
-            }
-
-            foreach (var window in controller.FloatingWindows)
-            {
-                if (controller.ItemFor(window) is not { Id: { Length: > 0 } id })
-                {
-                    continue;
-                }
-
-                captured.Add(new FloatingPanelLayout
-                {
-                    Id = id,
-                    X = window.Position.X,
-                    Y = window.Position.Y,
-
-                    // Arranged size, not requested: a resized window comes back the size it was left. One opened
-                    // this frame has not been arranged yet, and keeps the size it asked for.
-                    Width = window.Bounds.Width > 0.0f ? window.Bounds.Width : Requested(window.Width, FloatingFallback.X),
-                    Height = window.Bounds.Height > 0.0f ? window.Bounds.Height : Requested(window.Height, FloatingFallback.Y)
-                });
-            }
-
-            return captured;
-        }
-
-        private static float Requested(float size, float fallback) => float.IsFinite(size) && size > 0.0f ? size : fallback;
-
-        /// <summary>Size a floating panel comes back at when the file has nothing usable recorded.</summary>
-        private static readonly Vector2 FloatingFallback = new(320.0f, 360.0f);
-
-        private static void RestoreFloating(
-            UiRoot root,
-            DockDragController controller,
-            ManaUiWorkspaceLayout? saved,
-            Func<string, DockItem?> resolve)
-        {
-            if (saved?.Floating is not { Count: > 0 } floating)
-            {
-                return;
-            }
-
-            foreach (var entry in floating)
-            {
-                if (entry.Desktop && controller.CanPopOut)
-                {
-                    try
-                    {
-                        var desktop = entry.Layout != null
-                            ? controller.PopOutLayout(
-                                entry.Layout,
-                                resolve,
-                                id => entry.ItemHomes?.GetValueOrDefault(id, entry.HomeHostIndex) ?? entry.HomeHostIndex)
-                            : resolve(entry.Id) is { } single ? controller.PopOut(single, entry.HomeHostIndex) : null;
-
-                        if (desktop != null)
-                        {
-                            desktop.Size = new Vector2(entry.Width, entry.Height);
-                            desktop.Position = new Vector2(entry.X, entry.Y);
-                            continue;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        ManaConsole.WriteDiagnostic($"Could not restore panel window: {ex.Message}");
-                    }
-                }
-
-                // No native windows here (or one failed): each panel comes back as an in-app float instead.
-                foreach (var id in entry.Layout != null ? LayoutIds(entry.Layout) : new List<string> { entry.Id })
-                {
-                    if (resolve(id) is { } item)
-                    {
-                        RestoreInAppFloat(root, controller, entry, item);
-                    }
-                }
-            }
-        }
-
-        private static List<string> LayoutIds(DockLayoutNode node)
-        {
-            var ids = new List<string>(node.Items ?? new List<string>());
-            foreach (var child in node.Children ?? new List<DockLayoutNode>())
-            {
-                ids.AddRange(LayoutIds(child));
-            }
-
-            return ids;
-        }
-
-        private static void RestoreInAppFloat(
-            UiRoot root,
-            DockDragController controller,
-            FloatingPanelLayout entry,
-            DockItem item)
-        {
-            var window = new UiWindow(item.Title)
-            {
-                Width = entry.Width > 0.0f ? entry.Width : FloatingFallback.X,
-                Height = entry.Height > 0.0f ? entry.Height : FloatingFallback.Y,
-                Child = item.Content
-            };
-
-            // Clamped onto the screen so a detached monitor or a shrunk window doesn't strand it.
-            var position = new Vector2(
-                Math.Clamp(entry.X, 0.0f, MathF.Max(0.0f, root.Size.X - 80.0f)),
-                Math.Clamp(entry.Y, 0.0f, MathF.Max(0.0f, root.Size.Y - 40.0f)));
-
-            root.ShowWindow(window, position);
-            controller.RegisterFloating(window, item);
-        }
-
         // ----- menu ---------------------------------------------------------------------------------
 
         /// <summary>The editor's real menu bar, in ManaUI.</summary>
         private static MenuBar BuildMenuBar(
             ManaUiShowcaseViewModel vm,
-            WorkspaceState state,
+            EditorWorkspaceLayout.State state,
             Action<WorkspacePreset> choose,
             Action resetPanels,
             UiDebugOverlay debug,
@@ -1534,7 +1081,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static MenuItem PresetItem(
             string label,
             WorkspacePreset preset,
-            WorkspaceState state,
+            EditorWorkspaceLayout.State state,
             Action<WorkspacePreset> choose)
         {
             return new MenuItem(label, () => choose(preset))
