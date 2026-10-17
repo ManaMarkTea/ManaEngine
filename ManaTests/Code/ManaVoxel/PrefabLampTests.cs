@@ -34,12 +34,15 @@ public static class PrefabLampChecks
         RunVariantChecks(Check);
     }
 
-    private static ManaContext CreateContext()
+    private static ManaContext CreateContext(bool withPhysics = true)
     {
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
         world.Context = context;
-        context.Physics = new ManaPhysics(context);
+        if (withPhysics)
+        {
+            context.Physics = new ManaPhysics(context);
+        }
         world.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
         world.Scenes.Add(world.DefaultScene);
         return context;
@@ -170,7 +173,6 @@ public static class PrefabLampChecks
     private static void RunVariantChecks(Checker check)
     {
         var source = Path.Combine(ManaContentLibrary.Root, "Prefabs");
-        var previous = Environment.CurrentDirectory;
         var scratch = Path.Combine(Path.GetTempPath(), "mana-lamp-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(scratch, "Content", "Prefabs"));
         foreach (var name in new[] { "Lamp.manaprefab", "Blue Lamp.manaprefab" })
@@ -180,23 +182,52 @@ public static class PrefabLampChecks
 
         try
         {
-            Environment.CurrentDirectory = scratch;
+            var contentRoot = ManaProjectFolder.CanonicalPath(Path.Combine(scratch, "Content"));
             var lampPath = Path.Combine(scratch, "Content", "Prefabs", "Lamp.manaprefab");
             var bluePath = Path.Combine(scratch, "Content", "Prefabs", "Blue Lamp.manaprefab");
-            check("the copies are the ones read", ManaProjectFolder.CanonicalPath(ManaContentLibrary.Root) == ManaProjectFolder.CanonicalPath(Path.Combine(scratch, "Content")), ManaContentLibrary.Root);
+            var isolatedWorld = new ManaWorld();
+            ManaContentLibrary.BindRoot(isolatedWorld, contentRoot);
+            check("the copies are the ones read", ManaContentLibrary.RootFor(isolatedWorld) == contentRoot, contentRoot);
 
             // The base changes: the variant follows it, and keeps the one thing it changed.
-            var lamp = ManaPrefab.Load(lampPath);
+            var lamp = ManaPrefab.Load(lampPath, contentRoot);
             LightScript(lamp.Root)!["intensity"] = System.Text.Json.JsonSerializer.SerializeToElement(2.0f);
             lamp.Save(lampPath);
-            var blue = ManaPrefab.Load(bluePath);
+            var blue = ManaPrefab.Load(bluePath, contentRoot);
             var blueLight = LightScript(blue.Root)!;
             check("a change to the base reaches its variant", blueLight["intensity"].GetSingle() == 2.0f, blueLight["intensity"].ToString());
             check("and the variant keeps its own colour", Same(blueLight["color"], Blue), blueLight["color"].GetRawText());
             check("with the base's exposed values, as it has none of its own", blue.IsVariant && blue.Properties.Count == lamp.Properties.Count);
 
+            var bundledRoot = ManaContentLibrary.Root;
+            var bundledLampPath = Path.Combine(source, "Lamp.manaprefab");
+            var bundledBefore = File.ReadAllText(bundledLampPath);
+            var bundledLamp = ManaPrefab.Load(bundledLampPath, bundledRoot);
+            var bundledContext = CreateContext(withPhysics: false);
+            ManaContentLibrary.BindRoot(bundledContext.World, bundledRoot);
+            var isolatedContext = CreateContext(withPhysics: false);
+            ManaContentLibrary.BindRoot(isolatedContext.World, contentRoot);
+            ManaLevel LampLevel() => new()
+            {
+                Nodes = [new ManaLevelNode
+                {
+                    Id = Guid.NewGuid().ToString("N"), Kind = ManaLevelSourceKind.Prefab,
+                    Prefab = new ManaPrefabReference { AssetId = lamp.Id, AssetPath = "Prefabs/Lamp.manaprefab" }
+                }]
+            };
+            var isolatedLoad = ManaLevelLoader.Load(LampLevel(), isolatedContext, isolatedContext.World.DefaultScene, false);
+            var bundledLoad = ManaLevelLoader.Load(LampLevel(), bundledContext, bundledContext.World.DefaultScene, false);
+            var isolatedLight = isolatedLoad.Nodes.Select(LightOf).FirstOrDefault(l => l != null);
+            var bundledLight = bundledLoad.Nodes.Select(LightOf).FirstOrDefault(l => l != null);
+            check("worlds resolve identical prefab IDs against their own content roots",
+                isolatedLoad.Warnings.Count == 0 && bundledLoad.Warnings.Count == 0
+                && isolatedLight?.Intensity == 2.0f
+                && bundledLight?.Intensity == LightScript(bundledLamp.Root)!["intensity"].GetSingle());
+            check("a variant thumbnail uses its world's content root",
+                MeshThumbnailCache.GenerateViaCpuStandalone(isolatedContext, bluePath) is { Length: > 0 });
+
             // A new variant, as Create Variant makes one: changed once, saved as that one change.
-            var green = ManaPrefab.CreateVariant(lamp, lampPath, "Green Lamp");
+            var green = ManaPrefab.CreateVariant(lamp, lampPath, "Green Lamp", contentRoot);
             LightScript(green.Root)!["color"] = System.Text.Json.JsonSerializer.SerializeToElement(new[] { 0.2f, 1f, 0.3f, 1f });
             var greenPath = Path.Combine(scratch, "Content", "Prefabs", "Green Lamp.manaprefab");
             green.Save(greenPath);
@@ -204,21 +235,22 @@ public static class PrefabLampChecks
             check("a new variant is saved as its base and its one change", greenFile["root"] == null
                 && greenFile["base"]?["overrides"]?.AsArray().Count == 1 && greenFile["base"]?["assetId"]?.GetValue<string>() == lamp.Id,
                 greenFile["base"]?.ToJsonString() ?? "");
-            var reread = ManaPrefab.Load(greenPath);
+            var reread = ManaPrefab.Load(greenPath, contentRoot);
             check("and reads back green, with the base's brightness", Same(LightScript(reread.Root)!["color"], Green)
                 && LightScript(reread.Root)!["intensity"].GetSingle() == 2.0f);
 
             // A variant of a variant: the Blue Lamp made brighter still.
-            var brighter = ManaPrefab.CreateVariant(blue, bluePath, "Bright Blue Lamp");
+            var brighter = ManaPrefab.CreateVariant(blue, bluePath, "Bright Blue Lamp", contentRoot);
             LightScript(brighter.Root)!["intensity"] = System.Text.Json.JsonSerializer.SerializeToElement(5.0f);
             var brighterPath = Path.Combine(scratch, "Content", "Prefabs", "Bright Blue Lamp.manaprefab");
             brighter.Save(brighterPath);
-            var brighterLight = LightScript(ManaPrefab.Load(brighterPath).Root)!;
+            var brighterLight = LightScript(ManaPrefab.Load(brighterPath, contentRoot).Root)!;
             check("a variant of a variant keeps both changes", Same(brighterLight["color"], Blue) && brighterLight["intensity"].GetSingle() == 5.0f);
 
             // Review Changes: apply one of an instance's changes to the prefab, keep the other, then revert that.
             var reviewContext = CreateContext();
-            var lampNow = ManaPrefab.Load(lampPath);
+            ManaContentLibrary.BindRoot(reviewContext.World, contentRoot);
+            var lampNow = ManaPrefab.Load(lampPath, contentRoot);
             var light = ManaPrefab.Walk(lampNow.Root).First(n => n.Scripts?.Any(sc => sc.Type == "Light") == true);
             var lightId = light.Scripts!.First(sc => sc.Type == "Light").Id!;
             var colourPath = new[] { light.Id!, "scripts", lightId, "properties", "color" };
@@ -243,7 +275,7 @@ public static class PrefabLampChecks
             review.OpenReview(reviewed);
             var brightnessChange = ManaPrefabRuntime.CaptureReference(reviewed).Overrides.First(o => o.Path.SequenceEqual(brightnessPath));
             review.ApplyOverrides(reviewed, [brightnessChange]);
-            var published = LightScript(ManaPrefab.Load(lampPath).Root)!;
+            var published = LightScript(ManaPrefab.Load(lampPath, contentRoot).Root)!;
             var afterApply = review.CurrentReview;
             var remaining = afterApply == null ? [] : ManaPrefabRuntime.CaptureReference(afterApply).Overrides;
             check("applying one change publishes it to the prefab and leaves the other on the copy",
@@ -274,7 +306,7 @@ public static class PrefabLampChecks
             var refused = false;
             try
             {
-                ManaPrefab.Load(loopPath);
+                ManaPrefab.Load(loopPath, contentRoot);
             }
             catch (InvalidDataException)
             {
@@ -283,10 +315,10 @@ public static class PrefabLampChecks
 
             check("a variant made from itself is refused", refused);
             File.Delete(loopPath);
+            check("isolated prefab edits leave bundled sources untouched", File.ReadAllText(bundledLampPath) == bundledBefore);
         }
         finally
         {
-            Environment.CurrentDirectory = previous;
             try
             {
                 Directory.Delete(scratch, recursive: true);

@@ -251,8 +251,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             try
             {
                 var reference = ManaPrefabRuntime.CaptureReference(instance);
-                var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
-                var asset = ManaPrefab.Load(path);
+                var contentRoot = ManaContentLibrary.RootFor(instance.Context.World);
+                var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, contentRoot);
+                var asset = ManaPrefab.Load(path, contentRoot);
                 // One line saying whether this copy still matches its prefab, and every action in one menu.
                 var changes = reference.Overrides.Count;
                 var summary = new TextBlock()

@@ -25,6 +25,7 @@ namespace ManaVoxel.Code.UI
         }
 
         private readonly ManaWorld _world;
+        private string ContentRoot => ManaContentLibrary.RootFor(_world);
         private VoxelEditorViewModel? _editor;
         private List<ManaScene>? _savedScenes;
         private ManaScene? _savedDefault;
@@ -60,7 +61,7 @@ namespace ManaVoxel.Code.UI
             {
                 if (_entries == null)
                 {
-                    try { _entries = ManaContentLibrary.List(); }
+                    try { _entries = ManaContentLibrary.List(ContentRoot); }
                     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
                     {
                         Status = exception.Message;
@@ -133,7 +134,7 @@ namespace ManaVoxel.Code.UI
                 : 0);
         }
 
-        public void Refresh() => Run(() => { _entries = ManaContentLibrary.List(); Status = $"{_entries.Count} project assets."; });
+        public void Refresh() => Run(() => { _entries = ManaContentLibrary.List(ContentRoot); Status = $"{_entries.Count} project assets."; });
 
         public string? SelectedAsset { get; set; }
         public bool CanCreatePrefab(ManaSceneNode node) => CanEdit && !IsEditing
@@ -147,7 +148,7 @@ namespace ManaVoxel.Code.UI
             var name = string.Concat((node.Name ?? "Prefab").Split(Path.GetInvalidFileNameChars())).Trim().Trim('.');
             if (name.Length == 0) { name = "Prefab"; }
             AssetName = name;
-            for (var suffix = 2; File.Exists(Path.Combine(ManaContentLibrary.Root, "Prefabs", AssetName + ManaPrefab.Extension)); suffix++)
+            for (var suffix = 2; File.Exists(Path.Combine(ContentRoot, "Prefabs", AssetName + ManaPrefab.Extension)); suffix++)
             {
                 AssetName = $"{name} {suffix}";
             }
@@ -160,7 +161,7 @@ namespace ManaVoxel.Code.UI
             if (IsEditing) { throw new InvalidOperationException("Finish editing the prefab before placing instances."); }
             if (Path.GetExtension(path) == ManaPrefab.Extension)
             {
-                ManaPrefab.Load(path);
+                ManaPrefab.Load(path, ContentRoot);
             }
             ManaUi.MeshImportRequests.RequestPlacement(path);
             Status = "Move into the viewport and click to place. Escape cancels.";
@@ -178,13 +179,13 @@ namespace ManaVoxel.Code.UI
                 throw new InvalidOperationException($"A {kind.Name} is made from something, not from nothing.");
             }
             var name = $"New {kind.Name}";
-            for (var suffix = 2; File.Exists(Path.Combine(ManaContentLibrary.Root, kind.Folder, name + kind.Extension)); suffix++)
+            for (var suffix = 2; File.Exists(Path.Combine(ContentRoot, kind.Folder, name + kind.Extension)); suffix++)
             {
                 name = $"New {kind.Name} {suffix}";
             }
-            var path = ManaContentLibrary.NewPath(name, kind.Folder, kind.Extension);
+            var path = ManaContentLibrary.NewPath(name, kind.Folder, kind.Extension, ContentRoot);
             Mana.Code.Content.ManaContentAssets.Save(kind.Blank(name), path);
-            _entries = ManaContentLibrary.List();
+            _entries = ManaContentLibrary.List(ContentRoot);
             SelectedAsset = path;
             OpenAsset(path);
             Status = $"Made {name} in {kind.Folder}.";
@@ -218,7 +219,7 @@ namespace ManaVoxel.Code.UI
         public ManaSceneNode InstantiateForPlacement(string path)
         {
             if (!CanEdit || IsEditing) { throw new InvalidOperationException("Finish editing or stop play before placing a prefab."); }
-            var asset = ManaPrefab.Load(path);
+            var asset = ManaPrefab.Load(path, ContentRoot);
             var scene = _editor?.ActiveScene;
             if (scene == null || !_world.Scenes.Contains(scene))
             {
@@ -233,14 +234,14 @@ namespace ManaVoxel.Code.UI
             return ManaPrefabRuntime.Instantiate(_world.Context, scene, new ManaLevelNode
             {
                 Name = asset.Name, Kind = ManaLevelSourceKind.Prefab,
-                Prefab = new ManaPrefabReference { AssetId = asset.Id, AssetPath = ManaContentLibrary.Reference(path) }
+                Prefab = new ManaPrefabReference { AssetId = asset.Id, AssetPath = ManaContentLibrary.Reference(path, ContentRoot) }
             });
         }
 
         public void DeleteAsset(string path) => Run(() =>
         {
             var full = ManaProjectFolder.CanonicalPath(path);
-            if (!full.StartsWith(ManaProjectFolder.CanonicalPath(ManaContentLibrary.Root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            if (!full.StartsWith(ManaProjectFolder.CanonicalPath(ContentRoot) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
                 || !Entries.Any(entry => string.Equals(ManaProjectFolder.CanonicalPath(entry.Path), full, StringComparison.OrdinalIgnoreCase)))
             {
                 throw new InvalidOperationException("Choose an asset inside Content.");
@@ -251,7 +252,7 @@ namespace ManaVoxel.Code.UI
             }
             File.Delete(full);
             SelectedAsset = null;
-            _entries = ManaContentLibrary.List();
+            _entries = ManaContentLibrary.List(ContentRoot);
             Status = $"Deleted {Path.GetFileNameWithoutExtension(full)}. Placed instances remain in the world.";
         });
 
@@ -266,18 +267,18 @@ namespace ManaVoxel.Code.UI
                 throw new InvalidOperationException("Finish editing this prefab before making a variant.");
             }
 
-            var source = ManaPrefab.Load(path);
-            var folder = Path.GetRelativePath(ManaContentLibrary.Root, Path.GetDirectoryName(Path.GetFullPath(path))!);
+            var source = ManaPrefab.Load(path, ContentRoot);
+            var folder = Path.GetRelativePath(ContentRoot, Path.GetDirectoryName(Path.GetFullPath(path))!);
             var name = $"{source.Name} Variant";
-            for (var suffix = 2; File.Exists(Path.Combine(ManaContentLibrary.Root, folder, name + ManaPrefab.Extension)); suffix++)
+            for (var suffix = 2; File.Exists(Path.Combine(ContentRoot, folder, name + ManaPrefab.Extension)); suffix++)
             {
                 name = $"{source.Name} Variant {suffix}";
             }
 
-            var variantPath = ManaContentLibrary.NewPath(name, folder, ManaPrefab.Extension);
-            ManaPrefab.CreateVariant(source, path, name).Save(variantPath);
+            var variantPath = ManaContentLibrary.NewPath(name, folder, ManaPrefab.Extension, ContentRoot);
+            ManaPrefab.CreateVariant(source, path, name, ContentRoot).Save(variantPath);
             ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(variantPath);
-            _entries = ManaContentLibrary.List();
+            _entries = ManaContentLibrary.List(ContentRoot);
             Status = $"Made {name}, a variant of {source.Name}. Edit it and save: only what you change is kept.";
         });
 
@@ -293,7 +294,7 @@ namespace ManaVoxel.Code.UI
                 throw new InvalidOperationException("Unpack the existing instance before turning any of its nodes into another prefab.");
             }
             var root = ManaLevelCapture.CaptureSubtree(node);
-            var path = ManaContentLibrary.NewPath(AssetName, "Prefabs", ManaPrefab.Extension);
+            var path = ManaContentLibrary.NewPath(AssetName, "Prefabs", ManaPrefab.Extension, ContentRoot);
             root.Position = [0, 0, 0];
             root.Rotation = [0, 0, 0];
             root.Scale = [1, 1, 1];
@@ -311,7 +312,7 @@ namespace ManaVoxel.Code.UI
                 Parent = parent, LevelSource = new ManaLevelSource { Kind = ManaLevelSourceKind.Prefab },
                 PrefabLink = new ManaPrefabLink
                 {
-                    AssetId = asset.Id, AssetPath = ManaContentLibrary.Reference(path),
+                    AssetId = asset.Id, AssetPath = ManaContentLibrary.Reference(path, ContentRoot),
                     BaselineJson = JsonSerializer.Serialize(root, ManaLevel.SerializerOptions)
                 }
             };
@@ -324,7 +325,7 @@ namespace ManaVoxel.Code.UI
             wrapper.UpdateTransform();
             _editor?.History.Clear();
             EditorSelectionSnapshot.SelectNode(_world.Selection, wrapper, true);
-            _entries = ManaContentLibrary.List();
+            _entries = ManaContentLibrary.List(ContentRoot);
             Status = $"Created {asset.Name}; selected object is now a linked instance.";
         });
 
@@ -348,7 +349,7 @@ namespace ManaVoxel.Code.UI
             {
                 throw new InvalidOperationException("Save and close, or discard the current prefab edit first.");
             }
-            var asset = ManaPrefab.Load(path);
+            var asset = ManaPrefab.Load(path, ContentRoot);
             var scene = new ManaScene(_world.Context) { Name = $"Prefab: {asset.Name}" };
             var result = ManaLevelLoader.Load(new ManaLevel { Nodes = [asset.Root] }, _world.Context, scene, false);
             if (result.Warnings.Count > 0 || scene.Children.Count != 1)
@@ -418,7 +419,7 @@ namespace ManaVoxel.Code.UI
             }
             var scenes = _savedScenes ?? _world.Scenes;
             RefreshInstances(id, scenes);
-            _entries = ManaContentLibrary.List();
+            _entries = ManaContentLibrary.List(ContentRoot);
             Status = $"Saved {name}; placed instances updated.";
         });
 
@@ -638,8 +639,8 @@ namespace ManaVoxel.Code.UI
         {
             instance = Live(instance);
             var reference = ManaPrefabRuntime.CaptureReference(instance);
-            var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
-            var asset = ManaPrefab.Load(path);
+            var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, ContentRoot);
+            var asset = ManaPrefab.Load(path, ContentRoot);
             var picked = reference.Overrides.Where(o => chosen.Any(c => c.Path.SequenceEqual(o.Path))).ToList();
             asset.Root = ManaPrefabOverrides.Resolve(asset.Root, picked);
             asset.Save(path);
@@ -694,8 +695,8 @@ namespace ManaVoxel.Code.UI
         {
             instance = Live(instance);
             var reference = ManaPrefabRuntime.CaptureReference(instance);
-            var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
-            var asset = ManaPrefab.Load(path);
+            var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, ContentRoot);
+            var asset = ManaPrefab.Load(path, ContentRoot);
             asset.Root = ManaPrefabOverrides.Resolve(asset.Root, reference.Overrides);
             asset.Save(path);
             ManaUi.ManaUiDockDemo.MeshThumbnails?.ForceRefresh(path);
@@ -798,8 +799,8 @@ namespace ManaVoxel.Code.UI
             var map = Selected as ManaGridMapNode ?? throw new InvalidOperationException("Select a grid map.");
             var preset = ManaGridMapPreset.Capture(map, AssetName.Trim());
             if (IncludeGenerator) { preset.Generator = ManaGridGeneratorPreset.Capture(); }
-            preset.Save(ManaContentLibrary.NewPath(AssetName, "GridMapPresets", ManaGridMapPreset.Extension));
-            _entries = ManaContentLibrary.List();
+            preset.Save(ManaContentLibrary.NewPath(AssetName, "GridMapPresets", ManaGridMapPreset.Extension, ContentRoot));
+            _entries = ManaContentLibrary.List(ContentRoot);
             Status = "Saved grid map settings as a project asset.";
         });
 

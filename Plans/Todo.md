@@ -12,8 +12,8 @@
     Cached C#/WGSL syntax colors distinguish keywords, types, methods, strings, numbers, comments and directives.
 
 [] - Project code cleanup: Plans/CodeCleanup.md.
-    Cody (2026-10-16): started with explicit asset-resolution paths to remove process-wide directory changes from tests.
-    Follow-ups: prefab content-root isolation, workspace panel registry, asset services, planet and game view responsibilities.
+    Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
+    Follow-ups: workspace panel registry, other mutable test hooks, asset services, planet and game view responsibilities.
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

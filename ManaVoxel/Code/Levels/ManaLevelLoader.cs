@@ -331,9 +331,10 @@ namespace ManaVoxel.Code.Levels
                     };
                     try
                     {
-                        var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath);
-                        var prefab = ManaPrefab.Load(path);
-                        instance.PrefabLink.AssetPath = ManaContentLibrary.Reference(path);
+                        var contentRoot = ManaContentLibrary.RootFor(state.Context.World);
+                        var path = ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, contentRoot);
+                        var prefab = ManaPrefab.Load(path, contentRoot);
+                        instance.PrefabLink.AssetPath = ManaContentLibrary.Reference(path, contentRoot);
                         instance.PrefabLink.BaselineJson = System.Text.Json.JsonSerializer.Serialize(prefab.Root, ManaLevel.SerializerOptions);
                         var resolved = ManaPrefabOverrides.Resolve(prefab.Root, reference.Overrides, state.Result.Warnings);
                         new ManaPrefab { Root = resolved }.Validate();
@@ -835,7 +836,7 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
-        public static async Task EnsureAssetsAsync(ManaLevel level)
+        public static async Task EnsureAssetsAsync(ManaLevel level, string? contentRoot = null)
         {
             var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
             if (catalog == null) return;
@@ -846,7 +847,7 @@ namespace ManaVoxel.Code.Levels
                 {
                     try
                     {
-                        var source = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath));
+                        var source = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, contentRoot), contentRoot);
                         var resolved = ManaPrefabOverrides.Resolve(source.Root, reference.Overrides);
                         new ManaPrefab { Root = resolved }.Validate();
                         nodes.Enqueue(resolved);

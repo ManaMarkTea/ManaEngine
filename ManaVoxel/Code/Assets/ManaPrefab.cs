@@ -35,6 +35,7 @@ namespace ManaVoxel.Code.Assets
         // The base's tree as loaded, so a save can tell what this variant changed; and the base's exposed
         // properties, which a variant showing only those leaves to the base.
         private ManaLevelNode? _baseRoot;
+        private string? _contentRoot;
         private List<ManaPrefabProperty>? _baseProperties;
 
         // Variants being loaded on this thread, by asset ID: a variant of itself is a loop, not a prefab.
@@ -44,7 +45,7 @@ namespace ManaVoxel.Code.Assets
         private const int MaxVariantDepth = 8;
 
         [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
-        public static ManaPrefab Load(string path)
+        public static ManaPrefab Load(string path, string? contentRoot = null)
         {
             var json = File.ReadAllText(path);
             using var document = JsonDocument.Parse(json);
@@ -57,6 +58,7 @@ namespace ManaVoxel.Code.Assets
             }
             var asset = JsonSerializer.Deserialize<ManaPrefab>(json, ManaLevel.SerializerOptions)
                 ?? throw new InvalidDataException("Empty prefab.");
+            asset._contentRoot = contentRoot;
             if (asset.Base != null)
             {
                 asset.ResolveBase();
@@ -84,13 +86,14 @@ namespace ManaVoxel.Code.Assets
         /// <paramref name="basePath"/> is the base's file, so the variant can find it again.
         /// </summary>
         [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
-        public static ManaPrefab CreateVariant(ManaPrefab source, string basePath, string name)
+        public static ManaPrefab CreateVariant(ManaPrefab source, string basePath, string name, string? contentRoot = null)
         {
             var root = JsonSerializer.Deserialize<ManaLevelNode>(JsonSerializer.Serialize(source.Root, ManaLevel.SerializerOptions), ManaLevel.SerializerOptions)!;
             return new ManaPrefab
             {
+                _contentRoot = contentRoot ?? source._contentRoot,
                 Name = name,
-                Base = new ManaPrefabReference { AssetId = source.Id, AssetPath = ManaContentLibrary.Reference(basePath) },
+                Base = new ManaPrefabReference { AssetId = source.Id, AssetPath = ManaContentLibrary.Reference(basePath, contentRoot ?? source._contentRoot) },
                 Root = root,
                 Properties = source.Properties.ToList(),
                 _baseRoot = source.Root,
@@ -114,9 +117,9 @@ namespace ManaVoxel.Code.Assets
 
             try
             {
-                var path = ManaContentLibrary.ResolvePrefab(Base!.AssetId, Base.AssetPath);
-                var source = Load(path);
-                Base.AssetPath = ManaContentLibrary.Reference(path);
+                var path = ManaContentLibrary.ResolvePrefab(Base!.AssetId, Base.AssetPath, _contentRoot);
+                var source = Load(path, _contentRoot);
+                Base.AssetPath = ManaContentLibrary.Reference(path, _contentRoot);
                 _baseRoot = source.Root;
                 _baseProperties = source.Properties;
                 Root = ManaPrefabOverrides.Resolve(source.Root, Base.Overrides);
@@ -184,7 +187,7 @@ namespace ManaVoxel.Code.Assets
                 // A variant keeps only what it changes: its tree, told apart from the base's, as overrides.
                 if (_baseRoot == null)
                 {
-                    var source = Load(ManaContentLibrary.ResolvePrefab(Base.AssetId, Base.AssetPath));
+                    var source = Load(ManaContentLibrary.ResolvePrefab(Base.AssetId, Base.AssetPath, _contentRoot), _contentRoot);
                     _baseRoot = source.Root;
                     _baseProperties ??= source.Properties;
                 }

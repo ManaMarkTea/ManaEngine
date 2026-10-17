@@ -460,7 +460,7 @@ namespace ManaVoxel.Code.Assets
         {
             if (Path.GetExtension(assetPath) == ManaPrefab.Extension)
             {
-                return GeneratePrefabThumbnail(assetPath);
+                return GeneratePrefabThumbnail(assetPath, ManaContentLibrary.RootFor(context.World));
             }
             if (MeshAssetLibrary.FormatOf(assetPath) == MeshAssetFormats.Png)
             {
@@ -486,7 +486,7 @@ namespace ManaVoxel.Code.Assets
                 : MeshThumbnailRasterizer.Render(cpuData, ThumbnailSize, new Vector4(0.82f, 0.84f, 0.88f, 1.0f));
         }
 
-        private static byte[]? GeneratePrefabThumbnail(string path)
+        private static byte[]? GeneratePrefabThumbnail(string path, string contentRoot)
         {
             // A separate CPU-only context prevents thumbnail loading from touching the live scene,
             // renderer, physics or script state on the worker thread.
@@ -495,7 +495,8 @@ namespace ManaVoxel.Code.Assets
             world.Context = context;
             world.DefaultScene = new ManaScene(context);
             world.Scenes.Add(world.DefaultScene);
-            var prefab = ManaPrefab.Load(path);
+            ManaContentLibrary.BindRoot(world, contentRoot);
+            var prefab = ManaPrefab.Load(path, contentRoot);
             // A prefab drawn by a Sprite has no model to render -- the Sprite is a script, stripped below -- so it
             // shows its picture instead.
             if (SpritePicture(prefab.Root) is { } picture)

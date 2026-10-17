@@ -29,9 +29,13 @@ public static class PrefabChecks
                 foreach (var descendant in Elements(child)) { yield return descendant; }
             }
         }
-        static (ManaWorld World, ManaContext Context) World()
+        static (ManaWorld World, ManaContext Context) World(string? contentRoot = null)
         {
             var world = new ManaWorld();
+            if (contentRoot != null)
+            {
+                ManaContentLibrary.BindRoot(world, contentRoot);
+            }
             var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
             world.Context = context;
             world.DefaultScene = new ManaScene(context);
@@ -77,14 +81,13 @@ public static class PrefabChecks
         try { nested.Validate(); Check("nested prefab cycles cannot enter the asset format", false); }
         catch (InvalidDataException) { Check("nested prefab cycles cannot enter the asset format", true); }
 
-        var previousDirectory = Environment.CurrentDirectory;
         var scratch = Path.Combine(Path.GetTempPath(), "mana-prefab-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(scratch, "Content"));
         scratch = ManaProjectFolder.CanonicalPath(scratch);
         try
         {
-            Environment.CurrentDirectory = scratch;
-            var (world, context) = World();
+            var contentRoot = Path.Combine(scratch, "Content");
+            var (world, context) = World(contentRoot);
             var editor = new VoxelEditorViewModel();
             editor.AttachScene(context, world.DefaultScene);
             var model = ProjectAssetViewModel.For(world, editor);
@@ -106,7 +109,7 @@ public static class PrefabChecks
             child.Position = new(0, 4, 0);
             var level = ManaLevelCapture.Capture(world);
             Check("level stores reference plus overrides, not expanded prefab children", level.Nodes[0].Prefab?.Overrides.Count == 1 && level.Nodes[0].Children == null);
-            var (reloadedWorld, reloadedContext) = World();
+            var (reloadedWorld, reloadedContext) = World(contentRoot);
             var load = ManaLevelLoader.Load(ManaLevel.FromJson(level.ToJson()), reloadedContext, reloadedWorld.DefaultScene, false);
             var reloaded = reloadedWorld.DefaultScene.Children.Single();
             Check("level round trip rebuilds instance placement and overrides", load.Warnings.Count == 0 && reloaded.Position.X == 8 && reloaded.Children[0].Children[0].Position.Y == 4, string.Join(';', load.Warnings));
@@ -181,7 +184,7 @@ public static class PrefabChecks
                 {
                     var aliasPath = Path.Combine(alias, "Moved", "Renamed.manaprefab");
                     Check("directory aliases produce the same content reference",
-                        ManaContentLibrary.Reference(aliasPath) == "Moved/Renamed.manaprefab");
+                        ManaContentLibrary.Reference(aliasPath, contentRoot) == "Moved/Renamed.manaprefab");
                     Check("prefabs resolve through an aliased content root",
                         ManaContentLibrary.ResolvePrefab(saved.Id, "Moved/Renamed.manaprefab", alias) == moved);
                 }
@@ -195,7 +198,7 @@ public static class PrefabChecks
             Check("asset identity survives file and folder renames", instance.PrefabLink!.AssetPath == "Moved/Renamed.manaprefab", model.Status);
             var referenceBeforeMissing = ManaLevelCapture.Capture(world);
             File.Move(moved, moved + ".backup");
-            var (brokenWorld, brokenContext) = World();
+            var (brokenWorld, brokenContext) = World(contentRoot);
             var broken = ManaLevelLoader.Load(referenceBeforeMissing, brokenContext, brokenWorld.DefaultScene, false);
             Check("missing source keeps a recoverable reference and reports the problem", broken.Warnings.Count > 0 && ManaLevelCapture.Capture(brokenWorld).Nodes[0].Prefab?.AssetId == saved.Id);
             File.Move(moved + ".backup", moved);
@@ -292,10 +295,10 @@ public static class PrefabChecks
                 && world.DefaultScene.Children.Any(node => node.PrefabLink != null));
             MeshImportRequests.Clear();
 
-            try { ManaContentLibrary.ResolvePrefab(saved.Id, "../outside.manaprefab"); Check("references cannot escape Content", false); }
+            try { ManaContentLibrary.ResolvePrefab(saved.Id, "../outside.manaprefab", contentRoot); Check("references cannot escape Content", false); }
             catch (InvalidDataException) { Check("references cannot escape Content", true); }
 
-            var (physicalWorld, physicalContext) = World();
+            var (physicalWorld, physicalContext) = World(contentRoot);
             physicalContext.Physics = new ManaPhysics(physicalContext);
             try
             {
@@ -340,7 +343,6 @@ public static class PrefabChecks
         }
         finally
         {
-            Environment.CurrentDirectory = previousDirectory;
             Directory.Delete(scratch, true);
         }
 

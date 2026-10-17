@@ -72,7 +72,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             try
             {
                 reference = ManaPrefabRuntime.CaptureReference(instance);
-                asset = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath));
+                var contentRoot = ManaContentLibrary.RootFor(instance.Context.World);
+                asset = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, contentRoot), contentRoot);
             }
             catch (Exception exception) when (exception is IOException or InvalidDataException or JsonException)
             {

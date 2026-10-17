@@ -6,6 +6,15 @@ namespace ManaVoxel.Code.Assets
 
     public static class ManaContentLibrary
     {
+        private sealed record ProjectRoot(string Path);
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Mana.ManaWorld, ProjectRoot> ProjectRoots = new();
+
+        public static string RootFor(Mana.ManaWorld world) => ProjectRoots.TryGetValue(world, out var root) ? root.Path : Root;
+
+        /// <summary>Bind before loading or editing assets; each world keeps its own project location.</summary>
+        public static void BindRoot(Mana.ManaWorld world, string root) =>
+            ProjectRoots.Add(world, new ProjectRoot(Canonical(root)));
+
 #if MANA_BROWSER
         // The browser bundles Content/ into its file system, including Content/Levels/ (see WebAssets.props).
         public static string Root => Path.GetFullPath("Content");
@@ -31,14 +40,14 @@ namespace ManaVoxel.Code.Assets
                     item.Kind?.Name ?? string.Empty)).ToList();
         }
 
-        public static string NewPath(string name, string folder, string extension)
+        public static string NewPath(string name, string folder, string extension, string? root = null)
         {
             var safe = string.Concat(name.Split(Path.GetInvalidFileNameChars())).Trim().Trim('.');
             if (safe.Length == 0)
             {
                 throw new InvalidDataException("Enter an asset name.");
             }
-            var path = Path.Combine(Root, folder, safe + extension);
+            var path = Path.Combine(root ?? Root, folder, safe + extension);
             if (File.Exists(path))
             {
                 throw new IOException("An asset with that name already exists. Choose a different name.");
@@ -46,8 +55,8 @@ namespace ManaVoxel.Code.Assets
             return path;
         }
 
-        public static string Reference(string path) => Path.GetRelativePath(
-            Canonical(Root), Canonical(path)).Replace('\\', '/');
+        public static string Reference(string path, string? root = null) => Path.GetRelativePath(
+            Canonical(root ?? Root), Canonical(path)).Replace('\\', '/');
 
         public static string ResolvePrefab(string id, string relativePath, string? root = null)
         {

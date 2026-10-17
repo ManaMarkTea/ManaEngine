@@ -240,7 +240,8 @@ public ManaSceneNode? PreviewNode => _meshPickerPreviewNode;
                     viewModel.Levels.SetStatus("Downloading selected asset…");
                     if (Path.GetExtension(assetReference) == ManaPrefab.Extension)
                     {
-                        await ManaLevelLoader.EnsureAssetsAsync(new ManaLevel { Nodes = [ManaPrefab.Load(assetReference).Root] });
+                        var contentRoot = ManaContentLibrary.RootFor(context.World);
+                        await ManaLevelLoader.EnsureAssetsAsync(new ManaLevel { Nodes = [ManaPrefab.Load(assetReference, contentRoot).Root] }, contentRoot);
                     }
                     else
                     {

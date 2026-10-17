@@ -5,10 +5,10 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 1. Isolate test paths
 
-- [ ] Remove process-wide working-directory changes from tests.
+- [x] Remove process-wide working-directory changes from tests.
   - [x] Let asset path resolution accept an explicit working directory; retain coverage for launching outside the checkout.
-  - [ ] Give prefab editing/loading a per-world content root, propagated through variant resolution, refresh, capture and thumbnails.
-  - [ ] Migrate PrefabTests and PrefabLampTests to isolated content roots without weakening their assertions.
+  - [x] Give prefab editing/loading a per-world content root, propagated through variant resolution, refresh, capture and thumbnails.
+  - [x] Migrate PrefabTests and PrefabLampTests to isolated content roots without weakening their assertions.
   - Validate with the headless suite and confirm no test assigns Environment.CurrentDirectory.
   - Review other mutable static test hooks separately; do not replace directory changes with a global root override.
 
@@ -54,4 +54,6 @@ This is a structural review, not a claim that every large file needs splitting.
 - First implementation: explicit asset-resolution working directory, removing the directory mutation in ReadableAssetReferenceTests.
 - Validation: all 3,463 headless checks passed; includes missing-asset fallback coverage for the explicit launch directory.
 - Runner inspection: TestRunner currently executes suites sequentially despite AGENTS.md describing parallel suites; process-wide mutation still violates the isolation convention.
-- Prefab test isolation remains a separate follow-up because it crosses editing, runtime resolution and thumbnails.
+- Prefab test isolation implemented: ManaContentLibrary binds an immutable root to each world; editing, Inspector views, runtime loading and thumbnail worlds use it. Standalone prefab loading accepts an explicit root and carries it through variant chains.
+- Added checks for identical prefab IDs in separate worlds, variant thumbnails and protection of bundled sources. No test changes the process working directory.
+- Prefab isolation validation: all 3,466 headless checks passed. Browser/iOS runtime validation was not run for this step.
