@@ -64,7 +64,7 @@ try
             levelPath = args[0];
         }
         Console.WriteLine($"[BrowserPlay] Level: {levelPath}");
-        await ManaLevelLoader.EnsureAssetsAsync(ManaLevel.Load(levelPath));
+        await ManaVoxel.Code.Assets.ManaLevelAssetPreloader.EnsureAsync(ManaLevel.Load(levelPath));
         var play = new BrowserPlayGameMode(levelPath, ManaGraphicsBackendKind.WebGpu);
         await Task.Delay(32);
         play.RunWebGpu();

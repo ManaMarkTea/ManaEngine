@@ -17,7 +17,8 @@
     EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.
     Renamed the production class to EditorWorkspace; panel requests, controllers, tool positions, location search and subscriptions now belong to each UI root.
     EditorAssetServices now owns each editor world's browser and thumbnail worker; thumbnail image state belongs to its atlas, and native pop-outs share the owner's services.
-    Follow-ups: other mutable test hooks, separating asset loading from level loading, planet and game view responsibilities.
+    ManaLevelLoader now delegates to ManaMeshAssetLoader, ManaAssetPaths and ManaLevelAssetPreloader; sprite dependencies are collected from declared fields and typed sheet/slice assets instead of regex over JSON.
+    Follow-ups: other mutable test hooks, planet and game view responsibilities; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

@@ -145,7 +145,7 @@ namespace ManaVoxel.Code.GridMaps
 
         /// <summary>Loads a palette asset. Swapped out by tests, which have no asset packs to read.</summary>
         public static Func<string, ManaWorld, ManaScene, ManaSceneNode> LoadAsset { get; set; } =
-            (asset, world, into) => ManaLevelLoader.LoadMeshAsset(asset, world, into);
+            (asset, world, into) => ManaMeshAssetLoader.For(world).Load(asset, into);
 
         /// <summary>Bumped on every change, so a view can poll one number instead of subscribing.</summary>
         public int Revision { get; private set; }

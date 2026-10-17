@@ -28,8 +28,11 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 3. Separate asset services from level loading
 
-- [ ] Extract mesh import/cache ownership and asset path resolution from ManaLevelLoader.
-- [ ] Replace regex over serialized component properties with explicit asset dependency collection.
+- [x] Extract mesh import/cache ownership and asset path resolution from ManaLevelLoader.
+  - ManaMeshAssetLoader owns templates per world; ManaAssetPaths handles catalog/output/checkout resolution. Level construction and grid maps call these services directly.
+- [x] Replace regex over serialized component properties with explicit asset dependency collection.
+  - ManaLevelAssetPreloader handles catalog preparation. ManaSpriteAssetDependencies reads Sprite, SpriteSheet, Sprite9Slice, Platformer2D and Bow fields, including default sheets, frames and normal maps. New sprite-using components must add their dependency reader here.
+  - Content references resolve by ID within the supplied content root; the shared resolver's cache key includes that root. Loose pictures and escaped/Unicode paths are preserved.
 - Preserve catalog preloading and browser image decoding order. Validate content checks and desktop/browser loading.
 
 ## 4. Extract coherent planet subsystems
@@ -68,3 +71,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Layout extraction validation: all 3,466 headless checks passed, including persistence, upgrades and floating-window coverage. Desktop build has no warnings; automation switched themes and reopened the app with the saved panel arrangement. Captures: Artifacts/Automation/cleanup-layout-*.png. User settings were restored afterward; browser/iOS were not run.
 - Workspace instance validation: all 3,472 checks passed. New coverage checks request isolation, controller ownership, separate location search state and theme rebuilds with two live roots. Desktop build and panel/theme/reopen automation passed; artifacts use the cleanup-workspace prefix. Shared asset services remain a follow-up; browser/iOS were not run.
 - Asset ownership validation: all 3,478 checks passed. Coverage includes independent browser filters, browser state across theme rebuilds, separate atlas coordinates, shared-atlas roots, late cache availability and native-popout service ownership. Desktop build has no warnings. Automation displayed Import previews, Project tiles and a sprite sheet, switched theme, detached Import and reopened its saved layout; artifacts use the cleanup-assets prefix. User workspace settings were restored. Browser/iOS were not run.
+- Asset loading separation validation: all 3,485 checks passed. Sample Course opened with 245 nodes and zero warnings and entered desktop play; captures use cleanup-mesh-loading. Browser Release/AOT publish and Chrome 2D Sample passed, including character/background/slice pictures and bow input, with no premature image-load or WebGPU validation errors; captures/logs are in Artifacts/WebDrive/cleanup-asset-preloader-settled.
+- SDK follow-up: 10.0.402 lacks its wasm-tools registration; workload restore requires administrator privileges. Browser validation used the retained 10.0.300 SDK directly, without adding a global.json. Register the new workload with `sudo dotnet workload restore ManaVoxel.Web/ManaVoxel.Web.csproj`. iOS was not run.

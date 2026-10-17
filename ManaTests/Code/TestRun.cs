@@ -127,6 +127,7 @@ public static class TestRunner
         ("ManaVoxel", "collider intent", ColliderIntentChecks.Run),
         ("ManaVoxel", "polygon editing", PolygonEditChecks.Run),
         ("ManaVoxel", "sprite assets", SpriteAssetChecks.Run),
+        ("ManaVoxel", "sprite asset dependencies", SpriteAssetDependencyChecks.Run),
         ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaVoxel", "particles", ParticleChecks.Run),
         ("TrainYardWars", "rail rendering batches", TrackBatchChecks.Run),

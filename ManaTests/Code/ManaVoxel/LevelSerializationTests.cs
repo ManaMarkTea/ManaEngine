@@ -582,7 +582,7 @@ public static class LevelSerializationChecks
                 && node.MeshMaterials?.GetValueOrDefault(0)?.SourceZip != null) == 21);
         Check("every gallery model resolves from its portable asset path",
             galleryMeshes.All(node =>
-                node.Asset != null && File.Exists(ManaLevelLoader.ResolveAssetPath(node.Asset))),
+                node.Asset != null && File.Exists(ManaAssetPaths.Resolve(node.Asset))),
             string.Join(", ", galleryMeshes.Select(node => node.Asset)));
 
         var pond = builtInLevels.FirstOrDefault(item => item.Name == "Little Pond");

@@ -24,10 +24,10 @@ public static class ReadableAssetReferenceChecks
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         // Prefabs use source-relative paths even when launched outside the repository root.
-        var lamp = ManaLevelLoader.ResolveAssetPath("Assets/Models/Kenny/lightpost-single.glb", Path.GetTempPath());
+        var lamp = ManaAssetPaths.Resolve("Assets/Models/Kenny/lightpost-single.glb", Path.GetTempPath());
         Check("a prefab model resolves from the centralized build with an unrelated working directory",
             File.Exists(lamp), lamp);
-        var missingAssetPath = ManaLevelLoader.ResolveAssetPath("missing-" + Guid.NewGuid().ToString("N") + ".glb", Path.GetTempPath());
+        var missingAssetPath = ManaAssetPaths.Resolve("missing-" + Guid.NewGuid().ToString("N") + ".glb", Path.GetTempPath());
         Check("missing assets fall back to the supplied launch directory", Path.GetDirectoryName(missingAssetPath) == Path.TrimEndingDirectorySeparator(Path.GetTempPath()), missingAssetPath);
 
         var readable = ZipAssetReferences.EncodeReadableZip(Pack, Entry);
@@ -107,7 +107,7 @@ public static class ReadableAssetReferenceChecks
         }
 
         // ---------------------------------------------------------------- a model that is a plain file, not in a zip
-        var lighthousePath = MeshAssetLibrary.IsSupported(".glb") ? ManaLevelLoader.ResolveAssetPath("Mana/Assets/Models/Lighthouse/lighthouse.glb") : string.Empty;
+        var lighthousePath = MeshAssetLibrary.IsSupported(".glb") ? ManaAssetPaths.Resolve("Mana/Assets/Models/Lighthouse/lighthouse.glb") : string.Empty;
         if (File.Exists(lighthousePath))
         {
             var lighthouseWorld = new ManaWorld();
@@ -115,7 +115,7 @@ public static class ReadableAssetReferenceChecks
             lighthouseWorld.Context = lighthouseContext;
             lighthouseWorld.DefaultScene = new ManaScene(lighthouseContext) { Name = "Default Scene" };
             lighthouseWorld.Scenes.Add(lighthouseWorld.DefaultScene);
-            var lighthouse = ManaLevelLoader.LoadMeshAsset("Mana/Assets/Models/Lighthouse/lighthouse.glb", lighthouseWorld, lighthouseWorld.DefaultScene);
+            var lighthouse = ManaMeshAssetLoader.For(lighthouseWorld).Load("Mana/Assets/Models/Lighthouse/lighthouse.glb", lighthouseWorld.DefaultScene);
             lighthouse.UpdateTransform();
             var lighthouseMeshes = new List<ManaRenderMeshInstance>();
             lighthouse.CollectRenderMeshInstances(lighthouseMeshes);

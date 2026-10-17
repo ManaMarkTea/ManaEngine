@@ -1,5 +1,4 @@
 using System.Diagnostics.CodeAnalysis;
-using System.IO.Compression;
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
@@ -493,7 +492,7 @@ namespace ManaVoxel.Code.Levels
         private static ManaSceneNode LoadMesh(ManaLevelNode entry, ManaContext context, ManaScene? into)
         {
             var asset = entry.Asset ?? throw new InvalidDataException("Mesh entry has no asset reference.");
-            var node = LoadMeshAsset(asset, context.World, into);
+            var node = ManaMeshAssetLoader.For(context.World).Load(asset, into);
             node.LevelSource = ManaLevelSource.ForMesh(asset);
             if (entry.MeshMaterials != null)
             {
@@ -542,7 +541,7 @@ namespace ManaVoxel.Code.Levels
 
             if (!string.IsNullOrWhiteSpace(entry.Asset))
             {
-                var baselinePath = ResolveAssetPath(entry.Asset);
+                var baselinePath = ManaAssetPaths.Resolve(entry.Asset);
                 if (File.Exists(baselinePath))
                 {
                     planet.LoadHeightDataAsync(new GeoTiffLibrary(Path.GetDirectoryName(baselinePath)!));
@@ -684,293 +683,6 @@ namespace ManaVoxel.Code.Levels
             }
         }
 
-        /// <summary>
-        /// Loads a mesh from the same asset reference the picker uses -- a plain path, or a zip plus the
-        /// entry inside it. Shared with the editor's own placement path rather than re-decoded here; two
-        /// copies of that encoding is what broke mesh import once already.
-        /// </summary>
-        // Models already read, per world, by asset and the file's write time: a prefab laid again (a runner's sections, a
-        // row of lamps) copies them instead of decoding the glTF once more, which was ~40 ms a section.
-        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ManaWorld, Dictionary<string, ManaSceneNode?>> MeshTemplates = new();
-
-        public static ManaSceneNode LoadMeshAsset(string assetReference, ManaWorld world, ManaScene? into = null)
-        {
-            var key = MeshTemplateKey(assetReference);
-            if (key == null)
-            {
-                return ReadMeshAsset(assetReference, world, into);
-            }
-            var templates = MeshTemplates.GetOrCreateValue(world);
-            ManaSceneNode? template;
-            lock (templates)
-            {
-                templates.TryGetValue(key, out template);
-            }
-            if (template == null)
-            {
-                var holding = new ManaScene(world.Context);
-                var read = ReadMeshAsset(assetReference, world, holding);
-                holding.Children.Remove(read);
-                if (!IsPlainModel(read))
-                {
-                    // Rigged or otherwise more than meshes: each one is read afresh, as before.
-                    Adopt(world, read, into);
-                    return read;
-                }
-                lock (templates)
-                {
-                    templates[key] = template = read;
-                }
-            }
-            var copy = CopyModel(template, world.Context);
-            Adopt(world, copy, into);
-            return copy;
-        }
-
-        private static string? MeshTemplateKey(string assetReference)
-        {
-            try
-            {
-                var file = ZipAssetReferences.TryDecodeZip(assetReference, out var zipPath, out _) ? zipPath : ResolveAssetPath(assetReference);
-                return File.Exists(file) ? $"{assetReference}|{File.GetLastWriteTimeUtc(file).Ticks}" : null;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        /// <summary>Only plain nodes and mesh renderers -- what <see cref="CopyModel"/> can copy faithfully.</summary>
-        private static bool IsPlainModel(ManaSceneNode node) =>
-            node.GetType() == typeof(ManaSceneNode)
-            && node.Components.All(component => component.GetType() == typeof(MeshRendererComponent))
-            && node.Children.All(IsPlainModel);
-
-        // The meshes are shared; each renderer gets its own material, as a fresh read gave it, so editing one copy's
-        // material in place (the emission and material script commands) leaves the others alone.
-        private static ManaSceneNode CopyModel(ManaSceneNode template, ManaContext context)
-        {
-            var node = new ManaSceneNode(context, template.LocalTransform) { Name = template.Name };
-            foreach (var renderer in template.Components.OfType<MeshRendererComponent>())
-            {
-                node.Components.Add(new MeshRendererComponent(node, renderer.Mesh) { Material = (Mana.Code.Materials.ManaMaterial)renderer.Material.Clone() });
-            }
-            foreach (var child in template.Children)
-            {
-                node.AddChild(CopyModel(child, context));
-            }
-            return node;
-        }
-
-        // Where a read puts a model: in the given scene, or in a scene of its own in the world (the caller moves it out).
-        private static void Adopt(ManaWorld world, ManaSceneNode node, ManaScene? into)
-        {
-            lock (world.SceneLock)
-            {
-                if (into != null)
-                {
-                    into.Children.Add(node);
-                }
-                else
-                {
-                    var scene = new ManaScene(world.Context) { Name = node.Name };
-                    scene.Children.Add(node);
-                    world.Scenes.Add(scene);
-                }
-            }
-        }
-
-        private static ManaSceneNode ReadMeshAsset(string assetReference, ManaWorld world, ManaScene? into)
-        {
-            if (ZipAssetReferences.TryDecodeZip(assetReference, out var zipPath, out var entryPath))
-            {
-                using var archive = ZipFile.OpenRead(zipPath);
-                var entry = ZipAssetReferences.FindZipEntry(archive, entryPath)
-                    ?? throw new FileNotFoundException($"Entry '{entryPath}' is no longer inside '{zipPath}'.", zipPath);
-
-                using var entryStream = entry.Open();
-                using var memory = new MemoryStream();
-                entryStream.CopyTo(memory);
-
-                var sidecarResolver = ZipModelSidecars.CreateZipSidecarResolver(archive, entryPath);
-                return world.LoadFromGltfMemory(memory.ToArray(), entryPath, sidecarResolver, into: into);
-            }
-
-            assetReference = ResolveAssetPath(assetReference);
-
-            if (!File.Exists(assetReference))
-            {
-                throw new FileNotFoundException($"Mesh asset '{assetReference}' is missing.", assetReference);
-            }
-
-            return world.LoadFromGltf(assetReference, into: into);
-        }
-
-        private static readonly System.Text.RegularExpressions.Regex PackReference = new(@"zip:([^/""\\]+\.zip)/", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        private static readonly System.Text.RegularExpressions.Regex PictureReference = new(@"zip:[^""\\]+?\.(?:png|jpe?g)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        private static readonly System.Text.RegularExpressions.Regex SpriteAssetPath = new(@"""assetPath""\s*:\s*""([^""]+\.mana(?:sheet|slice))""", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        /// <summary>The asset packs a script's sprites draw from: named in its own fields, or in the sheets and slices it points at.</summary>
-        private static IEnumerable<string> SpritePacks(ManaLevelScript script) =>
-            SpriteText(script).SelectMany(text => PackReference.Matches(text).Select(match => match.Groups[1].Value))
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        /// <summary>Each pack picture a script's sprites draw, found the same way.</summary>
-        private static IEnumerable<string> SpritePictures(ManaLevelScript script) =>
-            SpriteText(script).SelectMany(text => PictureReference.Matches(text).Select(match => match.Value))
-                .Distinct(StringComparer.OrdinalIgnoreCase);
-
-        // The script's own fields, then the text of each sheet or slice asset it names.
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = ManaLevel.ReflectionJson)]
-        private static IEnumerable<string> SpriteText(ManaLevelScript script)
-        {
-            var text = System.Text.Json.JsonSerializer.Serialize(script.Properties);
-            yield return text;
-            foreach (System.Text.RegularExpressions.Match asset in SpriteAssetPath.Matches(text))
-            {
-                var file = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, asset.Groups[1].Value);
-                if (File.Exists(file))
-                {
-                    yield return File.ReadAllText(file);
-                }
-            }
-        }
-
-        public static async Task EnsureAssetsAsync(ManaLevel level, string? contentRoot = null)
-        {
-            var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
-            if (catalog == null) return;
-            var nodes = new Queue<ManaLevelNode>(level.Nodes);
-            while (nodes.TryDequeue(out var node))
-            {
-                if (node.Prefab is { } reference)
-                {
-                    try
-                    {
-                        var source = ManaPrefab.Load(ManaContentLibrary.ResolvePrefab(reference.AssetId, reference.AssetPath, contentRoot), contentRoot);
-                        var resolved = ManaPrefabOverrides.Resolve(source.Root, reference.Overrides);
-                        new ManaPrefab { Root = resolved }.Validate();
-                        nodes.Enqueue(resolved);
-                    }
-                    catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException)
-                    {
-                        ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload prefab '{reference.AssetPath}': {exception.Message}");
-                    }
-                }
-                foreach (var surface in (node.Material is { } shapeMaterial ? new[] { shapeMaterial } : [])
-                    .Concat(node.MeshMaterials?.Values.AsEnumerable() ?? []))
-                {
-                    foreach (var picture in surface.Pictures)
-                    {
-                        if (!string.IsNullOrEmpty(picture))
-                        {
-                            await catalog.EnsureAsync(picture);
-                        }
-                    }
-                }
-                foreach (var script in node.Scripts ?? [])
-                {
-                    // Sprites read their pictures out of asset packs, named inside the script or in the sheet or slice it uses.
-                    foreach (var pack in SpritePacks(script))
-                    {
-                        try { await catalog.EnsureAsync($"zip:{pack}/"); }
-                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite pack '{pack}': {ex.Message}"); }
-                    }
-                    // Each picture on its own as well: the browser decodes pictures only ahead of their synchronous load.
-                    foreach (var picture in SpritePictures(script))
-                    {
-                        try { await catalog.EnsureAsync(picture); }
-                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite picture '{picture}': {ex.Message}"); }
-                    }
-                    if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }
-                    string Text(string key) => script.Properties.FirstOrDefault(pair =>
-                        string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value is var value
-                        && value.ValueKind == System.Text.Json.JsonValueKind.String ? value.GetString() ?? "" : "";
-                    foreach (var path in ManaAudioSourceComponent.Paths(Text("clipPath"), Text("variants")))
-                    {
-                        try { await catalog.EnsureAsync(path); }
-                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload audio '{path}': {ex.Message}"); }
-                    }
-                }
-                if (!string.IsNullOrWhiteSpace(node.Asset))
-                    await catalog.EnsureAsync(node.Asset);
-                foreach (var tile in node.GridMap?.Palette ?? [])
-                {
-                    try { await catalog.EnsureAsync(ManaGridMapNode.AssetOf(tile)); }
-                    catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload grid map tile '{tile}': {ex.Message}"); }
-                }
-                if (node.Children != null)
-                    foreach (var child in node.Children) nodes.Enqueue(child);
-            }
-
-            // What the level's game modes build at play time, which no node names.
-            foreach (var entry in level.GameModes ?? new())
-            {
-                foreach (var asset in ManaLevelGameModes.Create(entry.Type)?.Assets ?? [])
-                {
-                    try { await catalog.EnsureAsync(asset); }
-                    catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload '{asset}' for game mode {entry.Type}: {ex.Message}"); }
-                }
-            }
-        }
-
-        public static string ResolveAssetPath(string assetReference) => ResolveAssetPath(assetReference, Environment.CurrentDirectory);
-
-        /// <summary>Resolves assets for a launch directory without changing process-wide state.</summary>
-        public static string ResolveAssetPath(string assetReference, string workingDirectory)
-        {
-            // The browser has no checkout to search: a catalog asset is wherever the catalog downloaded it.
-            if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(assetReference) is { } downloaded && File.Exists(downloaded))
-            {
-                return downloaded;
-            }
-
-            if (Path.IsPathRooted(assetReference))
-            {
-                return Path.GetFullPath(assetReference);
-            }
-
-            var normalized = assetReference.Replace('/', Path.DirectorySeparatorChar);
-            string[] roots =
-            {
-                workingDirectory,
-                Path.Combine(workingDirectory, "Mana"),
-                AppContext.BaseDirectory
-            };
-
-            foreach (var root in roots)
-            {
-                var candidate = Path.GetFullPath(Path.Combine(root, normalized));
-                if (File.Exists(candidate))
-                {
-                    return candidate;
-                }
-            }
-
-            // Source assets are not all copied to the output. Locate the checkout without
-            // depending on the depth of bin/, Artifacts/Bin/, or runtime-specific outputs.
-            for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
-            {
-                if (!File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
-                {
-                    continue;
-                }
-
-                foreach (var root in new[] { directory.FullName, Path.Combine(directory.FullName, "Mana") })
-                {
-                    var candidate = Path.GetFullPath(Path.Combine(root, normalized));
-                    if (File.Exists(candidate))
-                    {
-                        return candidate;
-                    }
-                }
-
-                break;
-            }
-
-            return Path.GetFullPath(Path.Combine(workingDirectory, normalized));
-        }
-
         private static ManaVoxelsNode CreateVoxelsNode(ManaContext context, ManaScene scene, ManaLevelNode entry)
         {
             lock (context.World.SceneLock)
@@ -999,7 +711,7 @@ namespace ManaVoxel.Code.Levels
             else if (!string.IsNullOrWhiteSpace(entry.Asset))
             {
                 var loader = new MagicaVoxLoader();
-                loader.Load(ResolveAssetPath(entry.Asset));
+                loader.Load(ManaAssetPaths.Resolve(entry.Asset));
                 voxels = loader.Voxels
                     .Select(voxel => new ManaVoxelData
                     {
@@ -1034,8 +746,8 @@ namespace ManaVoxel.Code.Levels
 
                 _waterMaskLoadAttempted = true;
                 var mask = new GeoWaterMask();
-                var lakesPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_lakes.zip"));
-                var oceanPath = ResolveAssetPath(Path.Combine("Assets", "GeoData", "ne_10m_ocean.zip"));
+                var lakesPath = ManaAssetPaths.Resolve(Path.Combine("Assets", "GeoData", "ne_10m_lakes.zip"));
+                var oceanPath = ManaAssetPaths.Resolve(Path.Combine("Assets", "GeoData", "ne_10m_ocean.zip"));
                 mask.AddLakes(GeoPolygonSet.TryLoadFromZip(lakesPath, "ne_10m_lakes.shp"));
                 mask.Add(GeoPolygonSet.TryLoadFromZip(oceanPath, "ne_10m_ocean.shp"));
                 GeoWaterMask.Shared = mask;

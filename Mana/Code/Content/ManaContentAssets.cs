@@ -33,20 +33,23 @@ namespace Mana.Code.Content
         }
 
         /// <summary>The asset's file, trusting the id over the path -- or null when there is no such asset.</summary>
-        public static string? Resolve(ManaAssetRef reference, string extension)
+        public static string? Resolve(ManaAssetRef reference, string extension) => Resolve(reference, extension, Root);
+
+        public static string? Resolve(ManaAssetRef reference, string extension, string root)
         {
+            root = Path.GetFullPath(root);
             if (reference.IsEmpty)
             {
                 return null;
             }
 
             // Asked for every frame by every sprite, so a hit is remembered while its file is still there.
-            var cacheKey = $"{reference.AssetId}|{reference.AssetPath}|{extension}";
+            var cacheKey = $"{root}|{reference.AssetId}|{reference.AssetPath}|{extension}";
             if (Found.TryGetValue(cacheKey, out var known) && File.Exists(known))
             {
                 return known;
             }
-            var found = Search(reference, extension);
+            var found = Search(reference, extension, root);
             if (found != null)
             {
                 Found[cacheKey] = found;
@@ -56,9 +59,8 @@ namespace Mana.Code.Content
 
         private static readonly ConcurrentDictionary<string, string> Found = new(StringComparer.OrdinalIgnoreCase);
 
-        private static string? Search(ManaAssetRef reference, string extension)
+        private static string? Search(ManaAssetRef reference, string extension, string root)
         {
-            var root = Root;
             if (reference.AssetPath.Length > 0)
             {
                 var candidate = Path.GetFullPath(Path.Combine(root, reference.AssetPath));

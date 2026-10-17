@@ -284,7 +284,7 @@ namespace Mana.Code.GameModes
                 AssetPlacement.CancelMeshPickerPlacementPreview();
                 var level = ManaLevel.Load(path);
                 _viewModel.Levels.SetStatus("Preparing level assets…");
-                await ManaLevelLoader.EnsureAssetsAsync(level);
+                await ManaVoxel.Code.Assets.ManaLevelAssetPreloader.EnsureAsync(level);
                 AssetPlacement.CancelMeshPickerPlacementPreview();
                 _viewModel.History.Clear();
                 ResetLoadedPlanet();
