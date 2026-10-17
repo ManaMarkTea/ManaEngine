@@ -143,13 +143,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     if (kind?.HasThumbnail == true && MeshImportManaView.IsThumbnailRequestVisible(row))
                     {
-                        if (row.Root is { } root) { MeshThumbnailImages.Touch(root, entry.Path); }
-                        EditorWorkspace.MeshThumbnails?.Request(entry.Path);
+                        if (row.Root is { } root) { MeshThumbnailImages.For(root).Touch(root, entry.Path); }
+                        model.Assets.Thumbnails?.Request(entry.Path);
                     }
-                    var hasImage = MeshThumbnailImages.HasImage(entry.Path);
+                    var images = row.Root is { } owner ? MeshThumbnailImages.For(owner) : null;
+                    var hasImage = images?.HasImage(entry.Path) == true;
                     preview.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
                     badge.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
-                    if (hasImage) { preview.SourceUv = MeshThumbnailImages.UvFor(entry.Path); }
+                    if (hasImage) { preview.SourceUv = images?.UvFor(entry.Path) ?? Vector4.Zero; }
                     return null;
                 });
                 frame.BindPolled(b => b.Tag, () => sync());
@@ -167,13 +168,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 items.Add(new MenuItem("Edit Prefab", () => model.OpenPrefab(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
                 items.Add(new MenuItem("Create Variant", () => model.CreateVariant(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing)
                     .WithTooltip("A prefab made from this one that keeps only what you change in it -- a blue lamp from a lamp."));
-                items.Add(new MenuItem("Refresh Thumbnail", () => EditorWorkspace.MeshThumbnails?.ForceRefresh(entry.Path)));
+                items.Add(new MenuItem("Refresh Thumbnail", () => model.Assets.Thumbnails?.ForceRefresh(entry.Path)));
             }
             else if (entry.Kind == ManaContentKinds.SpriteSheet.Name || entry.Kind == ManaContentKinds.Slice.Name)
             {
                 items.Add(new MenuItem("Place", () => model.RequestPlacement(entry.Path)).EnabledWhen(() => model.CanEdit && !model.IsEditing));
                 items.Add(new MenuItem("Edit", () => model.OpenAsset(entry.Path)));
-                items.Add(new MenuItem("Refresh Thumbnail", () => EditorWorkspace.MeshThumbnails?.ForceRefresh(entry.Path)));
+                items.Add(new MenuItem("Refresh Thumbnail", () => model.Assets.Thumbnails?.ForceRefresh(entry.Path)));
             }
             else if (entry.Kind == ManaContentKinds.Generator.Name)
             {

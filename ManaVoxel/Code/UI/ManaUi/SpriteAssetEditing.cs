@@ -11,6 +11,8 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class SpriteAssetEditing
     {
+        public static event Action<string>? ThumbnailInvalidated;
+
         public static string? Path { get; private set; }
         public static ManaSpriteSheet? Sheet { get; private set; }
         public static ManaSpriteSlice? Slice { get; private set; }
@@ -68,7 +70,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 }
                 Status = "Saved";
                 UpdatePreview();
-                EditorWorkspace.MeshThumbnails?.ForceRefresh(Path);
+                ThumbnailInvalidated?.Invoke(Path);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
@@ -85,7 +87,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             var path = Path;
             File.WriteAllText(path, _opened);
             Open(path);
-            EditorWorkspace.MeshThumbnails?.ForceRefresh(path);
+            ThumbnailInvalidated?.Invoke(path);
             Status = "Reverted to how it was when opened";
         }
 

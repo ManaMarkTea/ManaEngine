@@ -202,6 +202,8 @@ rather than opening packs. It is generated: `python Tools/Assets/catalog_assets.
 
 ## Thumbnails
 
+`EditorAssetServices` owns the browser library and thumbnail worker per editor world; the editor disposes them on close. Workspace panels and native pop-outs use that owner's services. `MeshThumbnailImages` keeps thumbnail coordinates and pixels per image atlas, shared only by roots using the same atlas.
+
 The editor's Import and Project panels make a model's or asset's thumbnail the first time its tile is on screen and keep it in
 `Library/Thumbnails/` (gitignored, one PNG per asset; the cache version in `MeshThumbnailCache` forces a redo). To fill it all at
 once -- a fresh checkout, a new pack -- run `dotnet run --project ManaVoxel -- --precache-thumbnails` (headless, all cores, a few

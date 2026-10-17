@@ -121,7 +121,7 @@ namespace ManaVoxel.Code.Automation
             runner.Register("import_filter", command =>
             {
                 // Types into the Import panel's filter box, to bring one pack's models into view.
-                ManaVoxel.Code.UI.ManaUi.EditorWorkspace.MeshAssets.Filter = command.Name ?? string.Empty;
+                ManaVoxel.Code.Assets.EditorAssetServices.For(context.World).Library.Filter = command.Name ?? string.Empty;
             });
 
             runner.Register("dirty_report", command =>

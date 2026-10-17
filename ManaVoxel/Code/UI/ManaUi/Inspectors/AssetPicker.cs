@@ -105,12 +105,12 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             {
                 if (file() is { } path && image.Root is { } root)
                 {
-                    MeshThumbnailImages.Touch(root, path);
-                    EditorWorkspace.MeshThumbnails?.Request(path);
-                    image.Visibility = MeshThumbnailImages.HasImage(path) ? Visibility.Visible : Visibility.Hidden;
-                    if (MeshThumbnailImages.HasImage(path))
+                    MeshThumbnailImages.For(root).Touch(root, path);
+                    EditorWorkspace.For(root).Assets.Thumbnails?.Request(path);
+                    image.Visibility = MeshThumbnailImages.For(root).HasImage(path) ? Visibility.Visible : Visibility.Hidden;
+                    if (MeshThumbnailImages.For(root).HasImage(path))
                     {
-                        image.SourceUv = MeshThumbnailImages.UvFor(path);
+                        image.SourceUv = MeshThumbnailImages.For(root).UvFor(path);
                     }
                 }
                 else

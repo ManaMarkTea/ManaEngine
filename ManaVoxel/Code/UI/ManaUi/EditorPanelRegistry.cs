@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaUI;
+using ManaVoxel.Code.Assets;
 
 namespace ManaVoxel.Code.UI.ManaUi;
 
@@ -11,7 +12,7 @@ internal static class EditorPanelRegistry
     internal sealed record BuildContext(
         UiTheme Theme, ManaUiShowcaseViewModel Vm, Func<string>? LiveStat,
         VoxelEditorViewModel? Editor, ManaWorld? World, Func<float> ProjectFolderWidth,
-        Action<ManaScene>? SaveScene, Func<ManaScene, bool>? SceneHasChanges);
+        Action<ManaScene>? SaveScene, Func<ManaScene, bool>? SceneHasChanges, EditorAssetServices Assets);
 
     internal sealed record Definition(string Id, string Title, string? MenuGroup, int MenuOrder,
         bool OpensByDefault, Func<BuildContext, UiElement?> Build);
@@ -23,7 +24,7 @@ internal static class EditorPanelRegistry
         new("tools", "Toolbar", "Editor", 3, true,
             context => context.Editor != null ? VoxelEditorToolbarManaView.Build(context.Theme, context.Editor, context.World) : null),
         new("import", "Import", "Assets", 0, true,
-            context => context.Editor != null ? MeshImportManaView.Build(context.Theme, context.Editor, EditorWorkspace.MeshAssets, EditorWorkspace.MeshThumbnails) : null),
+            context => context.Editor != null ? MeshImportManaView.Build(context.Theme, context.Editor, context.Assets.Library, context.Assets.Thumbnails) : null),
         new("project", "Project", "Assets", 1, true,
             context => context.Editor != null && context.World != null ? ProjectManaView.Build(context.Theme, context.World, context.Editor, context.ProjectFolderWidth) : null),
         new("scenes", "Scenes", "Assets", 2, true,

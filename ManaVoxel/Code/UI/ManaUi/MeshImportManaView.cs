@@ -457,7 +457,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 if (draggable?.Root is { } root)
                 {
-                    MeshThumbnailImages.Touch(root, path);
+                    MeshThumbnailImages.For(root).Touch(root, path);
                 }
 
                 if (thumbnailRequested)
@@ -465,7 +465,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     return;
                 }
 
-                var cache = thumbnails ?? EditorWorkspace.MeshThumbnails;
+                var cache = thumbnails ?? (draggable?.Root is { } owner ? EditorWorkspace.For(owner).Assets.Thumbnails : null);
                 if (cache == null)
                 {
                     return;
@@ -556,12 +556,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 RequestThumbnailIfAvailable();
 
-                var hasImage = MeshThumbnailImages.HasImage(path);
+                var images = preview.Root is { } owner ? MeshThumbnailImages.For(owner) : null;
+                var hasImage = images?.HasImage(path) == true;
                 preview.Visibility = hasImage ? Visibility.Visible : Visibility.Collapsed;
                 badge.Visibility = hasImage ? Visibility.Collapsed : Visibility.Visible;
                 if (hasImage)
                 {
-                    preview.SourceUv = MeshThumbnailImages.UvFor(path);
+                    preview.SourceUv = images?.UvFor(path) ?? Vector4.Zero;
                 }
 
                 preview.Width = ThumbnailDisplaySize;
@@ -1093,7 +1094,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 MenuItem.Separator(),
 
                 new MenuItem("Refresh Thumbnail",
-                    () => (EditorWorkspace.MeshThumbnails)?.ForceRefresh(path)),
+                    () => EditorWorkspace.For(root).Assets.Thumbnails?.ForceRefresh(path)),
 
                 new MenuItem("Show in Explorer",
                     () =>

@@ -76,7 +76,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var add = new ManaUI.Button().Label("Add").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
-                if (EditorWorkspace.MeshAssets.SelectedAssets is { Count: > 0 } selected)
+                if (EditorAssetServices.For(gridMap.Context.World).Library.SelectedAssets is { Count: > 0 } selected)
                 {
                     // Through the requests the editor drains while painting, so a model still downloading on the
                     // web joins once it has arrived rather than as a tile that failed to load.
@@ -84,7 +84,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     MeshImportRequests.RequestPaletteAdd(selected);
                 }
             });
-            add.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
+            add.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorAssetServices.For(gridMap.Context.World).Library.SelectedAsset));
             add.WithTooltip("Add the models selected in the asset browser (Ctrl or Shift click to pick several).");
 
             var remove = new ManaUI.Button().Label("Remove").Variant(ButtonVariant.Subtle).OnClick(() =>
@@ -671,21 +671,22 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 if (preview.Root is { } root)
                 {
-                    MeshThumbnailImages.Touch(root, asset);
+                    MeshThumbnailImages.For(root).Touch(root, asset);
                 }
 
-                if (!requested && EditorWorkspace.MeshThumbnails is { } cache)
+                if (!requested && preview.Root is { } owner && EditorWorkspace.For(owner).Assets.Thumbnails is { } cache)
                 {
                     cache.Request(asset);
                     requested = true;
                 }
 
-                if (!MeshThumbnailImages.HasImage(asset))
+                var images = preview.Root is { } imageRoot ? MeshThumbnailImages.For(imageRoot) : null;
+                if (images?.HasImage(asset) != true)
                 {
                     return Visibility.Collapsed;
                 }
 
-                preview.SourceUv = MeshThumbnailImages.UvFor(asset);
+                preview.SourceUv = images?.UvFor(asset) ?? Vector4.Zero;
                 return Visibility.Visible;
             });
 

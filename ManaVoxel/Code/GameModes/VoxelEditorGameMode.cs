@@ -389,6 +389,16 @@ namespace Mana.Code.GameModes
             world.RecordFrameStat("GPU: ClearFrame Total", TimeSpan.FromMilliseconds(_webGpuContext.LastFrameTotalMs));
         }
 
+        private void RefreshSpriteThumbnail(string path) =>
+            EditorAssetServices.For(Context.World).Thumbnails?.ForceRefresh(path);
+
+        public override void Closing()
+        {
+            SpriteAssetEditing.ThumbnailInvalidated -= RefreshSpriteThumbnail;
+            EditorAssetServices.For(Context.World).Dispose();
+            base.Closing();
+        }
+
         /// <summary>
         /// Moves finished mesh previews into the UI atlas. Main thread, a few per frame -- see
         /// MeshThumbnailImages.Pump for why the upload is throttled rather than done as results arrive.
@@ -399,18 +409,21 @@ namespace Mana.Code.GameModes
         /// </summary>
         private void PumpMeshThumbnails()
         {
-            var cache = EditorWorkspace.MeshThumbnails;
+            var assets = EditorAssetServices.For(Context.World);
+            var cache = assets.Thumbnails;
             if (cache == null)
             {
                 cache = new MeshThumbnailCache(Context, _webGpuContext);
-                EditorWorkspace.MeshThumbnails = cache;
+                assets.SetThumbnailCache(cache);
+                SpriteAssetEditing.ThumbnailInvalidated -= RefreshSpriteThumbnail;
+                SpriteAssetEditing.ThumbnailInvalidated += RefreshSpriteThumbnail;
             }
 
             if (ManaUi?.Root is { } root)
             {
                 using (ManaFrameProfiler.Measure("Thumbnails: Atlas Upload"))
                 {
-                    MeshThumbnailImages.Pump(root, cache);
+                    MeshThumbnailImages.For(root).Pump(root, cache);
                 }
             }
         }

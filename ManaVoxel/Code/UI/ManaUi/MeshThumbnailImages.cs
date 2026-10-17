@@ -12,13 +12,16 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// frame, and is a fixed size. So the cache produces pixels whenever it can, and this hands a few of them
     /// to the atlas per frame, on the main thread.
     /// </para>
-    /// <para>
-    /// Static because there is one atlas and one asset library. A second workspace would want an instance,
-    /// which is a change of shape rather than of behaviour.
-    /// </para>
     /// </summary>
-    public static class MeshThumbnailImages
+    public sealed class MeshThumbnailImages
     {
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ManaImageAtlas, MeshThumbnailImages> Atlases = new();
+
+        private MeshThumbnailImages() { }
+
+        // Native pop-outs sharing an atlas must also share its thumbnail coordinates.
+        public static MeshThumbnailImages For(UiRoot root) => Atlases.GetValue(root.Images, _ => new MeshThumbnailImages());
+
         /// <summary>
         /// How long a visible tile stays eligible for the resident atlas when a rebuild is needed. This is
         /// deliberately wall-clock rather than frame-counted: the thumbnail bridge is called from UI bindings
@@ -36,24 +39,24 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static readonly int ExpectedByteCount =
             MeshThumbnailCache.ThumbnailSize * MeshThumbnailCache.ThumbnailSize * 4;
 
-        private static readonly Dictionary<string, Vector4> Uvs = new(StringComparer.Ordinal);
-        private static readonly Dictionary<string, byte[]> Pixels = new(StringComparer.Ordinal);
-        private static readonly Dictionary<string, long> LastVisibleAt = new(StringComparer.Ordinal);
-        private static readonly HashSet<string> Failed = new(StringComparer.Ordinal);
-        private static int _atlasGeneration = -1;
+        private readonly Dictionary<string, Vector4> Uvs = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, byte[]> Pixels = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, long> LastVisibleAt = new(StringComparer.Ordinal);
+        private readonly HashSet<string> Failed = new(StringComparer.Ordinal);
+        private int _atlasGeneration = -1;
 
         /// <summary>Thumbnails resident in the atlas.</summary>
-        public static int ResidentCount => Uvs.Count;
+        public int ResidentCount => Uvs.Count;
 
         /// <summary>Decoded thumbnails retained outside the atlas, so residents can be rebuilt after scrolling.</summary>
-        public static int StoredCount => Pixels.Count;
+        public int StoredCount => Pixels.Count;
 
         /// <summary>True only when the current visible set cannot fit even after rebuilding the atlas.</summary>
-        public static bool IsAtlasFull { get; private set; }
+        public bool IsAtlasFull { get; private set; }
 
-        public static bool HasImage(string assetPath) => Uvs.ContainsKey(assetPath);
+        public bool HasImage(string assetPath) => Uvs.ContainsKey(assetPath);
 
-        public static Vector4 UvFor(string assetPath) =>
+        public Vector4 UvFor(string assetPath) =>
             Uvs.TryGetValue(assetPath, out var uv) ? uv : Vector4.Zero;
 
         /// <summary>
@@ -61,7 +64,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// This is called from the tile's polled bindings, so newly visible assets can repopulate the atlas
         /// without asking the thumbnail worker to regenerate anything.
         /// </summary>
-        public static void Touch(UiRoot root, string assetPath)
+        public void Touch(UiRoot root, string assetPath)
         {
             if (root == null || string.IsNullOrWhiteSpace(assetPath))
             {
@@ -77,7 +80,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Moves finished thumbnails into the atlas. Main thread, once per frame, from wherever the workspace
         /// already pumps per-frame work.
         /// </summary>
-        public static void Pump(UiRoot root, MeshThumbnailCache cache)
+        public void Pump(UiRoot root, MeshThumbnailCache cache)
         {
             foreach (var (path, pixels) in cache.TakeFinished(UploadsPerFrame))
             {
@@ -89,7 +92,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         /// Accepts one completed thumbnail. <see cref="Pump"/> is the normal caller; tests and alternate hosts
         /// can use this directly when they already own a finished-pixel queue.
         /// </summary>
-        public static void AcceptFinished(UiRoot root, string path, byte[]? pixels)
+        public void AcceptFinished(UiRoot root, string path, byte[]? pixels)
         {
             if (root == null || string.IsNullOrWhiteSpace(path))
             {
@@ -120,7 +123,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>Forgets every mapping. For a test, or a library pointed somewhere new.</summary>
-        public static void Reset()
+        public void Reset()
         {
             Uvs.Clear();
             Pixels.Clear();
@@ -130,7 +133,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             _atlasGeneration = -1;
         }
 
-        private static void TrackAtlasGeneration(ManaImageAtlas atlas)
+        private void TrackAtlasGeneration(ManaImageAtlas atlas)
         {
             if (_atlasGeneration == atlas.Generation)
             {
@@ -144,7 +147,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             _atlasGeneration = atlas.Generation;
         }
 
-        private static bool EnsureResident(UiRoot root, string path)
+        private bool EnsureResident(UiRoot root, string path)
         {
             if (Uvs.ContainsKey(path) || !Pixels.TryGetValue(path, out var pixels))
             {
@@ -160,7 +163,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return Uvs.ContainsKey(path);
         }
 
-        private static bool TryAddResident(ManaImageAtlas atlas, string path, byte[] pixels)
+        private bool TryAddResident(ManaImageAtlas atlas, string path, byte[] pixels)
         {
             var uv = atlas.Add(pixels, MeshThumbnailCache.ThumbnailSize, MeshThumbnailCache.ThumbnailSize);
             if (uv == null)
@@ -173,7 +176,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             return true;
         }
 
-        private static void RebuildResidents(UiRoot root, string priorityPath)
+        private void RebuildResidents(UiRoot root, string priorityPath)
         {
             root.Images.Reset();
             Uvs.Clear();
@@ -205,7 +208,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
-        private static bool WasRecentlyVisible(string path, long now)
+        private bool WasRecentlyVisible(string path, long now)
         {
             return LastVisibleAt.TryGetValue(path, out var then)
                 && now - then <= RecentVisibilityMilliseconds;

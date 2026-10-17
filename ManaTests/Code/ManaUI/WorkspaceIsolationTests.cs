@@ -14,6 +14,9 @@ public static class WorkspaceIsolationChecks
         var firstWorkspace = EditorWorkspace.For(first);
         var secondWorkspace = EditorWorkspace.For(second);
         firstWorkspace.PlaceSearch.Query = "first workspace";
+        firstWorkspace.Assets.Library.Filter = "first assets";
+        var library = firstWorkspace.Assets.Library;
+        check("asset browser filters belong to their workspace", secondWorkspace.Assets.Library.Filter.Length == 0, "");
         check("location search belongs to its workspace", secondWorkspace.PlaceSearch.Query.Length == 0, "");
         check("drag controllers belong to their roots",
             firstWorkspace.DragController != null && secondWorkspace.DragController != null
@@ -31,6 +34,8 @@ public static class WorkspaceIsolationChecks
         check("theme rebuild retains workspace search state",
             EditorWorkspace.For(first) == firstWorkspace && firstWorkspace.PlaceSearch.Query == "first workspace", "");
         check("theme rebuild leaves another root's controller alone", secondWorkspace.DragController == secondController, "");
+        check("theme rebuild retains the asset browser model",
+            firstWorkspace.Assets.Library == library && library.Filter == "first assets", "");
     }
 
     private static bool HasDiagnostics(UiElement element) =>

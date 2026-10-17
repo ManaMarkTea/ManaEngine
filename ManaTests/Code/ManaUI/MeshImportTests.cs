@@ -134,7 +134,7 @@ public static class MeshImportChecks
             cacheDirectory: Path.Combine(Path.GetTempPath(), $"ManaTests-Thumbnails-{Guid.NewGuid():N}"));
         try
         {
-            EditorWorkspace.MeshThumbnails = lateCache;
+            EditorWorkspace.For(root).Assets.SetThumbnailCache(lateCache);
             root.UpdateLayout(defaultSize);
             root.Render();
 
@@ -144,8 +144,7 @@ public static class MeshImportChecks
         }
         finally
         {
-            EditorWorkspace.MeshThumbnails = null;
-            lateCache.Dispose();
+            EditorWorkspace.For(root).Assets.SetThumbnailCache(null);
         }
 
         // A full asset library can be much larger than the image atlas now that generated thumbnails are
@@ -163,7 +162,7 @@ public static class MeshImportChecks
         visibleRoot.Render();
         try
         {
-            EditorWorkspace.MeshThumbnails = visibleCache;
+            EditorWorkspace.For(visibleRoot).Assets.SetThumbnailCache(visibleCache);
             visibleRoot.UpdateLayout(new Vector2(defaultSize.X, 360.0f));
             visibleRoot.Render();
 
@@ -174,53 +173,64 @@ public static class MeshImportChecks
         }
         finally
         {
-            EditorWorkspace.MeshThumbnails = null;
-            visibleCache.Dispose();
+            EditorWorkspace.For(visibleRoot).Assets.SetThumbnailCache(null);
         }
 
         // The image atlas is a page for what is on screen, not storage for a whole asset library. A tiny
         // atlas that fits only one generated preview catches the failure mode directly: the second visible
         // thumbnail has to evict/repack instead of being lost forever, and the first one has to come back.
-        MeshThumbnailImages.Reset();
         using (var rollingFonts = new ManaFontManager(
             images: new ManaImageAtlas(
                 MeshThumbnailCache.ThumbnailSize + 8,
                 MeshThumbnailCache.ThumbnailSize + 8)))
         {
             var rollingRoot = new UiRoot(rollingFonts);
+            var images = MeshThumbnailImages.For(rollingRoot);
             const string firstPath = "/w/Assets/Library/first.glb";
             const string secondPath = "/w/Assets/Library/second.glb";
 
-            MeshThumbnailImages.Touch(rollingRoot, firstPath);
-            MeshThumbnailImages.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(80));
+            images.Touch(rollingRoot, firstPath);
+            images.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(80));
 
             Check("a visible thumbnail becomes resident",
-                MeshThumbnailImages.HasImage(firstPath) && MeshThumbnailImages.ResidentCount == 1,
-                $"{MeshThumbnailImages.ResidentCount} resident");
+                images.HasImage(firstPath) && images.ResidentCount == 1,
+                $"{images.ResidentCount} resident");
+
+            using (var otherFonts = new ManaFontManager(images: new ManaImageAtlas(256, 256)))
+            {
+                var otherRoot = new UiRoot(otherFonts);
+                var otherImages = MeshThumbnailImages.For(otherRoot);
+                Check("another atlas cannot reuse this atlas's thumbnail coordinates", !otherImages.HasImage(firstPath));
+                otherImages.Touch(otherRoot, secondPath);
+                otherImages.AcceptFinished(otherRoot, secondPath, ThumbnailPixels(120));
+                Check("thumbnail uploads stay in their own atlas", otherImages.HasImage(secondPath) && !images.HasImage(secondPath));
+            }
+            var sharedRoot = new UiRoot(rollingFonts);
+            Check("roots sharing an atlas share its thumbnail coordinates",
+                ReferenceEquals(MeshThumbnailImages.For(sharedRoot), images) && MeshThumbnailImages.For(sharedRoot).HasImage(firstPath));
 
             var generationBeforeRefresh = rollingRoot.Images.Generation;
-            MeshThumbnailImages.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(96));
+            images.AcceptFinished(rollingRoot, firstPath, ThumbnailPixels(96));
             Check("refreshing a resident thumbnail replaces its atlas entry",
-                MeshThumbnailImages.HasImage(firstPath)
+                images.HasImage(firstPath)
                     && rollingRoot.Images.Generation > generationBeforeRefresh,
                 $"generation {generationBeforeRefresh}->{rollingRoot.Images.Generation}");
 
             var generationBeforeRecycle = rollingRoot.Images.Generation;
-            MeshThumbnailImages.Touch(rollingRoot, secondPath);
-            MeshThumbnailImages.AcceptFinished(rollingRoot, secondPath, ThumbnailPixels(160));
+            images.Touch(rollingRoot, secondPath);
+            images.AcceptFinished(rollingRoot, secondPath, ThumbnailPixels(160));
 
             Check("a full thumbnail atlas is recycled for the next visible asset",
-                MeshThumbnailImages.HasImage(secondPath)
+                images.HasImage(secondPath)
                     && rollingRoot.Images.Generation > generationBeforeRecycle,
                 $"generation {generationBeforeRecycle}->{rollingRoot.Images.Generation}");
 
-            MeshThumbnailImages.Touch(rollingRoot, firstPath);
+            images.Touch(rollingRoot, firstPath);
             Check("and an earlier thumbnail can return after recycling",
-                MeshThumbnailImages.HasImage(firstPath) && MeshThumbnailImages.StoredCount == 2,
-                $"{MeshThumbnailImages.ResidentCount} resident, {MeshThumbnailImages.StoredCount} stored");
+                images.HasImage(firstPath) && images.StoredCount == 2,
+                $"{images.ResidentCount} resident, {images.StoredCount} stored");
         }
 
-        MeshThumbnailImages.Reset();
 
         // Seven checkboxes in a row used to be the format filter, wrapping to two lines in a narrow panel.
         // That whole row collapsed into one dropdown button instead, so what matters now is: the button
@@ -619,7 +629,7 @@ public static class MeshImportChecks
         Check("and closes the menu", !root.Popups.HasOpenPopups);
 
         // "Refresh Thumbnail" -- no cache exists in this test (Build was called with thumbnails: null and
-        // nothing else has set the static EditorWorkspace.MeshThumbnails), so this only has to not throw.
+        // no thumbnail cache is supplied by the owning workspace), so this only has to not throw.
         root.Input.InjectPointerMoved(rowCenter);
         root.Input.InjectPointerPressed(rowCenter, PointerButton.Right, 2.0);
         root.Input.InjectPointerReleased(rowCenter, PointerButton.Right);

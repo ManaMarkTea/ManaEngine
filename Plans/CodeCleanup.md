@@ -19,9 +19,11 @@ This is a structural review, not a claim that every large file needs splitting.
 - [x] Extract layout persistence/restoration from ManaUiDockDemo.
   - EditorWorkspaceLayout owns capture, restoration, version migration, presets and floating-window fallback. The UI retains event wiring; saved format/version and settings paths are unchanged.
 - [x] Rename the production workspace class to EditorWorkspace and update callers and documentation.
-- [ ] Move mutable workspace state to an instance owned by its UI root; preserve theme rebuild behavior.
+- [x] Move mutable workspace state to an instance owned by its UI root; preserve theme rebuild behavior.
   - [x] Panel request queues, drag controllers, tool-window positions, location search and theme/density subscriptions now belong to each root's EditorWorkspace. Commands and tests target a specific root; the global last-controller hook is removed.
-  - [ ] Migrate the shared asset-browser model and thumbnail cache, including standalone Inspector and sprite-editor consumers, into explicitly owned services.
+  - [x] Migrate the shared asset-browser model and thumbnail cache, including standalone Inspector and sprite-editor consumers, into explicitly owned services.
+  - EditorAssetServices owns the browser library and thumbnail worker per editor world; standalone workspaces have their own service. Native pop-outs share their owner's service. Closing the editor disposes the library/watchers and thumbnail worker.
+  - MeshThumbnailImages now keeps UVs, decoded pixels and visibility state per image atlas; roots sharing an atlas share its coordinates. Sprite saves notify the host to invalidate its owned cache.
 - Validate docking, persistence, theme changes and tool windows headlessly and with in-app automation captures.
 
 ## 3. Separate asset services from level loading
@@ -65,3 +67,4 @@ This is a structural review, not a claim that every large file needs splitting.
 - Panel registry validation: all 3,466 headless checks passed and the desktop app builds without warnings. In-app automation opens panels and switches Dark/Light themes; captures live under Artifacts/Automation/cleanup-panels-*.png. User workspace settings are restored after the check.
 - Layout extraction validation: all 3,466 headless checks passed, including persistence, upgrades and floating-window coverage. Desktop build has no warnings; automation switched themes and reopened the app with the saved panel arrangement. Captures: Artifacts/Automation/cleanup-layout-*.png. User settings were restored afterward; browser/iOS were not run.
 - Workspace instance validation: all 3,472 checks passed. New coverage checks request isolation, controller ownership, separate location search state and theme rebuilds with two live roots. Desktop build and panel/theme/reopen automation passed; artifacts use the cleanup-workspace prefix. Shared asset services remain a follow-up; browser/iOS were not run.
+- Asset ownership validation: all 3,478 checks passed. Coverage includes independent browser filters, browser state across theme rebuilds, separate atlas coordinates, shared-atlas roots, late cache availability and native-popout service ownership. Desktop build has no warnings. Automation displayed Import previews, Project tiles and a sprite sheet, switched theme, detached Import and reopened its saved layout; artifacts use the cleanup-assets prefix. User workspace settings were restored. Browser/iOS were not run.

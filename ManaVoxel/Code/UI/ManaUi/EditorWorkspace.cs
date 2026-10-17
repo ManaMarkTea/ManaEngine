@@ -48,18 +48,9 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         public DockDragController? DragController { get; private set; }
 
-        /// <summary>Shared, not per-panel, so a theme rebuild doesn't throw the scanned list away.</summary>
-        public static MeshAssetLibrary MeshAssets { get; } = new();
+        public EditorAssetServices Assets { get; private set; } = new();
 
-        /// <summary>Shared for the same reason -- also keeps results across a theme rebuild.</summary>
         public PlaceSearchModel PlaceSearch { get; } = new();
-
-        /// <summary>
-        /// Set by the host once it has a graphics context, since generating a preview means importing a mesh.
-        /// Null in a headless workspace (and in the tests), where the grid simply shows format badges -- the
-        /// panel has to work without previews, because previews are the part that can be unavailable.
-        /// </summary>
-        public static MeshThumbnailCache? MeshThumbnails { get; set; }
 
         public static IReadOnlyList<string> PanelIds => EditorPanelRegistry.Ids;
 
@@ -78,6 +69,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             UiRoot root, ManaUiShowcaseViewModel vm, Func<string>? liveStat, bool persist,
             VoxelEditorViewModel? editor, ManaWorld? world, string? layoutPath)
         {
+            if (world != null)
+            {
+                Assets = EditorAssetServices.For(world);
+            }
             // Overridable so persistence can be exercised against a scratch file rather than the user's real one.
             layoutPath ??= EditorWorkspaceLayout.DefaultPath;
             if (_themeChanged is { } oldThemeHandler)
@@ -116,6 +111,14 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             shell.Child = Build(root, shell, vm, liveStat, persist, editor, world, layoutPath);
             return shell;
+        }
+
+        private void BindDesktopAssets(DockDragController controller)
+        {
+            foreach (var window in controller.DesktopWindows)
+            {
+                For(window.Root).Assets = Assets;
+            }
         }
 
         // The process-wide preference event must not keep closed workspace roots alive.
@@ -212,7 +215,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             var panelContext = new EditorPanelRegistry.BuildContext(
-                theme, vm, liveStat, editor, world, () => projectFolderWidth(), saveScene, sceneHasChanges);
+                theme, vm, liveStat, editor, world, () => projectFolderWidth(), saveScene, sceneHasChanges, Assets);
             DockItem? BuildPanel(string id) => EditorPanelRegistry.Build(id, panelContext);
 
             var saved = EditorWorkspaceLayout.Load(layoutPath, persist);
@@ -229,6 +232,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             var layoutSession = new EditorWorkspaceLayout(root, top, left, right, bottom, dragController, Resolve, persist, layoutPath);
             layoutSession.Restore(saved, state.Preset);
+            BindDesktopAssets(dragController);
 
             // AllowResize off rather than dropping ResizablePanel entirely: DockHost/DockTabGroup always
             // measure to whatever height they are given (DockTabGroup.MeasureOverride literally returns
@@ -344,7 +348,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             // Committed, not every pixel of the drag: a resize would otherwise rewrite the file on every
             // frame it moved.
             // Floating panels are part of the layout too: created, moved, docked back or closed.
-            dragController.FloatingChanged += (_, _) => Save();
+            dragController.FloatingChanged += (_, _) =>
+            {
+                BindDesktopAssets(dragController);
+                Save();
+            };
 
             leftPanel.SizeCommitted += (_, _) => Save();
             rightPanel.SizeCommitted += (_, _) => Save();

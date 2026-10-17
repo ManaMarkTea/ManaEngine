@@ -1,4 +1,5 @@
 using ManaUI;
+using ManaVoxel.Code.Assets;
 using ManaVoxel.Code.GridMaps;
 using ManaVoxel.Code.UI.ManaUi.Inspectors;
 
@@ -51,6 +52,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static UiElement BuildFor(ManaGridMapNode gridMap, InspectorContext context)
         {
             var theme = context.Theme;
+            var library = EditorAssetServices.For(gridMap.Context.World).Library;
             var target = new TextBlock().FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Ellipsis();
             target.BindPolled(text => text.Text, () => $"Into {gridMap.Name}");
             target.WithTooltip("The grid map selected, or the last one generated into while something else is");
@@ -59,8 +61,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 RulesFile(theme),
                 RulesSettings(theme),
                 AreaSettings(gridMap, context),
-                new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => BigRoomSettings(theme)),
-                new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => TileList(theme)));
+                new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => BigRoomSettings(theme, library)),
+                new DynamicContent().Showing<object>(() => GridMapWfcEditing.RulesToken, _ => TileList(theme, library)));
         }
 
         // ----- the rules file --------------------------------------------------------------------------
@@ -359,7 +361,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         // ----- big rooms ------------------------------------------------------------------------------
 
         /// <summary>The pieces big rooms are built from, and how big they come -- folded away, as it is set once per kit.</summary>
-        private static UiElement BigRoomSettings(UiTheme theme)
+        private static UiElement BigRoomSettings(UiTheme theme, MeshAssetLibrary library)
         {
             var rules = GridMapWfcEditing.Rules;
             var kit = rules.BigRooms ??= new GridMapWfcBigRooms();
@@ -371,13 +373,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 name.BindPolled(text => text.Foreground, () => read() == null ? theme.TextMuted : theme.Text);
                 var use = new ManaUI.Button().Label("Use selected").Variant(ButtonVariant.Subtle).OnClick(() =>
                 {
-                    if (EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                    if (library.SelectedAsset is { Length: > 0 } selected)
                     {
                         write(selected);
                         GridMapWfcEditing.Dirty = true;
                     }
                 });
-                use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
+                use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(library.SelectedAsset));
                 var clear = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
                 {
                     write(null);
@@ -440,7 +442,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
         // ----- the tiles --------------------------------------------------------------------------------
 
-        private static UiElement TileList(UiTheme theme)
+        private static UiElement TileList(UiTheme theme, MeshAssetLibrary library)
         {
             var rules = GridMapWfcEditing.Rules;
             var list = new StackPanel().Vertical(2.0f);
@@ -450,7 +452,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 rules.Tiles.Add(new GridMapWfcTile
                 {
                     Name = "Tile",
-                    Asset = EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected ? selected : null,
+                    Asset = library.SelectedAsset is { Length: > 0 } selected ? selected : null,
                     Sockets = new() { ["e"] = ["open"], ["n"] = ["wall"], ["w"] = ["open"], ["s"] = ["wall"] }
                 });
                 GridMapWfcEditing.Changed();
@@ -460,13 +462,13 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             for (var i = 0; i < rules.Tiles.Count; i++)
             {
-                list.Children.Add(TileEditor(theme, rules, i));
+                list.Children.Add(TileEditor(theme, rules, i, library));
             }
 
             return list;
         }
 
-        private static UiElement TileEditor(UiTheme theme, GridMapWfcRules rules, int index)
+        private static UiElement TileEditor(UiTheme theme, GridMapWfcRules rules, int index, MeshAssetLibrary library)
         {
             var tile = rules.Tiles[index];
             var expander = new Expander().Header(Summary(tile));
@@ -488,13 +490,13 @@ namespace ManaVoxel.Code.UI.ManaUi
             model.BindPolled(text => text.Foreground, () => tile.Asset == null ? theme.TextMuted : theme.Text);
             var use = new ManaUI.Button().Label("Use selected").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
-                if (EditorWorkspace.MeshAssets.SelectedAsset is { Length: > 0 } selected)
+                if (library.SelectedAsset is { Length: > 0 } selected)
                 {
                     tile.Asset = selected;
                     Changed();
                 }
             });
-            use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(EditorWorkspace.MeshAssets.SelectedAsset));
+            use.BindPolled(button => button.IsEnabled, () => !string.IsNullOrWhiteSpace(library.SelectedAsset));
             use.WithTooltip("Use the model selected in the asset browser");
             var clear = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
             {

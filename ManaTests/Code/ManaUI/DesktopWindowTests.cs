@@ -63,6 +63,8 @@ public static class DesktopWindowChecks
             var docks = EditorWorkspace.For(workspace).DragController!;
             var showcase = new DockItem("ManaUI", new TextBlock("test")) { Id = "showcase" };
             var external = (FakeWindow)docks.PopOut(showcase, 2)!;
+            Check("native panels use their owner's asset services",
+                ReferenceEquals(EditorWorkspace.For(external.Root).Assets, EditorWorkspace.For(workspace).Assets));
             var menus = Descendants(workspace).OfType<MenuBar>().Single();
             Check("Pop out menu is removed", menus.Menus.All(menu => menu.Text != "Pop out"));
             menus.Menus.Single(menu => menu.Text == "Panels").Items.Single(menu => menu.Text == "ManaUI").Invoke();
