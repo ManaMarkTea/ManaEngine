@@ -1,3 +1,4 @@
+using static ManaGeoTools.Code.Planet.PlanetPatchPlanner;
 using System.Collections.Concurrent;
 using Mana;
 using Mana.Code;
@@ -116,27 +117,10 @@ namespace ManaGeoTools.Code.Planet
             public required int?[] ChildZoom { get; init; }
         }
 
-        private sealed class PatchUpresPlan
-        {
-            public required int Zoom { get; init; }
-            public required int MeshResolution { get; init; }
-            public required int SourceResolution { get; init; }
-            public required double SourceMetersPerPixel { get; init; }
-            public required IReadOnlyList<(int X, int Y)> TileIndices { get; init; }
-        }
-
         private sealed class PatchSplitPlan
         {
             public required IReadOnlyList<PlannedPatch> Children { get; init; }
         }
-
-        private readonly record struct PlannedPatch(
-            PatchKey Key,
-            float MinU,
-            float MaxU,
-            float MinV,
-            float MaxV,
-            PatchUpresPlan Plan);
 
         // Parent keys with a split currently in flight -- guards against double-triggering a second
         // split for the same parent before the first one's children finish (see TrySplitPatch).
@@ -167,22 +151,12 @@ namespace ManaGeoTools.Code.Planet
         // decode task, read on the main thread every frame.
         private volatile bool _baselineHeightDataLoaded;
 
-        // Caps how many Terrarium tiles a single patch up-res will fetch (see SlippyMapMath.PickZoom).
-        // A lower cap (16) used to force the zoom picker down to z5 (~4.9km/px), coarser than the
-        // baseline it's meant to improve on -- 1024 tiles reaches a genuinely finer zoom. 13 is the
-        // highest zoom Terrarium serves directly (14/15 need oversampling, out of scope).
-        private const int UpresMaxTiles = 1024;
+        // Terrarium serves native detail through z13; finer requests would oversample.
         private const int UpresMaxZoom = 13;
 
-        // SourceResolution records the approximate Terrarium sample span, which can be thousands of
-        // pixels for a high-zoom cached patch. This is a per-leaf mesh ceiling, not a final density
-        // ceiling: the refinement planner subdivides until each leaf's source span fits under it.
         private const int InitialTerrariumUpresZoom = 7;
         public const int DefaultBaselineMaxPatchMeshResolution = 97;
 
-        private const int FallbackPatchResolution = 160;
-        private const int MaxPatchMeshResolution = 1025;
-        private const int MaxDirectSourceMatchDepth = 3;
         private const int PatchNameSplitPathTailDigits = 4;
         private const int MaxPendingSplitFinalizationsPerFrame = 1;
 
@@ -1452,134 +1426,6 @@ namespace ManaGeoTools.Code.Planet
         private static Task<List<TerrariumHeightTile>> FetchTilesAsync(IReadOnlyList<TerrariumTileKey> tileKeys) =>
             PlanetTileStream.Shared.FetchAsync(tileKeys);
 
-        private static IReadOnlyList<PlannedPatch>? CreateSourceMatchedPatchPlan(PatchKey key, PlanetPatchMesh patch, int targetZoom, bool includeTileIndices)
-        {
-            var plannedPatches = new List<PlannedPatch>();
-            return TryAddSourceMatchedPatchPlans(
-                key,
-                patch.FaceNormal,
-                patch.MinU,
-                patch.MaxU,
-                patch.MinV,
-                patch.MaxV,
-                targetZoom,
-                includeTileIndices,
-                plannedPatches)
-                    ? plannedPatches
-                    : null;
-        }
-
-        private static bool TryAddSourceMatchedPatchPlans(
-            PatchKey key,
-            Vector3 faceNormal,
-            float minU,
-            float maxU,
-            float minV,
-            float maxV,
-            int maxZoom,
-            bool includeTileIndices,
-            List<PlannedPatch> plannedPatches,
-            int depth = 0)
-        {
-            var plan = CreateUpresPlan(faceNormal, minU, maxU, minV, maxV, maxZoom, includeTileIndices);
-            if (plan != null && plan.SourceResolution <= MaxPatchMeshResolution)
-            {
-                plannedPatches.Add(new PlannedPatch(key, minU, maxU, minV, maxV, plan));
-                return true;
-            }
-
-            if (depth >= MaxDirectSourceMatchDepth)
-            {
-                return false;
-            }
-
-            var midU = (minU + maxU) * 0.5f;
-            var midV = (minV + maxV) * 0.5f;
-            for (var quadrant = 0; quadrant < 4; quadrant++)
-            {
-                var quadMinU = (quadrant & 1) == 0 ? minU : midU;
-                var quadMaxU = (quadrant & 1) == 0 ? midU : maxU;
-                var quadMinV = (quadrant & 2) == 0 ? minV : midV;
-                var quadMaxV = (quadrant & 2) == 0 ? midV : maxV;
-
-                if (!TryAddSourceMatchedPatchPlans(
-                    key.Child(quadrant),
-                    faceNormal,
-                    quadMinU,
-                    quadMaxU,
-                    quadMinV,
-                    quadMaxV,
-                    maxZoom,
-                    includeTileIndices,
-                    plannedPatches,
-                    depth + 1))
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        private static PatchUpresPlan? CreateUpresPlan(
-            Vector3 faceNormal,
-            float minU,
-            float maxU,
-            float minV,
-            float maxV,
-            int maxZoom,
-            bool includeTileIndices)
-        {
-            var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(faceNormal, minU, maxU, minV, maxV);
-            var zoom = SlippyMapMath.PickZoom(lonMin, lonMax, latMin, latMax, UpresMaxTiles, maxZoom);
-            if (!zoom.HasValue)
-            {
-                return null;
-            }
-            if (zoom.Value != maxZoom)
-            {
-                return null;
-            }
-
-            IReadOnlyList<(int X, int Y)> tileIndices = includeTileIndices
-                ? SlippyMapMath.EnumerateTiles(lonMin, lonMax, latMin, latMax, zoom.Value).ToList()
-                : Array.Empty<(int X, int Y)>();
-            var sourceResolution = EstimateSourceResolutionForZoom(lonMin, lonMax, latMin, latMax, zoom.Value);
-            return new PatchUpresPlan
-            {
-                Zoom = zoom.Value,
-                MeshResolution = Math.Min(sourceResolution, MaxPatchMeshResolution),
-                SourceResolution = sourceResolution,
-                SourceMetersPerPixel = EstimateSourceMetersPerPixel(latMin, latMax, zoom.Value),
-                TileIndices = tileIndices
-            };
-        }
-
-        // Converts the streamed tile zoom into the approximate number of source samples available
-        // across this patch. Terrarium tiles are 256x256 samples in Web Mercator tile space.
-        private static int EstimateSourceResolutionForZoom(float lonMin, float lonMax, float latMin, float latMax, int zoom)
-        {
-            var (xMin, yMin) = SlippyMapMath.LatLongToTileCoords(lonMin, latMax, zoom);
-            var (xMax, yMax) = SlippyMapMath.LatLongToTileCoords(lonMax, latMin, zoom);
-            var pixelSpanX = Math.Abs(xMax - xMin) * TerrariumHeightTile.TileSize;
-            var pixelSpanY = Math.Abs(yMax - yMin) * TerrariumHeightTile.TileSize;
-            var sourceSamplesAcrossPatch = Math.Max(pixelSpanX, pixelSpanY);
-            if (double.IsNaN(sourceSamplesAcrossPatch) || double.IsInfinity(sourceSamplesAcrossPatch))
-            {
-                return FallbackPatchResolution;
-            }
-
-            return Math.Max(2, (int)Math.Ceiling(sourceSamplesAcrossPatch) + 1);
-        }
-
-        private static double EstimateSourceMetersPerPixel(float latMin, float latMax, int zoom)
-        {
-            var centerLatitude = Math.Clamp((latMin + latMax) * 0.5, -SlippyMapMath.MaxLatitudeDegrees, SlippyMapMath.MaxLatitudeDegrees);
-            var metersPerPixelAtEquator = 2.0 * Math.PI * PlanetLoader.EarthRadiusMeters
-                / (TerrariumHeightTile.TileSize * Math.Pow(2.0, zoom));
-            return Math.Max(0.0, metersPerPixelAtEquator * Math.Cos(centerLatitude * Math.PI / 180.0));
-        }
-
         // Real-world ground distance one screen pixel represents at the camera's current altitude and
         // FOV -- the same "screen-space error"/ground-sample-distance concept full terrain-LOD engines
         // use to decide how much source-data resolution is actually worth requesting: past this point,
@@ -1674,56 +1520,6 @@ namespace ManaGeoTools.Code.Planet
 
             splitPlan = new PatchSplitPlan { Children = children };
             return true;
-        }
-
-        // Same corner+center sampling pattern TileOverlapsPatch uses below, plus edge midpoints for a
-        // bit more margin -- this drives which Terrarium tiles get fetched, so erring slightly generous
-        // (a few extra tiles, still bounded by UpresMaxTiles) is preferable to missing coverage at a
-        // patch's edge.
-        private static (float LonMin, float LonMax, float LatMin, float LatMax) ComputePatchLonLatBounds(PlanetPatchMesh patch)
-        {
-            return ComputePatchLonLatBounds(patch.FaceNormal, patch.MinU, patch.MaxU, patch.MinV, patch.MaxV);
-        }
-
-        private static (float LonMin, float LonMax, float LatMin, float LatMax) ComputePatchLonLatBounds(
-            Vector3 faceNormal,
-            float minU,
-            float maxU,
-            float minV,
-            float maxV)
-        {
-            var axisA = new Vector3(faceNormal.Y, faceNormal.Z, faceNormal.X);
-            var axisB = Vector3.Cross(faceNormal, axisA);
-            var midU = (minU + maxU) * 0.5f;
-            var midV = (minV + maxV) * 0.5f;
-
-            var sampleUVs = new[]
-            {
-                (minU, minV), (maxU, minV),
-                (minU, maxV), (maxU, maxV),
-                (midU, minV), (midU, maxV),
-                (minU, midV), (maxU, midV),
-                (midU, midV),
-            };
-
-            var lonMin = float.MaxValue;
-            var lonMax = float.MinValue;
-            var latMin = float.MaxValue;
-            var latMax = float.MinValue;
-
-            foreach (var (u, v) in sampleUVs)
-            {
-                var pointOnUnitCube = faceNormal + (u * axisA) + (v * axisB);
-                var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
-                var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
-
-                lonMin = Math.Min(lonMin, latLong.Longitude);
-                lonMax = Math.Max(lonMax, latLong.Longitude);
-                latMin = Math.Min(latMin, latLong.Latitude);
-                latMax = Math.Max(latMax, latLong.Latitude);
-            }
-
-            return (lonMin, lonMax, latMin, latMax);
         }
 
         // Samples 4 corners + center through the real vertex-generation formula and tests each against
