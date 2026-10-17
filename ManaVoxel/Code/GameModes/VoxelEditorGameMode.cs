@@ -145,7 +145,8 @@ namespace Mana.Code.GameModes
                         ManaGraphicsDiagnosticsProviderFactory.Create(Context, webGpuContext)?.DiagnosticsSnapshot;
                     webGpuContext.EnvironmentLoading.PropertyChanged += (_, _) => UpdateWebGpuLoadingProgress();
                 },
-                iconPath: WindowIconPath
+                iconPath: WindowIconPath,
+                onClosing: Closing
             ).Run();
         }
 
@@ -394,6 +395,7 @@ namespace Mana.Code.GameModes
 
         public override void Closing()
         {
+            ManaLevelLoader.RetirePlanetWork(Context);
             SpriteAssetEditing.ThumbnailInvalidated -= RefreshSpriteThumbnail;
             EditorAssetServices.For(Context.World).Dispose();
             base.Closing();

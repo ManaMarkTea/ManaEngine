@@ -21,7 +21,8 @@
     PlanetOceanController now owns the far shell and near-wave patch, including camera updates and synchronized bathymetry rebuilds; check: Tools/Automation/Checks/planet-ocean.json.
     PlanetTileStream, PlanetHeightSampler and PlanetRebuildScheduler now separate request sharing, GPU admission and background/completion scheduling; upres metadata/snapshots return through a budgeted main-thread handoff.
     PlanetPatchPlanner now owns geographic coverage, exact-zoom selection and recursive source-matched subdivision.
-    Follow-ups: other mutable test hooks, remaining planet geometry and removal/reload cancellation, game view responsibilities; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
+    Planets now retire on permanent level removal/reload and app shutdown, discarding late terrain results while active readbacks retain their slots; reparenting stays live.
+    Follow-ups: other mutable test hooks, remaining planet geometry, game view responsibilities; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

@@ -38,6 +38,29 @@ namespace ManaGeoTools.Code.Planet
 
     public sealed class PlanetNode : ManaSceneNode
     {
+        private volatile bool _retired;
+        public bool IsRetired => _retired;
+
+        // Permanent removal only: ordinary scene reparenting must leave streaming alive.
+        public void Retire()
+        {
+            lock (_rebuildLock)
+            {
+                if (_retired)
+                {
+                    return;
+                }
+                _retired = true;
+                _pendingDetailChase = null;
+                _rebuilds.Retire();
+                _splitPending.Clear();
+                _mergePending.Clear();
+                _upresStatus.Clear();
+                DiscardChangedPatches();
+                Console.WriteLine($"[Planet] Retired {Name}; pending terrain results will be discarded.");
+            }
+        }
+
         public float Radius { get; }
         public int Resolution { get; }
         public int PatchesPerFaceEdge { get; }
@@ -267,20 +290,34 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void LoadHeightDataAsync(GeoTiffLibrary heightLibrary)
         {
-            HeightLibrary = heightLibrary;
-            _baselineHeightDataLoaded = false;
+            if (_retired)
+            {
+                return;
+            }
+            lock (_rebuildLock)
+            {
+                if (_retired)
+                {
+                    return;
+                }
+                HeightLibrary = heightLibrary;
+                _baselineHeightDataLoaded = false;
+            }
             _ = _rebuilds.RunAsync("Planet height decode", () =>
             {
                 try
                 {
-                    heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches);
+                    heightLibrary.LoadAllImageData(ApplyTileToOverlappingPatches, () => !_retired);
                 }
                 finally
                 {
                     // In a finally so a failed or partial decode still releases whatever waits on this --
                     // an ocean that never appears is worse than one masked by incomplete data.
-                    _baselineHeightDataLoaded = true;
-                    Console.WriteLine("[Planet] Baseline height data decoded; ocean mask is now valid.");
+                    if (!_retired)
+                    {
+                        _baselineHeightDataLoaded = true;
+                        Console.WriteLine("[Planet] Baseline height data decoded; ocean mask is now valid.");
+                    }
                 }
                 return Task.CompletedTask;
             }, _ => { });
@@ -297,6 +334,10 @@ namespace ManaGeoTools.Code.Planet
         {
             lock (_rebuildLock)
             {
+                if (_retired)
+                {
+                    return;
+                }
                 foreach (var (key, leaf) in _leaves)
                 {
                     if (TileOverlapsPatch(tile, leaf.Mesh))
@@ -403,6 +444,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void TryBeginPatchUpres(PatchKey key)
         {
+            if (_retired)
+            {
+                return;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -410,7 +455,7 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                if (HeightLibrary == null || !_leaves.TryGetValue(key, out var leaf) || _mergePending.ContainsKey(key))
+                if (_retired || HeightLibrary == null || !_leaves.TryGetValue(key, out var leaf) || _mergePending.ContainsKey(key))
                 {
                     return;
                 }
@@ -439,6 +484,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void TrySplitPatch(PatchKey key)
         {
+            if (_retired)
+            {
+                return;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -446,7 +495,7 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                if (!_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
+                if (_retired || !_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
                 {
                     return;
                 }
@@ -489,6 +538,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public bool CanSplitPatch(PatchKey key)
         {
+            if (_retired)
+            {
+                return false;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return false;
@@ -496,7 +549,7 @@ namespace ManaGeoTools.Code.Planet
 
             try
             {
-                if (!_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
+                if (_retired || !_leaves.TryGetValue(key, out var leaf) || _splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
                 {
                     return false;
                 }
@@ -643,6 +696,10 @@ namespace ManaGeoTools.Code.Planet
 
         private async Task UpresPendingChildrenAsync(PendingSplit pending)
         {
+            if (_retired)
+            {
+                return;
+            }
             var tileKeys = pending.ChildPlans
                 .SelectMany(plan => plan.TileIndices.Select(index => new TerrariumTileKey(plan.Zoom, index.X, index.Y)))
                 .Distinct()
@@ -654,6 +711,10 @@ namespace ManaGeoTools.Code.Planet
             // instead (see ManaLog.TimeVerbose's doc comment).
             var fetchStart = ManaLog.GetTimestamp();
             var fetched = await FetchTilesAsync(tileKeys);
+            if (_retired)
+            {
+                return;
+            }
             ManaLog.WriteVerboseElapsed($"[SplitTiming] fetch {tileKeys.Count} tile(s)", fetchStart);
             var fetchedByKey = fetched.ToDictionary(tile => new TerrariumTileKey(tile.Zoom, tile.TileX, tile.TileY));
 
@@ -674,7 +735,7 @@ namespace ManaGeoTools.Code.Planet
                     .ToList();
                 precomputedHeightsTasks[childIndex] = PlanetHeightSampler.Shared.TrySampleAsync(
                     Context, childMesh.FaceNormal, childMesh.MinU, childMesh.MaxU, childMesh.MinV, childMesh.MaxV,
-                    plan.MeshResolution, childFetchedTiles, plan.TileIndices.Count);
+                    plan.MeshResolution, childFetchedTiles, plan.TileIndices.Count, () => !_retired);
             }
             var gpuSampleStart = ManaLog.GetTimestamp();
             var precomputedHeightsResults = await Task.WhenAll(precomputedHeightsTasks);
@@ -682,6 +743,10 @@ namespace ManaGeoTools.Code.Planet
 
             lock (_rebuildLock)
             {
+                if (_retired)
+                {
+                    return;
+                }
                 foreach (var tile in fetched)
                 {
                     HeightLibrary!.AddTile(tile);
@@ -739,6 +804,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void ProcessPendingSplits()
         {
+            if (_retired)
+            {
+                return;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -809,6 +878,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public bool TryMergeSiblingGroup(PatchKey parentKey)
         {
+            if (_retired)
+            {
+                return false;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return false;
@@ -943,6 +1016,10 @@ namespace ManaGeoTools.Code.Planet
         {
             lock (_rebuildLock)
             {
+                if (_retired)
+                {
+                    return;
+                }
                 pending.MergedMesh.ApplyHeightDataWithResolution(HeightLibrary!, pending.MergedMeshResolution);
                 _rebuilds.Enqueue(PlanetRebuildKind.Merge, () => FinalizeMerge(pending));
             }
@@ -958,6 +1035,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void ProcessPendingMerges()
         {
+            if (_retired)
+            {
+                return;
+            }
             if (!Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -1039,6 +1120,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void UpdateAutoLod(CameraComponent camera)
         {
+            if (_retired)
+            {
+                return;
+            }
             if (!AutoLodEnabled || !Monitor.TryEnter(_rebuildLock))
             {
                 return;
@@ -1147,7 +1232,13 @@ namespace ManaGeoTools.Code.Planet
         }
 
         /// <summary>Updates ocean visibility and wave detail once per frame on the main thread.</summary>
-        public void UpdateNearOcean(CameraComponent camera) => _ocean.Update(camera);
+        public void UpdateNearOcean(CameraComponent camera)
+        {
+            if (!_retired)
+            {
+                _ocean.Update(camera);
+            }
+        }
 
         // Arc-length distance (in world units) between a patch's center and the point directly below
         // the camera, both expressed purely as directions from the planet's local origin -- this only
@@ -1168,6 +1259,10 @@ namespace ManaGeoTools.Code.Planet
 
         public void RequestDetailAt(float longitudeDegrees, float latitudeDegrees, int targetZoom = UpresMaxZoom)
         {
+            if (_retired)
+            {
+                return;
+            }
             _pendingDetailChase = (longitudeDegrees, latitudeDegrees, Math.Clamp(targetZoom, InitialTerrariumUpresZoom, UpresMaxZoom));
         }
 
@@ -1178,6 +1273,10 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public void UpdateDetailChase()
         {
+            if (_retired)
+            {
+                return;
+            }
             if (_pendingDetailChase is not { } chase)
             {
                 return;
@@ -1366,7 +1465,15 @@ namespace ManaGeoTools.Code.Planet
 
         private async Task UpresPatchAsync(PatchKey key, PlanetPatchMesh patch, PatchUpresPlan plan)
         {
+            if (_retired)
+            {
+                return;
+            }
             var fetched = await FetchTilesForPatchAsync(key, plan);
+            if (_retired)
+            {
+                return;
+            }
             if (fetched is not { Count: > 0 })
             {
                 Console.WriteLine($"[Terrarium] Up-res {PatchName(key, plan.Zoom, plan.MeshResolution, plan.SourceResolution, plan.SourceMetersPerPixel)}: no tiles fetched successfully, leaving patch as-is.");
@@ -1376,10 +1483,14 @@ namespace ManaGeoTools.Code.Planet
 
             var precomputedHeights = await PlanetHeightSampler.Shared.TrySampleAsync(
                 Context, patch.FaceNormal, patch.MinU, patch.MaxU, patch.MinV, patch.MaxV,
-                plan.MeshResolution, fetched, plan.TileIndices.Count);
+                plan.MeshResolution, fetched, plan.TileIndices.Count, () => !_retired);
 
             lock (_rebuildLock)
             {
+                if (_retired)
+                {
+                    return;
+                }
                 foreach (var tile in fetched)
                 {
                     HeightLibrary!.AddTile(tile);
@@ -1588,6 +1699,10 @@ namespace ManaGeoTools.Code.Planet
         {
             lock (_rebuildLock)
             {
+                if (_retired)
+                {
+                    return;
+                }
                 var heightScale = ComputeHeightScale();
                 foreach (var leaf in _leaves.Values)
                 {

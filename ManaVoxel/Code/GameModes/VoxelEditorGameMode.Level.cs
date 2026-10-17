@@ -653,6 +653,10 @@ namespace Mana.Code.GameModes
                         continue;
                     }
 
+                    foreach (var node in scene.Children)
+                    {
+                        ManaLevelLoader.RetirePlanetWork(node);
+                    }
                     removed.Add(scene);
                     Context.World.Scenes.RemoveAt(i);
                 }

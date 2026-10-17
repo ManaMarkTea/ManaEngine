@@ -269,7 +269,7 @@ namespace Mana.Code
             Context.Audio.Dispose();
             ManaUi?.Dispose();
             ManaUi = null;
-            Context.Input?.Dispose();
+            // The graphics host owns the shared input context and disposes it after this callback.
         }
     }
 

@@ -7,6 +7,8 @@ public enum PlanetRebuildKind { Upres, Split, Merge }
 /// <summary>Runs background work and budgets the caller's main-thread completion handoff.</summary>
 public sealed class PlanetRebuildScheduler
 {
+    private readonly object _gate = new();
+    private bool _retired;
     private readonly ConcurrentQueue<Action>[] _ready = [new(), new(), new()];
 
     public Task RunAsync(string name, Func<Task> work, Action<Exception> failed) => Task.Run(async () =>
@@ -14,6 +16,13 @@ public sealed class PlanetRebuildScheduler
         if (string.IsNullOrEmpty(Thread.CurrentThread.Name))
         {
             Thread.CurrentThread.Name = name;
+        }
+        lock (_gate)
+        {
+            if (_retired)
+            {
+                return;
+            }
         }
         try
         {
@@ -26,14 +35,41 @@ public sealed class PlanetRebuildScheduler
         }
     });
 
-    public void Enqueue(PlanetRebuildKind kind, Action completion) => _ready[(int)kind].Enqueue(completion);
+    public void Retire()
+    {
+        lock (_gate)
+        {
+            _retired = true;
+            foreach (var queue in _ready)
+            {
+                queue.Clear();
+            }
+        }
+    }
+
+    public void Enqueue(PlanetRebuildKind kind, Action completion)
+    {
+        lock (_gate)
+        {
+            if (!_retired)
+            {
+                _ready[(int)kind].Enqueue(completion);
+            }
+        }
+    }
 
     // The caller supplies its scene lock and calls this only on the main thread.
     public void Drain(PlanetRebuildKind kind, int budget)
     {
         for (var i = 0; i < budget && _ready[(int)kind].TryDequeue(out var completion); i++)
         {
-            completion();
+            lock (_gate)
+            {
+                if (!_retired)
+                {
+                    completion();
+                }
+            }
         }
     }
 }

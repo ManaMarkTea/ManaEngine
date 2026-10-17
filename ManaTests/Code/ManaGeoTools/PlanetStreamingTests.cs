@@ -1,6 +1,11 @@
 using ManaGeoTools.Code.GeoTiff.Terrarium;
 using ManaGeoTools.Code.Planet;
 using ManaUI;
+using Mana;
+using Mana.Code;
+using Mana.Code.Nodes;
+using ManaVoxel.Code.Levels;
+using System.Numerics;
 
 namespace ManaTests;
 
@@ -60,7 +65,50 @@ public static class PlanetStreamingChecks
         scheduler.Drain(PlanetRebuildKind.Split, 1);
         Check("remaining completions retain arrival order", order.SequenceEqual(new[] { 1, 2 }));
 
+        var retiredScheduler = new PlanetRebuildScheduler();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var applied = 0;
+        retiredScheduler.Enqueue(PlanetRebuildKind.Split, () => applied++);
+        var running = retiredScheduler.RunAsync("retired rebuild", async () =>
+        {
+            started.SetResult();
+            await finish.Task;
+            retiredScheduler.Enqueue(PlanetRebuildKind.Split, () => applied++);
+            throw new InvalidOperationException("late retired rebuild");
+        }, _ => retiredScheduler.Enqueue(PlanetRebuildKind.Upres, () => applied++));
+        await started.Task;
+        retiredScheduler.Retire();
+        retiredScheduler.Retire();
+        finish.SetResult();
+        await running;
+        await retiredScheduler.RunAsync("new retired work", () => { applied++; return Task.CompletedTask; }, _ => applied++);
+        foreach (var kind in Enum.GetValues<PlanetRebuildKind>())
+        {
+            retiredScheduler.Drain(kind, 10);
+        }
+        Check("retirement discards queued and late handoffs and rejects new work", applied == 0);
+
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var container = new ManaSceneNode(context, Matrix4x4.Identity);
+        var planet = new PlanetNode(context, 1, 10, 2, 1, 2);
+        container.AddChild(planet);
+        container.RemoveChild(planet);
+        Check("ordinary reparenting does not retire planet work", !planet.IsRetired);
+        container.AddChild(planet);
+        ManaLevelLoader.RetirePlanetWork(container);
+        planet.RequestDetailAt(0, 0, 7);
+        planet.TrySplitPatch(PatchKey.Root(0, 0, 0));
+        planet.ProcessPendingSplits();
+        Check("permanent removal retires nested planets and ignores detail requests",
+            planet.IsRetired && !planet.CanSplitPatch(PatchKey.Root(0, 0, 0)) && planet.PendingChangedPatchCount == 0);
+
         var sampler = new PlanetHeightSampler(1, TimeSpan.FromMilliseconds(30));
+        var dispatched = false;
+        var discarded = await sampler.ReadbackAsync(() => { dispatched = true; return Task.FromResult(new[] { 1f }); }, () => false);
+        Check("retired sampling skips native dispatch and releases its admission slot", discarded == null && !dispatched
+            && await sampler.ReadbackAsync(() => Task.FromResult(new[] { 4f })) is [4f]);
         var readback = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
         Check("a delayed GPU readback returns CPU fallback", await sampler.ReadbackAsync(() => readback.Task) == null);
         var extraDispatch = false;

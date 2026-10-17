@@ -1,0 +1,96 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Planet Showcase.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 2
+  },
+  {
+    "type": "open_level",
+    "path": "Content/Levels/2D Sample.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 180
+  },
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Planet Showcase.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 1200
+  },
+  {
+    "type": "planet_detail",
+    "name": "Earth",
+    "position": [
+      -150,
+      0
+    ],
+    "count": 7
+  },
+  {
+    "type": "wait",
+    "frames": 1
+  },
+  {
+    "type": "open_level",
+    "path": "Content/Levels/2D Sample.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 180
+  },
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Planet Showcase.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 1200
+  },
+  {
+    "type": "planet_detail",
+    "name": "Earth",
+    "position": [
+      -150,
+      0
+    ],
+    "count": 7
+  },
+  {
+    "type": "wait",
+    "frames": 900
+  },
+  {
+    "type": "planet_status",
+    "name": "Earth"
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      32,
+      60,
+      144
+    ],
+    "target": [
+      32,
+      40,
+      32
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 120
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@"
+  },
+  {
+    "type": "quit"
+  }
+]

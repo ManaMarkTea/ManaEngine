@@ -23,7 +23,7 @@ namespace ManaGeoTools.Code.Planet
             _timeout = timeout;
         }
 
-        public async Task<float[]?> ReadbackAsync(Func<Task<float[]>> dispatch)
+        public async Task<float[]?> ReadbackAsync(Func<Task<float[]>> dispatch, Func<bool>? shouldDispatch = null)
         {
             if (!await _slots.WaitAsync(_timeout))
             {
@@ -33,6 +33,10 @@ namespace ManaGeoTools.Code.Planet
             var timedOut = false;
             try
             {
+                if (shouldDispatch != null && !shouldDispatch())
+                {
+                    return null;
+                }
                 pending = dispatch();
                 return await pending.WaitAsync(_timeout);
             }
@@ -72,7 +76,8 @@ namespace ManaGeoTools.Code.Planet
             float maxV,
             int meshResolution,
             IReadOnlyList<TerrariumHeightTile> fetchedTiles,
-            int requestedTileCount)
+            int requestedTileCount,
+            Func<bool>? shouldDispatch = null)
         {
             if (context.GraphicsDevice is not IHeightSamplingComputeDevice computeDevice)
             {
@@ -113,7 +118,7 @@ namespace ManaGeoTools.Code.Planet
                     };
                 }
 
-                var heights = await ReadbackAsync(() => computeDevice.SampleHeightsAsync(points, tileDescriptors));
+                var heights = await ReadbackAsync(() => computeDevice.SampleHeightsAsync(points, tileDescriptors), shouldDispatch);
                 if (heights == null)
                 {
                     return null;

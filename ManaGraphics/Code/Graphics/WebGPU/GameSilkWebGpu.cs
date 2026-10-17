@@ -20,6 +20,10 @@ namespace ManaGraphics.Code.Graphics
         private readonly Action<double>? _onRender;
         private readonly Action<ManaWebGpuContext, IInputContext>? _webGpuReady;
         private readonly string? _iconPath;
+        private readonly Action? _onClosing;
+        private bool _closed;
+        private bool _rendering;
+        private bool _closeRequested;
         private double _elapsedSeconds;
         private IWindow _window = null!;
         private IInputContext? _input;
@@ -34,7 +38,8 @@ namespace ManaGraphics.Code.Graphics
             Action<double>? onRender = null,
             Action<ManaWebGpuContext, IInputContext>? webGpuReady = null,
             Vector2D<int>? windowSize = null,
-            string? iconPath = null)
+            string? iconPath = null,
+            Action? onClosing = null)
         {
             _title = title;
             _windowSize = windowSize ?? new Vector2D<int>(1920, 1080);
@@ -45,6 +50,7 @@ namespace ManaGraphics.Code.Graphics
             _onRender = onRender;
             _webGpuReady = webGpuReady;
             _iconPath = iconPath;
+            _onClosing = onClosing;
         }
 
         private readonly Vector2D<int> _windowSize;
@@ -96,6 +102,7 @@ namespace ManaGraphics.Code.Graphics
                 Console.WriteLine("[RunBrowser] Creating browser WebGPU window.");
                 var browserWindow = new ManaBrowserWindow("#manaCanvas");
                 _window = browserWindow;
+                _window.Closing += Closing;
                 _window.FramebufferResize += Resize;
                 browserWindow.Initialize();
                 Console.WriteLine($"[RunBrowser] Window initialized, framebuffer size = {_window.FramebufferSize}.");
@@ -171,6 +178,27 @@ namespace ManaGraphics.Code.Graphics
 
         private void Render(double deltaTime)
         {
+            if (_closeRequested)
+            {
+                return;
+            }
+            _rendering = true;
+            try
+            {
+                RenderFrame(deltaTime);
+            }
+            finally
+            {
+                _rendering = false;
+                if (_closeRequested)
+                {
+                    Closing();
+                }
+            }
+        }
+
+        private void RenderFrame(double deltaTime)
+        {
             if (!_loggedFirstRender)
             {
                 _loggedFirstRender = true;
@@ -184,7 +212,15 @@ namespace ManaGraphics.Code.Graphics
 
             _elapsedSeconds += deltaTime;
             _beforeRender?.Invoke(deltaTime);
+            if (_closeRequested)
+            {
+                return;
+            }
             _onRender?.Invoke(deltaTime);
+            if (_closeRequested)
+            {
+                return;
+            }
 
             var t = (float)_elapsedSeconds;
             var clearColor = new Color
@@ -205,10 +241,25 @@ namespace ManaGraphics.Code.Graphics
 
         private void Closing()
         {
-            _webGpu?.Dispose();
-            _webGpu = null;
-            _input?.Dispose();
-            _input = null;
+            _closeRequested = true;
+            // A command can close the window inside update/render; let that callback unwind first.
+            if (_rendering || _closed)
+            {
+                return;
+            }
+            _closed = true;
+            try
+            {
+                // Retire application work before releasing the device it may still target.
+                _onClosing?.Invoke();
+            }
+            finally
+            {
+                _webGpu?.Dispose();
+                _webGpu = null;
+                _input?.Dispose();
+                _input = null;
+            }
         }
     }
 }

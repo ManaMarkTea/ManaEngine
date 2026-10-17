@@ -175,6 +175,34 @@ namespace ManaVoxel.Code.Levels
         /// Strips every authored node from the world, physics bodies included, leaving code-built scenery
         /// in place. This is also "New Level" on its own.
         /// </summary>
+        public static void RetirePlanetWork(ManaSceneNode node)
+        {
+#if !MANA_BROWSER
+            if (node is PlanetNode planet)
+            {
+                planet.Retire();
+            }
+#endif
+            foreach (var child in node.Children)
+            {
+                RetirePlanetWork(child);
+            }
+        }
+
+        public static void RetirePlanetWork(ManaContext context)
+        {
+            lock (context.World.SceneLock)
+            {
+                foreach (var scene in context.World.Scenes)
+                {
+                    foreach (var node in scene.Children)
+                    {
+                        RetirePlanetWork(node);
+                    }
+                }
+            }
+        }
+
         public static void RemoveAuthoredNodes(ManaContext context, ManaSceneNode? keep = null)
         {
             context.Audio.StopAll();
@@ -193,6 +221,7 @@ namespace ManaVoxel.Code.Levels
 
                 foreach (var (scene, node) in doomed)
                 {
+                    RetirePlanetWork(node);
                     RemoveBodies(context, node);
                     node.Parent?.RemoveChild(node);
                     scene.Children.Remove(node);

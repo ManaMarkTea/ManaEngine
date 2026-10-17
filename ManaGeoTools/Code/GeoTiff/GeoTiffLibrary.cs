@@ -120,10 +120,14 @@ namespace ManaGeoTools.Code.GeoTiff
         //
         // Only real GeoTiff entries go through this lazy-decode step -- other IHeightTile kinds (e.g.
         // Terrarium tiles) already arrive fully decoded at construction time.
-        public void LoadAllImageData(Action<GeoTiff>? onTileLoaded = null)
+        public void LoadAllImageData(Action<GeoTiff>? onTileLoaded = null, Func<bool>? shouldContinue = null)
         {
             Parallel.ForEach(_tiles.OfType<GeoTiff>(), tile =>
             {
+                if (shouldContinue != null && !shouldContinue())
+                {
+                    return;
+                }
                 if (!tile.IsDetailLoaded)
                 {
                     tile.LoadImageData();

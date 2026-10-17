@@ -176,7 +176,8 @@ namespace Mana.Code.GameModes
 
                     webGpuContext.UiRoot = ManaUi?.Root;
                 },
-                iconPath: WindowIconPath
+                iconPath: WindowIconPath,
+                onClosing: Closing
             ).Run();
         }
 
@@ -482,6 +483,7 @@ namespace Mana.Code.GameModes
 
         public override void Closing()
         {
+            ManaLevelLoader.RetirePlanetWork(Context);
             _gameModes.End();
             base.Closing();
         }
