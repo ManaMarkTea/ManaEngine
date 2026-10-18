@@ -75,7 +75,12 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 7. Review renderer resource ownership
 
-- [ ] Audit ManaWebGpuContext's partial files for ownership and teardown boundaries before extracting services.
+- [x] Audit ManaWebGpuContext's partial files for ownership and teardown boundaries before extracting services.
+  - [RendererResourceOwnership.md](RendererResourceOwnership.md) maps all 16 partial files, GPU owners/borrowers, callback roots, asynchronous handoffs and the current shutdown sequence.
+- [ ] Repair callback/readback retirement and thumbnail shutdown cleanup before extracting services.
+- [ ] Retire environment background work and marshal GPU work through render-thread admission.
+- [ ] Balance height-compute disposal, pending captures, construction rollback and texture acquisition failures.
+- [ ] Extract reviewed owners in small steps after their lifetime contracts are validated.
 - Start with a written resource/lifetime map; preserve native callback lifetimes and shutdown ordering.
 - Require desktop and browser rendering checks for changes; compilation alone is insufficient.
 
@@ -114,3 +119,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Yacht Jousting project extraction validation (2026-10-18): all 3,512 headless checks passed in 25.1s, including saved type/id/settings round-trip and the editor-free assembly boundary. Desktop build has zero warnings; lifecycle automation reached a 5:1 win with 30 impacts and left identical saved/current level snapshots after stop. In-app captures/logs use Artifacts/Automation/cleanup-yacht*. Browser Release/AOT publish and headless Chrome passed with the game mode, models, HUD and lance input; inspected captures/logs are under Artifacts/WebDrive/cleanup-yacht-verified, with no logged exceptions or WebGPU validation errors. iOS Compile passed with zero warnings using the retained 10.0.300 SDK (10.0.402 lacks ios workload registration, as it lacks wasm-tools); no phone deployment was performed. User workspace settings were restored. Authored levels and game rules are unchanged.
 
 - Test ownership cleanup validation (2026-10-18): all 3,512 headless checks passed in 23.4s, including game registration and strict content loading. Forty domain assertions were relocated without reducing the total; material checks now use an isolated generated texture instead of conditionally depending on the editor texture library. Test builds report seven existing nullable warnings in ImagesTests, ReadableAssetReferenceTests and CoursePieceTests. Production code, authored content and platform projects are unchanged; browser/iOS were not run.
+
+- Renderer ownership audit (2026-10-18): written map added in Plans/RendererResourceOwnership.md. Traced root/device lifetimes, scene/texture retirement, native and browser callbacks, thumbnail and environment continuations, initialization rollback and shutdown. Recorded confirmed cleanup omissions and unverified native lifetime risks with an ordered fix/validation plan. Documentation only; no production changes or rendering/build checks in this step.

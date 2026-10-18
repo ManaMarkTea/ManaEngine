@@ -13,7 +13,8 @@
 
 [] - Project code cleanup: Plans/CodeCleanup.md.
     [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaVoxel suites; all 3,512 checks pass.
-    Next: document ManaWebGpuContext resource lifetimes before extracting renderer services (CodeCleanup section 7).
+    [x] Renderer ownership audit (2026-10-18): Plans/RendererResourceOwnership.md maps resources, callbacks and shutdown across all 16 context partials.
+    Next: repair readback callback retirement and thumbnail shutdown cleanup before renderer extraction (CodeCleanup section 7).
     Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
     Panel metadata and factories now live together in EditorPanelRegistry; saved panel IDs and default layout behavior are preserved.
     EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.
