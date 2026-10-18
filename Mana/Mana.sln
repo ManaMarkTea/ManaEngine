@@ -39,6 +39,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaLidar.Core", "..\ManaLi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeScreensaver", "..\Games\CodeScreensaver\CodeScreensaver.csproj", "{028B4637-A1E0-4679-91A4-7518AD9EF970}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YachtJousting", "..\Games\YachtJousting\YachtJousting.csproj", "{569C1E95-21D9-40D6-ABB4-36E3D2472E15}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -193,6 +195,18 @@ Global
 		{028B4637-A1E0-4679-91A4-7518AD9EF970}.Release|x64.Build.0 = Release|Any CPU
 		{028B4637-A1E0-4679-91A4-7518AD9EF970}.Release|x86.ActiveCfg = Release|Any CPU
 		{028B4637-A1E0-4679-91A4-7518AD9EF970}.Release|x86.Build.0 = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|x64.Build.0 = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Debug|x86.Build.0 = Debug|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|Any CPU.Build.0 = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x64.ActiveCfg = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x64.Build.0 = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x86.ActiveCfg = Release|Any CPU
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -67,7 +67,8 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 6. Clarify project and test ownership
 
-- [ ] Move Yacht Jousting to Games/ with app services supplied at registration, following Train Yard Wars.
+- [x] Move Yacht Jousting to Games/ with app services supplied at registration, following Train Yard Wars.
+  - Games/YachtJousting references only Mana. ManaGames supplies model loading through immutable bounds/instance adapters, preserving shared mesh placement and existing level type/settings. The game declares catalog model/audio dependencies; rules and registration tests now live under their own system.
 - [ ] Move domain assertions out of ManaUI suites into their owning systems; keep UI interaction tests in place.
 - Validate game registration, content loading, desktop tests and affected platform builds.
 
@@ -108,3 +109,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Lighting follow-up (2026-10-18): TrainYardWarsMode.SetLighting now updates SkyDateTime as well as TimeOfDay, preserving the date and UTC offset. The sun follows the configured hour and L-key choices again. Both new regression checks failed before the fix; all 210 game checks now pass in 3.4s. Desktop automation completed with unchanged intensity settings, and the daylight capture was inspected at Artifacts/Automation/cleanup-tyw-lighting.png. Visual record: DevPhotos/2026-10-18 train-yard-wars-lighting.png. User settings restored; browser/iOS were not run.
 
 - Interaction overlay extraction validation (2026-10-18): all 3,510 headless checks passed in 26.3s. Added checks for unchanged highlight reuse, per-seat clearing and preview/cursor recreation after board reset. Desktop build has zero warnings. Existing game automation completed with two stand-in pads, bot play and score logging; daylight capture inspected at Artifacts/Automation/cleanup-tyw-overlays.png with no logged exceptions or WebGPU validation errors. User settings restored. TywBoardView is now 768 lines (previously 2,086); scene ownership and rail retirement remain there. Browser/iOS were not run.
+
+- Yacht Jousting project extraction validation (2026-10-18): all 3,512 headless checks passed in 25.1s, including saved type/id/settings round-trip and the editor-free assembly boundary. Desktop build has zero warnings; lifecycle automation reached a 5:1 win with 30 impacts and left identical saved/current level snapshots after stop. In-app captures/logs use Artifacts/Automation/cleanup-yacht*. Browser Release/AOT publish and headless Chrome passed with the game mode, models, HUD and lance input; inspected captures/logs are under Artifacts/WebDrive/cleanup-yacht-verified, with no logged exceptions or WebGPU validation errors. iOS Compile passed with zero warnings using the retained 10.0.300 SDK (10.0.402 lacks ios workload registration, as it lacks wasm-tools); no phone deployment was performed. User workspace settings were restored. Authored levels and game rules are unchanged.

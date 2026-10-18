@@ -27,7 +27,8 @@
     TywTrainRenderer now owns animated train state and cargo indicators, preserving unchanged wagon instances and route history.
     Fixed the dark Train Yard Wars board: SetLighting now updates the astronomical date/time with the chosen hour, so the sun follows the game setting and the L-key lighting choices.
     TywInteractionOverlay now owns hover, per-seat route/ready/cursor feedback and territory/siege geometry; all three Train Yard Wars visual extractions are complete.
-    Follow-ups: other mutable test hooks, Yacht Jousting project ownership and renderer resource ownership; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
+    Yacht Jousting now lives in Games/YachtJousting; ManaGames supplies model services at registration, preserving the serialized level type and settings. Its tests live under Code/YachtJousting.
+    Follow-ups: other mutable test hooks, domain assertions in UI suites and renderer resource ownership; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

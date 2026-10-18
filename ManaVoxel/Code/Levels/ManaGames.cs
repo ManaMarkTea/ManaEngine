@@ -1,5 +1,6 @@
 using ManaVoxel.Code.Assets;
 using CodeScreensaver;
+using YachtJousting;
 using ManaVoxel.Code.GridMaps;
 using Runner;
 using TrainYardWars;
@@ -23,6 +24,22 @@ namespace ManaVoxel.Code.Levels
                 Description = CodeScreensaverMode.Description,
                 ModeType = typeof(CodeScreensaverMode),
                 Create = () => new CodeScreensaverMode()
+            });
+            ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
+            {
+                Type = YachtJoustingMode.ModeType,
+                DisplayName = YachtJoustingMode.DisplayName,
+                Description = YachtJoustingMode.Description,
+                ModeType = typeof(YachtJoustingMode),
+                Create = () => new YachtJoustingMode((asset, context) =>
+                {
+                    var prototype = GridMapPrototype.Load(asset, context);
+                    if (!prototype.HasGeometry)
+                    {
+                        throw new InvalidOperationException($"Yacht Jousting asset '{asset}': {prototype.Error}");
+                    }
+                    return new YachtModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
+                })
             });
             TywModel.Loader = (asset, world, into) => ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), world, into);
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
