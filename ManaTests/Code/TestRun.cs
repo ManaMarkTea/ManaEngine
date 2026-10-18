@@ -176,6 +176,7 @@ public static class TestRunner
         ("Mana", "material ZIP packs", MaterialZipChecks.Run),
         ("ManaUI", "material picker", MaterialPickerChecks.Run),
         ("Graphics", "startup diagnostics", StartupDiagnosticsChecks.Run),
+        ("Graphics", "readback callback lifetime", ReadbackLifetimeChecks.Run),
 
         // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one
         // level rather than having a later suite run inside it too.

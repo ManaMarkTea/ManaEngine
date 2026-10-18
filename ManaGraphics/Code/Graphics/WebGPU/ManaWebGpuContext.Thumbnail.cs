@@ -34,11 +34,13 @@ namespace ManaGraphics.Code.Graphics
         private TextureView* _thumbnailDepthTextureView;
         private uint _thumbnailResourceSize;
 
-        private readonly record struct ThumbnailDrawResources(
-            ManaWebGpuMesh Mesh,
-            ManaWebGpuMeshTexture Texture,
-            nint UniformBuffer,
-            nint BindGroup);
+        private sealed class ThumbnailDrawResources
+        {
+            public ManaWebGpuMesh? Mesh;
+            public ManaWebGpuMeshTexture? Texture;
+            public nint UniformBuffer;
+            public nint BindGroup;
+        }
 
         /// <summary>
         /// Renders <paramref name="instances"/> (already loaded, world transforms already composed) to a
@@ -70,6 +72,11 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
+            List<ThumbnailDrawResources>? drawResources = new(instances.Count);
+            CommandEncoder* commandEncoder = null;
+            RenderPassEncoder* renderPass = null;
+            CommandBuffer* commandBuffer = null;
+            WebGpuBuffer* outputBuffer = null;
             try
             {
                 if (!TryComputeWorldBounds(instances, out var min, out var max))
@@ -82,13 +89,14 @@ namespace ManaGraphics.Code.Graphics
                 EnsureThumbnailResources(thumbnailSize);
                 var pipeline = GetOrCreateThumbnailPipeline();
 
-                // Per-request GPU state -- temporary meshes/textures/uniform-buffers/bind-groups, kept
-                // alive (not disposed here) until the readback confirms the GPU has actually consumed the
-                // command buffer that references them. See DisposeThumbnailDrawResources.
-                var drawResources = new List<ThumbnailDrawResources>(instances.Count);
-
+                // Readback retirement owns submitted draw resources; finally owns partial construction.
                 var commandEncoderDescriptor = new CommandEncoderDescriptor();
-                var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+                commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+
+                if (commandEncoder == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU thumbnail command encoder.");
+                }
 
                 var colorAttachment = new RenderPassColorAttachment
                 {
@@ -120,7 +128,11 @@ namespace ManaGraphics.Code.Graphics
                     DepthStencilAttachment = &depthAttachment
                 };
 
-                var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+                renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+                if (renderPass == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU thumbnail render pass.");
+                }
                 _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
 
                 foreach (var instance in instances)
@@ -130,8 +142,12 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
+                    var resources = new ThumbnailDrawResources();
+                    drawResources.Add(resources);
                     var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _device, _queue, instance.MeshData, instance.Name);
+                    resources.Mesh = mesh;
                     var texture = _meshTextures.AcquireMeshTexture(instance.MeshData);
+                    resources.Texture = texture;
 
                     var uniformBufferDescriptor = new BufferDescriptor
                     {
@@ -139,6 +155,11 @@ namespace ManaGraphics.Code.Graphics
                         Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
                     };
                     var uniformBuffer = _api.DeviceCreateBuffer(_device, &uniformBufferDescriptor);
+                    resources.UniformBuffer = (nint)uniformBuffer;
+                    if (uniformBuffer == null)
+                    {
+                        throw new InvalidOperationException("Failed to create WebGPU thumbnail uniform buffer.");
+                    }
                     var uniform = BuildThumbnailUniform(instance, camera);
                     _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
 
@@ -165,6 +186,7 @@ namespace ManaGraphics.Code.Graphics
                         bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
                     }
 
+                    resources.BindGroup = (nint)bindGroup;
                     if (bindGroup == null)
                     {
                         throw new InvalidOperationException($"Failed to create WebGPU thumbnail bind group for mesh '{instance.Name}'.");
@@ -172,12 +194,11 @@ namespace ManaGraphics.Code.Graphics
 
                     _api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
                     mesh.Draw(renderPass);
-
-                    drawResources.Add(new ThumbnailDrawResources(mesh, texture, (nint)uniformBuffer, (nint)bindGroup));
                 }
 
                 _api.RenderPassEncoderEnd(renderPass);
                 _api.RenderPassEncoderRelease(renderPass);
+                renderPass = null;
 
                 var rowBytes = checked(thumbnailSize * ThumbnailBytesPerPixel);
                 var paddedRowBytes = AlignTo(rowBytes, WebGpuCopyBytesPerRowAlignment);
@@ -188,7 +209,12 @@ namespace ManaGraphics.Code.Graphics
                     Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
                     Size = readbackByteCount
                 };
-                var outputBuffer = _api.DeviceCreateBuffer(_device, &outputBufferDescriptor);
+                outputBuffer = _api.DeviceCreateBuffer(_device, &outputBufferDescriptor);
+
+                if (outputBuffer == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU thumbnail readback buffer.");
+                }
 
                 // WebGPU requires texture-copy rows to be 256-byte aligned. 64px RGBA used to satisfy that
                 // exactly; larger square thumbnails need padded readback rows compacted after MapAsync.
@@ -218,23 +244,24 @@ namespace ManaGraphics.Code.Graphics
                 _api.CommandEncoderCopyTextureToBuffer(commandEncoder, &copySource, &copyDestination, &copySize);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
-                var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                if (commandBuffer == null)
+                {
+                    throw new InvalidOperationException("Failed to finish WebGPU thumbnail commands.");
+                }
                 _api.QueueSubmit(_queue, 1, &commandBuffer);
-                _api.CommandBufferRelease(commandBuffer);
-                _api.CommandEncoderRelease(commandEncoder);
+                var retiredDrawResources = drawResources;
+                var readbackTask = ManaWebGpuBufferReadback.MapAsync(_api, outputBuffer, readbackByteCount,
+                    _readbackRegistry, () => DisposeThumbnailDrawResources(retiredDrawResources));
+                outputBuffer = null;
+                drawResources = null;
 
-                var readbackTask = ManaWebGpuBufferReadback.MapAsync(_api, outputBuffer, readbackByteCount, _readbackRegistry);
-
-                // MapAsync's Task resolves off the render thread on purpose (RunContinuationsAsynchronously
-                // -- see ManaWebGpuBufferReadback's own comment on why), so disposing drawResources has to
-                // re-enter via EnqueueRenderThreadWork rather than running inline in this continuation.
+                // Only CPU pixel conversion remains after retirement; shutdown needs no queued GPU cleanup.
                 readbackTask.ContinueWith(
                     readback =>
                     {
-                        EnqueueRenderThreadWork(() =>
+                        try
                         {
-                            DisposeThumbnailDrawResources(drawResources);
-
                             if (readback.IsCanceled)
                             {
                                 completion.TrySetCanceled();
@@ -247,7 +274,11 @@ namespace ManaGraphics.Code.Graphics
                             {
                                 completion.TrySetResult(NormalizeThumbnailPixels(readback.Result, thumbnailSize, paddedRowBytes));
                             }
-                        });
+                        }
+                        catch (Exception ex)
+                        {
+                            completion.TrySetException(ex);
+                        }
                     },
                     TaskContinuationOptions.ExecuteSynchronously);
             }
@@ -255,24 +286,48 @@ namespace ManaGraphics.Code.Graphics
             {
                 completion.TrySetException(ex);
             }
+            finally
+            {
+                if (renderPass != null)
+                {
+                    _api.RenderPassEncoderRelease(renderPass);
+                }
+                if (commandBuffer != null)
+                {
+                    _api.CommandBufferRelease(commandBuffer);
+                }
+                if (commandEncoder != null)
+                {
+                    _api.CommandEncoderRelease(commandEncoder);
+                }
+                if (outputBuffer != null)
+                {
+                    _api.BufferRelease(outputBuffer);
+                }
+                if (drawResources != null)
+                {
+                    DisposeThumbnailDrawResources(drawResources);
+                }
+            }
         }
 
         private void DisposeThumbnailDrawResources(List<ThumbnailDrawResources> drawResources)
         {
             foreach (var resource in drawResources)
             {
-                resource.Mesh.Dispose();
-                _meshTextures.ReleaseMeshTexture(resource.Texture);
-
                 if (resource.BindGroup != 0)
                 {
                     _api.BindGroupRelease((BindGroup*)resource.BindGroup);
                 }
-
                 if (resource.UniformBuffer != 0)
                 {
                     _api.BufferRelease((WebGpuBuffer*)resource.UniformBuffer);
                 }
+                if (resource.Texture != null)
+                {
+                    _meshTextures.ReleaseMeshTexture(resource.Texture);
+                }
+                resource.Mesh?.Dispose();
             }
         }
 

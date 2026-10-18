@@ -12,6 +12,10 @@
     <DefineConstants Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">$(DefineConstants);MANA_BROWSER</DefineConstants>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="ManaTests" />
+  </ItemGroup>
+
   <!-- mana_webgpu.c (ManaBrowserWebGpuNativeContext.cs's forwarding shims) lives physically in
        this project (Native\mana_webgpu.c) since that's the class that consumes it, but the
        NativeFileReference/EmccExportedFunction/EmccExtraLDFlags items that actually make it

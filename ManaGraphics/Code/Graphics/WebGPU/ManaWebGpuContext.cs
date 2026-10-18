@@ -928,9 +928,7 @@ namespace ManaGraphics.Code.Graphics
 #if !MANA_BROWSER
             foreach (var surface in _uiSurfaces.ToArray()) surface.Dispose();
 #endif
-            // Must happen before _queue/_device are released below: once polling stops, no native
-            // BufferMapAsync callback will ever fire again, so any still-pending readback awaiter would
-            // otherwise hang forever instead of getting a clean cancellation.
+            // Retire readbacks while the device is live; late native callbacks see no registered request.
             _disposed = true;
             // Before FaultAllPending: an item that slipped through can still register a readback.
             DrainRenderThreadWork();
