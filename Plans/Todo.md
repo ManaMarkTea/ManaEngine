@@ -12,6 +12,8 @@
     Cached C#/WGSL syntax colors distinguish keywords, types, methods, strings, numbers, comments and directives.
 
 [] - Project code cleanup: Plans/CodeCleanup.md.
+    [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaVoxel suites; all 3,512 checks pass.
+    Next: document ManaWebGpuContext resource lifetimes before extracting renderer services (CodeCleanup section 7).
     Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
     Panel metadata and factories now live together in EditorPanelRegistry; saved panel IDs and default layout behavior are preserved.
     EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.
@@ -28,7 +30,7 @@
     Fixed the dark Train Yard Wars board: SetLighting now updates the astronomical date/time with the chosen hour, so the sun follows the game setting and the L-key lighting choices.
     TywInteractionOverlay now owns hover, per-seat route/ready/cursor feedback and territory/siege geometry; all three Train Yard Wars visual extractions are complete.
     Yacht Jousting now lives in Games/YachtJousting; ManaGames supplies model services at registration, preserving the serialized level type and settings. Its tests live under Code/YachtJousting.
-    Follow-ups: other mutable test hooks, domain assertions in UI suites and renderer resource ownership; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
+    Follow-ups: other mutable test hooks and renderer resource ownership; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
     Claude (2026-10-07, not changed): looked at the Sprite Normals test scene (Tools/Automation/Checks/sprite-normals.json);

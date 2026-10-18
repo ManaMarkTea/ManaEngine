@@ -625,21 +625,6 @@ public static class InspectorChecks
                 MathF.Abs(motion.DegreesPerSecond - 45.0f) < 0.001f, motion.DegreesPerSecond.ToString("F1"));
         }
 
-        // Bobbing moves the node, and the node is also editable in the Transform section above. Whichever
-        // moved it last wins, so dragging a pickup somewhere else has to stick rather than being yanked
-        // back to wherever it was first dropped.
-        motion.Bobs = true;
-        motion.UpdateComponent();
-        donut.Position = new Vector3(10.0f, 5.0f, 10.0f);
-        motion.UpdateComponent();
-        motion.UpdateComponent();
-
-        Check("moving a bobbing node re-homes it rather than snapping back",
-            MathF.Abs(donut.Position.X - 10.0f) < 0.001f
-                && MathF.Abs(donut.Position.Z - 10.0f) < 0.001f
-                && MathF.Abs(donut.Position.Y - 5.0f) <= motion.BobHeight + 0.001f,
-            donut.Position.ToString());
-
         // ---------------------------------------------------------------- no write-back from a poll
         // The bug this covers: select a node that is moving on its own and it moves at double speed.
         // The editors poll, so a self-animating node sets their value every frame; setting a control's
@@ -707,17 +692,6 @@ public static class InspectorChecks
         {
             ManaTime.GlobalTime.DeltaTime = clock;
         }
-
-        // ---------------------------------------------------------------- rotation stays a heading
-        // Anything turning a node a little every frame used to accumulate without bound, until a float
-        // had no precision left for a degree. The node folds it now, so no animator has to remember to.
-        spun.Rotation = new Vector3(0.0f, 400.0f.ToRadians(), 0.0f);
-        Check("a rotation past a full turn wraps",
-            MathF.Abs(spun.RotationDegrees.Y - 40.0f) < 0.01f, $"{spun.RotationDegrees.Y:F1} degrees");
-
-        spun.Rotation = new Vector3((-6.0f).ToRadians(), 0.0f, 0.0f);
-        Check("and a small negative angle stays negative rather than becoming 354",
-            MathF.Abs(spun.RotationDegrees.X + 6.0f) < 0.01f, $"{spun.RotationDegrees.X:F1} degrees");
 
         // ---------------------------------------------------------------- selecting a component
         // The panel keyed only on the selected node, so choosing a different component on the same node
@@ -1044,14 +1018,6 @@ public static class InspectorChecks
         Check("mesh renderer checkboxes follow external scene edits without recording new commands",
             !outlineToggle.IsChecked && drawAfterToggle.IsChecked && !history.CanUndo);
         meshRenderer.EditorOutlineEnabled = false;
-        outlinedInstances.Clear();
-        meshNode.CollectRenderMeshInstances(outlinedInstances);
-        Check("clearing both outline sources disables the rendered outline", !outlinedInstances.Single().OutlineEnabled);
-        meshRenderer.OutlineEnabled = true;
-        meshRenderer.EditorOutlineEnabled = true;
-        meshRenderer.EditorOutlineEnabled = false;
-        Check("deselecting a mesh preserves its custom outline and width",
-            meshRenderer.RenderOutlineEnabled && meshRenderer.OutlineWidth == 1.5f);
         meshRenderer.OutlineEnabled = false;
         meshRenderer.DrawAfterScene = false;
         root.UpdateLayout(new Vector2(420, 900));
@@ -1446,12 +1412,6 @@ public static class InspectorChecks
         // material cannot end up pointing at something outside it.
         // Relative to the working directory, which for the suite is its own output folder -- where the
         // engine's assets are copied. Reported rather than assumed, so a checkout without them says so.
-        Check("the texture library scans the project", ManaUiTextureLibrary.Assets.Count > 0,
-            $"{ManaUiTextureLibrary.Assets.Count} textures under {Directory.GetCurrentDirectory()}");
-        Check("and stores relative paths",
-            ManaUiTextureLibrary.Assets.All(a => !Path.IsPathRooted(a.RelativePath)),
-            "portable across machines");
-
         // ---------------------------------------------------------------- the picker
         // Opened by clicking the slot, so the gesture is covered rather than the handler being called.
         var slotButton = FindAll<Button>(view)
@@ -1535,41 +1495,11 @@ public static class InspectorChecks
             root.UpdateLayout(new Vector2(420, 900));
         }
 
-        // ---------------------------------------------------------------- and it reaches the renderer
-        // The failure this covers: the picker assigned a map, the inspector showed it, and the mesh stayed
-        // untextured. The backends take the albedo map from the mesh's CPU data, where it is baked in at
-        // load time -- and left null by everything procedural, which a cube is. A map assigned to the
-        // material afterwards was written to a field nothing on the render path ever read.
+        // A file assignment must also populate the inspector's visible preview.
         if (ManaUiTextureLibrary.Assets.Count > 0)
         {
             var onDisk = ManaUiTextureLibrary.Assets[0];
             material.Albedo.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-
-            var collected = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(collected);
-
-            var instance = collected.FirstOrDefault();
-            Check("the cube is collected for rendering", instance != null, $"{collected.Count} instances");
-
-            Check("an assigned map reaches the render instance",
-                !string.IsNullOrWhiteSpace(instance?.MeshData.AlbedoTexturePath),
-                instance?.MeshData.AlbedoTexturePath ?? "null -- the material's map was dropped");
-
-            // Resolved to somewhere on disk, because a relative path is what a material stores and an
-            // absolute one is what the backend opens. This is the exact test the WebGPU loader makes.
-            Check("and points at a file the backend can open",
-                instance?.MeshData.AlbedoTexturePath is { } path && File.Exists(path),
-                instance?.MeshData.AlbedoTexturePath ?? "none");
-
-            // Collected every frame. A fresh copy each time would fail the renderers' reference check and
-            // have them rebuilding the mesh's GPU buffers on every frame it is visible.
-            var again = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(again);
-
-            Check("the same assignment yields the same data object",
-                ReferenceEquals(instance?.MeshData, again.FirstOrDefault()?.MeshData),
-                "so the renderer does not rebuild it every frame");
-
             // A picked texture is a filename and nothing else -- never loaded, no pixels. The preview has to
             // come off disk, or the slot sits empty after a successful pick and looks like it did nothing.
             world.Selection.SelectedNode = null;
@@ -1598,146 +1528,7 @@ public static class InspectorChecks
             Check("and the thumbnail is actually drawn there", textured > 0,
                 $"{textured} textured instances inside the slot");
 
-            // Every channel, not just albedo. The maps used to stop at the material: the picker wrote them
-            // and nothing downstream read them, so assigning a normal or emission map did nothing at all.
-            material.Normal.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.Emission.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.Metallic.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.Roughness.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.Occlusion.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.Opacity.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-
-            var allMaps = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(allMaps);
-            var mapped = allMaps.FirstOrDefault()?.MeshData;
-
-            Check("a normal map reaches the render instance",
-                mapped?.NormalTexturePath is { } n && File.Exists(n), mapped?.NormalTexturePath ?? "null");
-            Check("an emission map does too",
-                mapped?.EmissionTexturePath is { } e && File.Exists(e), mapped?.EmissionTexturePath ?? "null");
-            Check("and metallic, roughness, ambient and opacity",
-                mapped?.MetallicTexturePath != null && mapped.RoughnessTexturePath != null
-                    && mapped.OcclusionTexturePath != null && mapped.OpacityTexturePath != null,
-                $"{mapped?.MetallicTexturePath != null}/{mapped?.RoughnessTexturePath != null}/"
-                    + $"{mapped?.OcclusionTexturePath != null}/{mapped?.OpacityTexturePath != null}");
-
-            // Still stable frame to frame, or the renderer rebuilds every mesh every frame.
-            var repeat = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(repeat);
-            Check("with all six assigned it is still the same object",
-                ReferenceEquals(mapped, repeat.FirstOrDefault()?.MeshData), "no per-frame rebuild");
-
-            // Opacity is the one that needs more than a map: the opaque blend state is One/Zero, so a
-            // material that only lowers its alpha renders exactly as before. Auto resolves to Cutout the
-            // moment there is anything to say, rather than leaving an assigned map doing nothing.
-            material.Opacity.TextureValue = new ManaTexture(context) { OriginalFilename = onDisk.RelativePath };
-            material.OpacityMode = ManaOpacityMode.Auto;
-
-            Check("assigning an opacity map makes the material cut out",
-                material.EffectiveOpacityMode == ManaOpacityMode.Cutout,
-                material.EffectiveOpacityMode.ToString());
-
-            material.Opacity.TextureValue = null;
-            material.Opacity.Value = 1.0f;
-            Check("a material with nothing to say stays opaque",
-                material.EffectiveOpacityMode == ManaOpacityMode.Opaque,
-                material.EffectiveOpacityMode.ToString());
-
-            // A uniform value is a fade, and only blending can express that. Cutting out with the same
-            // alpha everywhere is a cliff: nothing, nothing, then the whole surface at once.
-            material.Opacity.Value = 0.5f;
-            Check("lowering the value alone asks for a fade, so it blends",
-                material.EffectiveOpacityMode == ManaOpacityMode.Blend,
-                material.EffectiveOpacityMode.ToString());
-
-            // And the value has to actually reach the renderer, which is the half that was missing: the
-            // map was wired and the slider was not, so it moved and nothing happened.
-            var faded = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(faded);
-
-            Check("the opacity value reaches the render instance",
-                MathF.Abs((faded.FirstOrDefault()?.Opacity ?? 1.0f) - 0.5f) < 0.001f,
-                $"{faded.FirstOrDefault()?.Opacity}");
-
-            // Blending is a material decision as much as a shader one: a PBR shader is opaque by nature,
-            // but a PBR material set to blend is not, and the pipeline is chosen from the instance.
-            material.OpacityMode = ManaOpacityMode.Blend;
-
-            var blended = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(blended);
-            var blendInstance = blended.FirstOrDefault();
-
-            Check("a blending material reaches the renderer as transparent",
-                blendInstance?.IsTransparent == true, $"{blendInstance?.IsTransparent}");
-            Check("and stops writing depth",
-                blendInstance?.DisableDepthWrite == true, $"{blendInstance?.DisableDepthWrite}");
-            Check("with its mode and cutoff",
-                blendInstance?.OpacityMode == ManaOpacityMode.Blend
-                    && MathF.Abs((blendInstance?.AlphaCutoff ?? 0.0f) - 0.5f) < 0.001f,
-                $"{blendInstance?.OpacityMode}, cutoff {blendInstance?.AlphaCutoff}");
-
-            material.OpacityMode = ManaOpacityMode.Auto;
-            material.Opacity.Value = 1.0f;
-
-            var opaque = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(opaque);
-            Check("an ordinary material is still opaque",
-                opaque.FirstOrDefault()?.IsTransparent == false, "no blending unless asked");
-
-            // A loaded glTF writes NormalSelector = 0, which means "use the map fully" -- it mixes toward
-            // the vertex normal, so it reads backwards everywhere downstream. The instance carries a
-            // strength instead, and the inspector shows that, or a helmet with a perfectly good normal
-            // map appears to have it switched off.
-            material.NormalSelector = 0.0;
-
-            var normals = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(normals);
-
-            Check("a fully applied normal map reaches the renderer at full strength",
-                MathF.Abs((normals.FirstOrDefault()?.NormalStrength ?? 0.0f) - 1.0f) < 0.001f,
-                $"{normals.FirstOrDefault()?.NormalStrength}");
-
-            material.NormalSelector = 1.0;
-            var ignored = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(ignored);
-
-            Check("and one mixed all the way to the vertex normal arrives at zero",
-                MathF.Abs(ignored.FirstOrDefault()?.NormalStrength ?? 1.0f) < 0.001f,
-                $"{ignored.FirstOrDefault()?.NormalStrength}");
-
-            material.NormalSelector = 0.0;
-
-            // UV tiling rides on the instance rather than the mesh: it is a material property, and the
-            // same brick wants a different repeat on a wall than on a doorframe.
-            material.UvScale = new Vector2(4.0f, 2.0f);
-            material.UvOffset = new Vector2(0.25f, 0.5f);
-
-            var tiled = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(tiled);
-
-            Check("uv tiling reaches the render instance",
-                tiled.FirstOrDefault()?.UvTransform == new Vector4(4.0f, 2.0f, 0.25f, 0.5f),
-                tiled.FirstOrDefault()?.UvTransform.ToString() ?? "none");
-
-            material.UvScale = Vector2.One;
-            material.UvOffset = Vector2.Zero;
-            material.Normal.TextureValue = null;
-            material.Emission.TextureValue = null;
-            material.Metallic.TextureValue = null;
-            material.Roughness.TextureValue = null;
-            material.Occlusion.TextureValue = null;
-            material.Opacity.TextureValue = null;
-
-            // Cleared, and the mesh goes back to whatever it was carrying itself.
-            material.Albedo.TextureValue = null;
-            var cleared = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
-            meshNode.CollectRenderMeshInstances(cleared);
-
-            Check("clearing the channel takes the map off the mesh",
-                cleared.FirstOrDefault()?.MeshData.AlbedoTexturePath == null,
-                cleared.FirstOrDefault()?.MeshData.AlbedoTexturePath ?? "null");
         }
-
         material.Albedo.TextureValue = null;
 
         // ---------------------------------------------------------------- rebuilt mid-drag

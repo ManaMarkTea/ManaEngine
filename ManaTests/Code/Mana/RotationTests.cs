@@ -7,6 +7,20 @@ public static class RotationChecks
 {
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
+        void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
+        var context = new Mana.Code.ManaContext(null!, null!, new ManaWorld());
+        var node = new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity);
+        // ---------------------------------------------------------------- rotation stays a heading
+        // Anything turning a node a little every frame used to accumulate without bound, until a float
+        // had no precision left for a degree. The node folds it now, so no animator has to remember to.
+        node.Rotation = new Vector3(0.0f, 400.0f.ToRadians(), 0.0f);
+        Check("a rotation past a full turn wraps",
+            MathF.Abs(node.RotationDegrees.Y - 40.0f) < 0.01f, $"{node.RotationDegrees.Y:F1} degrees");
+
+        node.Rotation = new Vector3((-6.0f).ToRadians(), 0.0f, 0.0f);
+        Check("and a small negative angle stays negative rather than becoming 354",
+            MathF.Abs(node.RotationDegrees.X + 6.0f) < 0.01f, $"{node.RotationDegrees.X:F1} degrees");
+
         CheckAxisRoundTrip("X pitch", new Vector3(45.0f.ToRadians(), 0.0f, 0.0f), check);
         CheckAxisRoundTrip("Y yaw", new Vector3(0.0f, 45.0f.ToRadians(), 0.0f), check);
         CheckAxisRoundTrip("Z roll", new Vector3(0.0f, 0.0f, 45.0f.ToRadians()), check);

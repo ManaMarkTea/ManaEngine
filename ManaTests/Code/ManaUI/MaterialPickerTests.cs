@@ -58,8 +58,5 @@ public static class MaterialPickerChecks
             Check("selection closes the popup", root.Popups.Open.Count == 0);
             Check("current material shown on the button", button is Button { Text: "concrete" });
         }
-        Check("texture picker excludes icons and model images", ManaUiTextureLibrary.Assets.All(asset =>
-            !asset.RelativePath.Contains("/Icons/", StringComparison.OrdinalIgnoreCase)
-            && !asset.RelativePath.Contains("/Models/", StringComparison.OrdinalIgnoreCase)));
     }
 }

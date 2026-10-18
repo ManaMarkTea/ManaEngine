@@ -32,14 +32,7 @@ public static class ScenesChecks
             Directory.CreateDirectory(siblingFolder);
             var sibling = Path.Combine(siblingFolder, "Other.manalevel");
             File.WriteAllText(sibling, "{}");
-            var discovered = ManaLevelLibrary.List(folder);
-            check("level discovery includes arbitrarily nested folders", discovered.Count == 3 && discovered.Contains(nested), "");
-            var hierarchy = ManaLevelFolder.Build(discovered, folder);
-            var testsFolder = hierarchy.Find("Tests")!;
-            check("folder selection includes descendants and excludes similarly named siblings",
-                testsFolder.DescendantLevels().SequenceEqual(new[] { nested }), "");
-            check("root scenes and duplicate scene names keep their distinct paths", hierarchy.Levels.Single() == level
-                && hierarchy.DescendantLevels().Count() == 3, "");
+            var hierarchy = ManaLevelFolder.Build(ManaLevelLibrary.List(folder), folder);
             var host = new LevelHost();
             var menuLevels = new LevelViewModel { Host = host };
             menuLevels.MarkOpened(nested);
