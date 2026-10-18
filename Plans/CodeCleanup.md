@@ -59,10 +59,10 @@ This is a structural review, not a claim that every large file needs splitting.
 
 ## 5. Separate Train Yard Wars visuals
 
-- [ ] Extract ground/chunk rendering, train visuals and interaction overlays from TywBoardView in separate steps.
+- [x] Extract ground/chunk rendering, train visuals and interaction overlays from TywBoardView in separate steps.
   - [x] Ground/chunk rendering: TywGroundRenderer owns dirty chunks, tile render state, territory ground tint, sea and coastal scenery. Board callbacks retain scene ownership and locking; stable batch nodes preserve deferred GPU uploads. TywViewGeometry shares existing placement/rail mesh calculations.
   - [x] Train visuals: TywTrainRenderer owns locomotive/wagon instances, smoke, pose blending, route-history reuse and transfer indicators; the board supplies cached model instances and scene ownership callbacks.
-  - [ ] Interaction overlays.
+  - [x] Interaction overlays: TywInteractionOverlay owns hover, per-seat route/ready/cursor caches, territory and siege geometry. Board methods forward existing calls; locking, throttling and stable territory mesh replacement are unchanged.
 - Preserve batching, retirement of old meshes and existing appearance; run game suites and automation checks.
 
 ## 6. Clarify project and test ownership
@@ -106,3 +106,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Train visual extraction validation (2026-10-18): all 208 game checks passed in 3.2s, including wagon reuse, cargo indicator visibility, train removal and board reset. Desktop build has zero warnings; automation completed and capture inspected at Artifacts/Automation/cleanup-tyw-trains.png. User reported excessively dark terrain; investigation found SetLighting sets only the legacy phase while ManaSky evaluates the date-time. The mismatch predates these extractions and is being fixed separately. Browser/iOS were not run.
 
 - Lighting follow-up (2026-10-18): TrainYardWarsMode.SetLighting now updates SkyDateTime as well as TimeOfDay, preserving the date and UTC offset. The sun follows the configured hour and L-key choices again. Both new regression checks failed before the fix; all 210 game checks now pass in 3.4s. Desktop automation completed with unchanged intensity settings, and the daylight capture was inspected at Artifacts/Automation/cleanup-tyw-lighting.png. Visual record: DevPhotos/2026-10-18 train-yard-wars-lighting.png. User settings restored; browser/iOS were not run.
+
+- Interaction overlay extraction validation (2026-10-18): all 3,510 headless checks passed in 26.3s. Added checks for unchanged highlight reuse, per-seat clearing and preview/cursor recreation after board reset. Desktop build has zero warnings. Existing game automation completed with two stand-in pads, bot play and score logging; daylight capture inspected at Artifacts/Automation/cleanup-tyw-overlays.png with no logged exceptions or WebGPU validation errors. User settings restored. TywBoardView is now 768 lines (previously 2,086); scene ownership and rail retirement remain there. Browser/iOS were not run.
