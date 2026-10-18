@@ -61,7 +61,7 @@ This is a structural review, not a claim that every large file needs splitting.
 
 - [ ] Extract ground/chunk rendering, train visuals and interaction overlays from TywBoardView in separate steps.
   - [x] Ground/chunk rendering: TywGroundRenderer owns dirty chunks, tile render state, territory ground tint, sea and coastal scenery. Board callbacks retain scene ownership and locking; stable batch nodes preserve deferred GPU uploads. TywViewGeometry shares existing placement/rail mesh calculations.
-  - [ ] Train visuals.
+  - [x] Train visuals: TywTrainRenderer owns locomotive/wagon instances, smoke, pose blending, route-history reuse and transfer indicators; the board supplies cached model instances and scene ownership callbacks.
   - [ ] Interaction overlays.
 - Preserve batching, retirement of old meshes and existing appearance; run game suites and automation checks.
 
@@ -102,3 +102,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Planet geometry extraction validation: all 3,502 headless checks passed in 25.6s; desktop build has no warnings. Planet Showcase refined 4/4 children from 42/42 tiles to 219 leaves, then merged to 216; both checkpoints had all busy counters zero. Detail and orbit captures inspected under Artifacts/Automation/cleanup-geometry*.png. User workspace settings were restored. Geometry formulas, source-quality thresholds, shaders and authored content are unchanged; browser/iOS were not run.
 
 - Train Yard Wars ground extraction validation (2026-10-18): all 208 game checks passed in 3.2s, including board-reset ownership checks; desktop build has zero warnings. Existing train-yard-wars automation completed with two stand-in pads, bot play and score logging. In-app capture inspected at Artifacts/Automation/cleanup-tyw-ground.png; user settings restored. Ground batching keeps stable scene nodes during replacement uploads; rail retirement stays board-owned. Browser/iOS were not run.
+
+- Train visual extraction validation (2026-10-18): all 208 game checks passed in 3.2s, including wagon reuse, cargo indicator visibility, train removal and board reset. Desktop build has zero warnings; automation completed and capture inspected at Artifacts/Automation/cleanup-tyw-trains.png. User reported excessively dark terrain; investigation found SetLighting sets only the legacy phase while ManaSky evaluates the date-time. The mismatch predates these extractions and is being fixed separately. Browser/iOS were not run.

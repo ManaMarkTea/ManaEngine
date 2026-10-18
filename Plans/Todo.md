@@ -24,6 +24,7 @@
     Planets now retire on permanent level removal/reload and app shutdown, discarding late terrain results while active readbacks retain their slots; reparenting stays live.
     PlanetPatchGeometry now owns patch bounds, baseline overlap/source measurements and height application, with scene mutation and retirement checks retained in PlanetNode.
     TywGroundRenderer now owns Train Yard Wars ground chunks, territory ground tint, sea and coastal scenery; board-owned scene callbacks preserve replacement mesh lifetimes.
+    TywTrainRenderer now owns animated train state and cargo indicators, preserving unchanged wagon instances and route history.
     Follow-ups: other mutable test hooks, game view responsibilities; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
