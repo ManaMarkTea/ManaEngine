@@ -103,6 +103,10 @@ struct CustomMaterialUniform {
     // Ambient light added to the water's own colour, so its shaded side does not sink to a flat dark.
     //PROPERTY(default=0.0, min=0.0, max=1.0)
     ambientLift : f32,
+
+    // 1 draws the low-poly look: flat facets, banded light, hard-edged foam. 0 is the realistic water.
+    //PROPERTY(default=0.0, min=0.0, max=1.0)
+    stylized : f32,
 };
 
 @group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
@@ -288,8 +292,56 @@ fn detail_normal(xz : vec2<f32>, calm : f32, gust : f32) -> vec3<f32> {
     return vec3<f32>(-slope.x, 0.0, -slope.y);
 }
 
+// Low-poly water: each facet of the displaced grid is one flat colour in three light bands, with foam
+// as hard-edged white on the wave tops, ripple rings and shore, and a crisp glint where a facet mirrors the sun.
+fn stylized_color(input : VertexOutput, facet_normal : vec3<f32>) -> vec4<f32> {
+    var n = facet_normal;
+    if (n.y < 0.0) {
+        n = -n;
+    }
+    let p = input.world_position.xz;
+    let calm = shore_calm(input.uv0);
+    let daylight = frame.irradiance_factors.w;
+    var to_sun = normalize(vec3<f32>(0.4, 0.8, 0.3));
+    var sun_tint = vec3<f32>(1.0);
+    if (frame.sun_direction.w > 0.5) {
+        to_sun = normalize(-frame.sun_direction.xyz);
+        sun_tint = mix(vec3<f32>(1.0), normalize(frame.sun_color.rgb + vec3<f32>(0.001)) * 1.7, 0.35);
+    }
+    let v = normalize(frame.camera_position.xyz - input.world_position);
+
+    // Three bands: the shade side, the middle, and the facets turned toward the light.
+    // Measured against a flat surface, so a high sun still splits facets into leaning-away, level and leaning-in.
+    let lean = dot(n, to_sun) - to_sun.y;
+    let tone = step(-0.04, lean) * 0.5 + step(0.05, lean) * 0.5;
+    let shallows = 1.0 - saturate(shore_distance(input.uv0) / max(custom.shoreWidth * 1.6, 0.01));
+    var base = mix(custom.deepColor, custom.shallowColor, saturate(0.04 + tone * 0.8 + shallows * 0.4));
+    base = base * sun_tint * mix(0.35, 1.0, daylight);
+
+    // Foam: wave tops past a wobbling threshold, a ring where something hit the water, and the bank.
+    let swell = ambient_wave(p) * calm;
+    let top = custom.waveStrength * wind_factor() * 1.15;
+    let wobble = wave_noise(p * 1.7 + vec2<f32>(frame.time * 0.15, 0.0)) * top * 0.35;
+    let crest = step(top, swell + wobble) * saturate(custom.waveStrength * 8.0);
+    let ring = step(0.8, ripple_height(input.local_xz.x, input.local_xz.y));
+    let bank = 1.0 - step(custom.shoreWidth * 0.3 + wobble * 3.0, shore_distance(input.uv0));
+    let foam = max(max(crest, ring), bank);
+    let foam_color = vec3<f32>(0.93, 0.98, 1.0) * mix(0.45, 1.0, daylight);
+
+    var color = mix(base, foam_color, foam);
+    // Hard sun glint: a facet that mirrors the sun flashes, rather than smearing a highlight.
+    let glint = step(0.9994, max(dot(n, normalize(to_sun + v)), 0.0)) * step(0.5, daylight);
+    color = mix(color, vec3<f32>(1.0, 0.97, 0.85), glint * (1.0 - foam));
+    return vec4<f32>(color, 1.0);
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
+    // Derivatives first, before any branch (uniformity); the facet normal is only used when stylized.
+    let facet_normal = normalize(cross(dpdy(input.world_position), dpdx(input.world_position)));
+    if (custom.stylized > 0.5) {
+        return stylized_color(input, facet_normal);
+    }
     let calm = shore_calm(input.uv0);
     let paw = gust_field(input.world_position.xz) * calm;
     let n = normalize(normalize(input.world_normal) + detail_normal(input.world_position.xz, calm, paw));

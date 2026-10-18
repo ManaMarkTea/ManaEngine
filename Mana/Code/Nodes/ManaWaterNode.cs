@@ -32,6 +32,17 @@ namespace Mana.Code.Nodes
             MeshRenderer.DynamicMaterial.SetShaderUniform("planeSize", new Vector4(size.X, size.Y, 0.0f, 0.0f));
         }
 
+        /// <summary>Switches the shader to flat facets, banded light and hard-edged foam, with a palette to match.</summary>
+        public void StyleLowPoly()
+        {
+            var material = MeshRenderer.DynamicMaterial;
+            material.SetShaderUniform("stylized", 1.0f);
+            material.SetShaderUniform("deepColor", new Vector3(0.03f, 0.2f, 0.4f));
+            material.SetShaderUniform("shallowColor", new Vector3(0.1f, 0.5f, 0.68f));
+            material.SetShaderUniform("waveFrequency", 0.38f);
+            material.SetShaderUniform("rippleFrequency", 0.9f);
+        }
+
         public const int MinimumResolution = 4;
         public const int MaximumResolution = 256;
 
