@@ -25,6 +25,7 @@
     PlanetPatchGeometry now owns patch bounds, baseline overlap/source measurements and height application, with scene mutation and retirement checks retained in PlanetNode.
     TywGroundRenderer now owns Train Yard Wars ground chunks, territory ground tint, sea and coastal scenery; board-owned scene callbacks preserve replacement mesh lifetimes.
     TywTrainRenderer now owns animated train state and cargo indicators, preserving unchanged wagon instances and route history.
+    Fixed the dark Train Yard Wars board: SetLighting now updates the astronomical date/time with the chosen hour, so the sun follows the game setting and the L-key lighting choices.
     Follow-ups: other mutable test hooks, game view responsibilities; register wasm-tools for SDK 10.0.402 (requires administrator privileges).
 
 [] - Auto-Normal looks really bad.
