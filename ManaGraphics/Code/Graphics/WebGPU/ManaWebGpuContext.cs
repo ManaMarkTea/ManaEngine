@@ -706,219 +706,248 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
-            var useHdrPost = _hdrPostProcessor != null && hdrSceneTextureView != null;
-
-            var sceneColorAttachment = new RenderPassColorAttachment
-            {
-                View = sceneTargetView,
-                LoadOp = LoadOp.Clear,
-                StoreOp = StoreOp.Store,
-                ClearValue = clearColor
-            };
-
-            var depthStencilAttachment = new RenderPassDepthStencilAttachment
-            {
-                View = _depthTextureView,
-                DepthLoadOp = LoadOp.Clear,
-                DepthStoreOp = StoreOp.Store,
-                DepthClearValue = 1.0f,
-                DepthReadOnly = false,
-                StencilLoadOp = LoadOp.Undefined,
-                StencilStoreOp = StoreOp.Undefined,
-                StencilClearValue = 0,
-                StencilReadOnly = true
-            };
-
-            var sceneRenderPassDescriptor = new RenderPassDescriptor
-            {
-                ColorAttachmentCount = 1,
-                ColorAttachments = &sceneColorAttachment,
-                DepthStencilAttachment = &depthStencilAttachment
-            };
-
+            // Every native handle below is released in the finally, so a throw anywhere in the frame cannot leak them
+            // or leave the surface texture acquired. Passes are nulled once released mid-frame.
             var frameStopwatch = Stopwatch.StartNew();
-
-            var commandEncoderDescriptor = new CommandEncoderDescriptor();
-            var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
-            var collectStopwatch = Stopwatch.StartNew();
-
-            // See SuspendSceneWork's own doc comment. RefreshRenderScene is where a fast-running background
-            // load turns into a synchronous stall on the render thread: it walks whatever the scene has
-            // grown to since last frame and uploads all of it right here, and on a load that outpaces the
-            // frame loop that can mean minutes of normal per-frame uploads compressed into whichever single
-            // frame happens to run next. The scene pass still clears below either way, so skipping this
-            // costs nothing but an empty frame -- exactly what a loading screen is drawn over.
-            if (!SuspendSceneWork)
+            CommandEncoder* commandEncoder = null;
+            RenderPassEncoder* sceneRenderPass = null;
+            RenderPassEncoder* toneMapRenderPass = null;
+            CommandBuffer* commandBuffer = null;
+            try
             {
-                if (!_loggedFirstSceneWork)
-                {
-                    _loggedFirstSceneWork = true;
+                var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
+                var useHdrPost = _hdrPostProcessor != null && hdrSceneTextureView != null;
 
-                    // Closes the loop with the rest of the startup timeline: whatever gap remains between
-                    // "first frame presented" and this is the loading screen actually having its moment on
-                    // screen before the scene catches up behind it.
-                    ManaConsole.WriteDiagnosticElapsed("First unsuspended RefreshRenderScene (scene upload resumes).");
+                var sceneColorAttachment = new RenderPassColorAttachment
+                {
+                    View = sceneTargetView,
+                    LoadOp = LoadOp.Clear,
+                    StoreOp = StoreOp.Store,
+                    ClearValue = clearColor
+                };
+
+                var depthStencilAttachment = new RenderPassDepthStencilAttachment
+                {
+                    View = _depthTextureView,
+                    DepthLoadOp = LoadOp.Clear,
+                    DepthStoreOp = StoreOp.Store,
+                    DepthClearValue = 1.0f,
+                    DepthReadOnly = false,
+                    StencilLoadOp = LoadOp.Undefined,
+                    StencilStoreOp = StoreOp.Undefined,
+                    StencilClearValue = 0,
+                    StencilReadOnly = true
+                };
+
+                var sceneRenderPassDescriptor = new RenderPassDescriptor
+                {
+                    ColorAttachmentCount = 1,
+                    ColorAttachments = &sceneColorAttachment,
+                    DepthStencilAttachment = &depthStencilAttachment
+                };
+
+                var commandEncoderDescriptor = new CommandEncoderDescriptor();
+                commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+                var collectStopwatch = Stopwatch.StartNew();
+
+                // See SuspendSceneWork's own doc comment. RefreshRenderScene is where a fast-running background
+                // load turns into a synchronous stall on the render thread: it walks whatever the scene has
+                // grown to since last frame and uploads all of it right here, and on a load that outpaces the
+                // frame loop that can mean minutes of normal per-frame uploads compressed into whichever single
+                // frame happens to run next. The scene pass still clears below either way, so skipping this
+                // costs nothing but an empty frame -- exactly what a loading screen is drawn over.
+                if (!SuspendSceneWork)
+                {
+                    if (!_loggedFirstSceneWork)
+                    {
+                        _loggedFirstSceneWork = true;
+
+                        // Closes the loop with the rest of the startup timeline: whatever gap remains between
+                        // "first frame presented" and this is the loading screen actually having its moment on
+                        // screen before the scene catches up behind it.
+                        ManaConsole.WriteDiagnosticElapsed("First unsuspended RefreshRenderScene (scene upload resumes).");
+                    }
+
+                    RefreshRenderScene();
                 }
 
-                RefreshRenderScene();
-            }
+                UpdateShadowCascades();
+                UpdateFrameUniform();
+                LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
-            UpdateShadowCascades();
-            UpdateFrameUniform();
-            LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
+                // Not gated on SuspendSceneWork like the block above: the loading screen's own completion
+                // waits on IsEnvironmentInitializationPending (see VoxelEditorGameMode.CanCompleteLoading),
+                // so suspending this too meant the environment map could never start loading while the
+                // screen that's waiting on it was up -- loading waiting on loading, forever. Kicking off the
+                // Task.Run load here only needs the active render scene, not the mesh upload/reconcile work
+                // RefreshRenderScene does, so it's safe to run every frame regardless of suspension.
+                EnsureEnvironmentInitializationStarted();
 
-            // Not gated on SuspendSceneWork like the block above: the loading screen's own completion
-            // waits on IsEnvironmentInitializationPending (see VoxelEditorGameMode.CanCompleteLoading),
-            // so suspending this too meant the environment map could never start loading while the
-            // screen that's waiting on it was up -- loading waiting on loading, forever. Kicking off the
-            // Task.Run load here only needs the active render scene, not the mesh upload/reconcile work
-            // RefreshRenderScene does, so it's safe to run every frame regardless of suspension.
-            EnsureEnvironmentInitializationStarted();
-
-            if (!SuspendSceneWork)
-            {
-                using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
+                if (!SuspendSceneWork)
                 {
-                    DrawSkyIntoEnvironmentIfNeeded(commandEncoder);
-                    CaptureSceneEnvironmentIfNeeded(commandEncoder);
+                    using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
+                    {
+                        DrawSkyIntoEnvironmentIfNeeded(commandEncoder);
+                        CaptureSceneEnvironmentIfNeeded(commandEncoder);
+                    }
+
+                    using (ManaFrameProfiler.Measure("GPU: Shadow Cascades"))
+                    {
+                        RenderShadowCascades(commandEncoder);
+                    }
                 }
 
-                using (ManaFrameProfiler.Measure("GPU: Shadow Cascades"))
+                sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
+                var drawStopwatch = Stopwatch.StartNew();
+
+                if (!SuspendSceneWork)
                 {
-                    RenderShadowCascades(commandEncoder);
+                    // First, so ordinary depth-tested geometry draws over it: the sky is a background, not
+                    // something meshes need to sort against.
+                    DrawSkybox(sceneRenderPass);
+                    DrawDemoMesh(sceneRenderPass);
+                    DrawGpuParticles(sceneRenderPass);
+                    DrawOverlays(sceneRenderPass);
                 }
-            }
 
-            var sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
-            var drawStopwatch = Stopwatch.StartNew();
-
-            if (!SuspendSceneWork)
-            {
-                // First, so ordinary depth-tested geometry draws over it: the sky is a background, not
-                // something meshes need to sort against.
-                DrawSkybox(sceneRenderPass);
-                DrawDemoMesh(sceneRenderPass);
-                DrawGpuParticles(sceneRenderPass);
-                DrawOverlays(sceneRenderPass);
-            }
-
-            _api.RenderPassEncoderEnd(sceneRenderPass);
-            if (!SuspendSceneWork && _sceneMeshes.Any(mesh => mesh.Instance.AlwaysOnTop))
-            {
-                // Keep the scene color, but depth-test handles against one another, not the scene.
-                sceneColorAttachment.LoadOp = LoadOp.Load;
-                depthStencilAttachment.View = _handleDepthTextureView;
-                var handlePass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
-                foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
+                _api.RenderPassEncoderEnd(sceneRenderPass);
+                if (!SuspendSceneWork && _sceneMeshes.Any(mesh => mesh.Instance.AlwaysOnTop))
                 {
-                    DrawSceneMesh(handlePass, mesh);
+                    // Keep the scene color, but depth-test handles against one another, not the scene.
+                    sceneColorAttachment.LoadOp = LoadOp.Load;
+                    depthStencilAttachment.View = _handleDepthTextureView;
+                    var handlePass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
+                    foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
+                    {
+                        DrawSceneMesh(handlePass, mesh);
+                    }
+                    _api.RenderPassEncoderEnd(handlePass);
+                    _api.RenderPassEncoderRelease(handlePass);
                 }
-                _api.RenderPassEncoderEnd(handlePass);
-                _api.RenderPassEncoderRelease(handlePass);
-            }
-            LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
+                LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
-            if (useHdrPost)
-            {
-                using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
+                if (useHdrPost)
                 {
-                    DrawOutlineMask(commandEncoder);
-                    _hdrPostProcessor?.Process(commandEncoder);
+                    using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
+                    {
+                        DrawOutlineMask(commandEncoder);
+                        _hdrPostProcessor?.Process(commandEncoder);
+                    }
                 }
-            }
 
-            var surfaceColorAttachment = new RenderPassColorAttachment
-            {
-                View = textureView,
-                LoadOp = useHdrPost ? LoadOp.Clear : LoadOp.Load,
-                StoreOp = StoreOp.Store,
-                ClearValue = clearColor
-            };
+                var surfaceColorAttachment = new RenderPassColorAttachment
+                {
+                    View = textureView,
+                    LoadOp = useHdrPost ? LoadOp.Clear : LoadOp.Load,
+                    StoreOp = StoreOp.Store,
+                    ClearValue = clearColor
+                };
 
-            var toneMapRenderPassDescriptor = new RenderPassDescriptor
-            {
-                ColorAttachmentCount = 1,
-                ColorAttachments = &surfaceColorAttachment
-            };
+                var toneMapRenderPassDescriptor = new RenderPassDescriptor
+                {
+                    ColorAttachmentCount = 1,
+                    ColorAttachments = &surfaceColorAttachment
+                };
 
-            var toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
-            using (ManaFrameProfiler.Measure("GPU: Tone Map"))
-            {
-                _hdrPostProcessor?.Draw(toneMapRenderPass);
-            }
-
-            // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
-            // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
-            // second pass that loads what the first one left. Skipped entirely unless something asked for
-            // blur, which keeps the ordinary frame exactly one pass as before.
-            if (WantsBackdrop())
-            {
-                _api.RenderPassEncoderEnd(toneMapRenderPass);
-                CaptureUiBackdrop(commandEncoder, surfaceTexture.Texture);
-
-                surfaceColorAttachment.LoadOp = LoadOp.Load;
                 toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
-            }
+                using (ManaFrameProfiler.Measure("GPU: Tone Map"))
+                {
+                    _hdrPostProcessor?.Draw(toneMapRenderPass);
+                }
 
-            // The UI draws last, over the tone-mapped scene.
-            using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
-            {
-                DrawManaUi(toneMapRenderPass);
-            }
+                // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
+                // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
+                // second pass that loads what the first one left. Skipped entirely unless something asked for
+                // blur, which keeps the ordinary frame exactly one pass as before.
+                if (WantsBackdrop())
+                {
+                    _api.RenderPassEncoderEnd(toneMapRenderPass);
+                    _api.RenderPassEncoderRelease(toneMapRenderPass);
+                    toneMapRenderPass = null;
+                    CaptureUiBackdrop(commandEncoder, surfaceTexture.Texture);
 
-            _api.RenderPassEncoderEnd(toneMapRenderPass);
+                    surfaceColorAttachment.LoadOp = LoadOp.Load;
+                    toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
+                }
 
-            var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
-            var pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
+                // The UI draws last, over the tone-mapped scene.
+                using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
+                {
+                    DrawManaUi(toneMapRenderPass);
+                }
 
-            var commandBufferDescriptor = new CommandBufferDescriptor();
-            var submitStopwatch = Stopwatch.StartNew();
-            var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
-            _api.QueueSubmit(_queue, 1, &commandBuffer);
-            _api.SurfacePresent(_surface);
+                _api.RenderPassEncoderEnd(toneMapRenderPass);
 
-            if (pendingScreenshotCopy is { } encodedScreenshotCopy)
-            {
-                FinishPendingScreenshotReadback(encodedScreenshotCopy);
-            }
+                var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
+                var pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
 
-            if (pendingEnvironmentDump is { } environmentDump)
-            {
-                FinishEnvironmentDump(environmentDump);
-            }
+                var commandBufferDescriptor = new CommandBufferDescriptor();
+                var submitStopwatch = Stopwatch.StartNew();
+                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                _api.QueueSubmit(_queue, 1, &commandBuffer);
+                _api.SurfacePresent(_surface);
 
-            if (!_loggedFirstPresent)
-            {
-                _loggedFirstPresent = true;
+                if (pendingScreenshotCopy is { } encodedScreenshotCopy)
+                {
+                    FinishPendingScreenshotReadback(encodedScreenshotCopy);
+                }
 
-                // The end of the trail: the moment a frame was actually handed to the window, as opposed to
-                // recorded, submitted or merely attempted. Everything before this in the log was a guess at
-                // why the window looked blank; this is when it stopped being one.
-                ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
-            }
+                if (pendingEnvironmentDump is { } environmentDump)
+                {
+                    FinishEnvironmentDump(environmentDump);
+                }
 
-#if MANA_BROWSER
-            _api.InstanceProcessEvents(_instance);
-#else
-            if (_wgpuNativeExtension != null)
-            {
-                _wgpuNativeExtension.DevicePoll(_device, false, null);
-            }
-            else
-            {
+                if (!_loggedFirstPresent)
+                {
+                    _loggedFirstPresent = true;
+
+                    // The end of the trail: the moment a frame was actually handed to the window, as opposed to
+                    // recorded, submitted or merely attempted. Everything before this in the log was a guess at
+                    // why the window looked blank; this is when it stopped being one.
+                    ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
+                }
+
+    #if MANA_BROWSER
                 _api.InstanceProcessEvents(_instance);
+    #else
+                if (_wgpuNativeExtension != null)
+                {
+                    _wgpuNativeExtension.DevicePoll(_device, false, null);
+                }
+                else
+                {
+                    _api.InstanceProcessEvents(_instance);
+                }
+    #endif
+
+                LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
+
             }
-#endif
+            finally
+            {
+                if (commandBuffer != null)
+                {
+                    _api.CommandBufferRelease(commandBuffer);
+                }
 
-            LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
+                if (commandEncoder != null)
+                {
+                    _api.CommandEncoderRelease(commandEncoder);
+                }
 
-            _api.CommandBufferRelease(commandBuffer);
-            _api.CommandEncoderRelease(commandEncoder);
-            _api.RenderPassEncoderRelease(sceneRenderPass);
-            _api.RenderPassEncoderRelease(toneMapRenderPass);
-            _api.TextureViewRelease(textureView);
-            _api.TextureRelease(surfaceTexture.Texture);
+                if (sceneRenderPass != null)
+                {
+                    _api.RenderPassEncoderRelease(sceneRenderPass);
+                }
+
+                if (toneMapRenderPass != null)
+                {
+                    _api.RenderPassEncoderRelease(toneMapRenderPass);
+                }
+
+                _api.TextureViewRelease(textureView);
+                _api.TextureRelease(surfaceTexture.Texture);
+            }
 
             LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
 
@@ -1001,6 +1030,9 @@ namespace ManaGraphics.Code.Graphics
                 _api.InstanceRelease(_instance);
                 _instance = null;
             }
+
+            // _api and _wgpuNativeExtension are deliberately not disposed: the native library outlives the context
+            // (see Plans/RendererResourceOwnership.md, binding-wrapper contract).
         }
     }
 }

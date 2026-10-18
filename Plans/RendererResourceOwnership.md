@@ -142,6 +142,39 @@ These are source findings. No native failure was reproduced during this document
    boundary is settled. Keep borrowed environment/shadow views valid for retained mesh bind groups;
    do not replace the six-frame retirement rule with immediate destruction during a structural split.
 
+## Native binding-wrapper ownership contract
+
+The Silk.NET wrappers are not GPU objects: they hold the loaded native library and its entry points, so
+releasing every GPU handle says nothing about whether the library may be unloaded. Decisions (2026-10-18; the callback-after-release rationale below is the intent, not something
+a test here proves):
+
+- **`WebGPU _api`** is created once per `ManaWebGpuContext` (`WebGPU.GetApi()`, the host's `CreateApi()` on iOS/Android, or the
+  browser's `ManaBrowserWebGpuNativeContext`) and is **never disposed by the context**. The native library therefore lives for the
+  process, on purpose: wgpu-native can still deliver a map/device callback after the device is released, and unloading the library
+  under it would turn that into a crash. A context that is rebuilt (fresh-context reopen, injected-failure rollback) makes a new wrapper
+  over the same already-loaded library, which is what the native smoke harnesses exercise.
+- **`Wgpu? _wgpuNativeExtension`** (desktop/mobile poll extension from `TryGetDeviceExtension`) is a borrowed view of the same library:
+  no release. It is left set after `Dispose`; `ClearFrame` has no `_disposed` guard and still polls through it first thing, so the
+  safety of a frame after disposal rests on `GameSilkWebGpu` dropping its context reference and letting any active frame unwind before
+  `Dispose` (not verified by a test). A `_disposed` guard at the top of `ClearFrame` is the cheap follow-up if that ever changes.
+- **`IManaWebGpuNativeHost.CreateApi()`** hands the context a wrapper the host does not keep: the context is the only holder, and
+  a host that wants an unload contract (none does today) must own that decision itself, with its callbacks quiesced first.
+- **Revisit** only with a native host that needs the library unloaded (hot restart, plugin reload). The prerequisites are no registered
+  readbacks (`_readbackRegistry` empty after `FaultAllPending`), no pending adapter/device request (browser: request IDs retired), and
+  a device that has finished its last `DevicePoll`/`InstanceProcessEvents`.
+
+### Frame-local exception paths (reviewed 2026-10-18)
+
+- **Main frame (`ClearFrame`) -- repaired.** The surface texture, its view, the command encoder, both passes and the command buffer are
+  released in one `finally`, so a throw anywhere between acquisition and present no longer leaks them or leaves the texture acquired.
+  The tone-map pass that is ended and replaced for a backdrop-blur frame is now released before the second one starts; before this it
+  leaked one pass-encoder handle per frame whenever any UI asked for blur.
+- **Pop-out surfaces (`UiSurface`)** already used `try/finally` for every handle.
+- **Sub-passes inside the frame** (shadow cascades, environment sky/scene faces, outline mask, handle pass) release their pass at their
+  own end, not in a `finally`. An exception inside one leaks that one pass-encoder handle at worst; the encoder and surface still
+  unwind through the frame's `finally`. Accepted: the frame is already failing, and wrapping each site adds nesting without changing the
+  outcome. Reconsider if a sub-pass starts to throw in normal operation.
+
 ## Extraction sequence and validation
 
 Readback, thumbnail, environment and local native-handle retirement are repaired. Specify binding-wrapper
