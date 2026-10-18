@@ -60,6 +60,9 @@ This is a structural review, not a claim that every large file needs splitting.
 ## 5. Separate Train Yard Wars visuals
 
 - [ ] Extract ground/chunk rendering, train visuals and interaction overlays from TywBoardView in separate steps.
+  - [x] Ground/chunk rendering: TywGroundRenderer owns dirty chunks, tile render state, territory ground tint, sea and coastal scenery. Board callbacks retain scene ownership and locking; stable batch nodes preserve deferred GPU uploads. TywViewGeometry shares existing placement/rail mesh calculations.
+  - [ ] Train visuals.
+  - [ ] Interaction overlays.
 - Preserve batching, retirement of old meshes and existing appearance; run game suites and automation checks.
 
 ## 6. Clarify project and test ownership
@@ -97,3 +100,5 @@ This is a structural review, not a claim that every large file needs splitting.
 - Planet retirement validation: all 3,502 headless checks passed in 25.9s; the focused planet suite passed 17 checks in 0.1s. Desktop build has no warnings. Live automation unloaded during baseline decode and an active 42-tile refinement, then reopened and refined a fresh planet to 219 leaves with all busy counters zero. Editor and standalone-play quit during loading and reopened successfully; shutdown logs confirm retirement. Captures/logs use Artifacts/Automation/cleanup-retire*, and saved workspace settings were restored. Browser/iOS were not run.
 
 - Planet geometry extraction validation: all 3,502 headless checks passed in 25.6s; desktop build has no warnings. Planet Showcase refined 4/4 children from 42/42 tiles to 219 leaves, then merged to 216; both checkpoints had all busy counters zero. Detail and orbit captures inspected under Artifacts/Automation/cleanup-geometry*.png. User workspace settings were restored. Geometry formulas, source-quality thresholds, shaders and authored content are unchanged; browser/iOS were not run.
+
+- Train Yard Wars ground extraction validation (2026-10-18): all 208 game checks passed in 3.2s, including board-reset ownership checks; desktop build has zero warnings. Existing train-yard-wars automation completed with two stand-in pads, bot play and score logging. In-app capture inspected at Artifacts/Automation/cleanup-tyw-ground.png; user settings restored. Ground batching keeps stable scene nodes during replacement uploads; rail retirement stays board-owned. Browser/iOS were not run.
