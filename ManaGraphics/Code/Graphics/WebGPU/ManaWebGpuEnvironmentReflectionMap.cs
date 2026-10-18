@@ -73,83 +73,88 @@ namespace ManaGraphics.Code.Graphics
             return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
         }
 
-        public static ManaWebGpuEnvironmentReflectionMap Create(
-            WebGPU api,
-            Device* device,
-            Queue* queue,
-            ManaEnvironmentReflectionSource source,
-            string? sourcePath,
-            IProgress<ManaLoadingProgress>? progress = null)
+        internal sealed record PreparedTexture(int Width, int Height, int Layers, uint BytesPerRow, byte[] Pixels);
+        internal sealed record PreparedData(PreparedTexture? Photo, PreparedTexture Brdf);
+
+        public static PreparedData PrepareData(ManaEnvironmentReflectionSource source, string? sourcePath,
+            IProgress<ManaLoadingProgress>? progress, CancellationToken cancellationToken)
         {
-            progress?.Report(new ManaLoadingProgress("Allocating WebGPU environment textures", 0.02f));
-            var environmentSize = ClampTextureSize(source.EnvironmentCubeSize, 16, 2048);
-            var irradianceSize = ClampTextureSize(source.IrradianceCubeSize, 8, 256);
-            var prefilterSize = ClampTextureSize(source.PrefilterCubeSize, 16, 2048);
+            cancellationToken.ThrowIfCancellationRequested();
+            var photo = sourcePath == null ? null : PreparePhoto(sourcePath,
+                ClampTextureSize(source.EnvironmentCubeSize, 16, 2048), progress, cancellationToken);
             var brdfSize = ClampTextureSize(source.BrdfLutSize, 16, 2048);
-            var prefilterMipCount = CalculateMipCount(prefilterSize);
-
-            var environmentMap = CreateCubeResource(api, device, "EnvironmentMap", environmentSize, 1);
-            // Filled on the GPU from the prefiltered cube (ManaWebGpuEnvironmentPrefilterCompute.DispatchIrradiance) for
-            // every source -- photo, computed sky, scene capture -- so linear and writable like that cube.
-            var irradianceMap = CreateCubeResource(
-                api,
-                device,
-                "IrradianceMap",
-                irradianceSize,
-                1,
-                TextureFormat.Rgba8Unorm,
-                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.StorageBinding,
-                true);
-            var prefilteredReflectionMap = CreateCubeResource(
-                api,
-                device,
-                "PrefilteredReflectionMap",
-                prefilterSize,
-                prefilterMipCount,
-                TextureFormat.Rgba8Unorm,
-                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
-                true);
-
-            // No photo: the context draws the computed sky into the cubes each time it changes.
-            if (sourcePath != null)
-            {
-                WritePhoto(api, queue, environmentMap, sourcePath, progress);
-            }
-
-            var brdfLut = Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float);
-            WriteBrdfLut(api, queue, brdfLut.Texture, brdfSize, brdfSize, progress, 0.50f, 0.45f);
-
-            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut)
-            {
-                HasPhoto = sourcePath != null
-            };
+            return new PreparedData(photo, PrepareBrdfLut(brdfSize, brdfSize, progress, 0.50f, 0.45f, cancellationToken));
         }
 
-        /// <summary>
-        /// Decodes the photo into this map's own cubes, for a Photo sky chosen after the map was made -- in place,
-        /// so nothing bound to the cubes has to be rebuilt. The caller prefilters afterwards.
-        /// </summary>
-        public void WritePhoto(WebGPU api, Queue* queue, string sourcePath)
+        public static PreparedTexture PreparePhoto(string sourcePath, int size,
+            IProgress<ManaLoadingProgress>? progress, CancellationToken cancellationToken)
         {
-            WritePhoto(api, queue, EnvironmentMapResource, sourcePath, null);
+            cancellationToken.ThrowIfCancellationRequested();
+            progress?.Report(new ManaLoadingProgress("Reading environment image", 0.07f));
+            var image = ManaImageCodec.Load(sourcePath);
+            cancellationToken.ThrowIfCancellationRequested();
+            var equirect = new EquirectImage(image.Pixels, image.Width, image.Height);
+            return PrepareCubeTexture(equirect, size, 0f, progress, 0.10f, 0.40f,
+                "Converting environment cube map", cancellationToken);
+        }
+
+        public static ManaWebGpuEnvironmentReflectionMap Create(
+            WebGPU api, Device* device, Queue* queue, ManaEnvironmentReflectionSource source, PreparedData data)
+        {
+            var allocated = new List<ManaWebGpuTextureResource>();
+            ManaWebGpuTextureResource Own(ManaWebGpuTextureResource resource)
+            {
+                allocated.Add(resource);
+                return resource;
+            }
+            try
+            {
+                var environmentSize = ClampTextureSize(source.EnvironmentCubeSize, 16, 2048);
+                var irradianceSize = ClampTextureSize(source.IrradianceCubeSize, 8, 256);
+                var prefilterSize = ClampTextureSize(source.PrefilterCubeSize, 16, 2048);
+                var brdfSize = ClampTextureSize(source.BrdfLutSize, 16, 2048);
+                var environmentMap = Own(CreateCubeResource(api, device, "EnvironmentMap", environmentSize, 1));
+                var irradianceMap = Own(CreateCubeResource(api, device, "IrradianceMap", irradianceSize, 1,
+                    TextureFormat.Rgba8Unorm,
+                    TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.StorageBinding, true));
+                var prefilteredReflectionMap = Own(CreateCubeResource(api, device, "PrefilteredReflectionMap",
+                    prefilterSize, CalculateMipCount(prefilterSize), TextureFormat.Rgba8Unorm,
+                    TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding, true));
+                var brdfLut = Own(Create2DResource(api, device, "BrdfLut", brdfSize, brdfSize, TextureFormat.RG16float));
+                if (data.Photo != null)
+                {
+                    Upload(api, queue, environmentMap.Texture, data.Photo);
+                }
+                Upload(api, queue, brdfLut.Texture, data.Brdf);
+                return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap,
+                    prefilteredReflectionMap, brdfLut) { HasPhoto = data.Photo != null };
+            }
+            catch
+            {
+                foreach (var resource in allocated)
+                {
+                    resource.Dispose();
+                }
+                throw;
+            }
+        }
+
+        public void WritePhoto(WebGPU api, Queue* queue, PreparedTexture photo)
+        {
+            Upload(api, queue, EnvironmentMapResource.Texture, photo);
             HasPhoto = true;
             DrawnSky = null;
         }
 
-        private static void WritePhoto(
-            WebGPU api,
-            Queue* queue,
-            ManaWebGpuTextureResource environmentMap,
-            string sourcePath,
-            IProgress<ManaLoadingProgress>? progress)
+        private static void Upload(WebGPU api, Queue* queue, Texture* texture, PreparedTexture data)
         {
-            progress?.Report(new ManaLoadingProgress("Reading environment image", 0.07f));
-            var image = ManaImageCodec.Load(sourcePath);
-            var equirect = new EquirectImage(image.Pixels, image.Width, image.Height);
-
-            WriteCubeTexture(
-                api, queue, environmentMap.Texture, equirect, (int)environmentMap.Width, 0, 0.0f,
-                progress, 0.10f, 0.40f, "Converting environment cube map");
+            fixed (byte* pixels = data.Pixels)
+            {
+                var destination = new ImageCopyTexture { Texture = texture, Aspect = TextureAspect.All };
+                var layout = new TextureDataLayout { BytesPerRow = data.BytesPerRow, RowsPerImage = (uint)data.Height };
+                var extent = new Extent3D { Width = (uint)data.Width, Height = (uint)data.Height, DepthOrArrayLayers = (uint)data.Layers };
+                api.QueueWriteTexture(queue, &destination, pixels, (nuint)data.Pixels.Length, &layout, &extent);
+            }
         }
 
         public void Dispose()
@@ -339,18 +344,15 @@ namespace ManaGraphics.Code.Graphics
             return new ManaWebGpuTextureResource(api, name, texture, view, Array.Empty<nint>(), Array.Empty<nint>(), (uint)width, (uint)height, false);
         }
 
-        private static void WriteCubeTexture(
-            WebGPU api,
-            Queue* queue,
-            Texture* texture,
+        private static PreparedTexture PrepareCubeTexture(
             EquirectImage source,
             int size,
-            int mip,
             float roughness,
             IProgress<ManaLoadingProgress>? progress,
             float progressStart,
             float progressLength,
-            string progressStatus)
+            string progressStatus,
+            CancellationToken cancellationToken)
         {
             var sourceRowBytes = size * 4;
             var paddedRowBytes = Align(sourceRowBytes, 256);
@@ -360,7 +362,8 @@ namespace ManaGraphics.Code.Graphics
 
             for (var face = 0; face < 6; face++)
             {
-                var pixels = GenerateCubeFace(source, face, size, roughness);
+                cancellationToken.ThrowIfCancellationRequested();
+                var pixels = GenerateCubeFace(source, face, size, roughness, cancellationToken);
                 var combinedOffset = (int)(face * paddedFaceSize);
                 if (sourceRowBytes == paddedRowBytes)
                 {
@@ -385,24 +388,7 @@ namespace ManaGraphics.Code.Graphics
                     progressStart + progressLength * faceProgress));
             }
 
-            fixed (byte* pixelPointer = combinedPixels)
-            {
-                var destination = new ImageCopyTexture
-                {
-                    Texture = texture,
-                    MipLevel = (uint)mip,
-                    Origin = new Origin3D { X = 0, Y = 0, Z = 0 },
-                    Aspect = TextureAspect.All
-                };
-                var dataLayout = new TextureDataLayout
-                {
-                    Offset = 0,
-                    BytesPerRow = bytesPerRow,
-                    RowsPerImage = (uint)size
-                };
-                var writeSize = new Extent3D { Width = (uint)size, Height = (uint)size, DepthOrArrayLayers = 6 };
-                api.QueueWriteTexture(queue, &destination, pixelPointer, (nuint)combinedPixels.Length, &dataLayout, &writeSize);
-            }
+            return new PreparedTexture(size, size, 6, bytesPerRow, combinedPixels);
         }
 
         private static float RadicalInverse_VdC(uint bits)
@@ -516,21 +502,19 @@ namespace ManaGraphics.Code.Graphics
             return new Vector2(A / SAMPLE_COUNT, B / SAMPLE_COUNT);
         }
 
-        private static void WriteBrdfLut(
-            WebGPU api,
-            Queue* queue,
-            Texture* texture,
+        private static PreparedTexture PrepareBrdfLut(
             int width,
             int height,
             IProgress<ManaLoadingProgress>? progress,
             float progressStart,
-            float progressLength)
+            float progressLength,
+            CancellationToken cancellationToken)
         {
             var values = new Half[width * height * 2];
             var completedRows = 0;
             var reportInterval = Math.Max(1, height / 100);
             var progressSync = new object();
-            Parallel.For(0, height, y =>
+            Parallel.For(0, height, new ParallelOptions { CancellationToken = cancellationToken }, y =>
             {
                 // Row y IS roughness, matching both brdf.frag's IntegrateBRDF(TexCoords.x, TexCoords.y)
                 // and the shader's textureSample(brdf_lut, vec2(ndotv, roughness)). No V flip: row 0 of a
@@ -559,30 +543,13 @@ namespace ManaGraphics.Code.Graphics
 
             var pixels = MemoryMarshal.AsBytes(values.AsSpan()).ToArray();
             var uploadPixels = PadRows(pixels, width, height, out var bytesPerRow, 4);
-            fixed (byte* pixelPointer = uploadPixels)
-            {
-                var destination = new ImageCopyTexture
-                {
-                    Texture = texture,
-                    MipLevel = 0,
-                    Origin = new Origin3D(),
-                    Aspect = TextureAspect.All
-                };
-                var dataLayout = new TextureDataLayout
-                {
-                    Offset = 0,
-                    BytesPerRow = bytesPerRow,
-                    RowsPerImage = (uint)height
-                };
-                var writeSize = new Extent3D { Width = (uint)width, Height = (uint)height, DepthOrArrayLayers = 1 };
-                api.QueueWriteTexture(queue, &destination, pixelPointer, (nuint)uploadPixels.Length, &dataLayout, &writeSize);
-            }
+            return new PreparedTexture(width, height, 1, bytesPerRow, uploadPixels);
         }
 
-        private static byte[] GenerateCubeFace(EquirectImage source, int face, int size, float roughness)
+        private static byte[] GenerateCubeFace(EquirectImage source, int face, int size, float roughness, CancellationToken cancellationToken)
         {
             var pixels = new byte[size * size * 4];
-            Parallel.For(0, size, y =>
+            Parallel.For(0, size, new ParallelOptions { CancellationToken = cancellationToken }, y =>
             {
                 for (var x = 0; x < size; x++)
                 {

@@ -1,7 +1,7 @@
 # WebGPU renderer resource ownership
 
 Audit: 2026-10-18, following CodeCleanup section 7. This records the current implementation and
-proposes the order of later changes. It does not certify shutdown safety. The readback/thumbnail repair below updates those audited boundaries.
+proposes the order of later changes. It does not certify shutdown safety. The readback/thumbnail and environment repairs below update those audited boundaries.
 Paths below are relative to this file. Symbols are used instead of line numbers so the map survives extraction.
 
 ## Ownership map
@@ -19,8 +19,8 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Shader modules, material pipelines, outline/capture/overlay pipelines | Context dictionaries and fields in `Pipelines`, `Demo`, `Shadows` | `ReleaseDemoResources`; shader dictionary is redundantly cleared twice. Custom-uniform schemas are managed metadata, not GPU handles. |
 | Scene mesh allocations | Nested `ManaWebGpuSceneMesh` owns geometry, optional wireframe/normal-line geometry, object/custom uniform buffers/groups, per-cube-face capture buffers/groups | `Scene`: reconciliation replaces or removes entries; normal retirement is deferred six frame serials. Shutdown and initialization rollback force disposal. This delay is a frame heuristic, not an explicit GPU completion fence. |
 | Mesh albedo and six material-map textures/views | `ManaWebGpuMeshTextureCache` owns allocations; scene meshes and thumbnail draws hold acquired references | Last `ReleaseMeshTexture` releases view/texture. No cache-wide disposal; correctness depends on every successful acquire being returned, including failed construction. |
-| Environment cube, irradiance, prefiltered cube, BRDF LUT | `ManaWebGpuEnvironmentReflectionMap` owns its texture resources; context owns active and pending map references | Active map disposed on swap and `ReleaseEnvironmentReflectionMap`. Pending/background-created maps have no shutdown collection path. Scene bind groups borrow views; map swap retires scene meshes for rebuilding. |
-| Environment prefilter | Context lazily owns `ManaWebGpuEnvironmentPrefilterCompute` | `ReleaseDemoResources` disposes it. Environment background work currently reaches this same instance. |
+| Environment cube, irradiance, prefiltered cube, BRDF LUT | `ManaWebGpuEnvironmentReflectionMap` owns its texture resources; context owns active and pending map references | GPU maps are created only at the render boundary from prepared CPU pixels. Active maps release on swap; pending maps release on cleanup/shutdown. Replacement preserves the visible map until activation, then retires mesh bindings for rebuilding. |
+| Environment prefilter | Context lazily owns `ManaWebGpuEnvironmentPrefilterCompute` | `ReleaseDemoResources` disposes it. Creation and all dispatch/submission now stay on the render thread. |
 | Scene-capture depth texture/view | Context `Resources` | Size change and `ReleaseDemoResources`. Capture render passes borrow the map's face views and mesh capture bind groups. |
 | Shadow array texture, array/cascade views, sampler, cascade buffers/groups, layout/pipeline | Context `Shadows` | `ReleaseShadowResources`, called by `ReleaseDemoResources`. Mesh object groups also bind shadow resources. |
 | HDR scene, bloom and outline targets plus postprocessing pipelines | Context owns `ManaWebGpuHdrPostProcessor`; that object owns its targets and GPU state | Resize replaces targets; `ReleaseDemoResources` disposes processor. Main passes borrow its target views. |
@@ -30,6 +30,7 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Native panel surfaces | Context tracks `UiSurface`; each owns a surface/configuration and its own UI renderer, borrows shared API/device/queue and panel window | Individual panel close or context `Dispose` before `_disposed` is set. Surface removes itself from context list; its frame temporaries use `finally`. Not compiled for browser. |
 | Thumbnail targets and pipeline | Context `Thumbnail`, shared across requests | Recreated for size changes; `ReleaseThumbnailResources` during renderer cleanup. API assumes one caller/request at a time, rather than enforcing serialization. |
 | Thumbnail draw allocations | Per-request list owns mesh, one acquired albedo texture, uniform buffer/group | Construction rollback releases partial allocations. After submit, ownership transfers to readback retirement, which disposes draw resources before completing/canceling the task. Continuations only convert CPU pixels. |
+| Environment CPU jobs | `ManaWebGpuEnvironmentLoad<T>` owns cancellation, generation-tagged result/progress publication and CPU tasks; prepared photo/LUT arrays carry no native handles | Source replacement invalidates old results; retirement cancels preparation/download waits and clears published pixels/progress. Shared downloads finish independently. |
 | Height-sampling pipeline/module/layouts | Context lazily owns `ManaWebGpuHeightSampleCompute` | Helper implements `Dispose`, but context never invokes it. Per-dispatch input/output buffers and groups are released after submit; staging ownership transfers to readback helper. |
 | Readback staging buffers and callback state | Context's `ManaWebGpuReadbackRegistry`, with never-reused integer userdata IDs | Callback or shutdown removes routing, releases staging and associated request resources, then settles the task. Admission and retirement share a per-context gate; late/duplicate IDs are ignored. |
 | Screenshot/environment-dump requests | Context `Screenshot` / `EnvironmentDump` hold pending metadata; encoded requests own a staging buffer until mapping | After submit, readback registry owns completion. CPU image conversion/writes need no live GPU objects. A screenshot not yet encoded is outside the registry. |
@@ -59,19 +60,20 @@ All 16 `ManaWebGpuContext` files participate in this map:
 
 1. `GameSilkWebGpu.Closing` records a close request. If update/render is active, cleanup waits until
    that callback unwinds. Its application closing callback runs first, retiring application work.
-2. Context disposes native panel surfaces, then sets `_disposed`.
+2. Context disposes native panel surfaces, sets `_disposed`, then retires environment CPU admission/results.
 3. Context drains queued render work. Height/thumbnail entry work checks `_disposed` to cancel.
 4. Registry `FaultAllPending` closes admission, removes callback routing, unmaps/releases staging and retires thumbnail draw allocations, then cancels registered tasks. It waits for callback cleanup already holding the registry gate.
 5. Deferred scene meshes are force-disposed; `UiRoot` is detached and main UI renderer disposed.
 6. `ReleaseDemoResources` releases pipelines, HDR/capture/thumbnail state, prefilter, shared layouts,
-   samplers, frame bindings, shadows, resident scene meshes and active environment map.
+   samplers, frame bindings, shadows, resident scene meshes, pending environment work/maps and the active environment map.
 7. Main skybox, particles and environment skybox are disposed.
 8. Main surface is unconfigured; main depth resources released.
 9. Queue, device, adapter, surface and instance are released and nulled.
 10. Host disposes input. Context does not own input or the borrowed window.
 
-This is the observed order, not a proposed dependency order. Thumbnail continuations now use only CPU
-bytes; background environment work is still not joined by this sequence. `ReleaseDemoResources` also serves partial
+This is the observed order, not a proposed dependency order. Thumbnail continuations and environment jobs now use only CPU
+data. Environment jobs are canceled/invalidated rather than joined; they cannot create native resources
+or publish results/progress after retirement. `ReleaseDemoResources` also serves partial
 initialization rollback, so extracting it as if it were exclusively a shutdown function would be incorrect.
 
 ## Callback and thread contracts to preserve
@@ -91,8 +93,10 @@ initialization rollback, so extracting it as if it were exclusively a shutdown f
 - Screenshot/dump/thumbnail continuations use copied CPU bytes. Thumbnail GPU resources retire inside
   the mapped callback pump or synchronous shutdown, before its task settles. Those native callbacks
   must continue to be pumped on the render thread; task continuations need no live GPU objects.
-- Environment map/photo continuations currently create/write resources and submit prefilter work on
-  `TaskScheduler.Default`. They do not follow the render-thread admission used by height/thumbnail work.
+- Environment preparation decodes photos, converts cube faces and generates LUT rows on CPU workers.
+  Cancellation is checked before decoding, between cube faces and by parallel row loops. The context
+  consumes generation-tagged results/progress in `CheckPendingEnvironmentMap`, before reconciliation;
+  GPU texture creation, upload, prefilter submission and map activation all run there on the render thread.
 
 ## Findings and ordered follow-ups
 
@@ -108,11 +112,15 @@ These are source findings. No native failure was reproduced during this document
    their readback, before task completion/cancellation. CPU-only continuations cannot enqueue GPU
    cleanup after shutdown. Partial construction and transient encoders/passes/buffers use `finally`;
    mesh/texture/uniform/group ownership is recorded as each allocation succeeds.
-3. **Retire environment work before device teardown.** The map/photo continuations are untracked,
-   have no disposed/generation gate and can publish `_pendingEnvironmentMap` after the final frame.
-   They can also race replacement of an active map. Separate CPU loading from render-thread GPU
-   creation/upload/prefilter; discard stale generations and explicitly dispose pending/abandoned maps.
-   Keep activation at the frame boundary before reconciliation, never inside per-mesh creation.
+3. **Completed: environment admission and retirement (2026-10-18).**
+   Split CPU photo/LUT preparation from GPU allocation/upload. Per-context generation ownership drops
+   superseded results, late errors and progress; cancellation stops local preparation/download waits
+   without canceling shared catalog downloads. The render-boundary drain alone creates native maps
+   and submits prefilter work. Source changes keep the previous visible map until activation. Photo
+   updates use the active texture size and can run again after computed sky replaces the photo.
+   Shutdown retires CPU admission before teardown and explicitly disposes pending/active GPU maps;
+   failed full-map construction or prefilter publication rolls back candidate allocations. A CPU job
+   that is still unwinding holds only managed preparation state, with no renderer/device callback.
 4. **Balance local ownership and pending requests.** Dispose `_heightSampleCompute` before device release.
    Cancel `_pendingScreenshot` even when no frame ever encodes it, reject capture after disposal, and
    define shutdown handling for pending dump metadata. Fix scene-mesh failure branches after
@@ -128,8 +136,8 @@ These are source findings. No native failure was reproduced during this document
 
 ## Extraction sequence and validation
 
-Readback and thumbnail retirement are repaired. Next land environment admission/retirement, then the
-remaining request/construction cleanup. Each needs lifetime tests and live shutdown-during-work checks.
+Readback, thumbnail and environment retirement are repaired. Next land the remaining local
+request/construction cleanup. Each needs lifetime tests and live shutdown-during-work checks.
 Only then extract services, keeping frame orchestration and the final device lifetime in the context:
 
 - Surface/depth targets, with main/panel surface differences explicit.
@@ -177,3 +185,14 @@ passed without logged exceptions or WebGPU validation errors (`Artifacts/WebDriv
 checks verify rendering compatibility; the deterministic pending-readback cancellation harness ran on
 native Metal. User workspace settings were restored and byte-compared.
 iOS Compile passed with zero warnings using SDK 10.0.300; no phone deployment was performed.
+
+Environment lifetime repair validation (2026-10-18): all 3,538 headless checks passed in 28.2s,
+including 15 new generation/cancellation and CPU-pixel checks (focused Graphics: 72 checks in 0.2s).
+The native Metal harness in `Artifacts/Scratch/EnvironmentSmoke` verified CPU-only preparation,
+render-boundary activation, visible-map retention, source-size replacement, repeat photo uploads,
+disposal with both a pending GPU map and CPU work, and fresh-context initialization. Desktop build
+and iOS Compile passed with zero warnings; no phone deployment. In-app Photo/Day/Photo captures and
+six-face dumps were inspected using `Tools/Automation/Checks/environment-lifetime.json`; artifacts
+use `Artifacts/Automation/environment-*`. Browser Release/AOT (SDK 10.0.300) and Chrome editor/resize
+and 2D Sample play/input checks passed without logged exceptions or validation errors; captures/logs
+are in `Artifacts/WebDrive/environment-*`. User workspace settings were restored and byte-compared.

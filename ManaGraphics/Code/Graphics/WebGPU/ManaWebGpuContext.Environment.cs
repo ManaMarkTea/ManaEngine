@@ -263,10 +263,12 @@ namespace ManaGraphics.Code.Graphics
             return _environmentPrefilterCompute;
         }
 
-        private volatile ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
-        private volatile bool _isEnvironmentLoading;
+        private ManaWebGpuEnvironmentReflectionMap? _pendingEnvironmentMap;
+        private readonly ManaWebGpuEnvironmentLoad<ManaPreparedEnvironment> _environmentLoads = new();
+        private ManaEnvironmentReflectionSource? _environmentRequestedSource;
+        private bool _isEnvironmentLoading;
         // Set while a photo loads, and left set if it failed, so it is not retried every frame.
-        private volatile bool _environmentPhotoStarted;
+        private bool _environmentPhotoStarted;
 
         public ManaLoadingViewModel EnvironmentLoading { get; } = new();
 
@@ -290,6 +292,11 @@ namespace ManaGraphics.Code.Graphics
 
         public void CheckPendingEnvironmentMap()
         {
+            if (_disposed)
+            {
+                return;
+            }
+            DrainEnvironmentLoad();
             if (_pendingEnvironmentMap != null)
             {
                 ReleaseEnvironmentReflectionMap();
@@ -324,99 +331,127 @@ namespace ManaGraphics.Code.Graphics
             var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
             var environmentPath = TryResolveAssetPath(source.SourcePath) ?? source.SourcePath;
 
-            // The pending-map swap + ReleaseSceneMeshes() used to be duplicated here as well as in
-            // CheckPendingEnvironmentMap() (called once per frame, before RefreshRenderScene(), in
-            // ClearFrame()). This method is called per-mesh from CreateSceneMesh() during
-            // ReconcileSceneMeshes()'s reconciliation loop — if the background environment-map load
-            // finished while a large batch of meshes was still being reconciled, this second copy
-            // fired mid-loop and disposed every ManaWebGpuSceneMesh in _sceneMeshes (including ones
-            // already re-added by reference into that same loop's nextSceneMeshes list via the reuse
-            // path), which then got committed back into _sceneMeshes at the end of the loop as
-            // disposed-but-still-resident meshes — drawn next frame with destroyed WebGPU buffer/bind
-            // group handles, crashing the native wgpu backend with "Buffer ... does not exist"
-            // ("wgpu_render_pass_execute_bundles" panic). Only CheckPendingEnvironmentMap() should
-            // ever perform this swap now, so it can only happen once per frame, before reconciliation
-            // starts, never reentrantly mid-loop.
+            if (_environmentRequestedSource == null || !HasSameEnvironmentSource(_environmentRequestedSource, source))
+            {
+                _environmentRequestedSource = source.Clone();
+                _environmentPhotoStarted = false;
+                _isEnvironmentLoading = true;
+                EnvironmentLoading.Start("Preparing WebGPU environment maps", 0.0f);
+                var photo = _activeRenderScene?.Sky.Mode == ManaSkyMode.Photo;
+                _environmentLoads.Start((progress, token) =>
+                    ManaPreparedEnvironment.PrepareAsync(source, environmentPath, photo, false, progress, token));
+            }
+            _environmentReflectionMap ??= ManaWebGpuEnvironmentReflectionMap.CreateDummy(_api, _device, _queue, source);
 
+            // Only CheckPendingEnvironmentMap swaps maps; reconciliation may already hold live mesh references.
             var wantsPhoto = _activeRenderScene?.Sky.Mode == ManaSkyMode.Photo;
             if (_environmentReflectionMap != null &&
                 HasSameEnvironmentSource(_environmentReflectionMap.Source, source))
             {
                 if (wantsPhoto && !_environmentReflectionMap.HasPhoto && !_isEnvironmentLoading)
                 {
-                    StartEnvironmentPhotoLoad(_environmentReflectionMap, source.SourcePath, environmentPath);
+                    StartEnvironmentPhotoLoad(_environmentReflectionMap, environmentPath);
                 }
 
                 return _environmentReflectionMap;
             }
 
-            if (!_isEnvironmentLoading)
-            {
-                _isEnvironmentLoading = true;
-                EnvironmentLoading.Start("Preparing WebGPU environment maps", 0.0f);
-                _environmentReflectionMap = ManaWebGpuEnvironmentReflectionMap.CreateDummy(_api, _device, _queue, source);
-
-                // The photo first (downloaded, on the web), then the cubes; a continuation because this class is unsafe and cannot await.
-                var photo = wantsPhoto
-                    ? ManaEnvironmentPhoto.FindAsync(source.SourcePath, environmentPath)
-                    : Task.FromResult<string?>(null);
-                photo.ContinueWith(found =>
-                {
-                    if (string.IsNullOrEmpty(System.Threading.Thread.CurrentThread.Name))
-                    {
-                        System.Threading.Thread.CurrentThread.Name = "WebGPU env map load";
-                    }
-
-                    try
-                    {
-                        var photoPath = found.Result;
-                        var map = ManaWebGpuEnvironmentReflectionMap.Create(
-                            _api, _device, _queue, source, photoPath, EnvironmentLoading);
-                        EnvironmentLoading.Report(new ManaLoadingProgress("Dispatching environment prefilter compute shader", 0.97f));
-                        DispatchEnvironmentPrefilterNow(map);
-                        _pendingEnvironmentMap = map;
-                        EnvironmentLoading.Report(new ManaLoadingProgress("Waiting to activate WebGPU environment maps", 0.99f));
-                    }
-                    catch (Exception ex)
-                    {
-                        ManaConsole.WriteDiagnostic($"Failed to load WebGPU environment map: {ex}");
-                        _isEnvironmentLoading = false;
-                        EnvironmentLoading.Fail($"WebGPU environment initialization failed: {ex.Message}");
-                    }
-                }, TaskScheduler.Default);
-            }
-
             return _environmentReflectionMap!;
         }
 
-        /// <summary>
-        /// The Photo sky, chosen once the map exists: the photo (downloaded, on the web) is decoded into the map's
-        /// cubes in the background. Tried once; a missing photo leaves the sky's own reflections up.
-        /// </summary>
-        private void StartEnvironmentPhotoLoad(ManaWebGpuEnvironmentReflectionMap map, string reference, string resolvedPath)
+        private void StartEnvironmentPhotoLoad(ManaWebGpuEnvironmentReflectionMap map, string resolvedPath)
         {
             if (_environmentPhotoStarted)
             {
                 return;
             }
-
             _environmentPhotoStarted = true;
-            ManaEnvironmentPhoto.FindAsync(reference, resolvedPath).ContinueWith(found =>
+            var source = map.Source.Clone();
+            var size = (int)map.EnvironmentMapResource.Width;
+            _environmentLoads.Start((progress, token) =>
+                ManaPreparedEnvironment.PrepareAsync(source, resolvedPath, true, true, progress, token, size));
+        }
+
+        // Frame boundary only: no native work or view-model mutation happens in background continuations.
+        private void DrainEnvironmentLoad()
+        {
+            if (_environmentLoads.TakeProgress() is { } progress)
             {
-                try
+                EnvironmentLoading.Report(progress);
+            }
+            if (_environmentLoads.TakeResult() is not { } result)
+            {
+                return;
+            }
+            if (result.Error != null)
+            {
+                FailEnvironmentLoad(result.Error);
+                return;
+            }
+            if (result.Value is not { } prepared)
+            {
+                return;
+            }
+
+            ManaWebGpuEnvironmentReflectionMap? candidate = null;
+            try
+            {
+                if (prepared.PhotoOnly)
                 {
-                    map.WritePhoto(_api, _queue, found.Result ?? resolvedPath);
-                    DispatchEnvironmentPrefilterNow(map);
+                    if (_activeRenderScene?.Sky.Mode == ManaSkyMode.Photo &&
+                        _environmentReflectionMap is { } active &&
+                        HasSameEnvironmentSource(active.Source, prepared.Source) && prepared.Photo != null)
+                    {
+                        active.WritePhoto(_api, _queue, prepared.Photo);
+                        DispatchEnvironmentPrefilterNow(active);
+                        _environmentPhotoStarted = !active.HasPhoto;
+                    }
+                    else
+                    {
+                        _environmentPhotoStarted = false;
+                    }
+                    return;
                 }
-                catch (Exception ex)
+
+                if (prepared.Data == null)
                 {
-                    ManaConsole.WriteDiagnostic($"Environment photo unavailable: {ex.Message}");
+                    return;
                 }
-                finally
-                {
-                    _environmentPhotoStarted = !map.HasPhoto;
-                }
-            }, TaskScheduler.Default);
+                EnvironmentLoading.Report(new ManaLoadingProgress("Uploading WebGPU environment textures", 0.96f));
+                candidate = ManaWebGpuEnvironmentReflectionMap.Create(_api, _device, _queue, prepared.Source, prepared.Data);
+                DispatchEnvironmentPrefilterNow(candidate);
+                _pendingEnvironmentMap?.Dispose();
+                _pendingEnvironmentMap = candidate;
+                candidate = null;
+            }
+            catch (Exception ex)
+            {
+                FailEnvironmentLoad(ex);
+            }
+            finally
+            {
+                candidate?.Dispose();
+            }
+        }
+
+        private void FailEnvironmentLoad(Exception error)
+        {
+            ManaConsole.WriteDiagnostic($"Failed to load WebGPU environment map: {error}");
+            if (_isEnvironmentLoading)
+            {
+                _isEnvironmentLoading = false;
+                EnvironmentLoading.Fail($"WebGPU environment initialization failed: {error.Message}");
+            }
+        }
+
+        private void ReleasePendingEnvironmentWork()
+        {
+            _environmentLoads.Invalidate();
+            _pendingEnvironmentMap?.Dispose();
+            _pendingEnvironmentMap = null;
+            _environmentRequestedSource = null;
+            _isEnvironmentLoading = false;
+            _environmentPhotoStarted = false;
         }
 
         private static ManaEnvironmentReflectionSource GetEffectiveEnvironmentReflectionSource(ManaEnvironmentReflectionSource? source)
@@ -533,6 +568,30 @@ namespace ManaGraphics.Code.Graphics
 
             await catalog.EnsureAsync(reference);
             return catalogPath;
+        }
+    }
+}
+
+namespace ManaGraphics.Code.Graphics
+{
+    internal sealed record ManaPreparedEnvironment(ManaEnvironmentReflectionSource Source, bool PhotoOnly,
+        ManaWebGpuEnvironmentReflectionMap.PreparedData? Data, ManaWebGpuEnvironmentReflectionMap.PreparedTexture? Photo)
+    {
+        public static async Task<ManaPreparedEnvironment> PrepareAsync(ManaEnvironmentReflectionSource source,
+            string resolvedPath, bool wantsPhoto, bool photoOnly, IProgress<ManaLoadingProgress> progress,
+            CancellationToken cancellationToken, int? photoSize = null)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var path = wantsPhoto
+                ? await ManaEnvironmentPhoto.FindAsync(source.SourcePath, resolvedPath).WaitAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            cancellationToken.ThrowIfCancellationRequested();
+            return photoOnly
+                ? new ManaPreparedEnvironment(source, true, null,
+                    ManaWebGpuEnvironmentReflectionMap.PreparePhoto(path ?? resolvedPath,
+                        photoSize ?? Math.Clamp(source.EnvironmentCubeSize, 16, 2048), progress, cancellationToken))
+                : new ManaPreparedEnvironment(source, false,
+                    ManaWebGpuEnvironmentReflectionMap.PrepareData(source, path, progress, cancellationToken), null);
         }
     }
 }

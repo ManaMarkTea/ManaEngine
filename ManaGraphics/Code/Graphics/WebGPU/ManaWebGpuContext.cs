@@ -930,6 +930,7 @@ namespace ManaGraphics.Code.Graphics
 #endif
             // Retire readbacks while the device is live; late native callbacks see no registered request.
             _disposed = true;
+            _environmentLoads.Retire();
             // Before FaultAllPending: an item that slipped through can still register a readback.
             DrainRenderThreadWork();
             _readbackRegistry.FaultAllPending();

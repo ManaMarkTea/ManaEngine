@@ -1,0 +1,18 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Reflections.manalevel"},
+  {"type":"wait","frames":240},
+  {"type":"move_camera","position":[66,4,49],"target":[59,0,49]},
+  {"type":"wait","frames":30},
+  {"type":"sky","name":"Photo"},
+  {"type":"wait","frames":180},
+  {"type":"screenshot","path":"@@OUT@@.photo.png"},
+  {"type":"sky","name":"Day"},
+  {"type":"wait","frames":60},
+  {"type":"screenshot","path":"@@OUT@@.day.png"},
+  {"type":"sky","name":"Photo"},
+  {"type":"wait","frames":180},
+  {"type":"screenshot","path":"@@OUT@@.photo-again.png"},
+  {"type":"dump_environment","path":"@@OUT@@.cube"},
+  {"type":"wait","frames":30},
+  {"type":"quit"}
+]

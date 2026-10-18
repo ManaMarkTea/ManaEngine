@@ -15,7 +15,8 @@
     [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaVoxel suites; all 3,512 checks pass.
     [x] Renderer ownership audit (2026-10-18): Plans/RendererResourceOwnership.md maps resources, callbacks and shutdown across all 16 context partials.
     [x] Readback/thumbnail lifetime repair (2026-10-18): safe callback IDs, staging retirement and thumbnail rollback; 3,523 checks plus native Metal and browser rendering checks pass.
-    Next: retire background environment work and admit its GPU operations on the render thread before renderer extraction (CodeCleanup section 7).
+    [x] Environment lifetime repair (2026-10-18): CPU-only preparation, stale-generation rejection and render-thread GPU upload/activation; 3,538 checks plus native Metal, browser and iOS compile checks pass.
+    Next: close local renderer disposal, pending-capture and construction-rollback gaps before extracting resource owners (CodeCleanup section 7).
     Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
     Panel metadata and factories now live together in EditorPanelRegistry; saved panel IDs and default layout behavior are preserved.
     EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.

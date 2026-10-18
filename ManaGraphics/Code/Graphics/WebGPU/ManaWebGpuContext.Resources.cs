@@ -147,6 +147,7 @@ namespace ManaGraphics.Code.Graphics
             ReleaseShadowResources();
 
             ReleaseSceneMeshes(immediate: true);
+            ReleasePendingEnvironmentWork();
             ReleaseEnvironmentReflectionMap();
 
             foreach (var entry in _shaderModules)
