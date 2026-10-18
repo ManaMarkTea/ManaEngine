@@ -16,7 +16,8 @@
     [x] Renderer ownership audit (2026-10-18): Plans/RendererResourceOwnership.md maps resources, callbacks and shutdown across all 16 context partials.
     [x] Readback/thumbnail lifetime repair (2026-10-18): safe callback IDs, staging retirement and thumbnail rollback; 3,523 checks plus native Metal and browser rendering checks pass.
     [x] Environment lifetime repair (2026-10-18): CPU-only preparation, stale-generation rejection and render-thread GPU upload/activation; 3,538 checks plus native Metal, browser and iOS compile checks pass.
-    Next: close local renderer disposal, pending-capture and construction-rollback gaps before extracting resource owners (CodeCleanup section 7).
+    [x] Local renderer ownership repair (2026-10-18): pending capture cancellation, height teardown, partial-construction rollback and browser initialization request IDs; 3,550 checks plus native Metal/browser/iOS compile checks pass.
+    Next: specify binding-wrapper lifetime and extract reviewed renderer resource owners, reviewing remaining frame-local failure paths (CodeCleanup section 7).
     Cody (2026-10-16): asset and prefab tests now use explicit paths and per-world content roots; no tests change the working directory.
     Panel metadata and factories now live together in EditorPanelRegistry; saved panel IDs and default layout behavior are preserved.
     EditorWorkspaceLayout now owns layout capture/restoration, presets, upgrades and floating-window persistence.

@@ -57,20 +57,16 @@ namespace ManaGraphics.Code.Graphics
 
         public static ManaWebGpuEnvironmentReflectionMap CreateDummy(WebGPU api, Device* device, Queue* queue, ManaEnvironmentReflectionSource source)
         {
-            var environmentMap = CreateCubeResource(api, device, "DummyEnvironmentMap", 16, 1);
-            var irradianceMap = CreateCubeResource(api, device, "DummyIrradianceMap", 16, 1);
-            var prefilteredReflectionMap = CreateCubeResource(
-                api,
-                device,
-                "DummyPrefilteredReflectionMap",
-                16,
-                1,
-                TextureFormat.Rgba8Unorm,
-                TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding,
-                true);
-            var brdfLut = Create2DResource(api, device, "DummyBrdfLut", 16, 16, TextureFormat.RG16float);
-
-            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap, prefilteredReflectionMap, brdfLut);
+            var resources = ManaWebGpuAcquisition.Acquire(4, index => index switch
+            {
+                0 => CreateCubeResource(api, device, "DummyEnvironmentMap", 16, 1),
+                1 => CreateCubeResource(api, device, "DummyIrradianceMap", 16, 1),
+                2 => CreateCubeResource(api, device, "DummyPrefilteredReflectionMap", 16, 1,
+                    TextureFormat.Rgba8Unorm,
+                    TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding, true),
+                _ => Create2DResource(api, device, "DummyBrdfLut", 16, 16, TextureFormat.RG16float)
+            }, resource => resource.Dispose());
+            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), resources[0], resources[1], resources[2], resources[3]);
         }
 
         internal sealed record PreparedTexture(int Width, int Height, int Layers, uint BytesPerRow, byte[] Pixels);

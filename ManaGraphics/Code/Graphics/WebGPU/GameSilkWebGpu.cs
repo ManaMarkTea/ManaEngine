@@ -112,10 +112,11 @@ namespace ManaGraphics.Code.Graphics
 
                 Console.WriteLine("[RunBrowser] Constructing ManaWebGpuContext (sync part: instance + surface)...");
                 var browserWebGpu = new ManaWebGpuContext(_window, _input, _requestedBackend, _renderSceneProvider);
+                _webGpu = browserWebGpu;
                 Console.WriteLine("[RunBrowser] Sync part done. Awaiting CompleteBrowserInitializationAsync (adapter/device request)...");
                 await browserWebGpu.CompleteBrowserInitializationAsync();
                 Console.WriteLine("[RunBrowser] CompleteBrowserInitializationAsync returned.");
-                _webGpu = browserWebGpu;
+                if (_closed) { return; }
 
                 _webGpuReady?.Invoke(_webGpu, _input);
 
@@ -125,6 +126,9 @@ namespace ManaGraphics.Code.Graphics
             }
             catch (Exception ex)
             {
+                var wasClosing = _closeRequested;
+                Closing();
+                if (wasClosing) { return; }
                 Console.WriteLine("[RunBrowser] Browser WebGPU bring-up failed.");
                 Console.WriteLine(ex);
 

@@ -13,12 +13,12 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Resource group | Owner and creation | Release / replacement boundary |
 |---|---|---|
 | API binding, native extension | Context constructs `_api`; obtains `_wgpuNativeExtension` during `FinishInitialization` | Neither wrapper is explicitly disposed. Their binding/library lifetime needs an explicit decision after all callbacks have stopped. |
-| Instance, main surface, adapter, device, queue | Context constructor, `Device` partial, then `FinishInitialization`; browser adapter/device acquisition is asynchronous | Context `Dispose`: queue, device, adapter, surface, instance. Main surface is unconfigured first. Constructor failure has no encompassing rollback. |
+| Instance, main surface, adapter, device, queue | Context constructor, `Device` partial, then `FinishInitialization`; browser adapter/device acquisition is asynchronous | Context `Dispose`: queue, device, adapter, surface, instance. Main surface is unconfigured first. Constructor failures now dispose partial root handles. The browser host takes ownership before awaiting adapter/device initialization, whose failure/cancellation also disposes the partial context. |
 | Main depth and handle depth textures/views | Context `Resources`: `ConfigureSurface` / `CreateDepthResources` | Recreated on resize; `ReleaseDepthResources` at shutdown. Views released before textures. |
 | Frame uniform buffer/group, object/custom/capture layouts, three samplers | Context `Pipelines` and `Uniforms`; shared by scene meshes and passes | `ReleaseDemoResources`, also called on pipeline-initialization failure. This is renderer-wide cleanup despite its name. |
 | Shader modules, material pipelines, outline/capture/overlay pipelines | Context dictionaries and fields in `Pipelines`, `Demo`, `Shadows` | `ReleaseDemoResources`; shader dictionary is redundantly cleared twice. Custom-uniform schemas are managed metadata, not GPU handles. |
 | Scene mesh allocations | Nested `ManaWebGpuSceneMesh` owns geometry, optional wireframe/normal-line geometry, object/custom uniform buffers/groups, per-cube-face capture buffers/groups | `Scene`: reconciliation replaces or removes entries; normal retirement is deferred six frame serials. Shutdown and initialization rollback force disposal. This delay is a frame heuristic, not an explicit GPU completion fence. |
-| Mesh albedo and six material-map textures/views | `ManaWebGpuMeshTextureCache` owns allocations; scene meshes and thumbnail draws hold acquired references | Last `ReleaseMeshTexture` releases view/texture. No cache-wide disposal; correctness depends on every successful acquire being returned, including failed construction. |
+| Mesh albedo and six material-map textures/views | `ManaWebGpuMeshTextureCache` owns allocations; scene meshes and thumbnail draws hold acquired references | Last `ReleaseMeshTexture` releases view/texture. No cache-wide disposal; material-map batches roll back partial acquisition and scene construction returns every acquired map on failure. Successful owners still return each reference on disposal. |
 | Environment cube, irradiance, prefiltered cube, BRDF LUT | `ManaWebGpuEnvironmentReflectionMap` owns its texture resources; context owns active and pending map references | GPU maps are created only at the render boundary from prepared CPU pixels. Active maps release on swap; pending maps release on cleanup/shutdown. Replacement preserves the visible map until activation, then retires mesh bindings for rebuilding. |
 | Environment prefilter | Context lazily owns `ManaWebGpuEnvironmentPrefilterCompute` | `ReleaseDemoResources` disposes it. Creation and all dispatch/submission now stay on the render thread. |
 | Scene-capture depth texture/view | Context `Resources` | Size change and `ReleaseDemoResources`. Capture render passes borrow the map's face views and mesh capture bind groups. |
@@ -31,9 +31,9 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Thumbnail targets and pipeline | Context `Thumbnail`, shared across requests | Recreated for size changes; `ReleaseThumbnailResources` during renderer cleanup. API assumes one caller/request at a time, rather than enforcing serialization. |
 | Thumbnail draw allocations | Per-request list owns mesh, one acquired albedo texture, uniform buffer/group | Construction rollback releases partial allocations. After submit, ownership transfers to readback retirement, which disposes draw resources before completing/canceling the task. Continuations only convert CPU pixels. |
 | Environment CPU jobs | `ManaWebGpuEnvironmentLoad<T>` owns cancellation, generation-tagged result/progress publication and CPU tasks; prepared photo/LUT arrays carry no native handles | Source replacement invalidates old results; retirement cancels preparation/download waits and clears published pixels/progress. Shared downloads finish independently. |
-| Height-sampling pipeline/module/layouts | Context lazily owns `ManaWebGpuHeightSampleCompute` | Helper implements `Dispose`, but context never invokes it. Per-dispatch input/output buffers and groups are released after submit; staging ownership transfers to readback helper. |
+| Height-sampling pipeline/module/layouts | Context lazily owns `ManaWebGpuHeightSampleCompute` | Context disposes the helper after readback retirement and before device release; repeated helper disposal is harmless. Constructor failure and per-dispatch locals unwind through cleanup. Staging ownership transfers to readback helper. |
 | Readback staging buffers and callback state | Context's `ManaWebGpuReadbackRegistry`, with never-reused integer userdata IDs | Callback or shutdown removes routing, releases staging and associated request resources, then settles the task. Admission and retirement share a per-context gate; late/duplicate IDs are ignored. |
-| Screenshot/environment-dump requests | Context `Screenshot` / `EnvironmentDump` hold pending metadata; encoded requests own a staging buffer until mapping | After submit, readback registry owns completion. CPU image conversion/writes need no live GPU objects. A screenshot not yet encoded is outside the registry. |
+| Screenshot/environment-dump requests | Context `Screenshot` / `EnvironmentDump` hold pending metadata; encoded requests own a staging buffer until mapping | After submit, readback registry owns completion. CPU image conversion/writes need no live GPU objects. Unencoded screenshot tasks are canceled and pending dump metadata cleared at shutdown. Disposed contexts reject new requests; encoded readbacks remain registry-owned. |
 | Frame-local encoders, passes, command buffers, acquired surface texture/view | `ClearFrame`, demo/environment passes, compute dispatches and panel render methods | Explicit release at end of successful path; coverage of exceptional/early-return paths varies. They are not context fields and cannot be recovered by ordinary context disposal. |
 
 ## Partial-file responsibilities
@@ -60,9 +60,9 @@ All 16 `ManaWebGpuContext` files participate in this map:
 
 1. `GameSilkWebGpu.Closing` records a close request. If update/render is active, cleanup waits until
    that callback unwinds. Its application closing callback runs first, retiring application work.
-2. Context disposes native panel surfaces, sets `_disposed`, then retires environment CPU admission/results.
+2. Context disposes native panel surfaces, sets `_disposed`, cancels unencoded screenshots/browser initialization and clears dump metadata, then retires environment CPU admission/results.
 3. Context drains queued render work. Height/thumbnail entry work checks `_disposed` to cancel.
-4. Registry `FaultAllPending` closes admission, removes callback routing, unmaps/releases staging and retires thumbnail draw allocations, then cancels registered tasks. It waits for callback cleanup already holding the registry gate.
+4. Registry `FaultAllPending` closes admission, removes callback routing, unmaps/releases staging and retires thumbnail draw allocations, then cancels registered tasks. It waits for callback cleanup already holding the registry gate. The height-sampling helper is then disposed while the device is still live.
 5. Deferred scene meshes are force-disposed; `UiRoot` is detached and main UI renderer disposed.
 6. `ReleaseDemoResources` releases pipelines, HDR/capture/thumbnail state, prefilter, shared layouts,
    samplers, frame bindings, shadows, resident scene meshes, pending environment work/maps and the active environment map.
@@ -81,9 +81,11 @@ initialization rollback, so extracting it as if it were exclusively a shutdown f
 - Native adapter/device callbacks are static unmanaged entry points. The code assumes wgpu-native
   answers before the request call returns, then frees the temporary context GCHandle in `finally`.
   An asynchronous native request implementation would require a different ownership contract.
-- Browser acquisition uses `ManaBrowserWebGpuCallbackBridge.PendingContext`, one process-wide slot,
-  with JSExport results completing adapter/device tasks. Legacy Emscripten request callbacks are bypassed.
-  The slot is not cleared on completion/shutdown; there are no disposed-result guards.
+- Browser acquisition uses never-reused request IDs, with JSExport results completing only the matching
+  adapter/device task. Completion/cancellation removes routing; disposed owners reject results. JS releases
+  rejected adapter IDs and destroys/releases rejected devices and their queue wrappers. The C device-release
+  shim also balances the SDK manager's default-queue reference on the last device release. Legacy Emscripten
+  native request callbacks remain bypassed. Browser initialization/close run on the JS/render thread.
 - `ClearFrame` pumps maps before surface early returns, using native `DevicePoll(false)` or
   `InstanceProcessEvents`. Background height/thumbnail entry work is queued before submit/present to
   avoid concurrent native submits. Readback task continuations are scheduled asynchronously.
@@ -121,23 +123,29 @@ These are source findings. No native failure was reproduced during this document
    Shutdown retires CPU admission before teardown and explicitly disposes pending/active GPU maps;
    failed full-map construction or prefilter publication rolls back candidate allocations. A CPU job
    that is still unwinding holds only managed preparation state, with no renderer/device callback.
-4. **Balance local ownership and pending requests.** Dispose `_heightSampleCompute` before device release.
-   Cancel `_pendingScreenshot` even when no frame ever encodes it, reject capture after disposal, and
-   define shutdown handling for pending dump metadata. Fix scene-mesh failure branches after
-   `AcquireMaterialMaps`: they return albedo but omit the six acquired material-map references.
-5. **Specify initialization failure ownership.** Constructor failures can leave root handles allocated;
-   browser host assigns `_webGpu` only after asynchronous initialization succeeds. Define cleanup for
-   partial construction, request failure and close-during-initialization, including clearing the browser
-   bridge slot. Decide ownership of API/native-extension wrappers after native callbacks are retired.
-6. **Review transient failure cleanup and shared-resource dependencies.** Several frame/thumbnail/compute
-   paths release locals only on success. Use narrowly scoped ownership/`finally` after the callback
+4. **Completed: local ownership and pending requests (2026-10-18).** Context shutdown cancels
+   unencoded screenshots, clears dump metadata and disposes height sampling after its readbacks retire.
+   Captures after disposal return cancellation; zero-sized/failed encoding settles the request. Scene
+   construction transfers ownership only on success; its single `finally` returns albedo, all six
+   material-map references, uniform/capture bindings and geometry on failure. Batch acquisition returns
+   each earlier reference even when several bindings share a neutral texture. Dummy environment and
+   height-compute construction now roll back partial allocations; height-dispatch locals use `finally`.
+5. **Completed for native handles: initialization failure ownership (2026-10-18).** Constructor
+   failure releases partial root handles. The browser host stores the context before awaiting startup;
+   failed/canceled initialization disposes it. Stable request IDs replace the shared current-context
+   slot, and disposed-result guards plus JS rejection cleanup stop late handles from reaching a fresh
+   renderer. Native adapter/device callback lifetime assumptions are unchanged. The API/native-extension
+   binding wrappers themselves remain undisposed pending an explicit ownership/unload contract with
+   native hosts; releasing GPU objects does not establish that unloading their native library is safe.
+6. **Review transient failure cleanup and shared-resource dependencies.** Thumbnail and height-dispatch locals now unwind on errors; several main-frame/pass
+   paths still release locals only on success. Use narrowly scoped ownership/`finally` after the callback
    boundary is settled. Keep borrowed environment/shadow views valid for retained mesh bind groups;
    do not replace the six-frame retirement rule with immediate destruction during a structural split.
 
 ## Extraction sequence and validation
 
-Readback, thumbnail and environment retirement are repaired. Next land the remaining local
-request/construction cleanup. Each needs lifetime tests and live shutdown-during-work checks.
+Readback, thumbnail, environment and local native-handle retirement are repaired. Specify binding-wrapper
+ownership and review the remaining main-frame/pass exception paths as owners are extracted. Each needs lifetime tests and live shutdown-during-work checks.
 Only then extract services, keeping frame orchestration and the final device lifetime in the context:
 
 - Surface/depth targets, with main/panel surface differences explicit.
@@ -173,6 +181,9 @@ or new tests were needed for this written map. Desktop/browser checks remain req
 - [Screenshot requests](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.Screenshot.cs)
 - [Browser initialization](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.BrowserAsync.cs)
 - [Browser callback bridge](../ManaGraphics/Code/Graphics/WebGPU/ManaBrowserWebGpuCallbackBridge.cs)
+- [Initialization request routing](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuInitializationRequests.cs)
+- [Partial acquisition rollback](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuAcquisition.cs)
+- [Browser native shim](../ManaGraphics/Native/mana_webgpu.c)
 
 Readback/thumbnail repair validation (2026-10-18): all 3,523 headless checks passed (11 new callback
 lifetime checks, focused Graphics run 57 checks). Desktop build had zero warnings. A native Metal
@@ -196,3 +207,15 @@ six-face dumps were inspected using `Tools/Automation/Checks/environment-lifetim
 use `Artifacts/Automation/environment-*`. Browser Release/AOT (SDK 10.0.300) and Chrome editor/resize
 and 2D Sample play/input checks passed without logged exceptions or validation errors; captures/logs
 are in `Artifacts/WebDrive/environment-*`. User workspace settings were restored and byte-compared.
+
+Local ownership repair validation (2026-10-18): 3,550 headless checks passed (12 new rollback/request
+routing checks; focused Graphics 84). Native Metal smoke in `Artifacts/Scratch/LocalOwnershipSmoke`
+counted one instance release after an injected surface-creation failure, verified zero residual texture
+references after a late material-data failure, rebuilt/disposed a valid mesh, faulted a zero-sized
+capture, canceled an unencoded screenshot and retired a height readback/pipeline. Desktop captures
+and cube-face dumps use `Artifacts/Automation/local-ownership*`. Browser AOT publish (SDK 10.0.300),
+editor/resize and play/input checks passed; injected adapter/device failures rejected late deliveries
+and reached the error overlay without unhandled runtime exceptions (`Artifacts/WebDrive/local-*`).
+Desktop build and iOS Compile passed with zero warnings; no phone deployment. Workspace settings
+were restored and byte-compared. Native binding-wrapper unload/lifetime and remaining main-frame/pass
+exception paths are still open; this step does not claim those boundaries are fully settled.

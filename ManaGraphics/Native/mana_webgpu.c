@@ -29,27 +29,27 @@
 // into EmccExportedFunction fails at link time ("symbol exported via --export not found").
 // Confirmed live: naming the EM_JS function itself and exporting a tiny real wrapper around it
 // (mirroring the mana_wgpuXxx forwarding pattern below) fixes it.
-EM_JS(void, mana_request_adapter_impl, (), {
+EM_JS(void, mana_request_adapter_impl, (int requestId), {
     if (!('gpu' in navigator)) {
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
         }
         return;
     }
     navigator.gpu.requestAdapter().then((adapter) => {
         var adapterId = adapter ? WebGPU.mgrAdapter.create(adapter) : 0;
-        if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(adapterId);
-        }
+        var accepted = globalThis.ManaExports &&
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, adapterId);
+        if (adapterId && !accepted) WebGPU.mgrAdapter.release(adapterId);
     }, (ex) => {
         console.error('mana_request_adapter failed', ex);
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
         }
     });
 });
 
-EM_JS(void, mana_request_device_impl, (int adapterId), {
+EM_JS(void, mana_request_device_impl, (int adapterId, int requestId), {
     var adapter = WebGPU.mgrAdapter.get(adapterId);
     adapter.requestDevice().then((device) => {
         // Mirrors library_webgpu.js's own wgpuAdapterRequestDevice exactly: DeviceGetQueue
@@ -57,23 +57,27 @@ EM_JS(void, mana_request_device_impl, (int adapterId), {
         // be pre-registered into the device's wrapper object at creation time, not lazily.
         var deviceWrapper = { queueId: WebGPU.mgrQueue.create(device.queue) };
         var deviceId = WebGPU.mgrDevice.create(device, deviceWrapper);
-        if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(deviceId);
+        var accepted = globalThis.ManaExports &&
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, deviceId);
+        if (!accepted) {
+            device.destroy();
+            WebGPU.mgrQueue.release(deviceWrapper.queueId);
+            WebGPU.mgrDevice.release(deviceId);
         }
     }, (ex) => {
         console.error('mana_request_device failed', ex);
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, 0);
         }
     });
 });
 
-void mana_request_adapter(void) {
-    mana_request_adapter_impl();
+void mana_request_adapter(int requestId) {
+    mana_request_adapter_impl(requestId);
 }
 
-void mana_request_device(int adapterId) {
-    mana_request_device_impl(adapterId);
+void mana_request_device(int adapterId, int requestId) {
+    mana_request_device_impl(adapterId, requestId);
 }
 
 // Diagnostic only, not part of the real render path: WebGPU's wgpuShaderModuleGetCompilationInfo
@@ -543,8 +547,15 @@ WGPUQueue mana_wgpuDeviceGetQueue(WGPUDevice device) {
     return wgpuDeviceGetQueue(device);
 }
 
+// This SDK's manager does not release the queue reference created with its device wrapper.
+EM_JS(void, mana_release_device_impl, (int deviceId), {
+    var wrapper = WebGPU.mgrDevice.objects[deviceId];
+    if (wrapper.refcount === 1 && wrapper.queueId) WebGPU.mgrQueue.release(wrapper.queueId);
+    WebGPU.mgrDevice.release(deviceId);
+});
+
 void mana_wgpuDeviceRelease(WGPUDevice device) {
-    wgpuDeviceRelease(device);
+    mana_release_device_impl((int)(uintptr_t)device);
 }
 
 void mana_wgpuDeviceSetUncapturedErrorCallback(WGPUDevice device, WGPUErrorCallback callback, void* userdata) {

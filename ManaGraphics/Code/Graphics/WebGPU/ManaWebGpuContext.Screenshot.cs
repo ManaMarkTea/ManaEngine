@@ -31,6 +31,10 @@ namespace ManaGraphics.Code.Graphics
         /// <param name="withoutUi">Leave ManaUI out of that frame: the scene alone, across the whole window.</param>
         public Task CaptureFrameAsync(string path, bool withoutUi = false)
         {
+            if (_disposed)
+            {
+                return Task.FromCanceled(new CancellationToken(true));
+            }
             if (_pendingScreenshot != null)
             {
                 return Task.FromException(new InvalidOperationException("A screenshot is already in flight."));
@@ -54,46 +58,68 @@ namespace ManaGraphics.Code.Graphics
 
             _pendingScreenshot = null;
 
-            var width = (uint)Math.Max(0, framebufferSize.X);
-            var height = (uint)Math.Max(0, framebufferSize.Y);
-            if (width == 0 || height == 0)
+            WebGpuBuffer* outputBuffer = null;
+            try
             {
-                request.Completion.TrySetException(new InvalidOperationException("Cannot screenshot a zero-sized framebuffer."));
+                var width = (uint)Math.Max(0, framebufferSize.X);
+                var height = (uint)Math.Max(0, framebufferSize.Y);
+                if (width == 0 || height == 0)
+                {
+                    request.Completion.TrySetException(new InvalidOperationException("Cannot screenshot a zero-sized framebuffer."));
+                    return null;
+                }
+
+                var rowBytes = checked(width * ScreenshotBytesPerPixel);
+                var paddedRowBytes = AlignTo(rowBytes, WebGpuCopyBytesPerRowAlignment);
+                var byteCount = checked((ulong)paddedRowBytes * height);
+
+                var outputBufferDescriptor = new BufferDescriptor
+                {
+                    Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
+                    Size = byteCount
+                };
+                outputBuffer = _api.DeviceCreateBuffer(_device, &outputBufferDescriptor);
+
+                if (outputBuffer == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU screenshot staging buffer.");
+                }
+                var copySource = new ImageCopyTexture
+                {
+                    Texture = frameTexture,
+                    MipLevel = 0,
+                    Origin = new Origin3D(),
+                    Aspect = TextureAspect.All
+                };
+                var copyDestination = new ImageCopyBuffer
+                {
+                    Buffer = outputBuffer,
+                    Layout = new TextureDataLayout
+                    {
+                        Offset = 0,
+                        BytesPerRow = paddedRowBytes,
+                        RowsPerImage = height
+                    }
+                };
+                var copySize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
+                _api.CommandEncoderCopyTextureToBuffer(commandEncoder, &copySource, &copyDestination, &copySize);
+
+                var encoded = new EncodedScreenshotCopy((nint)outputBuffer, byteCount, paddedRowBytes, width, height, request);
+                outputBuffer = null;
+                return encoded;
+            }
+            catch (Exception ex)
+            {
+                request.Completion.TrySetException(ex);
                 return null;
             }
-
-            var rowBytes = checked(width * ScreenshotBytesPerPixel);
-            var paddedRowBytes = AlignTo(rowBytes, WebGpuCopyBytesPerRowAlignment);
-            var byteCount = checked((ulong)paddedRowBytes * height);
-
-            var outputBufferDescriptor = new BufferDescriptor
+            finally
             {
-                Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
-                Size = byteCount
-            };
-            var outputBuffer = _api.DeviceCreateBuffer(_device, &outputBufferDescriptor);
-
-            var copySource = new ImageCopyTexture
-            {
-                Texture = frameTexture,
-                MipLevel = 0,
-                Origin = new Origin3D(),
-                Aspect = TextureAspect.All
-            };
-            var copyDestination = new ImageCopyBuffer
-            {
-                Buffer = outputBuffer,
-                Layout = new TextureDataLayout
+                if (outputBuffer != null)
                 {
-                    Offset = 0,
-                    BytesPerRow = paddedRowBytes,
-                    RowsPerImage = height
+                    _api.BufferRelease(outputBuffer);
                 }
-            };
-            var copySize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
-            _api.CommandEncoderCopyTextureToBuffer(commandEncoder, &copySource, &copyDestination, &copySize);
-
-            return new EncodedScreenshotCopy((nint)outputBuffer, byteCount, paddedRowBytes, width, height, request);
+            }
         }
 
         // Call only after QueueSubmit for the frame that carried EncodePendingScreenshotIfRequested's copy

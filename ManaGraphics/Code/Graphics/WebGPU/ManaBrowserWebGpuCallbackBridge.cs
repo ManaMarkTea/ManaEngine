@@ -10,18 +10,14 @@ namespace ManaGraphics.Code.Graphics
     // details). Called directly via [LibraryImport], not resolved through ManaBrowserWebGpuNativeContext -- these
     // aren't part of Silk.NET.WebGPU's API surface at all, just a private detour around it.
     //
-    // [JSExport] methods must be static, so this routes results to whichever ManaWebGpuContext
-    // is currently mid-request via a single static "current" slot -- safe because only one
-    // browser WebGPU context is ever live at a time (same pattern as ManaBrowserWindow.Current).
+    // Request IDs keep late promises from routing into a fresh context; JS releases rejected handles.
     public static partial class ManaBrowserWebGpuCallbackBridge
     {
-        internal static ManaWebGpuContext? PendingContext;
-
         [LibraryImport("mana_webgpu", EntryPoint = "mana_request_adapter")]
-        internal static partial void RequestAdapter();
+        internal static partial void RequestAdapter(int requestId);
 
         [LibraryImport("mana_webgpu", EntryPoint = "mana_request_device")]
-        internal static partial void RequestDevice(int adapterId);
+        internal static partial void RequestDevice(int adapterId, int requestId);
 
         // Diagnostic only -- see mana_webgpu.c's mana_log_shader_compilation_info_impl. No C#-side
         // handler needed: it just logs straight to the browser console.
@@ -33,16 +29,12 @@ namespace ManaGraphics.Code.Graphics
         internal static partial void DebugReadbackBuffer(int deviceId, int sourceBufferId, int byteSize);
 
         [JSExport]
-        internal static void OnAdapterResult(int adapterId)
-        {
-            PendingContext?.OnAdapterResultFromJs(adapterId);
-        }
+        internal static bool OnAdapterResult(int requestId, int adapterId) =>
+            ManaWebGpuInitializationRequests.Complete(requestId, adapterId);
 
         [JSExport]
-        internal static void OnDeviceResult(int deviceId)
-        {
-            PendingContext?.OnDeviceResultFromJs(deviceId);
-        }
+        internal static bool OnDeviceResult(int requestId, int deviceId) =>
+            ManaWebGpuInitializationRequests.Complete(requestId, deviceId);
     }
 }
 #endif

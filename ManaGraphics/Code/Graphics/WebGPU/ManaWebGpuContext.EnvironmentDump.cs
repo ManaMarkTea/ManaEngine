@@ -14,7 +14,10 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>Writes the reflection cube's faces to <c>{prefix}.face{0-5}.png</c> after the next frame.</summary>
         public void DumpEnvironmentFaces(string prefix)
         {
-            _pendingEnvironmentDump = prefix;
+            if (!_disposed)
+            {
+                _pendingEnvironmentDump = prefix;
+            }
         }
 
         private (nint Buffer, uint Size, uint PaddedRow, string Prefix)? EncodeEnvironmentDump(CommandEncoder* commandEncoder)

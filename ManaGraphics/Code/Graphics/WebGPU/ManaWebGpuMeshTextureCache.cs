@@ -56,15 +56,17 @@ namespace ManaGraphics.Code.Graphics
         /// </summary>
         public ManaWebGpuMeshTexture[] AcquireMaterialMaps(ManaMeshCpuData cpuData)
         {
-            return new[]
-            {
-                AcquireMaterialMap(cpuData.NormalTexturePath, ManaMaterialMapKind.Normal),
-                AcquireMaterialMap(cpuData.EmissionTexturePath, ManaMaterialMapKind.Colour),
-                AcquireMaterialMap(cpuData.MetallicTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.RoughnessTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.OcclusionTexturePath, ManaMaterialMapKind.Linear),
-                AcquireMaterialMap(cpuData.OpacityTexturePath, ManaMaterialMapKind.Linear)
-            };
+            (string? Path, ManaMaterialMapKind Kind)[] maps =
+            [
+                (cpuData.NormalTexturePath, ManaMaterialMapKind.Normal),
+                (cpuData.EmissionTexturePath, ManaMaterialMapKind.Colour),
+                (cpuData.MetallicTexturePath, ManaMaterialMapKind.Linear),
+                (cpuData.RoughnessTexturePath, ManaMaterialMapKind.Linear),
+                (cpuData.OcclusionTexturePath, ManaMaterialMapKind.Linear),
+                (cpuData.OpacityTexturePath, ManaMaterialMapKind.Linear)
+            ];
+            return ManaWebGpuAcquisition.Acquire(maps.Length,
+                index => AcquireMaterialMap(maps[index].Path, maps[index].Kind), ReleaseMeshTexture);
         }
 
         public void ReleaseMeshTexture(ManaWebGpuMeshTexture textureResource)

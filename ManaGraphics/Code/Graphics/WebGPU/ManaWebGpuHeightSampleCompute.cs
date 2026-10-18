@@ -74,16 +74,25 @@ namespace ManaGraphics.Code.Graphics
             _device = device;
             _queue = queue;
             _readbackRegistry = readbackRegistry;
-            _shaderModule = CreateShaderModule(shaderPath);
-            _bindGroupLayout = CreateBindGroupLayout();
-            _pipelineLayout = CreatePipelineLayout();
-            _pipeline = CreatePipeline();
+            try
+            {
+                _shaderModule = CreateShaderModule(shaderPath);
+                _bindGroupLayout = CreateBindGroupLayout();
+                _pipelineLayout = CreatePipelineLayout();
+                _pipeline = CreatePipeline();
+            }
+            catch
+            {
+                Dispose();
+                throw;
+            }
         }
 
         public async Task<float[]> SampleHeightsAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
         {
+            ObjectDisposedException.ThrowIf(_disposed, this);
             if (lonLatPointsDegrees.Length == 0)
             {
                 return Array.Empty<float>();
@@ -146,51 +155,82 @@ namespace ManaGraphics.Code.Graphics
                 writeOffset += tile.HeightData.Length;
             }
 
-            var pointsBuffer = CreateStorageBuffer<Vector2>(points, BufferUsage.Storage | BufferUsage.CopyDst);
-            var tilesBuffer = CreateStorageBuffer<GpuTileDescriptor>(tileDescriptors, BufferUsage.Storage | BufferUsage.CopyDst);
-            var heightDataBuffer = CreateStorageBuffer<float>(heightData, BufferUsage.Storage | BufferUsage.CopyDst);
-            var outputByteSize = (ulong)(points.Length * sizeof(float));
-            var outputBuffer = CreateBuffer(outputByteSize, BufferUsage.Storage | BufferUsage.CopySrc);
-            var tileCountBuffer = CreateUniformBuffer((uint)tilesNewestFirst.Count);
-
-            var bindGroup = CreateBindGroup(pointsBuffer, tilesBuffer, heightDataBuffer, outputBuffer, tileCountBuffer);
-
-            var commandEncoderDescriptor = new CommandEncoderDescriptor();
-            var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
-            if (commandEncoder == null)
+            WebGpuBuffer* pointsBuffer = null, tilesBuffer = null, heightDataBuffer = null;
+            WebGpuBuffer* outputBuffer = null, tileCountBuffer = null, stagingBuffer = null;
+            BindGroup* bindGroup = null;
+            CommandEncoder* commandEncoder = null;
+            ComputePassEncoder* computePass = null;
+            CommandBuffer* commandBuffer = null;
+            try
             {
-                throw new InvalidOperationException("Failed to create WebGPU command encoder for height sampling.");
+                pointsBuffer = CreateStorageBuffer<Vector2>(points, BufferUsage.Storage | BufferUsage.CopyDst);
+                tilesBuffer = CreateStorageBuffer<GpuTileDescriptor>(tileDescriptors, BufferUsage.Storage | BufferUsage.CopyDst);
+                heightDataBuffer = CreateStorageBuffer<float>(heightData, BufferUsage.Storage | BufferUsage.CopyDst);
+                var outputByteSize = (ulong)(points.Length * sizeof(float));
+                outputBuffer = CreateBuffer(outputByteSize, BufferUsage.Storage | BufferUsage.CopySrc);
+                tileCountBuffer = CreateUniformBuffer((uint)tilesNewestFirst.Count);
+
+                bindGroup = CreateBindGroup(pointsBuffer, tilesBuffer, heightDataBuffer, outputBuffer, tileCountBuffer);
+
+                var commandEncoderDescriptor = new CommandEncoderDescriptor();
+                commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+                if (commandEncoder == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU command encoder for height sampling.");
+                }
+
+                var computePassDescriptor = new ComputePassDescriptor();
+                computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
+                if (computePass == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU height-sample compute pass.");
+                }
+                _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
+                _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
+                var workgroups = (uint)((points.Length + 63) / 64);
+                _api.ComputePassEncoderDispatchWorkgroups(computePass, workgroups, 1, 1);
+                _api.ComputePassEncoderEnd(computePass);
+                _api.ComputePassEncoderRelease(computePass);
+                computePass = null;
+
+                stagingBuffer = ManaWebGpuBufferReadback.EncodeCopyToStaging(_api, _device, commandEncoder, outputBuffer, outputByteSize);
+
+                var commandBufferDescriptor = new CommandBufferDescriptor();
+                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                if (commandBuffer == null)
+                {
+                    throw new InvalidOperationException("Failed to finish WebGPU height-sample commands.");
+                }
+                _api.QueueSubmit(_queue, 1, &commandBuffer);
+
+                var readback = ManaWebGpuBufferReadback.MapAsync(_api, stagingBuffer, outputByteSize, _readbackRegistry);
+                stagingBuffer = null;
+                return readback;
             }
-
-            var computePassDescriptor = new ComputePassDescriptor();
-            var computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
-            _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
-            _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
-            var workgroups = (uint)((points.Length + 63) / 64);
-            _api.ComputePassEncoderDispatchWorkgroups(computePass, workgroups, 1, 1);
-            _api.ComputePassEncoderEnd(computePass);
-            _api.ComputePassEncoderRelease(computePass);
-
-            var stagingBuffer = ManaWebGpuBufferReadback.EncodeCopyToStaging(_api, _device, commandEncoder, outputBuffer, outputByteSize);
-
-            var commandBufferDescriptor = new CommandBufferDescriptor();
-            var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
-            _api.QueueSubmit(_queue, 1, &commandBuffer);
-            _api.CommandBufferRelease(commandBuffer);
-            _api.CommandEncoderRelease(commandEncoder);
-
-            _api.BindGroupRelease(bindGroup);
-            _api.BufferRelease(pointsBuffer);
-            _api.BufferRelease(tilesBuffer);
-            _api.BufferRelease(heightDataBuffer);
-            _api.BufferRelease(outputBuffer);
-            _api.BufferRelease(tileCountBuffer);
-
-            return ManaWebGpuBufferReadback.MapAsync(_api, stagingBuffer, outputByteSize, _readbackRegistry);
+            finally
+            {
+                if (computePass != null) { _api.ComputePassEncoderRelease(computePass); }
+                if (commandBuffer != null) { _api.CommandBufferRelease(commandBuffer); }
+                if (commandEncoder != null) { _api.CommandEncoderRelease(commandEncoder); }
+                if (bindGroup != null) { _api.BindGroupRelease(bindGroup); }
+                if (pointsBuffer != null) { _api.BufferRelease(pointsBuffer); }
+                if (tilesBuffer != null) { _api.BufferRelease(tilesBuffer); }
+                if (heightDataBuffer != null) { _api.BufferRelease(heightDataBuffer); }
+                if (outputBuffer != null) { _api.BufferRelease(outputBuffer); }
+                if (tileCountBuffer != null) { _api.BufferRelease(tileCountBuffer); }
+                if (stagingBuffer != null) { _api.BufferRelease(stagingBuffer); }
+            }
         }
+
+        private bool _disposed;
 
         public override unsafe void Dispose()
         {
+            if (_disposed)
+            {
+                return;
+            }
+            _disposed = true;
             if (_pipeline != null)
             {
                 _api.ComputePipelineRelease(_pipeline);

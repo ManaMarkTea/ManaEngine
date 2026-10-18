@@ -71,254 +71,258 @@ namespace ManaGraphics.Code.Graphics
             var meshData = instance.MeshData;
             var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _device, _queue, meshData, instance.Name);
 
-            var bufferDescriptor = new BufferDescriptor
-            {
-                // CopySrc costs nothing functionally and lets mana_debug_readback_buffer (see
-                // mana_webgpu.c) inspect this buffer's real GPU-side bytes during future debugging.
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc,
-                Size = (ulong)sizeof(ManaWebGpuObjectUniform)
-            };
-            var uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
-            if (uniformBuffer == null)
-            {
-                mesh.Dispose();
-                throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
-            }
-
-            var textureResource = _meshTextures.AcquireMeshTexture(meshData);
-            var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
-
-            var bindGroupEntry = new BindGroupEntry
-            {
-                Binding = 0,
-                Buffer = uniformBuffer,
-                Offset = 0,
-                Size = (ulong)sizeof(ManaWebGpuObjectUniform)
-            };
-
-            var samplerBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 1,
-                Sampler = meshData.NearestFiltering ? _nearestSampler : _demoSampler
-            };
-
-            var textureBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 2,
-                TextureView = textureResource.TextureView
-            };
-
-            var environmentMapBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 3,
-                TextureView = environmentReflectionMap.EnvironmentMapResource.TextureView
-            };
-
-            var irradianceMapBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 4,
-                TextureView = environmentReflectionMap.IrradianceMapResource.TextureView
-            };
-
-            var prefilteredReflectionMapBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 5,
-                TextureView = environmentReflectionMap.PrefilteredReflectionMapResource.TextureView
-            };
-
-            var brdfLutBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 6,
-                TextureView = environmentReflectionMap.BrdfLutResource.TextureView
-            };
-
-            var clampSamplerBindGroupEntry = new BindGroupEntry
-            {
-                Binding = 7,
-                Sampler = _clampSampler
-            };
-
-            // The rest of the maps, in binding order. Each is a real texture or the neutral 1x1 for its
-            // kind, because a bind group has to fill every binding its layout declares.
-            var materialMaps = _meshTextures.AcquireMaterialMaps(meshData);
-
-            var bindGroupEntries = new BindGroupEntry[ObjectBindingCount];
-            bindGroupEntries[0] = bindGroupEntry;
-            bindGroupEntries[1] = samplerBindGroupEntry;
-            bindGroupEntries[2] = textureBindGroupEntry;
-            bindGroupEntries[3] = environmentMapBindGroupEntry;
-            bindGroupEntries[4] = irradianceMapBindGroupEntry;
-            bindGroupEntries[5] = prefilteredReflectionMapBindGroupEntry;
-            bindGroupEntries[6] = brdfLutBindGroupEntry;
-            bindGroupEntries[7] = clampSamplerBindGroupEntry;
-
-            for (var map = 0; map < MaterialMapCount; map++)
-            {
-                bindGroupEntries[FirstMaterialMapBinding + map] = new BindGroupEntry
-                {
-                    Binding = (uint)(FirstMaterialMapBinding + map),
-                    TextureView = materialMaps[map].TextureView
-                };
-            }
-
+            WebGpuBuffer* uniformBuffer = null;
+            WebGpuBuffer* customUniformBuffer = null;
             BindGroup* bindGroup = null;
-            fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
-            {
-                var bindGroupDescriptor = new BindGroupDescriptor
-                {
-                    Layout = _objectBindGroupLayout,
-                    EntryCount = ObjectBindingCount,
-                    Entries = bindGroupEntriesPointer
-                };
-                bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
-            }
-
-            if (bindGroup == null)
-            {
-                _meshTextures.ReleaseMeshTexture(textureResource);
-                _api.BufferRelease(uniformBuffer);
-                mesh.Dispose();
-                throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
-            }
-
-            // Scene capture keeps its own, larger, unsplit uniform layout (see
-            // ManaWebGpuSceneCaptureUniform in ManaWebGpuContext.Uniforms.cs), so it needs its own
-            // buffer size distinct from the (now much smaller) per-object bufferDescriptor above.
-            var sceneCaptureBufferDescriptor = new BufferDescriptor
-            {
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
-            };
-
+            BindGroup* customBindGroup = null;
+            ManaWebGpuMeshTexture? textureResource = null;
+            ManaWebGpuMeshTexture[] materialMaps = [];
             var sceneCaptureUniformBuffers = new nint[6];
             var sceneCaptureBindGroups = new nint[6];
-            for (var face = 0; face < 6; face++)
+            var transferred = false;
+            try
             {
-                var sceneCaptureUniformBuffer = _api.DeviceCreateBuffer(_device, &sceneCaptureBufferDescriptor);
-                if (sceneCaptureUniformBuffer == null)
+                var bufferDescriptor = new BufferDescriptor
                 {
-                    ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
-                    _api.BindGroupRelease(bindGroup);
-                    _meshTextures.ReleaseMeshTexture(textureResource);
-                    _api.BufferRelease(uniformBuffer);
-                    mesh.Dispose();
-                    throw new InvalidOperationException($"Failed to create WebGPU scene capture uniform buffer for mesh '{instance.Name}'.");
+                    // CopySrc costs nothing functionally and lets mana_debug_readback_buffer (see
+                    // mana_webgpu.c) inspect this buffer's real GPU-side bytes during future debugging.
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst | BufferUsage.CopySrc,
+                    Size = (ulong)sizeof(ManaWebGpuObjectUniform)
+                };
+                uniformBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+                if (uniformBuffer == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU uniform buffer for mesh '{instance.Name}'.");
                 }
 
-                sceneCaptureUniformBuffers[face] = (nint)sceneCaptureUniformBuffer;
-                var sceneCaptureBufferBindGroupEntry = new BindGroupEntry
+                textureResource = _meshTextures.AcquireMeshTexture(meshData);
+                var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
+
+                var bindGroupEntry = new BindGroupEntry
                 {
                     Binding = 0,
-                    Buffer = sceneCaptureUniformBuffer,
+                    Buffer = uniformBuffer,
                     Offset = 0,
+                    Size = (ulong)sizeof(ManaWebGpuObjectUniform)
+                };
+
+                var samplerBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 1,
+                    Sampler = meshData.NearestFiltering ? _nearestSampler : _demoSampler
+                };
+
+                var textureBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 2,
+                    TextureView = textureResource.TextureView
+                };
+
+                var environmentMapBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 3,
+                    TextureView = environmentReflectionMap.EnvironmentMapResource.TextureView
+                };
+
+                var irradianceMapBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 4,
+                    TextureView = environmentReflectionMap.IrradianceMapResource.TextureView
+                };
+
+                var prefilteredReflectionMapBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 5,
+                    TextureView = environmentReflectionMap.PrefilteredReflectionMapResource.TextureView
+                };
+
+                var brdfLutBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 6,
+                    TextureView = environmentReflectionMap.BrdfLutResource.TextureView
+                };
+
+                var clampSamplerBindGroupEntry = new BindGroupEntry
+                {
+                    Binding = 7,
+                    Sampler = _clampSampler
+                };
+
+                // The rest of the maps, in binding order. Each is a real texture or the neutral 1x1 for its
+                // kind, because a bind group has to fill every binding its layout declares.
+                materialMaps = _meshTextures.AcquireMaterialMaps(meshData);
+
+                var bindGroupEntries = new BindGroupEntry[ObjectBindingCount];
+                bindGroupEntries[0] = bindGroupEntry;
+                bindGroupEntries[1] = samplerBindGroupEntry;
+                bindGroupEntries[2] = textureBindGroupEntry;
+                bindGroupEntries[3] = environmentMapBindGroupEntry;
+                bindGroupEntries[4] = irradianceMapBindGroupEntry;
+                bindGroupEntries[5] = prefilteredReflectionMapBindGroupEntry;
+                bindGroupEntries[6] = brdfLutBindGroupEntry;
+                bindGroupEntries[7] = clampSamplerBindGroupEntry;
+
+                for (var map = 0; map < MaterialMapCount; map++)
+                {
+                    bindGroupEntries[FirstMaterialMapBinding + map] = new BindGroupEntry
+                    {
+                        Binding = (uint)(FirstMaterialMapBinding + map),
+                        TextureView = materialMaps[map].TextureView
+                    };
+                }
+
+                fixed (BindGroupEntry* bindGroupEntriesPointer = bindGroupEntries)
+                {
+                    var bindGroupDescriptor = new BindGroupDescriptor
+                    {
+                        Layout = _objectBindGroupLayout,
+                        EntryCount = ObjectBindingCount,
+                        Entries = bindGroupEntriesPointer
+                    };
+                    bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
+                }
+
+                if (bindGroup == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
+                }
+
+                // Scene capture keeps its own, larger, unsplit uniform layout (see
+                // ManaWebGpuSceneCaptureUniform in ManaWebGpuContext.Uniforms.cs), so it needs its own
+                // buffer size distinct from the (now much smaller) per-object bufferDescriptor above.
+                var sceneCaptureBufferDescriptor = new BufferDescriptor
+                {
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
                     Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
                 };
 
-                var sceneCaptureBindGroupEntries = new BindGroupEntry[3];
-                sceneCaptureBindGroupEntries[0] = sceneCaptureBufferBindGroupEntry;
-                sceneCaptureBindGroupEntries[1] = samplerBindGroupEntry;
-                sceneCaptureBindGroupEntries[2] = textureBindGroupEntry;
-
-                BindGroup* sceneCaptureBindGroup = null;
-                fixed (BindGroupEntry* sceneCaptureBindGroupEntriesPointer = sceneCaptureBindGroupEntries)
+                for (var face = 0; face < 6; face++)
                 {
-                    var sceneCaptureBindGroupDescriptor = new BindGroupDescriptor
+                    var sceneCaptureUniformBuffer = _api.DeviceCreateBuffer(_device, &sceneCaptureBufferDescriptor);
+                    if (sceneCaptureUniformBuffer == null)
                     {
-                        Layout = _sceneCaptureBindGroupLayout,
-                        EntryCount = 3,
-                        Entries = sceneCaptureBindGroupEntriesPointer
+                        throw new InvalidOperationException($"Failed to create WebGPU scene capture uniform buffer for mesh '{instance.Name}'.");
+                    }
+
+                    sceneCaptureUniformBuffers[face] = (nint)sceneCaptureUniformBuffer;
+                    var sceneCaptureBufferBindGroupEntry = new BindGroupEntry
+                    {
+                        Binding = 0,
+                        Buffer = sceneCaptureUniformBuffer,
+                        Offset = 0,
+                        Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
                     };
-                    sceneCaptureBindGroup = _api.DeviceCreateBindGroup(_device, &sceneCaptureBindGroupDescriptor);
+
+                    var sceneCaptureBindGroupEntries = new BindGroupEntry[3];
+                    sceneCaptureBindGroupEntries[0] = sceneCaptureBufferBindGroupEntry;
+                    sceneCaptureBindGroupEntries[1] = samplerBindGroupEntry;
+                    sceneCaptureBindGroupEntries[2] = textureBindGroupEntry;
+
+                    BindGroup* sceneCaptureBindGroup = null;
+                    fixed (BindGroupEntry* sceneCaptureBindGroupEntriesPointer = sceneCaptureBindGroupEntries)
+                    {
+                        var sceneCaptureBindGroupDescriptor = new BindGroupDescriptor
+                        {
+                            Layout = _sceneCaptureBindGroupLayout,
+                            EntryCount = 3,
+                            Entries = sceneCaptureBindGroupEntriesPointer
+                        };
+                        sceneCaptureBindGroup = _api.DeviceCreateBindGroup(_device, &sceneCaptureBindGroupDescriptor);
+                    }
+
+                    if (sceneCaptureBindGroup == null)
+                    {
+                        throw new InvalidOperationException($"Failed to create WebGPU scene capture bind group for mesh '{instance.Name}'.");
+                    }
+
+                    sceneCaptureBindGroups[face] = (nint)sceneCaptureBindGroup;
                 }
 
-                if (sceneCaptureBindGroup == null)
+                // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
+                // shader (unused shaders simply never declare @group(1) in their .wgsl source).
+                var customUniformLayout = GetCustomUniformLayout(instance.ShaderName);
+                var customUniformData = new byte[customUniformLayout.BufferSize];
+                BuildCustomMaterialUniformData(instance, customUniformLayout, customUniformData);
+
+                var customBufferDescriptor = new BufferDescriptor
+                {
+                    Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                    Size = (ulong)customUniformData.Length
+                };
+                customUniformBuffer = _api.DeviceCreateBuffer(_device, &customBufferDescriptor);
+                if (customUniformBuffer == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU custom uniform buffer for mesh '{instance.Name}'.");
+                }
+
+                var customBindGroupEntries = new BindGroupEntry[1];
+                customBindGroupEntries[0] = new BindGroupEntry
+                {
+                    Binding = 0,
+                    Buffer = customUniformBuffer,
+                    Offset = 0,
+                    Size = (ulong)customUniformData.Length
+                };
+
+                fixed (BindGroupEntry* customBindGroupEntriesPointer = customBindGroupEntries)
+                {
+                    var customBindGroupDescriptor = new BindGroupDescriptor
+                    {
+                        Layout = _customUniformBindGroupLayout,
+                        EntryCount = 1,
+                        Entries = customBindGroupEntriesPointer
+                    };
+                    customBindGroup = _api.DeviceCreateBindGroup(_device, &customBindGroupDescriptor);
+                }
+
+                if (customBindGroup == null)
+                {
+                    throw new InvalidOperationException($"Failed to create WebGPU custom uniform bind group for mesh '{instance.Name}'.");
+                }
+
+                fixed (byte* customUniformDataPointer = customUniformData)
+                {
+                    _api.QueueWriteBuffer(_queue, customUniformBuffer, 0, customUniformDataPointer, (nuint)customUniformData.Length);
+                }
+
+                var sceneMesh = new ManaWebGpuSceneMesh(
+                    _api,
+                    instance,
+                    mesh,
+                    uniformBuffer,
+                    textureResource,
+                    materialMaps,
+                    _meshTextures.ReleaseMeshTexture,
+                    bindGroup,
+                    sceneCaptureUniformBuffers,
+                    sceneCaptureBindGroups,
+                    customUniformBuffer,
+                    customBindGroup,
+                    customUniformLayout,
+                    customUniformData);
+                transferred = true;
+                return sceneMesh;
+            }
+            finally
+            {
+                if (!transferred)
                 {
                     ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
-                    _api.BindGroupRelease(bindGroup);
-                    _meshTextures.ReleaseMeshTexture(textureResource);
-                    _api.BufferRelease(uniformBuffer);
+                    if (customBindGroup != null) { _api.BindGroupRelease(customBindGroup); }
+                    if (bindGroup != null) { _api.BindGroupRelease(bindGroup); }
+                    if (customUniformBuffer != null) { _api.BufferRelease(customUniformBuffer); }
+                    if (uniformBuffer != null) { _api.BufferRelease(uniformBuffer); }
+                    foreach (var map in materialMaps)
+                    {
+                        _meshTextures.ReleaseMeshTexture(map);
+                    }
+                    if (textureResource != null)
+                    {
+                        _meshTextures.ReleaseMeshTexture(textureResource);
+                    }
                     mesh.Dispose();
-                    throw new InvalidOperationException($"Failed to create WebGPU scene capture bind group for mesh '{instance.Name}'.");
                 }
-
-                sceneCaptureBindGroups[face] = (nint)sceneCaptureBindGroup;
             }
-
-            // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
-            // shader (unused shaders simply never declare @group(1) in their .wgsl source).
-            var customUniformLayout = GetCustomUniformLayout(instance.ShaderName);
-            var customUniformData = new byte[customUniformLayout.BufferSize];
-            BuildCustomMaterialUniformData(instance, customUniformLayout, customUniformData);
-
-            var customBufferDescriptor = new BufferDescriptor
-            {
-                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                Size = (ulong)customUniformData.Length
-            };
-            var customUniformBuffer = _api.DeviceCreateBuffer(_device, &customBufferDescriptor);
-            if (customUniformBuffer == null)
-            {
-                ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
-                _api.BindGroupRelease(bindGroup);
-                _meshTextures.ReleaseMeshTexture(textureResource);
-                _api.BufferRelease(uniformBuffer);
-                mesh.Dispose();
-                throw new InvalidOperationException($"Failed to create WebGPU custom uniform buffer for mesh '{instance.Name}'.");
-            }
-
-            var customBindGroupEntries = new BindGroupEntry[1];
-            customBindGroupEntries[0] = new BindGroupEntry
-            {
-                Binding = 0,
-                Buffer = customUniformBuffer,
-                Offset = 0,
-                Size = (ulong)customUniformData.Length
-            };
-
-            BindGroup* customBindGroup = null;
-            fixed (BindGroupEntry* customBindGroupEntriesPointer = customBindGroupEntries)
-            {
-                var customBindGroupDescriptor = new BindGroupDescriptor
-                {
-                    Layout = _customUniformBindGroupLayout,
-                    EntryCount = 1,
-                    Entries = customBindGroupEntriesPointer
-                };
-                customBindGroup = _api.DeviceCreateBindGroup(_device, &customBindGroupDescriptor);
-            }
-
-            if (customBindGroup == null)
-            {
-                ReleaseSceneCaptureResources(sceneCaptureUniformBuffers, sceneCaptureBindGroups);
-                _api.BindGroupRelease(bindGroup);
-                _meshTextures.ReleaseMeshTexture(textureResource);
-                _api.BufferRelease(uniformBuffer);
-                _api.BufferRelease(customUniformBuffer);
-                mesh.Dispose();
-                throw new InvalidOperationException($"Failed to create WebGPU custom uniform bind group for mesh '{instance.Name}'.");
-            }
-
-            fixed (byte* customUniformDataPointer = customUniformData)
-            {
-                _api.QueueWriteBuffer(_queue, customUniformBuffer, 0, customUniformDataPointer, (nuint)customUniformData.Length);
-            }
-
-            var sceneMesh = new ManaWebGpuSceneMesh(
-                _api,
-                instance,
-                mesh,
-                uniformBuffer,
-                textureResource,
-                materialMaps,
-                _meshTextures.ReleaseMeshTexture,
-                bindGroup,
-                sceneCaptureUniformBuffers,
-                sceneCaptureBindGroups,
-                customUniformBuffer,
-                customBindGroup,
-                customUniformLayout,
-                customUniformData);
-            return sceneMesh;
         }
 
         private void ReleaseSceneCaptureResources(IReadOnlyList<nint> uniformBuffers, IReadOnlyList<nint> bindGroups)
