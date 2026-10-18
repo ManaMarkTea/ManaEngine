@@ -1,0 +1,12 @@
+[
+  { "type": "open_level", "path": "Content/Levels/Sample Course.manalevel" },
+  { "type": "wait", "frames": 240 },
+  { "type": "open_panel", "name": "blurtest" },
+  { "type": "wait", "frames": 240 },
+  { "type": "gpu_report" },
+  { "type": "wait", "frames": 600 },
+  { "type": "gpu_report" },
+  { "type": "wait", "frames": 600 },
+  { "type": "gpu_report", "path": "Artifacts/Automation/gpu-leak-final.txt" },
+  { "type": "quit" }
+]

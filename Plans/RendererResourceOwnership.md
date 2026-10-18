@@ -175,6 +175,17 @@ a test here proves):
   unwind through the frame's `finally`. Accepted: the frame is already failing, and wrapping each site adds nesting without changing the
   outcome. Reconsider if a sub-pass starts to throw in normal operation.
 
+## Detecting leaks on purpose
+
+`gpu_report` (automation command; `ManaGpuResourceReport`, `ManaWebGpuContext.ResourceReport.cs`) reads wgpu-native's own registry
+through `GenerateReport`: per kind, what the app still holds and what the app released but the driver keeps alive. Run it twice around a
+still scene (`Tools/Automation/Checks/gpu-leak.json`); any kind that climbs is a leak. Baseline for the Sample Course with the Blur Test
+panel open: 3,255 buffers, 2,613 bind groups, 119 texture views, 27 textures, flat over 1,200 frames.
+
+Limits, found by test: with the old backdrop-blur pass leak put back, the report read "unchanged". It counts wgpu-core objects (buffers,
+textures, views, bind groups, pipelines, command buffers), not the thin wrapper handles around passes and encoders, so that class of leak
+is still found by review only. The browser's WebGPU cannot list what it holds, so there is no equivalent there.
+
 ## Extraction sequence and validation
 
 Readback, thumbnail, environment and local native-handle retirement are repaired. Specify binding-wrapper

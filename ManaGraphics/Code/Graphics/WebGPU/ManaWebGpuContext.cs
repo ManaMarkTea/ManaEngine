@@ -270,6 +270,10 @@ namespace ManaGraphics.Code.Graphics
             {
                 ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
             }
+            else
+            {
+                PublishResourceReport();
+            }
 #endif
 #if !MANA_BROWSER
             _api.DeviceSetUncapturedErrorCallback(_device, new PfnErrorCallback(&OnError), null);
@@ -967,6 +971,9 @@ namespace ManaGraphics.Code.Graphics
 #endif
             // Retire readbacks while the device is live; late native callbacks see no registered request.
             _disposed = true;
+#if !MANA_BROWSER
+            RetractResourceReport();
+#endif
             _pendingScreenshot?.Completion.TrySetCanceled();
             _pendingScreenshot = null;
             _pendingEnvironmentDump = null;

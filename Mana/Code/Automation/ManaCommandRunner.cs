@@ -395,6 +395,33 @@ namespace Mana.Code.Automation
 
             Register("profile_dump", command => WriteProfileReport(RequirePath(command)));
 
+            // Live GPU object counts by kind, and what moved since the last call: a count that keeps climbing while the
+            // scene sits still is a leak. Desktop/mobile only; the browser cannot list what it holds.
+            Register("gpu_report", command =>
+            {
+                var counts = ManaGpuResourceReport.Capture();
+                if (counts == null)
+                {
+                    ManaLog.WriteDiagnostic("Command file: gpu report unavailable on this backend");
+                    return;
+                }
+
+                ManaLog.WriteDiagnostic($"Command file: gpu live {ManaGpuResourceReport.Format(counts)}");
+                if (_lastGpuReport != null)
+                {
+                    var changes = ManaGpuResourceReport.Changes(_lastGpuReport, counts);
+                    ManaLog.WriteDiagnostic(changes.Count == 0
+                        ? "Command file: gpu unchanged since the last report"
+                        : "Command file: gpu changed " + string.Join(", ", changes.Select(change => $"{change.Key} {change.Value:+#;-#;0}")));
+                }
+
+                _lastGpuReport = counts;
+                if (!string.IsNullOrEmpty(command.Path))
+                {
+                    File.WriteAllLines(command.Path, counts.OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => $"{pair.Key}={pair.Value}"));
+                }
+            });
+
             Register("quit", (_, _) =>
             {
                 Context.Window.Close();
@@ -479,6 +506,8 @@ namespace Mana.Code.Automation
 
         // Frames per second since the last profile_reset, then every timed scope by average cost -- what makes
         // "the editor is slow" a list of names instead of a feeling.
+        private IReadOnlyDictionary<string, long>? _lastGpuReport;
+
         private void WriteProfileReport(string path)
         {
             var seconds = _profileClock.Elapsed.TotalSeconds;

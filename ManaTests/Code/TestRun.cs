@@ -179,6 +179,7 @@ public static class TestRunner
         ("Graphics", "readback callback lifetime", ReadbackLifetimeChecks.Run),
         ("Graphics", "environment preparation lifetime", EnvironmentLifetimeChecks.Run),
         ("Graphics", "local resource ownership", LocalOwnershipChecks.Run),
+        ("Graphics", "gpu resource report", GpuResourceReportChecks.Run),
 
         // Last on purpose: it runs a filtered suite of its own, and being last keeps that nesting to one
         // level rather than having a later suite run inside it too.
