@@ -331,7 +331,7 @@ fn stylized_color(input : VertexOutput, facet_normal : vec3<f32>) -> vec4<f32> {
     var color = mix(base, foam_color, foam);
     // Hard sun glint: a facet that mirrors the sun flashes, rather than smearing a highlight.
     let glint = step(0.9994, max(dot(n, normalize(to_sun + v)), 0.0)) * step(0.5, daylight);
-    color = mix(color, vec3<f32>(1.0, 0.97, 0.85), glint * (1.0 - foam));
+    color = mix(color, vec3<f32>(0.62, 0.9, 0.97) * sun_tint, glint * 0.8 * (1.0 - foam));
     return vec4<f32>(color, 1.0);
 }
 
