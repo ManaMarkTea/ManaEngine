@@ -21,6 +21,16 @@ centered at the top in HTML. Sound starts off until clicked, as browsers require
 starts fresh sessions, M toggles sound, and F toggles full screen. Hidden tabs suspend audio and drawing;
 reduced-motion users start paused. The engine's Stop button leaves play mode.
 
+Any public GitHub repository can stand in for ManaRenderer: type `owner/name` or its github.com URL (a
+`/tree/<branch>` URL picks the branch) into the bar and press Enter; blank goes back to ManaRenderer. Only
+code files are shown -- C#, Python, Rust, Go, JS/TS, C/C++, shaders and the like, not docs, data or markup --
+skipping vendored and build folders, minified files and anything under 600 bytes or over 160 KB; 48 are
+sampled at random through GitHub's API (unauthenticated: 60 calls an hour, two per repository). `?repo=`
+opens the page on one, and the last repository and the ten most recent are kept in the browser
+(`localStorage`). The engine mode does the same with its `Repository` setting or the bar's box and Recent
+list, keeping them in `%LOCALAPPDATA%/ManaRenderer/code-screensaver.json` (`GITHUB_TOKEN` raises the limit).
+Highlighting knows `#` comments (Python, Ruby, shell...) and `--` comments (Lua, SQL, Haskell).
+
 Local preview:
 
 ```powershell
@@ -30,7 +40,8 @@ python -m http.server 8127 --directory Artifacts/ScreensaverSite
 
 The engine level is `Content/Levels/Code Screensaver.manalevel`; run with
 `dotnet run --project ManaVoxel -- --play "Content/Levels/Code Screensaver.manalevel"`.
-Its Inspector settings are Columns, ScrollSpeed, Seed (zero randomizes), and KeyboardVolume.
+Its Inspector settings are Columns, ScrollSpeed, Seed (zero randomizes), KeyboardVolume and Repository
+(empty: the last one picked, else this checkout).
 The desktop version reads the checkout at play start and falls back to embedded source files.
 It lives in `Games/CodeScreensaver`, with separate mode, rendering, source loading, terminal state and audio files;
 `ManaVoxel/Code/Levels/ManaGames.cs` registers it with the editor.

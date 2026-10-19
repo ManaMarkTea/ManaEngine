@@ -10,6 +10,8 @@
     “Finance department” pane tracks simulated token usage/spend from typing, with a throughput graph,
     per-agent costs and rotating quips; clearly labeled fictional tariffs, no API calls.
     Cached C#/WGSL syntax colors distinguish keywords, types, methods, strings, numbers, comments and directives.
+    Optional GitHub repository (2026-10-19): owner/name or URL in the bar (or the mode's Repository), code files only, any
+    language; last + 10 recent kept (code-screensaver.json on desktop, localStorage + ?repo= on the web). GitHubSources.cs.
 
 [] - Project code cleanup: Plans/CodeCleanup.md.
     [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaVoxel suites; all 3,512 checks pass.

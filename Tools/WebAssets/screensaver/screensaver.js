@@ -1,5 +1,6 @@
 import { AgentLedger, renderLedger } from './agent-ledger.js';
 import { highlightSource } from './code-syntax.js';
+import { loadRepository, parseRepository, readHistory, useRepository } from './github-sources.js';
 
 const canvas = document.querySelector('canvas');
 const ctx = canvas.getContext('2d', { alpha: false });
@@ -9,6 +10,11 @@ const soundButton = document.querySelector('#sound');
 const stopButton = document.querySelector('#stop');
 const runStatus = document.querySelector('#run-status');
 const clock = document.querySelector('#clock');
+const repoForm = document.querySelector('#repo-form');
+const repoInput = document.querySelector('#repo');
+const repoHistory = document.querySelector('#repo-history');
+const sourceLabel = document.querySelector('#source');
+const sourceLink = document.querySelector('.source-link');
 const clockFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' });
 function updateClock() {
     const now = new Date();
@@ -69,7 +75,7 @@ function resize() {
 
 function sourceTokens(file, line) {
     let cache = tokens.get(file);
-    if (!cache) { cache = highlightSource(file.lines); tokens.set(file, cache); }
+    if (!cache) { cache = highlightSource(file.lines, file.path); tokens.set(file, cache); }
     return cache[line];
 }
 
@@ -214,7 +220,7 @@ document.querySelector('#fullscreen').onclick = async () => {
     catch { /* Fullscreen can be unavailable in an embedded browser. */ }
 };
 addEventListener('keydown', event => {
-    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('button,a')) return;
+    if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.target.closest('button,a,input')) return;
     const button = { p: pauseButton, s: stopButton, m: soundButton, f: document.querySelector('#fullscreen') }[event.key.toLowerCase()];
     if (button) { event.preventDefault(); button.click(); }
 });
@@ -234,11 +240,65 @@ function frame(now) {
     if (!paused && !stopped) render(delta);
     if (!paused && !stopped) typing(delta);
 }
+let localSources = [], loading = null, started = false;
+
+function showSources(files, label, href) {
+    sources = files;
+    time = 0; ledger = new AgentLedger();
+    sourceLabel.textContent = label;
+    sourceLink.href = href;
+    status.hidden = true;
+    resize(); controls();
+    if (!started) { started = true; requestAnimationFrame(frame); }
+}
+
+function listHistory(recent) {
+    repoHistory.replaceChildren(...recent.map(key => Object.assign(document.createElement('option'), { value: key })));
+}
+
+// A public GitHub repository instead of ManaRenderer's own files; blank goes back to them.
+async function showRepository(text) {
+    loading?.abort();
+    loading = null;
+    const url = new URL(location.href);
+    if (!text.trim()) {
+        if (localSources.length) showSources(localSources, 'ManaRenderer', 'https://github.com/ManaMarkTea/ManaRenderer');
+        listHistory(useRepository('').recent);
+        url.searchParams.delete('repo'); history.replaceState(null, '', url);
+        return;
+    }
+    const repository = parseRepository(text);
+    if (!repository) { sourceLabel.textContent = `Not a GitHub repository: ${text.trim()}`; return; }
+    const controller = loading = new AbortController();
+    sourceLabel.textContent = `Loading ${repository.label}…`;
+    try {
+        const files = await loadRepository(repository, controller.signal);
+        if (loading !== controller) return;
+        loading = null;
+        showSources(files, `${repository.label} · ${files.length} files`, `https://github.com/${repository.owner}/${repository.name}`);
+        listHistory(useRepository(repository.key).recent);
+        url.searchParams.set('repo', repository.key); history.replaceState(null, '', url);
+        console.log(`[CodeWall] Ready: ${files.length} files from ${repository.key}`);
+    } catch (error) {
+        if (error.name === 'AbortError' || loading !== controller) return;
+        loading = null;
+        sourceLabel.textContent = `Could not open ${repository.label}: ${error.message}`;
+        console.log(`[CodeWall] ${sourceLabel.textContent}`);
+    }
+}
+
+repoForm.onsubmit = event => { event.preventDefault(); repoInput.blur(); showRepository(repoInput.value); };
 try {
     const response = await fetch('sources.json');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    sources = await response.json();
-    if (!sources.length) throw new Error('No source files');
-    status.hidden = true; resize(); controls(); requestAnimationFrame(frame);
-    console.log(`[CodeWall] Ready: ${sources.length} real source files`);
+    localSources = await response.json();
+    if (!localSources.length) throw new Error('No source files');
+    showSources(localSources, 'ManaRenderer', sourceLink.href);
+    console.log(`[CodeWall] Ready: ${localSources.length} real source files`);
 } catch (error) { status.textContent = `Could not open source files. Reload to retry. (${error.message})`; }
+// ?repo= (a shared link) wins over the repository this browser showed last.
+const saved = readHistory();
+listHistory(saved.recent);
+const first = new URL(location.href).searchParams.get('repo') ?? saved.last;
+repoInput.value = first;
+if (first) showRepository(first);
