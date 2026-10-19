@@ -112,7 +112,7 @@ namespace ManaGraphics.Code.Graphics
 
                 // Group 0: per-frame globals (camera/time/lights) -- one persistent buffer+bind group,
                 // written once per frame, bound once per frame, shared by every mesh's draw call. See
-                // UpdateFrameUniform (ManaWebGpuUniforms.cs) and DrawDemoMesh.
+                // ManaWebGpuFrameUniform.For and the passes that bind it.
                 var frameBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
                     Binding = 0,

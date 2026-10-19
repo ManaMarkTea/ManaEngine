@@ -81,25 +81,15 @@ namespace ManaGraphics.Code.Graphics
         public long RequestedGpuParticleCount => _particlePass?.Requested ?? 0;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
         private ManaWebGpuSceneBindings? _bindings;
-        private BindGroup* _frameBindGroup => _bindings == null ? null : _bindings.FrameGroup;
-        private BindGroupLayout* _objectBindGroupLayout => _bindings == null ? null : _bindings.ObjectLayout;
-        private BindGroupLayout* _customUniformBindGroupLayout => _bindings == null ? null : _bindings.CustomUniformGroupLayout;
-        private BindGroupLayout* _sceneCaptureBindGroupLayout => _bindings == null ? null : _bindings.SceneCaptureGroupLayout;
-        private PipelineLayout* _demoPipelineLayout => _bindings == null ? null : _bindings.MeshLayout;
-        private PipelineLayout* _customUniformPipelineLayout => _bindings == null ? null : _bindings.MaterialLayout;
-        private PipelineLayout* _sceneCapturePipelineLayout => _bindings == null ? null : _bindings.SceneCaptureLayout;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
-        private Sampler* _demoSampler => _bindings == null ? null : _bindings.LinearSampler;
-        private Sampler* _clampSampler => _bindings == null ? null : _bindings.ClampSampler;
-        private Sampler* _nearestSampler => _bindings == null ? null : _bindings.NearestSampler;
         // Made with the device; outlives pipeline failures, since loading waits on it either way.
         private ManaWebGpuEnvironment? _environment;
         public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
         public bool IsEnvironmentInitializationPending => _environment?.IsInitializationPending ?? true;
 #if !MANA_BROWSER
 #endif
-        private ManaWebGpuUiRenderer? _uiRenderer;
+        private ManaWebGpuUiCompositor? _ui;
 
         /// <summary>
         /// The ManaUI tree to draw over the scene, or null when the host has not built one.
@@ -137,27 +127,6 @@ namespace ManaGraphics.Code.Graphics
         public double LastSubmitMs { get; private set; }
         public double LastFrameTotalMs { get; private set; }
 
-#if !MANA_BROWSER
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate void WgpuLogCallback(WgpuLogLevel level, string message, nint userdata);
-
-        private enum WgpuLogLevel : int
-        {
-            Error = 1,
-            Warn = 2,
-            Info = 3,
-            Debug = 4,
-            Trace = 5,
-        }
-
-        [DllImport("wgpu_native", EntryPoint = "wgpuSetLogLevel", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        private static extern void WgpuSetLogLevel(WgpuLogLevel level);
-
-        [DllImport("wgpu_native", EntryPoint = "wgpuSetLogCallback", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        private static extern void WgpuSetLogCallback(WgpuLogCallback callback, nint userdata);
-
-        private static readonly WgpuLogCallback NativeLogCallback = OnNativeLog;
-#endif
 
         public ManaWebGpuContext(IWindow window, IInputContext? input, string? requestedBackend, Func<ManaRenderScene>? renderSceneProvider = null) 
         {
@@ -186,10 +155,7 @@ namespace ManaGraphics.Code.Graphics
                 // wgpuCreateInstance(NULL) call, which is the only shape ever actually proven to work.
                 _instance = _api.CreateInstance((InstanceDescriptor*)null);
 #else
-                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MANA_WGPU_NATIVE_TRACE")))
-                {
-                    EnableNativeBackendTracing();
-                }
+                ManaWgpuNativeTrace.EnableIfRequested();
                 _instanceBackend = ParseInstanceBackend(requestedBackend);
                 var instanceExtras = new InstanceExtras
                 {
@@ -295,6 +261,7 @@ namespace ManaGraphics.Code.Graphics
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
+            _ui = new ManaWebGpuUiCompositor(_gpu);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -305,14 +272,14 @@ namespace ManaGraphics.Code.Graphics
                         // Shader compilation, synchronous, on this thread -- another candidate for time
                         // spent before the first frame can present, alongside the adapter/device request.
                         ManaConsole.WriteDiagnosticElapsed("Creating scene mesh pipeline (shader compile).");
-                        CreateDemoMeshPipeline();
+                        CreateScenePipelines();
                         ManaConsole.WriteDiagnosticElapsed("Scene mesh pipeline ready.");
                     }
                     catch (Exception ex)
                     {
                         ManaConsole.WriteDiagnostic("WebGPU mesh pipeline failed; continuing with clear-only renderer.");
                         ManaConsole.WriteDiagnostic(ex);
-                        ReleaseDemoResources();
+                        ReleaseScenePipelines();
                     }
                 }
                 else
@@ -335,148 +302,174 @@ namespace ManaGraphics.Code.Graphics
             ConfigureSurface(framebufferSize);
         }
 
-        /// <summary>
-        /// Submits the ManaUI draw list recorded by the app this frame. Created lazily so a project that
-        /// never assigns <see cref="UiRoot"/> pays nothing for the pipeline or its atlas texture.
-        /// </summary>
-        private ManaWebGpuUiBackdrop? _uiBackdrop;
-
-        /// <summary>
-        /// Whether anything in this frame's UI asked for a blurred backdrop. Read before the pass is split,
-        /// because splitting it is the cost being avoided.
-        /// </summary>
-        private bool WantsBackdrop()
+        private void CreateScenePipelines()
         {
-            ManaUI.UiBackdropStats.Supported = true;
+            ManaConsole.WriteDiagnostic("Creating WebGPU mesh pipeline.");
 
-            if (UiRoot?.DrawList.BackdropRequested != true)
+            var renderScene = _renderSceneProvider?.Invoke() ?? ManaWebGpuDemoScene.Create();
+
+            _activeRenderScene = renderScene;
+            // The frame group binds the shadow map, so the map comes first.
+            _shadowMap = new ManaWebGpuShadowMap(_gpu);
+            _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
+            // Before the shadows, as before anything samples the reflection cubes.
+            AddPass(new ManaWebGpuEnvironmentCapturePass(_gpu, _environment!, () => UseSceneCapture));
+            AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
+            CreateHdrPostProcessor();
+            var sceneColor = GetSceneColorFormat();
+            // First, so ordinary depth-tested geometry draws over it: the sky is a background.
+            AddPass(new ManaWebGpuSkyPass(_gpu));
+            AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, sceneColor));
+            _particlePass = AddPass(new ManaWebGpuParticlePass(_gpu, sceneColor));
+            AddPass(new ManaWebGpuWireframeOverlay(_gpu, _bindings, sceneColor));
+            AddPass(new ManaWebGpuNormalLinesOverlay(_gpu, _bindings, sceneColor));
+            AddPass(new ManaWebGpuOutlinePass(_gpu, _bindings));
+
+            ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
+            if (renderScene.Meshes.Count > 0)
             {
-                return false;
+                _meshes!.Upload(renderScene, _bindings);
             }
-
-            ManaUI.UiBackdropStats.Requested++;
-            return true;
         }
 
-        private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
+        private void CreateHdrPostProcessor()
         {
-            _uiBackdrop ??= new ManaWebGpuUiBackdrop(_api, _device, _surfaceFormat);
-            // The size the surface was configured at, which is the frame's: mid-resize the window already reports
-            // its new size a frame before the surface catches up, and copying that much overruns the frame.
-            _uiBackdrop.Capture(commandEncoder, frame, _framebufferSize);
-
-            ManaUI.UiBackdropStats.Captured++;
-            _uiRenderer?.SetBackdrop(_uiBackdrop.View, _uiBackdrop.Generation);
-        }
-
-        private void DrawManaUi(RenderPassEncoder* renderPass)
-        {
-            var root = UiRoot;
-            // The scene draws across the whole window under the panels, so leaving them out is a clean picture.
-            if (root == null || _frameCapture?.WithoutUi == true)
+            if (_hdrPostProcessor != null)
             {
                 return;
             }
 
-            if (_uiRenderer == null)
-            {
-                try
-                {
-                    // Another lazily-built pipeline, and another candidate for the gap between "the loading
-                    // screen could show" and "the loading screen actually did": this is the first time
-                    // anything asked to draw ManaUI at all, which for a mode with the loading overlay is
-                    // the very first loading frame.
-                    ManaConsole.WriteDiagnosticElapsed("Creating the ManaUI renderer (first draw request).");
-                    _uiRenderer = new ManaWebGpuUiRenderer(_api, _device, _queue, _surfaceFormat);
-                    ManaConsole.WriteDiagnosticElapsed("ManaUI renderer ready; submitting its first draw list.");
-                }
-                catch (Exception ex)
-                {
-                    // A failed UI pipeline must not take the whole renderer down; drop the root so the
-                    // failure is reported once rather than every frame.
-                    ManaConsole.WriteDiagnostic($"ManaUI renderer failed to initialise, disabling it: {ex.Message}");
-                    UiRoot = null;
-                    return;
-                }
-            }
-
-            // Bound here as well as at capture time: the renderer is built lazily on its first frame, which
-            // is after the capture ran, so a workspace that opens with blur already on would otherwise show
-            // one frame with nothing behind it.
-            if (_uiBackdrop != null)
-            {
-                _uiRenderer.SetBackdrop(_uiBackdrop.View, _uiBackdrop.Generation);
-                ManaUI.UiBackdropStats.Bound = _uiBackdrop.View != null;
-            }
-
-            // The frame's size, not the window's: see CaptureUiBackdrop.
-            var framebufferSize = _framebufferSize;
-            _uiRenderer.Render(
-                renderPass,
-                root.DrawList,
-                root.Atlas,
-                root.Images,
-                root.Size,
-                (uint)Math.Max(0, framebufferSize.X),
-                (uint)Math.Max(0, framebufferSize.Y));
+            var shaderPath = ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl"));
+            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_api, _device, _surfaceFormat, shaderPath);
+            _hdrPostProcessor.Resize(_framebufferSize);
         }
 
-#if !MANA_BROWSER
-        // Opt-in only (MANA_WGPU_NATIVE_TRACE env var) -- Trace is the noisiest level across the whole
-        // wgpu-native stack (wgpu_core/wgpu_hal/wgpu), and the native log callback fires synchronously,
-        // routed through ManaLog's single global lock, for every internal wgpu-native operation on
-        // whatever thread wgpu-native's own Rust internals call it from. With multiple threads submitting
-        // GPU work concurrently (e.g. PlanetNode's background split doing several GPU compute dispatches
-        // while the main thread renders), that produces enough simultaneous native->managed callback
-        // traffic to make the app appear to hang at the next SurfacePresent/QueueSubmit -- confirmed as
-        // the cause of an intermittent "deadlock on patch click" report. Only enable this for deep
-        // GPU-driver debugging, not by default.
-        private static void EnableNativeBackendTracing()
+        private TextureFormat GetSceneColorFormat()
         {
-            try
-            {
-                Environment.SetEnvironmentVariable("RUST_LOG", "wgpu_core=trace,wgpu_hal=trace,wgpu=trace");
-                Environment.SetEnvironmentVariable("RUST_BACKTRACE", "1");
-            }
-            catch (Exception ex)
-            {
-                ManaConsole.WriteDiagnostic($"[WebGPU] Failed to configure Rust tracing environment variables: {ex.Message}");
-            }
-
-            try
-            {
-                WgpuSetLogLevel(WgpuLogLevel.Trace);
-                WgpuSetLogCallback(NativeLogCallback, IntPtr.Zero);
-                ManaConsole.WriteDiagnostic("[WebGPU] Enabled native backend tracing.");
-            }
-            catch (DllNotFoundException ex)
-            {
-                ManaConsole.WriteDiagnostic($"[WebGPU] Native wgpu tracing library is unavailable: {ex.Message}");
-            }
-            catch (EntryPointNotFoundException ex)
-            {
-                ManaConsole.WriteDiagnostic($"[WebGPU] Native wgpu tracing entry points are unavailable: {ex.Message}");
-            }
-            catch (Exception ex)
-            {
-                ManaConsole.WriteDiagnostic($"[WebGPU] Failed to enable native backend tracing: {ex.Message}");
-            }
+            return _hdrPostProcessor?.SceneFormat ?? _surfaceFormat;
         }
 
-        private static void OnNativeLog(WgpuLogLevel level, string message, nint userdata)
+        // Shutdown and failed pipeline initialization both come through here; anything may still be null.
+        private void ReleaseScenePipelines()
         {
-            var levelName = level switch
+            _hdrPostProcessor?.Dispose();
+            _hdrPostProcessor = null;
+            _thumbnails?.Dispose();
+            _thumbnails = null;
+
+            // Meshes first: they bind the environment and shadow views the owners below release.
+            _meshes?.ReleaseAll(immediate: true);
+            // Passes build over the shared bindings, and the frame group binds the shadow map.
+            ReleasePasses();
+            _bindings?.Dispose();
+            _bindings = null;
+            _shadowMap?.Dispose();
+            _shadowMap = null;
+            _environment?.Release();
+        }
+
+        private void ConfigureSurface(Vector2D<int> framebufferSize)
+        {
+            if (_device == null || _surface == null || framebufferSize.X <= 0 || framebufferSize.Y <= 0)
             {
-                WgpuLogLevel.Error => "error",
-                WgpuLogLevel.Warn => "warn",
-                WgpuLogLevel.Info => "info",
-                WgpuLogLevel.Debug => "debug",
-                _ => "trace"
+                return;
+            }
+
+            if (_configured)
+            {
+                _api.SurfaceUnconfigure(_surface);
+            }
+
+            var configuration = new SurfaceConfiguration
+            {
+                Device = _device,
+                Format = _surfaceFormat,
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
+                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
+                Width = (uint)framebufferSize.X,
+                Height = (uint)framebufferSize.Y,
+                PresentMode = PresentMode.Fifo,
+                AlphaMode = CompositeAlphaMode.Opaque
             };
 
-            ManaConsole.WriteDiagnostic($"[wgpu:{levelName}] {message}");
+            _api.SurfaceConfigure(_surface, &configuration);
+            _framebufferSize = framebufferSize;
+            CreateDepthResources(framebufferSize);
+            _hdrPostProcessor?.Resize(framebufferSize);
+            _configured = true;
         }
-#endif
+
+        private void ReleaseDepthResources()
+        {
+            _handleDepth?.Dispose();
+            _handleDepth = null;
+            _depth?.Dispose();
+            _depth = null;
+        }
+
+        private void CreateDepthResources(Vector2D<int> framebufferSize)
+        {
+            ReleaseDepthResources();
+
+            var width = (uint)framebufferSize.X;
+            var height = (uint)framebufferSize.Y;
+            // Assigned one at a time: if the second cannot be made the first is still released with the rest.
+            _depth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "depth");
+            _handleDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "handle depth");
+        }
+
+        /// <summary>
+        /// Activates a loaded environment map at the frame boundary. Meshes bound to the old one are released and
+        /// come back against the new textures: the provider's scene on its next refresh, or a provider-less demo
+        /// scene uploaded again here -- without that, its meshes vanished the moment the first map landed.
+        /// </summary>
+        public void CheckPendingEnvironmentMap()
+        {
+            if (_disposed || _environment == null || !_environment.ActivatePending(_activeRenderScene))
+            {
+                return;
+            }
+
+            _meshes?.ReleaseAll();
+            if (_renderSceneProvider == null && _activeRenderScene != null && _bindings != null)
+            {
+                _meshes!.Upload(_activeRenderScene, _bindings);
+            }
+        }
+
+        // Also while scene work is suspended: the loading screen waits on the environment map, so it must start
+        // without the mesh upload RefreshRenderScene would otherwise do first.
+        private void EnsureEnvironmentInitializationStarted()
+        {
+            _activeRenderScene ??= _renderSceneProvider?.Invoke();
+            if (_activeRenderScene != null)
+            {
+                _environment?.EnsureMap(_activeRenderScene);
+            }
+        }
+
+        private void RefreshRenderScene()
+        {
+            var renderScene = _renderSceneProvider?.Invoke();
+            // Without scene pipelines there is nothing to draw meshes with, or to build their bindings from.
+            if (renderScene == null || _bindings == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<ManaRenderMeshInstance> renderableMeshes;
+            using (ManaFrameProfiler.Measure("GPU: Gather Renderables"))
+            {
+                renderableMeshes = ManaWebGpuSceneMeshes.GetRenderableMeshes(renderScene);
+            }
+
+            _activeRenderScene = renderScene;
+            using (ManaFrameProfiler.Measure("GPU: Reconcile Scene Meshes"))
+            {
+                _meshes!.Reconcile(renderableMeshes, renderScene, _bindings!);
+            }
+        }
 
         private T AddPass<T>(T pass) where T : ManaWebGpuRenderPass
         {
@@ -908,12 +901,12 @@ namespace ManaGraphics.Code.Graphics
                 // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
                 // second pass that loads what the first one left. Skipped entirely unless something asked for
                 // blur, which keeps the ordinary frame exactly one pass as before.
-                if (WantsBackdrop())
+                if (ManaWebGpuUiCompositor.WantsBackdrop(UiRoot))
                 {
                     _api.RenderPassEncoderEnd(toneMapRenderPass);
                     _api.RenderPassEncoderRelease(toneMapRenderPass);
                     toneMapRenderPass = null;
-                    CaptureUiBackdrop(commandEncoder, surfaceTexture.Texture);
+                    _ui!.CaptureBackdrop(commandEncoder, surfaceTexture.Texture, _framebufferSize);
 
                     surfaceColorAttachment.LoadOp = LoadOp.Load;
                     toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
@@ -922,7 +915,11 @@ namespace ManaGraphics.Code.Graphics
                 // The UI draws last, over the tone-mapped scene.
                 using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
                 {
-                    DrawManaUi(toneMapRenderPass);
+                    // Left out of a clean screenshot: the scene across the whole window.
+                    if (UiRoot is { } root && _frameCapture?.WithoutUi != true && !_ui!.Draw(toneMapRenderPass, root, _framebufferSize))
+                    {
+                        UiRoot = null;
+                    }
                 }
 
                 _api.RenderPassEncoderEnd(toneMapRenderPass);
@@ -1032,10 +1029,9 @@ namespace ManaGraphics.Code.Graphics
             _meshes?.DrainDeferred(force: true);
 
             UiRoot = null;
-            _uiRenderer?.Dispose();
-            _uiRenderer = null;
+            _ui?.Dispose();
 
-            ReleaseDemoResources();
+            ReleaseScenePipelines();
 
             if (_surface != null && _configured)
             {

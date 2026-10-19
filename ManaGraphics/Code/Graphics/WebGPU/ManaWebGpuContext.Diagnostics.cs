@@ -85,7 +85,7 @@ namespace ManaGraphics.Code.Graphics
                     faceCulling: "Pipeline-dependent",
                     new ManaGraphicsDiagnosticEntry("Alpha mode", CompositeAlphaMode.Opaque.ToString(), ManaGraphicsDiagnosticScope.WebGpu),
                     new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(_configured), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_demoPipelineLayout != null), ManaGraphicsDiagnosticScope.WebGpu),
+                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_bindings != null), ManaGraphicsDiagnosticScope.WebGpu),
                     new ManaGraphicsDiagnosticEntry("Scene capture", FormatBoolean(UseSceneCapture), ManaGraphicsDiagnosticScope.WebGpu)));
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateInputAndTiming(
                     targetFrameRate: $"{_window.FramesPerSecond:0.##} Hz",
@@ -245,7 +245,7 @@ namespace ManaGraphics.Code.Graphics
                     $"present={PresentMode.Fifo}; alpha={CompositeAlphaMode.Opaque}; samples=1.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Renderer: configured={_configured}; HDR={_hdrPostProcessor != null}; " +
-                    $"meshPipeline={_demoPipelineLayout != null}; sceneProvider={_renderSceneProvider != null}; " +
+                    $"meshPipeline={_bindings != null}; sceneProvider={_renderSceneProvider != null}; " +
                     $"fallbackDemoRequested={IsDemoMeshPipelineEnabled()}; sceneCapture={UseSceneCapture}.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Environment: source={environmentSource.SourceKind}; " +
