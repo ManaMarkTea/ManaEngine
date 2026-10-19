@@ -1219,8 +1219,8 @@ namespace Mana.Code.GameModes
         }
 
         // Bridges the View menu's plain bool (VoxelEditorViewModel, ManaVoxel layer) into the renderer-
-        // facing settings object (ManaCore layer) that ManaWebGpuContext.Demo.cs's DrawWireframeOverlay
-        // actually reads -- same cross-layer path already used for WebGpuDebugMode, just driven from a
+        // facing settings object (ManaCore layer) that the renderer's overlay passes (ManaWebGpuOverlayPass)
+        // actually read -- same cross-layer path already used for WebGpuDebugMode, just driven from a
         // View menu item instead of the Irradiance panel since that's where every other "Show X" view
         // toggle in this app already lives.
         private void SyncWireframeViewOption()

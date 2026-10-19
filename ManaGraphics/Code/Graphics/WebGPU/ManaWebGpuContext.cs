@@ -75,6 +75,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly List<ManaWebGpuRenderPass> _passes = new();
         private readonly ManaWebGpuFrame _passFrame = new();
         private ManaWebGpuShadowMap? _shadowMap;
+        private ManaWebGpuParticlePass? _particlePass;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
         private ManaWebGpuSceneBindings? _bindings;
         private BindGroup* _frameBindGroup => _bindings == null ? null : _bindings.FrameGroup;
@@ -85,16 +86,6 @@ namespace ManaGraphics.Code.Graphics
         private PipelineLayout* _customUniformPipelineLayout => _bindings == null ? null : _bindings.MaterialLayout;
         private PipelineLayout* _sceneCapturePipelineLayout => _bindings == null ? null : _bindings.SceneCaptureLayout;
         private RenderPipeline* _sceneCapturePipeline;
-        private RenderPipeline* _outlineMaskPipeline;
-        private RenderPipeline* _outlineMaskAlwaysOnTopPipeline;
-        // Debug overlays drawn after the main mesh pass; add a ManaWebGpuOverlayPass subclass and list it
-        // here. Pipelines are keyed by overlay name and built on first use.
-        private readonly ManaWebGpuOverlayPass[] _overlayPasses =
-        {
-            new ManaWebGpuWireframeOverlay(),
-            new ManaWebGpuNormalLinesOverlay()
-        };
-        private readonly Dictionary<string, nint> _overlayPipelines = new(StringComparer.Ordinal);
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
@@ -569,6 +560,10 @@ namespace ManaGraphics.Code.Graphics
             _passFrame.SceneColorFormat = GetSceneColorFormat();
             _passFrame.Depth = _depthTextureView;
             _passFrame.HandleDepth = _handleDepthTextureView;
+            _passFrame.Projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
+            _passFrame.SceneTarget = null;
+            _passFrame.OutlineMask = null;
+            _passFrame.SceneSuspended = SuspendSceneWork;
             return _passFrame;
         }
 
@@ -849,6 +844,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     frame.SceneTarget = sceneTargetView;
                     frame.SceneSuspended = SuspendSceneWork;
+                    frame.OutlineMask = useHdrPost ? _hdrPostProcessor!.OutlineMaskView : null;
                 }
 
                 if (!SuspendSceneWork)
@@ -863,8 +859,6 @@ namespace ManaGraphics.Code.Graphics
                             pass.DrawScene(frame, sceneRenderPass);
                         }
                     }
-                    DrawGpuParticles(sceneRenderPass);
-                    DrawOverlays(sceneRenderPass);
                 }
 
                 _api.RenderPassEncoderEnd(sceneRenderPass);
@@ -881,7 +875,6 @@ namespace ManaGraphics.Code.Graphics
                 {
                     using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
                     {
-                        DrawOutlineMask(commandEncoder);
                         _hdrPostProcessor?.Process(commandEncoder);
                     }
                 }
@@ -1052,7 +1045,6 @@ namespace ManaGraphics.Code.Graphics
 
             ReleaseDemoResources();
             _skybox?.Dispose();
-            _particles?.Dispose();
             _skybox = null;
             _environmentSkybox?.Dispose();
             _environmentSkybox = null;

@@ -9,6 +9,11 @@ namespace ManaGraphics.Code.Graphics.Overlays
     /// </summary>
     internal sealed unsafe class ManaWebGpuWireframeOverlay : ManaWebGpuOverlayPass
     {
+        public ManaWebGpuWireframeOverlay(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)
+            : base(gpu, bindings, colorFormat)
+        {
+        }
+
         public override string ShaderFileName => "wireframe.wgsl";
 
         public override string Name => "Wireframe";

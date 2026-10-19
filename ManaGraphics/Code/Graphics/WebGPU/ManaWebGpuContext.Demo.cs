@@ -28,155 +28,17 @@ namespace ManaGraphics.Code.Graphics
             _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
             AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
             CreateHdrPostProcessor();
-            AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, GetSceneColorFormat()));
+            var sceneColor = GetSceneColorFormat();
+            AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, sceneColor));
+            _particlePass = AddPass(new ManaWebGpuParticlePass(_gpu, sceneColor));
+            AddPass(new ManaWebGpuWireframeOverlay(_gpu, _bindings, sceneColor));
+            AddPass(new ManaWebGpuNormalLinesOverlay(_gpu, _bindings, sceneColor));
+            AddPass(new ManaWebGpuOutlinePass(_gpu, _bindings));
 
             ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
             if (renderScene.Meshes.Count > 0)
             {
                 UploadSceneMeshes(renderScene);
-            }
-        }
-
-        // View-option overlay (see ManaIrradianceSettings.WireframeEnabled / IrradianceSettingsPanelView):
-        // draws every resident mesh's edges as thin lines on top of the just-rendered opaque geometry,
-        // in the SAME render pass as DrawDemoMesh (called right after it, before that pass ends) so the
-        // depth buffer the opaque pass just wrote is what these lines depth-test against -- correctly
-        // occluded by anything in front, without needing a separate render target the way the outline
-        // mask pass does.
-        // One loop for every debug overlay (see Overlays/ManaWebGpuOverlayPass). Adding one is a new
-        // subclass plus an entry in _overlayPasses, not more methods here.
-        private void DrawOverlays(RenderPassEncoder* renderPass)
-        {
-            var settings = _activeRenderScene?.IrradianceSettings;
-            if (settings == null || _sceneMeshes.Count == 0)
-            {
-                return;
-            }
-
-            foreach (var overlay in _overlayPasses)
-            {
-                if (!overlay.IsEnabled(settings))
-                {
-                    continue;
-                }
-
-                var pipeline = GetOrCreateOverlayPipeline(overlay);
-                if (pipeline == null)
-                {
-                    continue;
-                }
-
-                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
-                if (_frameBindGroup != null)
-                {
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-                }
-
-                foreach (var sceneMesh in _sceneMeshes)
-                {
-                    if (sceneMesh.ObjectBindGroup != null)
-                    {
-                        _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
-                    }
-
-                    overlay.DrawMesh(_api, _device, _queue, renderPass, sceneMesh);
-                }
-            }
-        }
-
-        private void DrawOutlineMask(CommandEncoder* commandEncoder)
-        {
-            // Explicit ternary rather than `?.` -- see the matching comment in ManaWebGpuContext.ClearFrame:
-            // `?.` on a pointer-typed member is CS8978 ("cannot be made nullable") and only some Roslyn
-            // versions actually diagnose it.
-            var outlineMaskView = _hdrPostProcessor != null ? _hdrPostProcessor.OutlineMaskView : null;
-            if (commandEncoder == null || outlineMaskView == null || _depthTextureView == null)
-            {
-                return;
-            }
-
-            var colorAttachment = new RenderPassColorAttachment
-            {
-                View = outlineMaskView,
-                LoadOp = LoadOp.Clear,
-                StoreOp = StoreOp.Store,
-                ClearValue = new Color { R = 0.0, G = 0.0, B = 0.0, A = 0.0 }
-            };
-
-            var depthAttachment = new RenderPassDepthStencilAttachment
-            {
-                View = _depthTextureView,
-                DepthLoadOp = LoadOp.Undefined,
-                DepthStoreOp = StoreOp.Undefined,
-                DepthClearValue = 0.0f,
-                DepthReadOnly = true,
-                StencilLoadOp = LoadOp.Undefined,
-                StencilStoreOp = StoreOp.Undefined,
-                StencilReadOnly = true
-            };
-
-            var descriptor = new RenderPassDescriptor
-            {
-                ColorAttachmentCount = 1,
-                ColorAttachments = &colorAttachment,
-                DepthStencilAttachment = &depthAttachment
-            };
-
-            var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
-            try
-            {
-                // Ordinary meshes use scene depth; handles use their separate depth attachment below.
-                _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
-
-                // Reuses the frame (group 0) and object (group 1) bind groups already made current by
-                // DrawDemoMesh's main pass this frame -- no uniform rewrite needed here at all, since the
-                // main pass already dirty-checked/uploaded whatever changed.
-                if (_frameBindGroup != null)
-                {
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-                }
-
-                foreach (var sceneMesh in _sceneMeshes)
-                {
-                    if (!sceneMesh.Instance.OutlineEnabled || sceneMesh.Instance.AlwaysOnTop)
-                    {
-                        continue;
-                    }
-
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
-                    sceneMesh.Mesh.Draw(renderPass);
-                }
-
-                if (_sceneMeshes.Any(mesh => mesh.Instance.OutlineEnabled && mesh.Instance.AlwaysOnTop))
-                {
-                    _api.RenderPassEncoderEnd(renderPass);
-                    _api.RenderPassEncoderRelease(renderPass);
-                    colorAttachment.LoadOp = LoadOp.Load;
-                    depthAttachment.View = _handleDepthTextureView;
-                    renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
-                    _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
-                    if (_frameBindGroup != null)
-                    {
-                        _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-                    }
-
-                    foreach (var sceneMesh in _sceneMeshes)
-                    {
-                        if (!sceneMesh.Instance.OutlineEnabled || !sceneMesh.Instance.AlwaysOnTop)
-                        {
-                            continue;
-                        }
-
-                        _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
-                        sceneMesh.Mesh.Draw(renderPass);
-                    }
-                }
-
-                _api.RenderPassEncoderEnd(renderPass);
-            }
-            finally
-            {
-                _api.RenderPassEncoderRelease(renderPass);
             }
         }
 

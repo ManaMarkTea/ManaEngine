@@ -9,6 +9,11 @@ namespace ManaGraphics.Code.Graphics.Overlays
     /// </summary>
     internal sealed unsafe class ManaWebGpuNormalLinesOverlay : ManaWebGpuOverlayPass
     {
+        public ManaWebGpuNormalLinesOverlay(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)
+            : base(gpu, bindings, colorFormat)
+        {
+        }
+
         public override string ShaderFileName => "normal_lines.wgsl";
 
         public override string Name => "NormalLines";

@@ -7,14 +7,14 @@ namespace ManaTests;
 // must be released before its variable is begun again (a split pass) or goes out of scope.
 public static class FramePassOwnershipChecks
 {
-    private static readonly Regex Begin = new(@"\b(\w+)\s*=\s*_?api\.CommandEncoderBegin(Render|Compute)Pass\(", RegexOptions.Compiled);
+    private static readonly Regex Begin = new(@"\b(\w+)\s*=\s*_?[Aa]pi\.CommandEncoderBegin(Render|Compute)Pass\(", RegexOptions.Compiled);
 
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
         var directory = FindRendererSource();
         var begun = 0;
         var unreleased = new List<string>();
-        foreach (var file in Directory.EnumerateFiles(directory, "*.cs"))
+        foreach (var file in Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories))
         {
             var source = File.ReadAllText(file);
             var matches = Begin.Matches(source);

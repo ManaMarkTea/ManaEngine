@@ -765,6 +765,18 @@ namespace Mana.Code.GameModes
                 _commandRunner.Register("measure", command => MeasureInput.RunMeasureCommand(command.Name, command.Position));
                 _commandRunner.Register("gizmo_mode", command =>
                     _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));
+                // The View menu's wireframe and vertex-normal overlays: name "normals" for the second.
+                _commandRunner.Register("wireframe", command =>
+                {
+                    if (command.Name == "normals")
+                    {
+                        _viewModel.ShowVertexNormals = command.Visible ?? !_viewModel.ShowVertexNormals;
+                    }
+                    else
+                    {
+                        _viewModel.ShowWireframe = command.Visible ?? !_viewModel.ShowWireframe;
+                    }
+                });
                 _commandRunner.Register("scale_box", command => RunScaleBoxCommand(command.Name, command.Position));
                 _commandRunner.Register("viewport_menu", command => ViewportMenu.RunViewportMenuCommand(command.Name, command.Position));
 #if !MANA_BROWSER

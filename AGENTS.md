@@ -86,6 +86,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
 | `wind` | `position` (speed m/s, direction degrees, gustiness) | Sets the world wind (`ManaWind`): 0 is a glassy pond, 2.5 the default breeze, 4 a fresh one, 12+ chop |
 | `gizmos` | `visible` | Editor helpers (axes, markers) on or off -- off for pictures |
+| `wireframe` | `visible`, `name` | The View menu's wireframe overlay on or off (toggles without `visible`); `name: "normals"` does the vertex normals |
 | `record` / `stop_record` | `path` (folder), `frames` (fps, 30), `clean`, `visible` | Saves every frame as `<path>/00000.jpg..` at a fixed step (1/fps a frame, so a slow save never speeds the game up); `record` with no path changes `clean`, and `visible: false` holds capture without ending the take. `Tools/Automation/sizzle.py` joins the takes of `Content/Scripts/Sizzle Reel.json` into an MP4 |
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
 | `teleport_player` | `position` | While playing, moves the character -- to look at a stretch of a level without walking there |

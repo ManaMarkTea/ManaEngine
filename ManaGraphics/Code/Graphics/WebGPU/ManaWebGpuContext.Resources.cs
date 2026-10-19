@@ -32,28 +32,6 @@ namespace ManaGraphics.Code.Graphics
                 _sceneCapturePipeline = null;
             }
 
-            if (_outlineMaskPipeline != null)
-            {
-                _api.RenderPipelineRelease(_outlineMaskPipeline);
-                _outlineMaskPipeline = null;
-            }
-
-            if (_outlineMaskAlwaysOnTopPipeline != null)
-            {
-                _api.RenderPipelineRelease(_outlineMaskAlwaysOnTopPipeline);
-                _outlineMaskAlwaysOnTopPipeline = null;
-            }
-
-            foreach (var overlayPipeline in _overlayPipelines.Values)
-            {
-                if (overlayPipeline != 0)
-                {
-                    _api.RenderPipelineRelease((RenderPipeline*)overlayPipeline);
-                }
-            }
-
-            _overlayPipelines.Clear();
-
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;
 
