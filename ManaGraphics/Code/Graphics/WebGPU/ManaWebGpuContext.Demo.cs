@@ -42,7 +42,7 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
             if (renderScene.Meshes.Count > 0)
             {
-                UploadSceneMeshes(renderScene);
+                _meshes!.Upload(renderScene, _bindings);
             }
         }
 

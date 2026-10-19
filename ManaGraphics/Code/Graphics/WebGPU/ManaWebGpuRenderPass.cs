@@ -50,7 +50,7 @@ namespace ManaGraphics.Code.Graphics
     {
         public CommandEncoder* Encoder;
         public ManaRenderScene Scene = null!;
-        public IReadOnlyList<ManaWebGpuContext.ManaWebGpuSceneMesh> Meshes = [];
+        public IReadOnlyList<ManaWebGpuSceneMesh> Meshes = [];
         public ManaWebGpuSceneBindings Bindings = null!;
         public TextureFormat SceneColorFormat;
         /// <summary>What the scene pass draws into: the HDR target, or the surface when there is no post.</summary>

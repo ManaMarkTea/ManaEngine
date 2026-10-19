@@ -25,7 +25,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
             Device* device,
             Queue* queue,
             RenderPassEncoder* renderPass,
-            ManaWebGpuContext.ManaWebGpuSceneMesh sceneMesh)
+            ManaWebGpuSceneMesh sceneMesh)
         {
             sceneMesh.GetOrCreateNormalLinesMesh(api, device, queue)?.Draw(renderPass);
         }

@@ -47,7 +47,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
             Device* device,
             Queue* queue,
             RenderPassEncoder* renderPass,
-            ManaWebGpuContext.ManaWebGpuSceneMesh sceneMesh);
+            ManaWebGpuSceneMesh sceneMesh);
 
         // In the scene pass, so the lines depth-test against the depth the meshes just wrote.
         public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)

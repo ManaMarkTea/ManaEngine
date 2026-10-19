@@ -56,9 +56,8 @@ namespace ManaGraphics.Code.Graphics
         private Vector2D<int> _framebufferSize;
         private readonly DateTime _startTime = DateTime.UtcNow;
         private bool _configured;
-        private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
-        private readonly Dictionary<string, ManaWebGpuSceneMesh> _sceneMeshMap = new();
-        private readonly Queue<DeferredSceneMeshDisposal> _deferredSceneMeshDisposals = new();
+        // Made with the device; meshes are only uploaded once the scene bindings exist.
+        private ManaWebGpuSceneMeshes? _meshes;
         // Work handed in from background threads that must run on the render thread instead -- see
         // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
         private readonly ConcurrentQueue<Action> _renderThreadWork = new();
@@ -66,9 +65,6 @@ namespace ManaGraphics.Code.Graphics
         // constructor returns (see ManaWebGpuContext.BrowserAsync.cs), not inside it.
         private ManaWebGpuMeshTextureCache _meshTextures = null!;
         private ManaRenderScene? _activeRenderScene;
-        private ulong _frameSerial;
-        private Vector3 _demoMeshCenter;
-        private float _demoMeshScale = 1.0f;
         // Set in FinishInitialization; borrowed by every pass.
         private ManaWebGpuDevice _gpu = null!;
         // In frame order; each owns its pipelines (see ManaWebGpuRenderPass).
@@ -136,8 +132,6 @@ namespace ManaGraphics.Code.Graphics
         public double LastDrawMs { get; private set; }
         public double LastSubmitMs { get; private set; }
         public double LastFrameTotalMs { get; private set; }
-
-        private readonly record struct DeferredSceneMeshDisposal(ulong DisposeAfterFrame, ManaWebGpuSceneMesh SceneMesh);
 
 #if !MANA_BROWSER
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
@@ -295,6 +289,7 @@ namespace ManaGraphics.Code.Graphics
 #endif
             _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
+            _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -503,7 +498,7 @@ namespace ManaGraphics.Code.Graphics
 
             _passFrame.Encoder = encoder;
             _passFrame.Scene = _activeRenderScene;
-            _passFrame.Meshes = _sceneMeshes;
+            _passFrame.Meshes = _meshes!.Meshes;
             _passFrame.Bindings = _bindings;
             _passFrame.SceneColorFormat = GetSceneColorFormat();
             _passFrame.Depth = _depthTextureView;
@@ -671,8 +666,7 @@ namespace ManaGraphics.Code.Graphics
             }
 #endif
 
-            _frameSerial++;
-            DrainDeferredSceneMeshDisposals();
+            _meshes?.BeginFrame();
 
             // Above the !_configured early-return so deferred work still progresses while minimized,
             // and above this frame's own submit/present so it never races it.
@@ -1009,7 +1003,7 @@ namespace ManaGraphics.Code.Graphics
             _heightSampleCompute?.Dispose();
             _heightSampleCompute = null;
 
-            DrainDeferredSceneMeshDisposals(force: true);
+            _meshes?.DrainDeferred(force: true);
 
             UiRoot = null;
             _uiRenderer?.Dispose();

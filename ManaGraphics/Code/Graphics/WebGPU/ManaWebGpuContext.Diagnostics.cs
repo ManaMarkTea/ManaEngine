@@ -103,11 +103,11 @@ namespace ManaGraphics.Code.Graphics
                     ("GPU particles requested", RequestedGpuParticleCount.ToString("N0")),
                     ("GPU particles drawn", LastGpuParticleCount.ToString("N0"))));
 
-                var totalWebGpuPolygons = (_sceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
-                var totalWebGpuVertices = _sceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
+                var totalWebGpuPolygons = (SceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
+                var totalWebGpuVertices = SceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
 
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
-                    sceneMeshes: _sceneMeshes.Count.ToString("N0"),
+                    sceneMeshes: SceneMeshes.Count.ToString("N0"),
                     meshTextures: _meshTextures.Count.ToString("N0"),
                     shaders: ShaderModuleCount.ToString("N0"),
                     pipelines: PipelineCount.ToString("N0"),
@@ -253,7 +253,7 @@ namespace ManaGraphics.Code.Graphics
                     $"irradiance={environmentSource.IrradianceCubeSize}; prefilter={environmentSource.PrefilterCubeSize}; " +
                     $"BRDF LUT={environmentSource.BrdfLutSize}; refresh={environmentSource.SceneCaptureRefreshIntervalFrames} frames.");
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
+                    $"[WebGPU Diagnostics] Resources: sceneMeshes={SceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
                     $"shaderModules={ShaderModuleCount}; renderPipelines={PipelineCount}; " +
 #if MANA_BROWSER
                     $"environmentMap={_environment?.Map != null}.");
@@ -415,5 +415,6 @@ namespace ManaGraphics.Code.Graphics
 
         private int ShaderModuleCount => (_thumbnails?.ShaderModuleCount ?? 0) + _passes.Sum(pass => pass.ShaderModuleCount);
         private int PipelineCount => (_thumbnails?.PipelineCount ?? 0) + _passes.Sum(pass => pass.PipelineCount);
+        private IReadOnlyList<ManaWebGpuSceneMesh> SceneMeshes => _meshes?.Meshes ?? [];
     }
 }

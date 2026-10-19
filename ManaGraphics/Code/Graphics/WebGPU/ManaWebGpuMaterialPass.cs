@@ -113,7 +113,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        private void DrawMesh(RenderPassEncoder* pass, ManaWebGpuContext.ManaWebGpuSceneMesh sceneMesh)
+        private void DrawMesh(RenderPassEncoder* pass, ManaWebGpuSceneMesh sceneMesh)
         {
             // Only reaches the GPU when the mesh's transform or material changed since last frame.
             sceneMesh.TryUpdateObjectUniform(Api, Gpu.Queue, ManaWebGpuObjectUniform.For(sceneMesh.Instance));

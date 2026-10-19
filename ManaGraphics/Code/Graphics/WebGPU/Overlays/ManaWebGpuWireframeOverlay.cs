@@ -25,7 +25,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
             Device* device,
             Queue* queue,
             RenderPassEncoder* renderPass,
-            ManaWebGpuContext.ManaWebGpuSceneMesh sceneMesh)
+            ManaWebGpuSceneMesh sceneMesh)
         {
             if (!sceneMesh.TryGetOrCreateWireframeIndexBuffer(api, device, queue, out var buffer, out var indexCount))
             {

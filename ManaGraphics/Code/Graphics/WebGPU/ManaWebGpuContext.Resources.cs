@@ -24,7 +24,7 @@ namespace ManaGraphics.Code.Graphics
             _thumbnails = null;
 
             // Meshes first: they bind the environment and shadow views the owners below release.
-            ReleaseSceneMeshes(immediate: true);
+            _meshes?.ReleaseAll(immediate: true);
             // Passes build over the shared bindings, and the frame group binds the shadow map.
             ReleasePasses();
             _bindings?.Dispose();
