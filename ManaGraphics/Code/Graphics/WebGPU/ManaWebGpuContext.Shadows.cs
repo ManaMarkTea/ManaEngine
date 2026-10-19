@@ -460,36 +460,43 @@ namespace ManaGraphics.Code.Graphics
                 };
 
                 var pass = _api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
-                _api.RenderPassEncoderSetPipeline(pass, _shadowPipeline);
-                _api.RenderPassEncoderSetBindGroup(pass, 0, _shadowBindGroups[cascade], 0, null);
-
-                foreach (var sceneMesh in _sceneMeshes)
+                try
                 {
-                    // The editor room only receives: its floor casting onto itself is nothing but acne, and
-                    // its ceiling would put the whole room in shade. Editor helpers -- handles, collider and
-                    // trigger wireframes, markers -- are kept out of reflections the same way, and cast nothing.
-                    if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
-                        || !sceneMesh.Instance.IncludeInEnvironmentCapture
-                        || sceneMesh.Instance.ShaderName == "ManaGridShader")
+                    _api.RenderPassEncoderSetPipeline(pass, _shadowPipeline);
+                    _api.RenderPassEncoderSetBindGroup(pass, 0, _shadowBindGroups[cascade], 0, null);
+
+                    foreach (var sceneMesh in _sceneMeshes)
                     {
-                        continue;
+                        // The editor room only receives: its floor casting onto itself is nothing but acne, and
+                        // its ceiling would put the whole room in shade. Editor helpers -- handles, collider and
+                        // trigger wireframes, markers -- are kept out of reflections the same way, and cast nothing.
+                        if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
+                            || !sceneMesh.Instance.IncludeInEnvironmentCapture
+                            || sceneMesh.Instance.ShaderName == "ManaGridShader")
+                        {
+                            continue;
+                        }
+
+                        // The main pass's own TryUpdateObjectUniform (DrawSceneMesh) has not run yet this frame
+                        // -- this pass renders first -- so the object bind group's buffer would otherwise still
+                        // hold last frame's transform. Cheap: it is a dirty-check against the same value the
+                        // main pass will compare against right after.
+                        sceneMesh.TryUpdateObjectUniform(_api, _queue, BuildObjectUniform(sceneMesh.Instance));
+
+                        if (sceneMesh.ObjectBindGroup != null)
+                        {
+                            _api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                        }
+
+                        sceneMesh.Mesh.Draw(pass);
                     }
 
-                    // The main pass's own TryUpdateObjectUniform (DrawSceneMesh) has not run yet this frame
-                    // -- this pass renders first -- so the object bind group's buffer would otherwise still
-                    // hold last frame's transform. Cheap: it is a dirty-check against the same value the
-                    // main pass will compare against right after.
-                    sceneMesh.TryUpdateObjectUniform(_api, _queue, BuildObjectUniform(sceneMesh.Instance));
-
-                    if (sceneMesh.ObjectBindGroup != null)
-                    {
-                        _api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);
-                    }
-
-                    sceneMesh.Mesh.Draw(pass);
+                    _api.RenderPassEncoderEnd(pass);
                 }
-
-                _api.RenderPassEncoderEnd(pass);
+                finally
+                {
+                    _api.RenderPassEncoderRelease(pass);
+                }
             }
         }
 

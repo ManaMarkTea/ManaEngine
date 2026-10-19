@@ -45,14 +45,24 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException("Failed to create WebGPU command encoder for environment prefilter.");
             }
 
-            Dispatch(commandEncoder, sourceMap, destinationMap);
-            DispatchIrradiance(commandEncoder, destinationMap, irradianceMap);
+            CommandBuffer* commandBuffer = null;
+            try
+            {
+                Dispatch(commandEncoder, sourceMap, destinationMap);
+                DispatchIrradiance(commandEncoder, destinationMap, irradianceMap);
 
-            var commandBufferDescriptor = new CommandBufferDescriptor();
-            var commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
-            _api.QueueSubmit(_queue, 1, &commandBuffer);
-            _api.CommandBufferRelease(commandBuffer);
-            _api.CommandEncoderRelease(commandEncoder);
+                var commandBufferDescriptor = new CommandBufferDescriptor();
+                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                _api.QueueSubmit(_queue, 1, &commandBuffer);
+            }
+            finally
+            {
+                if (commandBuffer != null)
+                {
+                    _api.CommandBufferRelease(commandBuffer);
+                }
+                _api.CommandEncoderRelease(commandEncoder);
+            }
         }
 
         public void Dispatch(
@@ -97,16 +107,38 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var size = irradianceMap.Width;
-            var parameterBuffer = CreateParameterBuffer(prefilteredMap.Width, 1.0f, IrradianceSampleCount, IrradianceMode);
-            var bindGroup = CreateBindGroup(prefilteredMap.TextureView, (TextureView*)irradianceMap.StorageViews[0], parameterBuffer);
-            Run(commandEncoder, bindGroup, size);
-            _api.BindGroupRelease(bindGroup);
-            _api.BufferRelease(parameterBuffer);
+            Run(commandEncoder, prefilteredMap.TextureView, (TextureView*)irradianceMap.StorageViews[0],
+                prefilteredMap.Width, 1.0f, IrradianceSampleCount, IrradianceMode, size);
         }
 
         private const uint PrefilterMode = 0u;
         private const uint IrradianceMode = 1u;
         private const uint IrradianceSampleCount = 512u;
+
+        private void Run(
+            CommandEncoder* commandEncoder, TextureView* sourceView, TextureView* destinationView,
+            uint sourceResolution, float roughness, uint sampleCount, uint mode, uint size)
+        {
+            WebGpuBuffer* parameterBuffer = null;
+            BindGroup* bindGroup = null;
+            try
+            {
+                parameterBuffer = CreateParameterBuffer(sourceResolution, roughness, sampleCount, mode);
+                bindGroup = CreateBindGroup(sourceView, destinationView, parameterBuffer);
+                Run(commandEncoder, bindGroup, size);
+            }
+            finally
+            {
+                if (bindGroup != null)
+                {
+                    _api.BindGroupRelease(bindGroup);
+                }
+                if (parameterBuffer != null)
+                {
+                    _api.BufferRelease(parameterBuffer);
+                }
+            }
+        }
 
         private void Run(CommandEncoder* commandEncoder, BindGroup* bindGroup, uint size)
         {
@@ -160,12 +192,7 @@ namespace ManaGraphics.Code.Graphics
                 ? 0.0f
                 : mip / (float)(destinationMap.StorageViews.Count - 1);
             var sampleCount = GetPrefilterSampleCount(mip, roughness);
-            var parameterBuffer = CreateParameterBuffer(sourceMap.Width, roughness, sampleCount, PrefilterMode);
-            var bindGroup = CreateBindGroup(sourceMap.TextureView, destinationView, parameterBuffer);
-            Run(commandEncoder, bindGroup, mipSize);
-
-            _api.BindGroupRelease(bindGroup);
-            _api.BufferRelease(parameterBuffer);
+            Run(commandEncoder, sourceMap.TextureView, destinationView, sourceMap.Width, roughness, sampleCount, PrefilterMode, mipSize);
         }
 
         private WebGpuBuffer* CreateParameterBuffer(uint sourceResolution, float roughness, uint sampleCount, uint mode)
