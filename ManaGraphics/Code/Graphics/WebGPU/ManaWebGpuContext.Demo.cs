@@ -24,9 +24,9 @@ namespace ManaGraphics.Code.Graphics
 
             _activeRenderScene = renderScene;
             // The frame group binds the shadow map, so the map comes first.
-            CreateShadowMapResources();
-            _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMapArrayView, _shadowSampler);
-            CreateShadowPassResources();
+            _shadowMap = new ManaWebGpuShadowMap(_gpu);
+            _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
+            AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
             CreateHdrPostProcessor();
             
             // Pre-compile default pipeline
@@ -75,7 +75,7 @@ namespace ManaGraphics.Code.Graphics
         {
             // Only actually hits the GPU when the mesh's transform/material changed since last frame
             // -- see ManaWebGpuSceneMesh.TryUpdateObjectUniform.
-            sceneMesh.TryUpdateObjectUniform(_api, _queue, BuildObjectUniform(sceneMesh.Instance));
+            sceneMesh.TryUpdateObjectUniform(_api, _queue, ManaWebGpuObjectUniform.For(sceneMesh.Instance));
 
             if (sceneMesh.CustomUniformBuffer != null)
             {

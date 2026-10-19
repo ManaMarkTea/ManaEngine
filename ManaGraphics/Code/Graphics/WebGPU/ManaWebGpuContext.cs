@@ -71,6 +71,10 @@ namespace ManaGraphics.Code.Graphics
         private float _demoMeshScale = 1.0f;
         // Set in FinishInitialization; borrowed by every pass.
         private ManaWebGpuDevice _gpu = null!;
+        // In frame order; each owns its pipelines (see ManaWebGpuRenderPass).
+        private readonly List<ManaWebGpuRenderPass> _passes = new();
+        private readonly ManaWebGpuFrame _passFrame = new();
+        private ManaWebGpuShadowMap? _shadowMap;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
         private ManaWebGpuSceneBindings? _bindings;
         private BindGroup* _frameBindGroup => _bindings == null ? null : _bindings.FrameGroup;
@@ -536,6 +540,39 @@ namespace ManaGraphics.Code.Graphics
         }
 #endif
 
+        private T AddPass<T>(T pass) where T : ManaWebGpuRenderPass
+        {
+            _passes.Add(pass);
+            return pass;
+        }
+
+        private void ReleasePasses()
+        {
+            for (var i = _passes.Count - 1; i >= 0; i--)
+            {
+                _passes[i].Dispose();
+            }
+            _passes.Clear();
+        }
+
+        // Null while the renderer is clear-only or has no scene yet.
+        private ManaWebGpuFrame? PassFrame(CommandEncoder* encoder)
+        {
+            if (_bindings == null || _activeRenderScene == null)
+            {
+                return null;
+            }
+
+            _passFrame.Encoder = encoder;
+            _passFrame.Scene = _activeRenderScene;
+            _passFrame.Meshes = _sceneMeshes;
+            _passFrame.Bindings = _bindings;
+            _passFrame.SceneColorFormat = GetSceneColorFormat();
+            _passFrame.Depth = _depthTextureView;
+            _passFrame.HandleDepth = _handleDepthTextureView;
+            return _passFrame;
+        }
+
         // Callable from any thread; runs FIFO on the render thread via DrainRenderThreadWork.
         // wgpu-native takes device locks in opposite orders for surface-present and queue-submit, so a
         // background-thread submit overlapping SurfacePresent deadlocks both threads.
@@ -773,7 +810,7 @@ namespace ManaGraphics.Code.Graphics
                     RefreshRenderScene();
                 }
 
-                UpdateShadowCascades();
+                _shadowMap?.UpdateCascades(_activeRenderScene);
                 UpdateFrameUniform();
                 LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
@@ -793,9 +830,15 @@ namespace ManaGraphics.Code.Graphics
                         CaptureSceneEnvironmentIfNeeded(commandEncoder);
                     }
 
-                    using (ManaFrameProfiler.Measure("GPU: Shadow Cascades"))
+                    if (PassFrame(commandEncoder) is { } passFrame)
                     {
-                        RenderShadowCascades(commandEncoder);
+                        foreach (var pass in _passes)
+                        {
+                            using (ManaFrameProfiler.Measure(pass.ProfileName))
+                            {
+                                pass.Prepare(passFrame);
+                            }
+                        }
                     }
                 }
 

@@ -72,11 +72,12 @@ namespace ManaGraphics.Code.Graphics
             _environmentPrefilterCompute?.Dispose();
             _environmentPrefilterCompute = null;
 
-            // Before the shadow resources: the frame group binds the shadow map.
+            // Passes build over the shared bindings, and the frame group binds the shadow map.
+            ReleasePasses();
             _bindings?.Dispose();
             _bindings = null;
-
-            ReleaseShadowResources();
+            _shadowMap?.Dispose();
+            _shadowMap = null;
 
             ReleaseSceneMeshes(immediate: true);
             ReleasePendingEnvironmentWork();

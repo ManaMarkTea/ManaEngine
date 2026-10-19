@@ -35,6 +35,9 @@ namespace ManaGraphics.Code.Graphics
             var irradianceSettings = _activeRenderScene.IrradianceSettings;
             var viewProjection = camera.View * GetAspectCorrectedProjection(camera);
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+            // The bindings are made with the shadow map, so it exists whenever they do.
+            var cascades = _shadowMap!.CascadeViewProjections;
+            var splits = _shadowMap.CascadeSplitFar;
 
             var uniform = new ManaWebGpuFrameUniform
             {
@@ -59,10 +62,10 @@ namespace ManaGraphics.Code.Graphics
                 WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
                 VertexNormalLength = irradianceSettings.VertexNormalLength,
                 _padding2 = 0.0f,
-                CascadeViewProjection0 = _cascadeViewProjections[0],
-                CascadeViewProjection1 = _cascadeViewProjections[1],
-                CascadeViewProjection2 = _cascadeViewProjections[2],
-                CascadeSplitFar = new Vector4(_cascadeSplitFar[0], _cascadeSplitFar[1], _cascadeSplitFar[2], 0.0f),
+                CascadeViewProjection0 = cascades[0],
+                CascadeViewProjection1 = cascades[1],
+                CascadeViewProjection2 = cascades[2],
+                CascadeSplitFar = new Vector4(splits[0], splits[1], splits[2], 0.0f),
                 SunDirection = new Vector4(
                     _activeRenderScene.SunDirection,
                     _activeRenderScene.HasSun && _activeRenderScene.SunCastsShadows ? 1.0f : 0.0f),
@@ -82,59 +85,6 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _bindings.WriteFrame(_queue, uniform);
-        }
-
-        // Pure function, no GPU call -- lets callers dirty-check the result against the mesh's last
-        // uploaded value before spending a QueueWriteBuffer on it (see
-        // ManaWebGpuSceneMesh.TryUpdateObjectUniform in ManaWebGpuContext.Scene.cs).
-        private static ManaWebGpuObjectUniform BuildObjectUniform(ManaRenderMeshInstance meshInstance)
-        {
-            var model = meshInstance.WorldTransform;
-            if (!Matrix4x4.Invert(model, out var inverseModel))
-            {
-                inverseModel = Matrix4x4.Identity;
-            }
-            var normalMatrix = Matrix4x4.Transpose(inverseModel);
-
-            return new ManaWebGpuObjectUniform
-            {
-                Model = model,
-                NormalMatrix = normalMatrix,
-                // The material's opacity folds into the albedo's alpha rather than travelling as its own
-                // field: both answer "how solid is this", the shader already reads this channel, and
-                // multiplying is what composing them means.
-                MaterialAlbedo = new Vector4(
-                    meshInstance.Albedo.X,
-                    meshInstance.Albedo.Y,
-                    meshInstance.Albedo.Z,
-                    meshInstance.Albedo.W * Math.Clamp(meshInstance.Opacity, 0.0f, 1.0f)),
-                MaterialFactors = new Vector4(
-                    Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
-                    Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
-                    Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
-                    // w carries the cutout threshold, which is only read in that mode.
-                    Math.Clamp(meshInstance.AlphaCutoff, 0.0f, 1.0f)),
-                UvTransform = meshInstance.UvTransform,
-                OpacityMode = (float)meshInstance.OpacityMode,
-                NormalStrength = Math.Clamp(meshInstance.NormalStrength, 0.0f, 1.0f),
-                MaterialEmission = new Vector4(
-                    meshInstance.Emission.X,
-                    meshInstance.Emission.Y,
-                    meshInstance.Emission.Z,
-                    meshInstance.EmissionStrength),
-                OutlineColor = meshInstance.OutlineColor,
-                OutlineParameters = new Vector4(
-                    Math.Clamp(meshInstance.OutlineWidth, 1.0f, 4.0f),
-                    meshInstance.OutlineEnabled ? 1.0f : 0.0f,
-                    // z: the material has an emission map of its own (pbr_irradiance.wgsl's emission).
-                    string.IsNullOrEmpty(meshInstance.MeshData.EmissionTexturePath) ? 0.0f : 1.0f,
-                    // w: unlit, drawn as its colour (pbr_irradiance.wgsl).
-                    meshInstance.Unlit ? 1.0f : 0.0f),
-                // -1 means "no per-object override, use the frame's global debug mode" -- valid debug
-                // mode indexes are >= 0 (see ManaIrradianceSettings.WebGpuDebugMode).
-                DebugModeOverride = meshInstance.PbrDebugMode ?? -1.0f,
-                FlatShading = meshInstance.FlatShaded ? 1.0f : 0.0f
-            };
         }
 
         // Scene-capture (cubemap probe refresh, ManaWebGpuContext.Environment.cs) intentionally keeps
