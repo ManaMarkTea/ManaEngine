@@ -2,9 +2,9 @@ name: Build web editor and play, deploy to GitHub Pages
 
 # Publish the directory directly: immutable assets remain separate files and Butler uploads deltas.
 on:
-  # 10:17 UTC is 03:17 PDT / 02:17 PST; away from the busy top of the hour.
+  # 14:00 UTC is 07:00 PDT (06:00 in PST winter; cron is UTC only).
   schedule:
-    - cron: "17 10 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch:
     inputs:
       pages_only:
