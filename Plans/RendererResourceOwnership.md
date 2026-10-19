@@ -12,7 +12,7 @@ forwards height-sampling requests to the context and does not own or dispose it.
 
 | Resource group | Owner and creation | Release / replacement boundary |
 |---|---|---|
-| API binding, native extension | Context constructs `_api`; obtains `_wgpuNativeExtension` during `FinishInitialization` | Neither wrapper is explicitly disposed. Their binding/library lifetime needs an explicit decision after all callbacks have stopped. |
+| API binding, native extension | Context constructs `_api`; obtains `_wgpuNativeExtension` during `FinishInitialization` | Process-lifetime by contract, never disposed: disposing the Silk wrapper frees wgpu_native, which the static `DllImport` log hooks, other contexts/panel surfaces and the embedded iOS framework still use. The context owns only the GPU objects made through it; shutdown drops the extension reference with the device. |
 | Instance, main surface, adapter, device, queue | Context constructor, `Device` partial, then `FinishInitialization`; browser adapter/device acquisition is asynchronous | Context `Dispose`: queue, device, adapter, surface, instance. Main surface is unconfigured first. Constructor failures now dispose partial root handles. The browser host takes ownership before awaiting adapter/device initialization, whose failure/cancellation also disposes the partial context. |
 | Main depth and handle depth textures/views | Context `Resources`: `ConfigureSurface` / `CreateDepthResources` | Recreated on resize; `ReleaseDepthResources` at shutdown. Views released before textures. |
 | Frame uniform buffer/group, object/custom/capture layouts, three samplers | Context `Pipelines` and `Uniforms`; shared by scene meshes and passes | `ReleaseDemoResources`, also called on pipeline-initialization failure. This is renderer-wide cleanup despite its name. |
@@ -34,7 +34,7 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Height-sampling pipeline/module/layouts | Context lazily owns `ManaWebGpuHeightSampleCompute` | Context disposes the helper after readback retirement and before device release; repeated helper disposal is harmless. Constructor failure and per-dispatch locals unwind through cleanup. Staging ownership transfers to readback helper. |
 | Readback staging buffers and callback state | Context's `ManaWebGpuReadbackRegistry`, with never-reused integer userdata IDs | Callback or shutdown removes routing, releases staging and associated request resources, then settles the task. Admission and retirement share a per-context gate; late/duplicate IDs are ignored. |
 | Screenshot/environment-dump requests | Context `Screenshot` / `EnvironmentDump` hold pending metadata; encoded requests own a staging buffer until mapping | After submit, readback registry owns completion. CPU image conversion/writes need no live GPU objects. Unencoded screenshot tasks are canceled and pending dump metadata cleared at shutdown. Disposed contexts reject new requests; encoded readbacks remain registry-owned. |
-| Frame-local encoders, passes, command buffers, acquired surface texture/view | `ClearFrame`, demo/environment passes, compute dispatches and panel render methods | Explicit release at end of successful path; coverage of exceptional/early-return paths varies. They are not context fields and cannot be recovered by ordinary context disposal. |
+| Frame-local encoders, passes, command buffers, acquired surface texture/view | `ClearFrame`, demo/environment passes, compute dispatches and panel render methods | Released in `finally` wherever managed code runs inside them: `ClearFrame` owns its encoder, passes, command buffer and surface texture/view, and a frame abandoned before submit releases its screenshot/dump staging and faults the screenshot. Passes that only record native calls release inline. `FramePassOwnershipChecks` requires a release for every begun pass. |
 
 ## Partial-file responsibilities
 
@@ -135,12 +135,15 @@ These are source findings. No native failure was reproduced during this document
    failed/canceled initialization disposes it. Stable request IDs replace the shared current-context
    slot, and disposed-result guards plus JS rejection cleanup stop late handles from reaching a fresh
    renderer. Native adapter/device callback lifetime assumptions are unchanged. The API/native-extension
-   binding wrappers themselves remain undisposed pending an explicit ownership/unload contract with
-   native hosts; releasing GPU objects does not establish that unloading their native library is safe.
-6. **Review transient failure cleanup and shared-resource dependencies.** Thumbnail and height-dispatch locals now unwind on errors; several main-frame/pass
-   paths still release locals only on success. Use narrowly scoped ownership/`finally` after the callback
-   boundary is settled. Keep borrowed environment/shadow views valid for retained mesh bind groups;
-   do not replace the six-frame retirement rule with immediate destruction during a structural split.
+   binding wrappers are deliberately never disposed (finding 6): releasing GPU objects does not make
+   unloading their native library safe.
+6. **Completed: frame-local passes and binding wrappers (2026-10-19).** Three passes were ended but never
+   released on the ordinary path: every shadow cascade pass, every backdrop reduce level and the first
+   tone-map pass when blur splits it -- native handles leaked each frame. `ClearFrame`, shadow, sky/capture
+   face, outline and prefilter dispatch locals now unwind through `finally`; prefilter parameter buffers and
+   bind groups share one owner. The API/native-extension wrappers are process-lifetime (row above).
+   Borrowed environment/shadow views stay valid for retained mesh bind groups; the six-frame retirement rule
+   is unchanged.
 
 ## Native binding-wrapper ownership contract
 
@@ -163,17 +166,12 @@ a test here proves):
   readbacks (`_readbackRegistry` empty after `FaultAllPending`), no pending adapter/device request (browser: request IDs retired), and
   a device that has finished its last `DevicePoll`/`InstanceProcessEvents`.
 
-### Frame-local exception paths (reviewed 2026-10-18)
+### Frame-local exception paths
 
-- **Main frame (`ClearFrame`) -- repaired.** The surface texture, its view, the command encoder, both passes and the command buffer are
-  released in one `finally`, so a throw anywhere between acquisition and present no longer leaks them or leaves the texture acquired.
-  The tone-map pass that is ended and replaced for a backdrop-blur frame is now released before the second one starts; before this it
-  leaked one pass-encoder handle per frame whenever any UI asked for blur.
-- **Pop-out surfaces (`UiSurface`)** already used `try/finally` for every handle.
-- **Sub-passes inside the frame** (shadow cascades, environment sky/scene faces, outline mask, handle pass) release their pass at their
-  own end, not in a `finally`. An exception inside one leaks that one pass-encoder handle at worst; the encoder and surface still
-  unwind through the frame's `finally`. Accepted: the frame is already failing, and wrapping each site adds nesting without changing the
-  outcome. Reconsider if a sub-pass starts to throw in normal operation.
+Settled by finding 6 above: the main frame and every sub-pass (shadow cascades, sky/capture faces, outline mask, prefilter dispatch)
+release in a `finally`, and a source check requires a release for each begun pass. Pop-out surfaces (`UiSurface`) already did. The
+earlier decision here to leave sub-passes releasing at their own end was superseded the next day, once the same leak turned up in the
+shadow and backdrop passes.
 
 ## Detecting leaks on purpose
 
@@ -188,9 +186,9 @@ is still found by review only. The browser's WebGPU cannot list what it holds, s
 
 ## Extraction sequence and validation
 
-Readback, thumbnail, environment and local native-handle retirement are repaired. Specify binding-wrapper
-ownership and review the remaining main-frame/pass exception paths as owners are extracted. Each needs lifetime tests and live shutdown-during-work checks.
-Only then extract services, keeping frame orchestration and the final device lifetime in the context:
+Readback, thumbnail, environment, local native-handle and frame-local pass retirement are repaired, and
+binding-wrapper ownership is specified. Each extraction still needs lifetime tests and live shutdown-during-work checks.
+Extract services, keeping frame orchestration and the final device lifetime in the context:
 
 - Surface/depth targets, with main/panel surface differences explicit.
 - Pipeline/shared-binding owner, preserving initialization rollback and format-specific cache keys.

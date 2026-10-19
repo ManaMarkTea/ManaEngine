@@ -129,6 +129,7 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderSetBindGroup(pass, 0, _bindGroups[level], 0, null);
             _api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
             _api.RenderPassEncoderEnd(pass);
+            _api.RenderPassEncoderRelease(pass);
         }
 
         private void EnsureResources(Vector2D<int> size)

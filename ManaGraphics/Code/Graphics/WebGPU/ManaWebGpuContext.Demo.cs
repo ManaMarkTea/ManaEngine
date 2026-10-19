@@ -238,36 +238,14 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
-            // Ordinary meshes use scene depth; handles use their separate depth attachment below.
-            _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
-
-            // Reuses the frame (group 0) and object (group 1) bind groups already made current by
-            // DrawDemoMesh's main pass this frame -- no uniform rewrite needed here at all, since the
-            // main pass already dirty-checked/uploaded whatever changed.
-            if (_frameBindGroup != null)
+            try
             {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-            }
-
-            foreach (var sceneMesh in _sceneMeshes)
-            {
-                if (!sceneMesh.Instance.OutlineEnabled || sceneMesh.Instance.AlwaysOnTop)
-                {
-                    continue;
-                }
-
-                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
-                sceneMesh.Mesh.Draw(renderPass);
-            }
-
-            if (_sceneMeshes.Any(mesh => mesh.Instance.OutlineEnabled && mesh.Instance.AlwaysOnTop))
-            {
-                _api.RenderPassEncoderEnd(renderPass);
-                _api.RenderPassEncoderRelease(renderPass);
-                colorAttachment.LoadOp = LoadOp.Load;
-                depthAttachment.View = _handleDepthTextureView;
-                renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
+                // Ordinary meshes use scene depth; handles use their separate depth attachment below.
                 _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
+
+                // Reuses the frame (group 0) and object (group 1) bind groups already made current by
+                // DrawDemoMesh's main pass this frame -- no uniform rewrite needed here at all, since the
+                // main pass already dirty-checked/uploaded whatever changed.
                 if (_frameBindGroup != null)
                 {
                     _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
@@ -275,7 +253,7 @@ namespace ManaGraphics.Code.Graphics
 
                 foreach (var sceneMesh in _sceneMeshes)
                 {
-                    if (!sceneMesh.Instance.OutlineEnabled || !sceneMesh.Instance.AlwaysOnTop)
+                    if (!sceneMesh.Instance.OutlineEnabled || sceneMesh.Instance.AlwaysOnTop)
                     {
                         continue;
                     }
@@ -283,10 +261,38 @@ namespace ManaGraphics.Code.Graphics
                     _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
                     sceneMesh.Mesh.Draw(renderPass);
                 }
-            }
 
-            _api.RenderPassEncoderEnd(renderPass);
-            _api.RenderPassEncoderRelease(renderPass);
+                if (_sceneMeshes.Any(mesh => mesh.Instance.OutlineEnabled && mesh.Instance.AlwaysOnTop))
+                {
+                    _api.RenderPassEncoderEnd(renderPass);
+                    _api.RenderPassEncoderRelease(renderPass);
+                    colorAttachment.LoadOp = LoadOp.Load;
+                    depthAttachment.View = _handleDepthTextureView;
+                    renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &descriptor);
+                    _api.RenderPassEncoderSetPipeline(renderPass, GetOrCreateOutlineMaskPipeline());
+                    if (_frameBindGroup != null)
+                    {
+                        _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
+                    }
+
+                    foreach (var sceneMesh in _sceneMeshes)
+                    {
+                        if (!sceneMesh.Instance.OutlineEnabled || !sceneMesh.Instance.AlwaysOnTop)
+                        {
+                            continue;
+                        }
+
+                        _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
+                        sceneMesh.Mesh.Draw(renderPass);
+                    }
+                }
+
+                _api.RenderPassEncoderEnd(renderPass);
+            }
+            finally
+            {
+                _api.RenderPassEncoderRelease(renderPass);
+            }
         }
 
         private void CreateHdrPostProcessor()

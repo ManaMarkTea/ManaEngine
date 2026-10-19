@@ -22,6 +22,8 @@ namespace ManaGraphics.Code.Graphics
     {
         public bool UseSceneCapture = false;
 
+        // Never disposed: that would free wgpu_native, which the static log hooks, other contexts and the
+        // iOS framework still use. Only the GPU objects made through it are this context's to release.
         private readonly WebGPU _api;
         private readonly IWindow _window;
         private readonly IInputContext? _input;
@@ -700,23 +702,17 @@ namespace ManaGraphics.Code.Graphics
             var hdrSceneTextureView = _hdrPostProcessor != null ? _hdrPostProcessor.SceneTextureView : null;
             if (textureView == null)
             {
-                if (textureView != null)
-                {
-                    _api.TextureViewRelease(textureView);
-                }
-
                 _api.TextureRelease(surfaceTexture.Texture);
 
                 return;
             }
 
-            // Every native handle below is released in the finally, so a throw anywhere in the frame cannot leak them
-            // or leave the surface texture acquired. Passes are nulled once released mid-frame.
-            var frameStopwatch = Stopwatch.StartNew();
             CommandEncoder* commandEncoder = null;
             RenderPassEncoder* sceneRenderPass = null;
             RenderPassEncoder* toneMapRenderPass = null;
             CommandBuffer* commandBuffer = null;
+            EncodedScreenshotCopy? pendingScreenshotCopy = null;
+            (nint Buffer, uint Size, uint PaddedRow, string Prefix)? pendingEnvironmentDump = null;
             try
             {
                 var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
@@ -749,6 +745,8 @@ namespace ManaGraphics.Code.Graphics
                     ColorAttachments = &sceneColorAttachment,
                     DepthStencilAttachment = &depthStencilAttachment
                 };
+
+                var frameStopwatch = Stopwatch.StartNew();
 
                 var commandEncoderDescriptor = new CommandEncoderDescriptor();
                 commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
@@ -821,12 +819,18 @@ namespace ManaGraphics.Code.Graphics
                     sceneColorAttachment.LoadOp = LoadOp.Load;
                     depthStencilAttachment.View = _handleDepthTextureView;
                     var handlePass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
-                    foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
+                    try
                     {
-                        DrawSceneMesh(handlePass, mesh);
+                        foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
+                        {
+                            DrawSceneMesh(handlePass, mesh);
+                        }
+                        _api.RenderPassEncoderEnd(handlePass);
                     }
-                    _api.RenderPassEncoderEnd(handlePass);
-                    _api.RenderPassEncoderRelease(handlePass);
+                    finally
+                    {
+                        _api.RenderPassEncoderRelease(handlePass);
+                    }
                 }
                 LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
@@ -882,8 +886,8 @@ namespace ManaGraphics.Code.Graphics
 
                 _api.RenderPassEncoderEnd(toneMapRenderPass);
 
-                var pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
-                var pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
+                pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
+                pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
                 var submitStopwatch = Stopwatch.StartNew();
@@ -891,13 +895,16 @@ namespace ManaGraphics.Code.Graphics
                 _api.QueueSubmit(_queue, 1, &commandBuffer);
                 _api.SurfacePresent(_surface);
 
+                // Submitted: each staging buffer now belongs to its readback.
                 if (pendingScreenshotCopy is { } encodedScreenshotCopy)
                 {
+                    pendingScreenshotCopy = null;
                     FinishPendingScreenshotReadback(encodedScreenshotCopy);
                 }
 
                 if (pendingEnvironmentDump is { } environmentDump)
                 {
+                    pendingEnvironmentDump = null;
                     FinishEnvironmentDump(environmentDump);
                 }
 
@@ -925,35 +932,42 @@ namespace ManaGraphics.Code.Graphics
     #endif
 
                 LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
-
+                LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
             }
             finally
             {
+                // A frame that throws mid-encode is abandoned, never submitted: its copies settle here.
+                if (pendingScreenshotCopy is { } unsubmittedCopy)
+                {
+                    _api.BufferRelease((WebGpuBuffer*)unsubmittedCopy.OutputBuffer);
+                    unsubmittedCopy.Request.Completion.TrySetException(
+                        new InvalidOperationException("The frame carrying the screenshot failed before submission."));
+                }
+
+                if (pendingEnvironmentDump is { } unsubmittedDump)
+                {
+                    _api.BufferRelease((WebGpuBuffer*)unsubmittedDump.Buffer);
+                }
+
                 if (commandBuffer != null)
                 {
                     _api.CommandBufferRelease(commandBuffer);
                 }
-
-                if (commandEncoder != null)
-                {
-                    _api.CommandEncoderRelease(commandEncoder);
-                }
-
                 if (sceneRenderPass != null)
                 {
                     _api.RenderPassEncoderRelease(sceneRenderPass);
                 }
-
                 if (toneMapRenderPass != null)
                 {
                     _api.RenderPassEncoderRelease(toneMapRenderPass);
                 }
-
+                if (commandEncoder != null)
+                {
+                    _api.CommandEncoderRelease(commandEncoder);
+                }
                 _api.TextureViewRelease(textureView);
                 _api.TextureRelease(surfaceTexture.Texture);
             }
-
-            LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
 
             // Handed to the profiler as well as the World Perf panel: the panel shows this frame, the
             // profiler keeps the peak, and a hitch is only ever visible in the peak.
@@ -1019,6 +1033,10 @@ namespace ManaGraphics.Code.Graphics
                 _api.DeviceRelease(_device);
                 _device = null;
             }
+#if !MANA_BROWSER
+            // A view over _api's library for the released device, not a separate owner.
+            _wgpuNativeExtension = null;
+#endif
 
             if (_adapter != null)
             {

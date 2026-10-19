@@ -141,11 +141,17 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
-            _environmentSkybox!.Draw(
-                renderPass, TextureFormat.Rgba8UnormSrgb, _clampSampler, unusedView, camera, camera.Projection,
-                sky.TowardSun, sky, ManaSky.Seconds, face);
-            _api.RenderPassEncoderEnd(renderPass);
-            _api.RenderPassEncoderRelease(renderPass);
+            try
+            {
+                _environmentSkybox!.Draw(
+                    renderPass, TextureFormat.Rgba8UnormSrgb, _clampSampler, unusedView, camera, camera.Projection,
+                    sky.TowardSun, sky, ManaSky.Seconds, face);
+                _api.RenderPassEncoderEnd(renderPass);
+            }
+            finally
+            {
+                _api.RenderPassEncoderRelease(renderPass);
+            }
         }
 
         /// <summary>
@@ -216,24 +222,29 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
-
-            _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
-            foreach (var sceneMesh in _sceneMeshes)
+            try
             {
-                if (!sceneMesh.Instance.IncludeInEnvironmentCapture)
+                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+                foreach (var sceneMesh in _sceneMeshes)
                 {
-                    continue;
+                    if (!sceneMesh.Instance.IncludeInEnvironmentCapture)
+                    {
+                        continue;
+                    }
+
+                    var captureUniformBuffer = sceneMesh.GetSceneCaptureUniformBuffer(face);
+                    var captureBindGroup = sceneMesh.GetSceneCaptureBindGroup(face);
+                    UpdateSceneCaptureUniform(sceneMesh.Instance, captureUniformBuffer, captureCamera);
+                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, captureBindGroup, 0, null);
+                    sceneMesh.Mesh.Draw(renderPass);
                 }
 
-                var captureUniformBuffer = sceneMesh.GetSceneCaptureUniformBuffer(face);
-                var captureBindGroup = sceneMesh.GetSceneCaptureBindGroup(face);
-                UpdateSceneCaptureUniform(sceneMesh.Instance, captureUniformBuffer, captureCamera);
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, captureBindGroup, 0, null);
-                sceneMesh.Mesh.Draw(renderPass);
+                _api.RenderPassEncoderEnd(renderPass);
             }
-
-            _api.RenderPassEncoderEnd(renderPass);
-            _api.RenderPassEncoderRelease(renderPass);
+            finally
+            {
+                _api.RenderPassEncoderRelease(renderPass);
+            }
         }
 
         private void DispatchEnvironmentPrefilter(CommandEncoder* commandEncoder, ManaWebGpuEnvironmentReflectionMap map)

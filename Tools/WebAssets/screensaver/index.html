@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#050a0e">
-  <meta name="description" content="A quiet wall of working terminals, scrolling real code from ManaRenderer.">
+  <meta name="description" content="A quiet wall of working terminals, scrolling real code from ManaRenderer or any public GitHub repository.">
   <title>Code Screensaver · ManaRenderer</title>
   <style>
     * { box-sizing: border-box; }
@@ -19,12 +19,15 @@
     button, a { font: inherit; color: #b9cbd1; background: transparent; border: 0; border-radius: 4px; padding: 9px 12px; cursor: pointer; text-decoration: none; }
     button:hover, a:hover { background: #21363e; color: #80e5a1; }
     #sound { color: #80dfa0; }
+    #repo { font: inherit; color: #b9cbd1; background: #091117; border: 1px solid #315143; border-radius: 4px; padding: 6px 8px; width: 230px; margin-left: 8px; }
+    #repo::placeholder { color: #52727e; }
+    #source { color: #78afc2; margin-right: 12px; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
     button:disabled { opacity: .4; cursor: default; }
     :focus-visible { outline: 2px solid #80e5a1; outline-offset: 2px; }
     #status { position: fixed; top: 50%; width: 100%; text-align: center; color: #80e5a1; }
     .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-    @media (max-width: 1000px) { .title { display: none; } }
-    @media (max-width: 600px) { #run-status, .source-link { display: none; } .full-label { display: none; } .full-icon { display: inline; } button, a { padding: 9px 4px; font-size: 11px; } nav { padding: 0 4px; } .playback { gap: 0; } #clock { margin: 0 4px; } }
+    @media (max-width: 1000px) { .title, #source { display: none; } #repo { width: 160px; } }
+    @media (max-width: 600px) { #run-status, .source-link, #repo-form { display: none; } .full-label { display: none; } .full-icon { display: inline; } button, a { padding: 9px 4px; font-size: 11px; } nav { padding: 0 4px; } .playback { gap: 0; } #clock { margin: 0 4px; } }
   </style>
 </head>
 <body>
@@ -37,9 +40,10 @@
       <button id="pause" aria-pressed="false" title="Pause or resume (P)">Pause</button>
       <button id="stop" title="Stop or start a fresh set of sessions (S)">Stop</button>
       <button id="sound" aria-pressed="false" title="Toggle soft typing sounds (M)">Sound off</button>
+      <form id="repo-form" role="search"><input id="repo" list="repo-history" spellcheck="false" autocomplete="off" aria-label="GitHub repository to show" placeholder="GitHub owner/repo (blank: ManaRenderer)" title="A public GitHub repository, as owner/name or its URL; Enter loads it, blank goes back to ManaRenderer"><datalist id="repo-history"></datalist></form>
     </div>
     <button id="fullscreen" aria-label="Toggle full screen" title="Toggle full screen (F)"><span class="full-label">Full screen</span><span class="full-icon" aria-hidden="true">⛶</span></button>
-    <div class="info"><span id="run-status" role="status">Loading</span><time id="clock" aria-label="Current local time"></time><a class="source-link" href="https://github.com/ManaMarkTea/ManaRenderer" target="_blank" rel="noopener noreferrer" title="View the source repository">Source ↗</a></div>
+    <div class="info"><span id="source" role="status">ManaRenderer</span><span id="run-status" role="status">Loading</span><time id="clock" aria-label="Current local time"></time><a class="source-link" href="https://github.com/ManaMarkTea/ManaRenderer" target="_blank" rel="noopener noreferrer" title="View the source repository">Source ↗</a></div>
   </nav>
   <script type="module" src="screensaver.js"></script>
 </body>

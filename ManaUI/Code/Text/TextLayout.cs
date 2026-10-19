@@ -303,7 +303,8 @@ namespace ManaUI
                     _ => bounds.X
                 };
 
-                RenderLine(drawList, line, _font.SnapToPixel(x), y + _font.Ascent, color);
+                // Snap the baseline once: on a half pixel (ascent 9.5) each glyph's top rounds its own way.
+                RenderLine(drawList, line, _font.SnapToPixel(x), _font.SnapToPixel(y + _font.Ascent), color);
                 y += lineHeight;
             }
         }
