@@ -17,15 +17,6 @@ namespace ManaGraphics.Code.Graphics
     {
         private void ReleaseDemoResources()
         {
-            foreach (var entry in _pipelines)
-            {
-                if (entry.Value != 0)
-                {
-                    _api.RenderPipelineRelease((RenderPipeline*)entry.Value);
-                }
-            }
-            _pipelines.Clear();
-
             foreach (var entry in _shaderModules)
             {
                 if (entry.Value != 0)

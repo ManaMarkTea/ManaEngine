@@ -28,99 +28,13 @@ namespace ManaGraphics.Code.Graphics
             _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
             AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
             CreateHdrPostProcessor();
-            
-            // Pre-compile default pipeline
-            GetOrCreatePipeline("ManaPbrShader");
-            
+            AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, GetSceneColorFormat()));
+
             ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
             if (renderScene.Meshes.Count > 0)
             {
                 UploadSceneMeshes(renderScene);
             }
-        }
-
-        private void DrawDemoMesh(RenderPassEncoder* renderPass)
-        {
-            if (_sceneMeshes.Count == 0)
-            {
-                return;
-            }
-
-            // Group 0 (frame globals) is identical for every mesh this frame -- bind it once here
-            // rather than once per mesh inside DrawSceneMesh.
-            if (_frameBindGroup != null)
-            {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-            }
-
-            foreach (var sceneMesh in _sceneMeshes.Where(mesh => !mesh.Instance.IsTransparent && !mesh.Instance.AlwaysOnTop))
-            {
-                DrawSceneMesh(renderPass, sceneMesh);
-            }
-
-            var cameraPosition = _activeRenderScene?.Camera.Position ?? Vector3.Zero;
-            foreach (var sceneMesh in _sceneMeshes
-                .Where(mesh => mesh.Instance.IsTransparent && !mesh.Instance.AlwaysOnTop)
-                .OrderByDescending(mesh => Vector3.DistanceSquared(
-                    mesh.Instance.WorldTransform.Translation,
-                    cameraPosition)))
-            {
-                DrawSceneMesh(renderPass, sceneMesh);
-            }
-
-            // Always-on-top handles are drawn in a separate pass with their own depth buffer.
-        }
-
-        private void DrawSceneMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh)
-        {
-            // Only actually hits the GPU when the mesh's transform/material changed since last frame
-            // -- see ManaWebGpuSceneMesh.TryUpdateObjectUniform.
-            sceneMesh.TryUpdateObjectUniform(_api, _queue, ManaWebGpuObjectUniform.For(sceneMesh.Instance));
-
-            if (sceneMesh.CustomUniformBuffer != null)
-            {
-                BuildCustomMaterialUniformData(sceneMesh.Instance, sceneMesh.CustomUniformLayout, sceneMesh.CustomUniformData);
-                sceneMesh.TryUpdateCustomUniform(_api, _queue, sceneMesh.CustomUniformData);
-            }
-
-            var pipeline = GetOrCreatePipeline(
-                sceneMesh.Instance.ShaderName,
-                sceneMesh.Instance.IsTransparent,
-                sceneMesh.Instance.DisableDepthWrite,
-                // Only real alpha-blended materials (glTF glass etc) self-cull -- not the intrinsically
-                // transparent shaders (water/liquid/lightning), which stay OpacityMode.Auto/Opaque at the
-                // material level and want both faces for their own volumetric/surface effects.
-                cullBackFaces: sceneMesh.Instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
-                alwaysOnTop: sceneMesh.Instance.AlwaysOnTop,
-                additiveBlend: sceneMesh.Instance.OpacityMode == ManaOpacityMode.Additive);
-            if (pipeline != null)
-            {
-                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
-            }
-
-            // Group 0 must be (re)bound AFTER SetPipeline, not once up front in DrawDemoMesh:
-            // setPipeline with a layout incompatible with the currently-bound one unsets every bind
-            // group from the first incompatible index onward. The skybox draws immediately before
-            // this and its group 0 is {uniform, sampler, texture_cube} vs. this pipeline's
-            // {uniform} -- incompatible at index 0, so switching to this pipeline drops group 0
-            // (and 1 and 2) on the floor. Binding it here matches what DrawOverlays already does
-            // correctly (SetPipeline first, then group 0).
-            if (_frameBindGroup != null)
-            {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 0, _frameBindGroup, 0, null);
-            }
-
-            if (sceneMesh.ObjectBindGroup != null)
-            {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
-            }
-
-            if (sceneMesh.CustomBindGroup != null)
-            {
-                _api.RenderPassEncoderSetBindGroup(renderPass, 2, sceneMesh.CustomBindGroup, 0, null);
-            }
-
-            sceneMesh.Mesh.Draw(renderPass);
         }
 
         // View-option overlay (see ManaIrradianceSettings.WireframeEnabled / IrradianceSettingsPanelView):

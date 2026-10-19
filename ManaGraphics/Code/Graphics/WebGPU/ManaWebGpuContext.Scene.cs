@@ -240,9 +240,9 @@ namespace ManaGraphics.Code.Graphics
 
                 // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
                 // shader (unused shaders simply never declare @group(1) in their .wgsl source).
-                var customUniformLayout = GetCustomUniformLayout(instance.ShaderName);
+                var customUniformLayout = ManaWebGpuCustomUniforms.Layout(instance.ShaderName);
                 var customUniformData = new byte[customUniformLayout.BufferSize];
-                BuildCustomMaterialUniformData(instance, customUniformLayout, customUniformData);
+                ManaWebGpuCustomUniforms.Fill(instance, customUniformLayout, customUniformData);
 
                 var customBufferDescriptor = new BufferDescriptor
                 {

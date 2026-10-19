@@ -109,8 +109,8 @@ namespace ManaGraphics.Code.Graphics
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
                     sceneMeshes: _sceneMeshes.Count.ToString("N0"),
                     meshTextures: _meshTextures.Count.ToString("N0"),
-                    shaders: _shaderModules.Count.ToString("N0"),
-                    pipelines: _pipelines.Count.ToString("N0"),
+                    shaders: ShaderModuleCount.ToString("N0"),
+                    pipelines: PipelineCount.ToString("N0"),
                     totalPolygons: totalWebGpuPolygons,
                     totalVertices: totalWebGpuVertices));
 
@@ -254,7 +254,7 @@ namespace ManaGraphics.Code.Graphics
                     $"BRDF LUT={environmentSource.BrdfLutSize}; refresh={environmentSource.SceneCaptureRefreshIntervalFrames} frames.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
-                    $"shaderModules={_shaderModules.Count}; renderPipelines={_pipelines.Count}; " +
+                    $"shaderModules={ShaderModuleCount}; renderPipelines={PipelineCount}; " +
 #if MANA_BROWSER
                     $"environmentMap={_environmentReflectionMap != null}.");
 #else
@@ -412,5 +412,8 @@ namespace ManaGraphics.Code.Graphics
             return new SupportedLimits();
         }
 
+
+        private int ShaderModuleCount => _shaderModules.Count + _passes.Sum(pass => pass.ShaderModuleCount);
+        private int PipelineCount => _overlayPipelines.Count + _passes.Sum(pass => pass.PipelineCount);
     }
 }

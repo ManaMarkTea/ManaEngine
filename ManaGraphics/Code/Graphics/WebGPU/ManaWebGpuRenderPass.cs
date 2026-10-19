@@ -18,6 +18,10 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>The frame profiler's label for this pass's encoding time.</summary>
         public abstract string ProfileName { get; }
 
+        /// <summary>For the diagnostics panel's resource counts.</summary>
+        public virtual int PipelineCount => 0;
+        public virtual int ShaderModuleCount => 0;
+
         protected ManaWebGpuDevice Gpu { get; }
         protected WebGPU Api => Gpu.Api;
 
@@ -49,6 +53,10 @@ namespace ManaGraphics.Code.Graphics
         public IReadOnlyList<ManaWebGpuContext.ManaWebGpuSceneMesh> Meshes = [];
         public ManaWebGpuSceneBindings Bindings = null!;
         public TextureFormat SceneColorFormat;
+        /// <summary>What the scene pass draws into: the HDR target, or the surface when there is no post.</summary>
+        public TextureView* SceneTarget;
+        /// <summary>A loading frame: the scene was neither refreshed nor drawn, so passes drawing over it skip.</summary>
+        public bool SceneSuspended;
         public TextureView* Depth;
         public TextureView* HandleDepth;
     }

@@ -16,56 +16,6 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
-        // Shared with the inspector/schema cache so the .wgsl file used for rendering and the .wgsl
-        // file parsed for CustomMaterialUniform metadata never drift apart.
-        private static string ResolveShaderFileName(string shaderName)
-        {
-            return ManaWebGpuCustomUniformSchemaCache.ResolveShaderFileNameOrDefault(shaderName);
-        }
-
-        private RenderPipeline* GetOrCreatePipeline(
-            string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false,
-            bool alwaysOnTop = false, bool additiveBlend = false)
-        {
-            shaderName ??= "ManaPbrShader";
-
-            string pipelineKey =
-                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}_A{(alwaysOnTop ? 1 : 0)}_B{(additiveBlend ? 1 : 0)}";
-            if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
-            {
-                return (RenderPipeline*)cachedPipeline;
-            }
-
-            string shaderFile = ResolveShaderFileName(shaderName);
-
-            ShaderModule* shaderModule = null;
-            try
-            {
-                shaderModule = CreateShaderModule(shaderFile);
-            }
-            catch (Exception ex)
-            {
-                ManaConsole.WriteDiagnostic($"Failed to load WGSL shader '{shaderFile}', falling back to default colored_mesh.wgsl. Error: {ex.Message}");
-                shaderFile = "colored_mesh.wgsl";
-                shaderModule = CreateShaderModule(shaderFile);
-            }
-
-            _shaderModules[shaderName] = (nint)shaderModule;
-            // Every material pipeline gets group 1 (per-material custom uniforms) available, whether
-            // or not a given .wgsl file actually declares it — same "declare only what you use"
-            // precedent already relied on for group 0's TransformUniform.
-            var pipeline = ManaWebGpuMeshPipeline.Create(_gpu, 
-                shaderModule, GetSceneColorFormat(), _customUniformPipelineLayout, shaderName, isTransparent,
-                alwaysOnTop ? false : disableDepthWrite,
-                depthCompare: CompareFunction.Less,
-                cullBackFaces: cullBackFaces,
-                additiveBlend: additiveBlend);
-            _pipelines[pipelineKey] = (nint)pipeline;
-
-            ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");
-            return pipeline;
-        }
-
         private RenderPipeline* GetOrCreateSceneCapturePipeline()
         {
             if (_sceneCapturePipeline != null)

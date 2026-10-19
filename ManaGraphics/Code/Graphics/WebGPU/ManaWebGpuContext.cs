@@ -106,7 +106,6 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
         private int _framesSinceEnvironmentCapture = int.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
-        private readonly Dictionary<string, nint> _pipelines = new();
 #if !MANA_BROWSER
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
@@ -845,34 +844,35 @@ namespace ManaGraphics.Code.Graphics
                 sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
                 var drawStopwatch = Stopwatch.StartNew();
 
+                var frame = PassFrame(commandEncoder);
+                if (frame != null)
+                {
+                    frame.SceneTarget = sceneTargetView;
+                    frame.SceneSuspended = SuspendSceneWork;
+                }
+
                 if (!SuspendSceneWork)
                 {
                     // First, so ordinary depth-tested geometry draws over it: the sky is a background, not
                     // something meshes need to sort against.
                     DrawSkybox(sceneRenderPass);
-                    DrawDemoMesh(sceneRenderPass);
+                    if (frame != null)
+                    {
+                        foreach (var pass in _passes)
+                        {
+                            pass.DrawScene(frame, sceneRenderPass);
+                        }
+                    }
                     DrawGpuParticles(sceneRenderPass);
                     DrawOverlays(sceneRenderPass);
                 }
 
                 _api.RenderPassEncoderEnd(sceneRenderPass);
-                if (!SuspendSceneWork && _sceneMeshes.Any(mesh => mesh.Instance.AlwaysOnTop))
+                if (frame != null)
                 {
-                    // Keep the scene color, but depth-test handles against one another, not the scene.
-                    sceneColorAttachment.LoadOp = LoadOp.Load;
-                    depthStencilAttachment.View = _handleDepthTextureView;
-                    var handlePass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
-                    try
+                    foreach (var pass in _passes)
                     {
-                        foreach (var mesh in _sceneMeshes.Where(mesh => mesh.Instance.AlwaysOnTop))
-                        {
-                            DrawSceneMesh(handlePass, mesh);
-                        }
-                        _api.RenderPassEncoderEnd(handlePass);
-                    }
-                    finally
-                    {
-                        _api.RenderPassEncoderRelease(handlePass);
+                        pass.AfterScene(frame);
                     }
                 }
                 LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
