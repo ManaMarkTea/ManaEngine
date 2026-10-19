@@ -73,6 +73,10 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuShadowMap? _shadowMap;
         private ManaWebGpuParticlePass? _particlePass;
         private ManaWebGpuThumbnailRenderer? _thumbnails;
+        private ManaWebGpuFrameCapture? _frameCapture;
+#if !MANA_BROWSER
+        private readonly List<ManaWebGpuPanelSurface> _panelSurfaces = new();
+#endif
         public long LastGpuParticleCount => _particlePass?.Drawn ?? 0;
         public long RequestedGpuParticleCount => _particlePass?.Requested ?? 0;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
@@ -290,6 +294,7 @@ namespace ManaGraphics.Code.Graphics
             _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
+            _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -368,7 +373,7 @@ namespace ManaGraphics.Code.Graphics
         {
             var root = UiRoot;
             // The scene draws across the whole window under the panels, so leaving them out is a clean picture.
-            if (root == null || _pendingScreenshot is { WithoutUi: true })
+            if (root == null || _frameCapture?.WithoutUi == true)
             {
                 return;
             }
@@ -618,6 +623,36 @@ namespace ManaGraphics.Code.Graphics
             return completion.Task;
         }
 
+        /// <summary>
+        /// Saves the next frame this context renders to <paramref name="path"/> as a PNG. Render-thread only, one
+        /// capture in flight at a time; <paramref name="withoutUi"/> leaves ManaUI out of that frame.
+        /// </summary>
+        public Task CaptureFrameAsync(string path, bool withoutUi = false)
+        {
+            return _disposed || _frameCapture == null
+                ? Task.FromCanceled(new CancellationToken(true))
+                : _frameCapture.CaptureFrameAsync(path, withoutUi);
+        }
+
+        /// <summary>Writes the reflection cube's faces to <c>{prefix}.face{0-5}.png</c> after the next frame.</summary>
+        public void DumpEnvironmentFaces(string prefix)
+        {
+            if (!_disposed)
+            {
+                _frameCapture?.DumpEnvironmentFaces(prefix);
+            }
+        }
+
+#if !MANA_BROWSER
+        /// <summary>A UI-only presentation surface for a native panel window, sharing this device and queue.</summary>
+        public ManaWebGpuPanelSurface CreateUiSurface(IWindow window)
+        {
+            var surface = new ManaWebGpuPanelSurface(_api, _instance, _adapter, _device, _queue, window, closed => _panelSurfaces.Remove(closed));
+            _panelSurfaces.Add(surface);
+            return surface;
+        }
+#endif
+
         // ContinueWith rather than await: this class is `unsafe` at the type level, which bans await.
         private static void LinkTaskResult<T>(Task<T> source, TaskCompletionSource<T> destination)
         {
@@ -720,8 +755,7 @@ namespace ManaGraphics.Code.Graphics
             RenderPassEncoder* sceneRenderPass = null;
             RenderPassEncoder* toneMapRenderPass = null;
             CommandBuffer* commandBuffer = null;
-            EncodedScreenshotCopy? pendingScreenshotCopy = null;
-            (nint Buffer, uint Size, uint PaddedRow, string Prefix)? pendingEnvironmentDump = null;
+            ManaWebGpuFrameCapture.EncodedCopies? copies = null;
             try
             {
                 var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
@@ -783,7 +817,12 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 _shadowMap?.UpdateCascades(_activeRenderScene);
-                UpdateFrameUniform();
+                // The bindings are made with the shadow map, so it exists whenever they do.
+                if (_activeRenderScene != null && _bindings != null)
+                {
+                    _bindings.WriteFrame(_queue, ManaWebGpuFrameUniform.For(
+                        _activeRenderScene, _shadowMap!, (float)(DateTime.UtcNow - _startTime).TotalSeconds));
+                }
                 LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
                 // Not gated on SuspendSceneWork like the block above: the loading screen's own completion
@@ -888,8 +927,7 @@ namespace ManaGraphics.Code.Graphics
 
                 _api.RenderPassEncoderEnd(toneMapRenderPass);
 
-                pendingScreenshotCopy = EncodePendingScreenshotIfRequested(commandEncoder, surfaceTexture.Texture, _framebufferSize);
-                pendingEnvironmentDump = EncodeEnvironmentDump(commandEncoder);
+                copies = _frameCapture?.Encode(commandEncoder, surfaceTexture.Texture, _framebufferSize, _environment?.Map);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
                 var submitStopwatch = Stopwatch.StartNew();
@@ -898,16 +936,10 @@ namespace ManaGraphics.Code.Graphics
                 _api.SurfacePresent(_surface);
 
                 // Submitted: each staging buffer now belongs to its readback.
-                if (pendingScreenshotCopy is { } encodedScreenshotCopy)
+                if (copies is { } submitted)
                 {
-                    pendingScreenshotCopy = null;
-                    FinishPendingScreenshotReadback(encodedScreenshotCopy);
-                }
-
-                if (pendingEnvironmentDump is { } environmentDump)
-                {
-                    pendingEnvironmentDump = null;
-                    FinishEnvironmentDump(environmentDump);
+                    copies = null;
+                    _frameCapture!.Finish(submitted);
                 }
 
                 if (!_loggedFirstPresent)
@@ -920,9 +952,9 @@ namespace ManaGraphics.Code.Graphics
                     ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
                 }
 
-    #if MANA_BROWSER
+#if MANA_BROWSER
                 _api.InstanceProcessEvents(_instance);
-    #else
+#else
                 if (_wgpuNativeExtension != null)
                 {
                     _wgpuNativeExtension.DevicePoll(_device, false, null);
@@ -931,7 +963,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _api.InstanceProcessEvents(_instance);
                 }
-    #endif
+#endif
 
                 LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
                 LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
@@ -939,16 +971,9 @@ namespace ManaGraphics.Code.Graphics
             finally
             {
                 // A frame that throws mid-encode is abandoned, never submitted: its copies settle here.
-                if (pendingScreenshotCopy is { } unsubmittedCopy)
+                if (copies is { } unsubmitted)
                 {
-                    _api.BufferRelease((WebGpuBuffer*)unsubmittedCopy.OutputBuffer);
-                    unsubmittedCopy.Request.Completion.TrySetException(
-                        new InvalidOperationException("The frame carrying the screenshot failed before submission."));
-                }
-
-                if (pendingEnvironmentDump is { } unsubmittedDump)
-                {
-                    _api.BufferRelease((WebGpuBuffer*)unsubmittedDump.Buffer);
+                    _frameCapture!.Abandon(unsubmitted);
                 }
 
                 if (commandBuffer != null)
@@ -983,16 +1008,17 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_disposed) return;
 #if !MANA_BROWSER
-            foreach (var surface in _uiSurfaces.ToArray()) surface.Dispose();
+            foreach (var surface in _panelSurfaces.ToArray())
+            {
+                surface.Dispose();
+            }
 #endif
             // Retire readbacks while the device is live; late native callbacks see no registered request.
             _disposed = true;
 #if !MANA_BROWSER
             RetractResourceReport();
 #endif
-            _pendingScreenshot?.Completion.TrySetCanceled();
-            _pendingScreenshot = null;
-            _pendingEnvironmentDump = null;
+            _frameCapture?.Close();
 #if MANA_BROWSER
             CancelBrowserInitialization();
 #endif

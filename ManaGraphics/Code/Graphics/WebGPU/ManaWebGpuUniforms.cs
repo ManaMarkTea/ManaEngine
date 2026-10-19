@@ -33,6 +33,59 @@ namespace ManaGraphics.Code.Graphics
         public ManaWebGpuLocalLightArray LocalLightColors;
         public Vector4 Wind;
         public Vector4 WindMotion;
+
+        // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
+        // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.
+        public static ManaWebGpuFrameUniform For(ManaRenderScene scene, ManaWebGpuShadowMap shadows, float seconds)
+        {
+            var camera = scene.Camera;
+            var irradianceSettings = scene.IrradianceSettings;
+            var cascades = shadows.CascadeViewProjections;
+            var splits = shadows.CascadeSplitFar;
+
+            var uniform = new ManaWebGpuFrameUniform
+            {
+                ViewProjection = camera.View * camera.Projection,
+                CameraPosition = new Vector4(camera.Position, 1.0f),
+                IrradianceFactors = new Vector4(
+                    Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
+                    // A computed sky is drawn into the reflection cubes already darkened; only the photo needs dimming.
+                    Math.Clamp(irradianceSettings.IblIntensity * (scene.Sky.Mode == ManaSkyMode.Photo ? scene.Sky.Daylight : 1.0f), 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
+                    // w = daylight, 0..1 (ManaSky): the unlit editor grid dims with it at night.
+                    scene.Sky.Daylight),
+                LightPositions0 = scene.LightPositions[0],
+                LightPositions1 = scene.LightPositions[1],
+                LightPositions2 = scene.LightPositions[2],
+                LightPositions3 = scene.LightPositions[3],
+                LightColors0 = scene.LightColors[0],
+                LightColors1 = scene.LightColors[1],
+                LightColors2 = scene.LightColors[2],
+                LightColors3 = scene.LightColors[3],
+                Time = seconds,
+                WebGpuDebugMode = irradianceSettings.WebGpuDebugMode,
+                VertexNormalLength = irradianceSettings.VertexNormalLength,
+                _padding2 = 0.0f,
+                CascadeViewProjection0 = cascades[0],
+                CascadeViewProjection1 = cascades[1],
+                CascadeViewProjection2 = cascades[2],
+                CascadeSplitFar = new Vector4(splits[0], splits[1], splits[2], 0.0f),
+                SunDirection = new Vector4(scene.SunDirection, scene.HasSun && scene.SunCastsShadows ? 1.0f : 0.0f),
+                SunColor = scene.HasSun ? scene.SunColor : Vector4.Zero
+            };
+
+            var wind = scene.Wind;
+            uniform.Wind = new Vector4(wind.Direction.X, wind.Direction.Y, wind.Speed, wind.Gustiness);
+            uniform.WindMotion = new Vector4(wind.Drift.X, wind.Drift.Y, wind.Distance, wind.Gust);
+
+            for (var i = 0; i < ManaRenderScene.MaxLocalLights; i++)
+            {
+                uniform.LocalLightPositions[i] = scene.LocalLightPositions[i];
+                uniform.LocalLightColors[i] = scene.LocalLightColors[i];
+            }
+
+            return uniform;
+        }
     }
 
     [System.Runtime.CompilerServices.InlineArray(ManaRenderScene.MaxLocalLights)]
