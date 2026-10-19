@@ -78,7 +78,7 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var sky = scene.Sky with { TowardSun = SkyTowardSun(scene) };
+            var sky = scene.Sky with { TowardSun = ManaWebGpuSkyPass.TowardSun(scene) };
             map.FramesSinceSkyDrawn++;
             if (map.DrawnSky is { } drawn && (!SkyMoved(drawn, sky) || map.FramesSinceSkyDrawn < SkyRedrawFrames))
             {
@@ -93,7 +93,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _environmentSkybox ??= new ManaWebGpuSkybox(
-                _api, _device, _queue, null, SkyShaderPath, 6, MoonTexturePath, starCatalogue: SkyMode >= 1);
+                _api, _device, _queue, null, ManaWebGpuSkyPass.ShaderPath, 6, ManaWebGpuSkyPass.MoonTexturePath, starCatalogue: ManaWebGpuSkyPass.Mode >= 1);
 
             for (var face = 0; face < 6; face++)
             {
@@ -475,9 +475,9 @@ namespace ManaGraphics.Code.Graphics
                 SourcePath = source.SourcePath,
                 Projection = source.Projection,
                 BuildReflectionCubeMap = source.BuildReflectionCubeMap,
-                EnvironmentCubeSize = UseMobileRendering ? Math.Min(source.EnvironmentCubeSize, 128) : source.EnvironmentCubeSize,
-                IrradianceCubeSize = UseMobileRendering ? Math.Min(source.IrradianceCubeSize, 16) : source.IrradianceCubeSize,
-                PrefilterCubeSize = UseMobileRendering ? Math.Min(source.PrefilterCubeSize, 128) : source.PrefilterCubeSize,
+                EnvironmentCubeSize = ManaWebGpuDevice.UseMobileRendering ? Math.Min(source.EnvironmentCubeSize, 128) : source.EnvironmentCubeSize,
+                IrradianceCubeSize = ManaWebGpuDevice.UseMobileRendering ? Math.Min(source.IrradianceCubeSize, 16) : source.IrradianceCubeSize,
+                PrefilterCubeSize = ManaWebGpuDevice.UseMobileRendering ? Math.Min(source.PrefilterCubeSize, 128) : source.PrefilterCubeSize,
                 BrdfLutSize = source.BrdfLutSize,
                 SceneCapturePosition = source.SceneCapturePosition,
                 SceneCaptureNearPlane = source.SceneCaptureNearPlane,

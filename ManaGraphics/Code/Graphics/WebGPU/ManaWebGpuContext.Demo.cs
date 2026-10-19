@@ -29,6 +29,8 @@ namespace ManaGraphics.Code.Graphics
             AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
             CreateHdrPostProcessor();
             var sceneColor = GetSceneColorFormat();
+            // First, so ordinary depth-tested geometry draws over it: the sky is a background.
+            AddPass(new ManaWebGpuSkyPass(_gpu));
             AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, sceneColor));
             _particlePass = AddPass(new ManaWebGpuParticlePass(_gpu, sceneColor));
             AddPass(new ManaWebGpuWireframeOverlay(_gpu, _bindings, sceneColor));

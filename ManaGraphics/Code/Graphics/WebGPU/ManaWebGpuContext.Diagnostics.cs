@@ -98,8 +98,8 @@ namespace ManaGraphics.Code.Graphics
                     environmentSource,
                     _environmentReflectionMap != null));
                 sections.Add(CreateSection("Rendering Quality",
-                    ("Profile", UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
-                    ("Sky background", SkyMode switch { 0 => "Simple gradients and procedural stars", 1 => "Simple gradients and the star catalogue", _ => "Per-pixel atmosphere" }),
+                    ("Profile", ManaWebGpuDevice.UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
+                    ("Sky background", ManaWebGpuSkyPass.Mode switch { 0 => "Simple gradients and procedural stars", 1 => "Simple gradients and the star catalogue", _ => "Per-pixel atmosphere" }),
                     ("GPU particles requested", RequestedGpuParticleCount.ToString("N0")),
                     ("GPU particles drawn", LastGpuParticleCount.ToString("N0"))));
 

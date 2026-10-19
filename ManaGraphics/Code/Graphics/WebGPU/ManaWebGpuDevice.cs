@@ -24,6 +24,19 @@ namespace ManaGraphics.Code.Graphics
         public TextureFormat SurfaceFormat { get; }
         public TextureFormat DepthFormat { get; }
 
+        /// <summary>The browser's phone profile: smaller reflection cubes and a particle budget.</summary>
+        public static bool UseMobileRendering
+        {
+            get
+            {
+#if MANA_BROWSER
+                return Browser.ManaBrowserInterop.IsMobileRendering();
+#else
+                return false;
+#endif
+            }
+        }
+
         public static string ShaderPath(string fileName) => Path.Combine("Assets", "Shaders", "WebGpu", fileName);
 
         public static string ResolveAssetPath(string relativePath)

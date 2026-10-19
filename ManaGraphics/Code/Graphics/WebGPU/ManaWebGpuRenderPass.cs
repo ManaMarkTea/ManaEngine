@@ -61,6 +61,8 @@ namespace ManaGraphics.Code.Graphics
         public TextureView* HandleDepth;
         /// <summary>The HDR post-processor's outline mask; null without HDR post.</summary>
         public TextureView* OutlineMask;
+        /// <summary>The environment cube the sky and reflections sample; null until it has loaded.</summary>
+        public TextureView* EnvironmentMap;
         /// <summary>The scene camera's projection corrected to the framebuffer's aspect.</summary>
         public System.Numerics.Matrix4x4 Projection;
     }

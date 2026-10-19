@@ -76,6 +76,8 @@ namespace ManaGraphics.Code.Graphics
         private readonly ManaWebGpuFrame _passFrame = new();
         private ManaWebGpuShadowMap? _shadowMap;
         private ManaWebGpuParticlePass? _particlePass;
+        public long LastGpuParticleCount => _particlePass?.Drawn ?? 0;
+        public long RequestedGpuParticleCount => _particlePass?.Requested ?? 0;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
         private ManaWebGpuSceneBindings? _bindings;
         private BindGroup* _frameBindGroup => _bindings == null ? null : _bindings.FrameGroup;
@@ -100,7 +102,6 @@ namespace ManaGraphics.Code.Graphics
 #if !MANA_BROWSER
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
-        private ManaWebGpuSkybox? _skybox;
         private ManaWebGpuSkybox? _environmentSkybox;
 
         /// <summary>
@@ -359,57 +360,6 @@ namespace ManaGraphics.Code.Graphics
             return true;
         }
 
-        /// <summary>
-        /// Skipped whenever there is nothing sensible to draw yet -- no active scene, no environment map --
-        /// which is the same state a frame is in for the first few frames after startup while the real
-        /// environment is still loading in the background. The scene pass's own clear is what shows through
-        /// on those frames, exactly as it always has.
-        /// </summary>
-        private void DrawSkybox(RenderPassEncoder* renderPass)
-        {
-            if (_activeRenderScene == null || _clampSampler == null)
-            {
-                return;
-            }
-
-            var environment = _environmentReflectionMap;
-            if (environment == null || environment.EnvironmentMapResource.TextureView == null)
-            {
-                return;
-            }
-
-            _skybox ??= new ManaWebGpuSkybox(
-                _api,
-                _device,
-                _queue,
-                _depthFormat,
-                SkyShaderPath,
-                moonPath: MoonTexturePath,
-                starCatalogue: SkyMode >= 1);
-
-            _skybox.Draw(
-                renderPass,
-                GetSceneColorFormat(),
-                _clampSampler,
-                environment.EnvironmentMapResource.TextureView,
-                _activeRenderScene.Camera,
-                GetAspectCorrectedProjection(_activeRenderScene.Camera),
-                SkyTowardSun(_activeRenderScene),
-                _activeRenderScene.Sky,
-                ManaSky.Seconds);
-        }
-
-        private static string? MoonTexturePath => ManaWebGpuDevice.TryResolveAssetPath(Path.Combine("Assets", "Textures", "Sky", "moon_lroc_1k.jpg"));
-        private static string SkyShaderPath => ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu",
-            SkyMode == 2 ? "skybox.wgsl" : "skybox_mobile.wgsl"));
-
-        // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the light
-        // travels); a day-night cycle moves its own.
-        private static Vector3 SkyTowardSun(ManaRenderScene scene)
-        {
-            return scene.HasSun && scene.Sky.Mode != ManaSkyMode.DayNightCycle ? -scene.SunDirection : scene.Sky.TowardSun;
-        }
-
         private void CaptureUiBackdrop(CommandEncoder* commandEncoder, Texture* frame)
         {
             _uiBackdrop ??= new ManaWebGpuUiBackdrop(_api, _device, _surfaceFormat);
@@ -563,6 +513,8 @@ namespace ManaGraphics.Code.Graphics
             _passFrame.Projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
             _passFrame.SceneTarget = null;
             _passFrame.OutlineMask = null;
+            var environment = _environmentReflectionMap;
+            _passFrame.EnvironmentMap = environment == null ? null : environment.EnvironmentMapResource.TextureView;
             _passFrame.SceneSuspended = SuspendSceneWork;
             return _passFrame;
         }
@@ -849,9 +801,6 @@ namespace ManaGraphics.Code.Graphics
 
                 if (!SuspendSceneWork)
                 {
-                    // First, so ordinary depth-tested geometry draws over it: the sky is a background, not
-                    // something meshes need to sort against.
-                    DrawSkybox(sceneRenderPass);
                     if (frame != null)
                     {
                         foreach (var pass in _passes)
@@ -1044,8 +993,6 @@ namespace ManaGraphics.Code.Graphics
             _uiRenderer = null;
 
             ReleaseDemoResources();
-            _skybox?.Dispose();
-            _skybox = null;
             _environmentSkybox?.Dispose();
             _environmentSkybox = null;
 
