@@ -413,7 +413,7 @@ namespace ManaGraphics.Code.Graphics
         }
 
 
-        private int ShaderModuleCount => _shaderModules.Count + _passes.Sum(pass => pass.ShaderModuleCount);
-        private int PipelineCount => _passes.Sum(pass => pass.PipelineCount);
+        private int ShaderModuleCount => (_thumbnails?.ShaderModuleCount ?? 0) + _passes.Sum(pass => pass.ShaderModuleCount);
+        private int PipelineCount => (_thumbnails?.PipelineCount ?? 0) + _passes.Sum(pass => pass.PipelineCount);
     }
 }

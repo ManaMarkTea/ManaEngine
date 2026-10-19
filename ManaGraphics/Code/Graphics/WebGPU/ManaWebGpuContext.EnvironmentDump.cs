@@ -30,7 +30,7 @@ namespace ManaGraphics.Code.Graphics
             _pendingEnvironmentDump = null;
             var resource = map.EnvironmentMapResource;
             var size = resource.Width;
-            var paddedRow = AlignTo(size * 4, WebGpuCopyBytesPerRowAlignment);
+            var paddedRow = ManaWebGpuDevice.AlignCopyRow(size * 4);
             var descriptor = new BufferDescriptor
             {
                 Usage = BufferUsage.MapRead | BufferUsage.CopyDst,

@@ -20,7 +20,8 @@ namespace ManaGraphics.Code.Graphics
         {
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;
-            ReleaseThumbnailResources();
+            _thumbnails?.Dispose();
+            _thumbnails = null;
 
             // Meshes first: they bind the environment and shadow views the owners below release.
             ReleaseSceneMeshes(immediate: true);
@@ -31,15 +32,6 @@ namespace ManaGraphics.Code.Graphics
             _shadowMap?.Dispose();
             _shadowMap = null;
             _environment?.Release();
-
-            foreach (var entry in _shaderModules)
-            {
-                if (entry.Value != 0)
-                {
-                    _api.ShaderModuleRelease((ShaderModule*)entry.Value);
-                }
-            }
-            _shaderModules.Clear();
         }
 
         private void ConfigureSurface(Vector2D<int> framebufferSize)

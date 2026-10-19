@@ -70,7 +70,7 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 var rowBytes = checked(width * ScreenshotBytesPerPixel);
-                var paddedRowBytes = AlignTo(rowBytes, WebGpuCopyBytesPerRowAlignment);
+                var paddedRowBytes = ManaWebGpuDevice.AlignCopyRow(rowBytes);
                 var byteCount = checked((ulong)paddedRowBytes * height);
 
                 var outputBufferDescriptor = new BufferDescriptor

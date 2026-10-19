@@ -76,6 +76,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly ManaWebGpuFrame _passFrame = new();
         private ManaWebGpuShadowMap? _shadowMap;
         private ManaWebGpuParticlePass? _particlePass;
+        private ManaWebGpuThumbnailRenderer? _thumbnails;
         public long LastGpuParticleCount => _particlePass?.Drawn ?? 0;
         public long RequestedGpuParticleCount => _particlePass?.Requested ?? 0;
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
@@ -96,7 +97,6 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuEnvironment? _environment;
         public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
         public bool IsEnvironmentInitializationPending => _environment?.IsInitializationPending ?? true;
-        private readonly Dictionary<string, nint> _shaderModules = new();
 #if !MANA_BROWSER
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
@@ -587,6 +587,39 @@ namespace ManaGraphics.Code.Graphics
                 }
             });
 
+            return completion.Task;
+        }
+
+        /// <summary>
+        /// Renders <paramref name="instances"/> (already loaded, world transforms composed) to a square
+        /// straight-alpha RGBA buffer, or completes with null when there was nothing to draw. Callable from any
+        /// thread; the GPU work runs on the render thread (see <see cref="EnqueueRenderThreadWork"/>).
+        /// </summary>
+        public Task<byte[]?> RenderThumbnailAsync(IReadOnlyList<ManaRenderMeshInstance> instances, int thumbnailSize)
+        {
+            if (_disposed || thumbnailSize <= 0)
+            {
+                return Task.FromResult<byte[]?>(null);
+            }
+
+            var completion = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            EnqueueRenderThreadWork(() =>
+            {
+                if (_disposed)
+                {
+                    completion.TrySetResult(null);
+                    return;
+                }
+
+                if (_bindings == null)
+                {
+                    completion.TrySetException(new InvalidOperationException("WebGPU scene pipelines are unavailable for thumbnails."));
+                    return;
+                }
+
+                _thumbnails ??= new ManaWebGpuThumbnailRenderer(_gpu, _readbackRegistry, _meshTextures);
+                _thumbnails.EncodeAndSubmit(instances, (uint)thumbnailSize, _bindings, completion);
+            });
             return completion.Task;
         }
 

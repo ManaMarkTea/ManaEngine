@@ -37,6 +37,9 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+        /// <summary>Texture-to-buffer copies need each row padded to a multiple of 256 bytes.</summary>
+        public static uint AlignCopyRow(uint rowBytes) => (rowBytes + 255u) / 256u * 256u;
+
         public static string ShaderPath(string fileName) => Path.Combine("Assets", "Shaders", "WebGpu", fileName);
 
         public static string ResolveAssetPath(string relativePath)
