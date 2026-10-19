@@ -116,7 +116,7 @@ namespace ManaGraphics.Code.Graphics
     }
 
     // Scene-capture-only, matches scene_capture.wgsl's unchanged (pre-split) TransformUniform
-    // layout exactly. Not used by the main draw path -- see UpdateSceneCaptureUniform above.
+    // layout exactly. Not used by the main draw path.
     [StructLayout(LayoutKind.Sequential)]
     internal struct ManaWebGpuSceneCaptureUniform
     {
@@ -140,5 +140,55 @@ namespace ManaGraphics.Code.Graphics
         public float WebGpuDebugMode;
         public float _padding1;
         public float _padding2;
+
+        // Captures keep the old combined per-mesh-per-face layout rather than the frame/object split: they are
+        // infrequent, so rewriting a mesh's whole uniform per face costs nothing worth threading a second per-face
+        // frame buffer through, and scene_capture.wgsl's struct stays as it was.
+        public static ManaWebGpuSceneCaptureUniform For(ManaRenderMeshInstance meshInstance, ManaCameraData camera, ManaRenderScene scene, float seconds)
+        {
+            var model = meshInstance.WorldTransform;
+            if (!Matrix4x4.Invert(model, out var inverseModel))
+            {
+                inverseModel = Matrix4x4.Identity;
+            }
+            var irradianceSettings = scene.IrradianceSettings;
+
+            return new ManaWebGpuSceneCaptureUniform
+            {
+                ModelProjection = model * camera.View * camera.Projection,
+                Model = model,
+                NormalMatrix = Matrix4x4.Transpose(inverseModel),
+                CameraPosition = new Vector4(camera.Position, 1.0f),
+                MaterialAlbedo = meshInstance.Albedo,
+                // Scene capture keeps its own pre-split layout; the material maps are a main-pass concern.
+                MaterialFactors = new Vector4(
+                    Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
+                    Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
+                    Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
+                    1.0f),
+                MaterialEmission = new Vector4(
+                    meshInstance.Emission.X,
+                    meshInstance.Emission.Y,
+                    meshInstance.Emission.Z,
+                    meshInstance.EmissionStrength),
+                IrradianceFactors = new Vector4(
+                    Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
+                    Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
+                    1.0f),
+                LightPositions0 = scene.LightPositions[0],
+                LightPositions1 = scene.LightPositions[1],
+                LightPositions2 = scene.LightPositions[2],
+                LightPositions3 = scene.LightPositions[3],
+                LightColors0 = scene.LightColors[0],
+                LightColors1 = scene.LightColors[1],
+                LightColors2 = scene.LightColors[2],
+                LightColors3 = scene.LightColors[3],
+                Time = seconds,
+                WebGpuDebugMode = meshInstance.PbrDebugMode ?? irradianceSettings.WebGpuDebugMode,
+                _padding1 = 0.0f,
+                _padding2 = 0.0f
+            };
+        }
     }
 }

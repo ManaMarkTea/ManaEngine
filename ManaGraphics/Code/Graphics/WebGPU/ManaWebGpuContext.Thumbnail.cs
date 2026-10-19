@@ -508,7 +508,7 @@ namespace ManaGraphics.Code.Graphics
                 return _thumbnailPipeline;
             }
 
-            var shaderModule = CreateShaderModule("mesh_thumbnail.wgsl");
+            var shaderModule = _gpu.CreateShaderModule("mesh_thumbnail.wgsl");
             _thumbnailPipeline = ManaWebGpuMeshPipeline.Create(_gpu, shaderModule, TextureFormat.Rgba8UnormSrgb, _sceneCapturePipelineLayout, "MeshThumbnail");
             _shaderModules["MeshThumbnail"] = (nint)shaderModule;
             ManaConsole.WriteDiagnostic("WebGPU mesh thumbnail pipeline created successfully.");

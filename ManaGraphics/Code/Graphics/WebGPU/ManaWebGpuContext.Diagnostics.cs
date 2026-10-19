@@ -67,7 +67,7 @@ namespace ManaGraphics.Code.Graphics
                     hasAdapterLimits,
                     adapterLimits.Limits));
 
-                var environmentSource = GetEffectiveEnvironmentReflectionSource(
+                var environmentSource = ManaWebGpuEnvironment.EffectiveSource(
                     _activeRenderScene?.EnvironmentReflectionSource);
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateDisplay(
                     backend: properties.BackendType.ToString(),
@@ -96,7 +96,7 @@ namespace ManaGraphics.Code.Graphics
                     joysticks: _input?.Joysticks.Count.ToString("N0") ?? "Unavailable"));
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateEnvironment(
                     environmentSource,
-                    _environmentReflectionMap != null));
+                    _environment?.Map != null));
                 sections.Add(CreateSection("Rendering Quality",
                     ("Profile", ManaWebGpuDevice.UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
                     ("Sky background", ManaWebGpuSkyPass.Mode switch { 0 => "Simple gradients and procedural stars", 1 => "Simple gradients and the star catalogue", _ => "Per-pixel atmosphere" }),
@@ -213,7 +213,7 @@ namespace ManaGraphics.Code.Graphics
                 var requestedBackendName = string.IsNullOrWhiteSpace(requestedBackend)
                     ? "automatic"
                     : requestedBackend.Trim();
-                var environmentSource = GetEffectiveEnvironmentReflectionSource(
+                var environmentSource = ManaWebGpuEnvironment.EffectiveSource(
                     _activeRenderScene?.EnvironmentReflectionSource);
 
                 ManaConsole.WriteDiagnostic("[WebGPU Diagnostics] ===== Device and renderer report =====");
@@ -256,9 +256,9 @@ namespace ManaGraphics.Code.Graphics
                     $"[WebGPU Diagnostics] Resources: sceneMeshes={_sceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
                     $"shaderModules={ShaderModuleCount}; renderPipelines={PipelineCount}; " +
 #if MANA_BROWSER
-                    $"environmentMap={_environmentReflectionMap != null}.");
+                    $"environmentMap={_environment?.Map != null}.");
 #else
-                    $"environmentMap={_environmentReflectionMap != null}.");
+                    $"environmentMap={_environment?.Map != null}.");
 #endif
 
                 LogVideoMemoryDiagnostics(properties);

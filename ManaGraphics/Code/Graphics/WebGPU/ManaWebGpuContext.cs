@@ -87,22 +87,19 @@ namespace ManaGraphics.Code.Graphics
         private PipelineLayout* _demoPipelineLayout => _bindings == null ? null : _bindings.MeshLayout;
         private PipelineLayout* _customUniformPipelineLayout => _bindings == null ? null : _bindings.MaterialLayout;
         private PipelineLayout* _sceneCapturePipelineLayout => _bindings == null ? null : _bindings.SceneCaptureLayout;
-        private RenderPipeline* _sceneCapturePipeline;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
-        private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
-        private ManaWebGpuDepthTarget? _sceneCaptureDepth;
-        private TextureView* _sceneCaptureDepthTextureView => _sceneCaptureDepth == null ? null : _sceneCaptureDepth.View;
         private Sampler* _demoSampler => _bindings == null ? null : _bindings.LinearSampler;
         private Sampler* _clampSampler => _bindings == null ? null : _bindings.ClampSampler;
         private Sampler* _nearestSampler => _bindings == null ? null : _bindings.NearestSampler;
-        private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
-        private int _framesSinceEnvironmentCapture = int.MaxValue;
+        // Made with the device; outlives pipeline failures, since loading waits on it either way.
+        private ManaWebGpuEnvironment? _environment;
+        public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
+        public bool IsEnvironmentInitializationPending => _environment?.IsInitializationPending ?? true;
         private readonly Dictionary<string, nint> _shaderModules = new();
 #if !MANA_BROWSER
 #endif
         private ManaWebGpuUiRenderer? _uiRenderer;
-        private ManaWebGpuSkybox? _environmentSkybox;
 
         /// <summary>
         /// The ManaUI tree to draw over the scene, or null when the host has not built one.
@@ -297,6 +294,7 @@ namespace ManaGraphics.Code.Graphics
             };
 #endif
             _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
+            _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -510,10 +508,11 @@ namespace ManaGraphics.Code.Graphics
             _passFrame.SceneColorFormat = GetSceneColorFormat();
             _passFrame.Depth = _depthTextureView;
             _passFrame.HandleDepth = _handleDepthTextureView;
-            _passFrame.Projection = GetAspectCorrectedProjection(_activeRenderScene.Camera);
+            _passFrame.Projection = _activeRenderScene.Camera.Projection;
+            _passFrame.Time = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
             _passFrame.SceneTarget = null;
             _passFrame.OutlineMask = null;
-            var environment = _environmentReflectionMap;
+            var environment = _environment?.Map;
             _passFrame.EnvironmentMap = environment == null ? null : environment.EnvironmentMapResource.TextureView;
             _passFrame.SceneSuspended = SuspendSceneWork;
             return _passFrame;
@@ -768,22 +767,14 @@ namespace ManaGraphics.Code.Graphics
                 // RefreshRenderScene does, so it's safe to run every frame regardless of suspension.
                 EnsureEnvironmentInitializationStarted();
 
-                if (!SuspendSceneWork)
+                var frame = PassFrame(commandEncoder);
+                if (frame != null && !SuspendSceneWork)
                 {
-                    using (ManaFrameProfiler.Measure("GPU: Environment Capture"))
+                    foreach (var pass in _passes)
                     {
-                        DrawSkyIntoEnvironmentIfNeeded(commandEncoder);
-                        CaptureSceneEnvironmentIfNeeded(commandEncoder);
-                    }
-
-                    if (PassFrame(commandEncoder) is { } passFrame)
-                    {
-                        foreach (var pass in _passes)
+                        using (ManaFrameProfiler.Measure(pass.ProfileName))
                         {
-                            using (ManaFrameProfiler.Measure(pass.ProfileName))
-                            {
-                                pass.Prepare(passFrame);
-                            }
+                            pass.Prepare(frame);
                         }
                     }
                 }
@@ -791,7 +782,6 @@ namespace ManaGraphics.Code.Graphics
                 sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
                 var drawStopwatch = Stopwatch.StartNew();
 
-                var frame = PassFrame(commandEncoder);
                 if (frame != null)
                 {
                     frame.SceneTarget = sceneTargetView;
@@ -979,7 +969,7 @@ namespace ManaGraphics.Code.Graphics
 #if MANA_BROWSER
             CancelBrowserInitialization();
 #endif
-            _environmentLoads.Retire();
+            _environment?.Retire();
             // Before FaultAllPending: an item that slipped through can still register a readback.
             DrainRenderThreadWork();
             _readbackRegistry.FaultAllPending();
@@ -993,8 +983,6 @@ namespace ManaGraphics.Code.Graphics
             _uiRenderer = null;
 
             ReleaseDemoResources();
-            _environmentSkybox?.Dispose();
-            _environmentSkybox = null;
 
             if (_surface != null && _configured)
             {

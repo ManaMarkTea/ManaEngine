@@ -33,7 +33,7 @@ namespace ManaGraphics.Code.Graphics
 
             var camera = _activeRenderScene.Camera;
             var irradianceSettings = _activeRenderScene.IrradianceSettings;
-            var viewProjection = camera.View * GetAspectCorrectedProjection(camera);
+            var viewProjection = camera.View * camera.Projection;
             var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
             // The bindings are made with the shadow map, so it exists whenever they do.
             var cascades = _shadowMap!.CascadeViewProjections;
@@ -85,69 +85,6 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _bindings.WriteFrame(_queue, uniform);
-        }
-
-        // Scene-capture (cubemap probe refresh, ManaWebGpuContext.Environment.cs) intentionally keeps
-        // the OLD combined per-mesh-per-face layout instead of adopting the frame/object split above:
-        // captures are infrequent (not every frame) so the redundant per-face rewrite isn't worth the
-        // extra complexity of threading a second per-face "frame" buffer through the split, and
-        // scene_capture.wgsl's struct is left untouched to match -- this is a verbatim copy of the
-        // pre-split UpdateDemoUniforms(instance, buffer, camera) logic, just under its own name/struct.
-        private void UpdateSceneCaptureUniform(ManaRenderMeshInstance meshInstance, WebGpuBuffer* uniformBuffer, ManaCameraData camera)
-        {
-            if (uniformBuffer == null || _activeRenderScene == null)
-            {
-                return;
-            }
-
-            var model = meshInstance.WorldTransform;
-            var modelProjection = model * camera.View * GetAspectCorrectedProjection(camera);
-            if (!Matrix4x4.Invert(model, out var inverseModel))
-            {
-                inverseModel = Matrix4x4.Identity;
-            }
-            var normalMatrix = Matrix4x4.Transpose(inverseModel);
-            var elapsedSeconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
-            var irradianceSettings = _activeRenderScene.IrradianceSettings;
-
-            var uniform = new ManaWebGpuSceneCaptureUniform
-            {
-                ModelProjection = modelProjection,
-                Model = model,
-                NormalMatrix = normalMatrix,
-                CameraPosition = new Vector4(camera.Position, 1.0f),
-                MaterialAlbedo = meshInstance.Albedo,
-                // Scene capture keeps its own pre-split layout; the material maps are a main-pass concern.
-                MaterialFactors = new Vector4(
-                    Math.Clamp(meshInstance.Metallic, 0.0f, 1.0f),
-                    Math.Clamp(meshInstance.Roughness, 0.0f, 1.0f),
-                    Math.Clamp(meshInstance.AmbientOcclusion, 0.0f, 1.0f),
-                    1.0f),
-                MaterialEmission = new Vector4(
-                    meshInstance.Emission.X,
-                    meshInstance.Emission.Y,
-                    meshInstance.Emission.Z,
-                    meshInstance.EmissionStrength),
-                IrradianceFactors = new Vector4(
-                    Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),
-                    Math.Clamp(irradianceSettings.IblIntensity, 0.0f, 8.0f),
-                    Math.Clamp(irradianceSettings.LightIntensity, 0.0f, 64.0f),
-                    1.0f),
-                LightPositions0 = _activeRenderScene.LightPositions[0],
-                LightPositions1 = _activeRenderScene.LightPositions[1],
-                LightPositions2 = _activeRenderScene.LightPositions[2],
-                LightPositions3 = _activeRenderScene.LightPositions[3],
-                LightColors0 = _activeRenderScene.LightColors[0],
-                LightColors1 = _activeRenderScene.LightColors[1],
-                LightColors2 = _activeRenderScene.LightColors[2],
-                LightColors3 = _activeRenderScene.LightColors[3],
-                Time = elapsedSeconds,
-                WebGpuDebugMode = meshInstance.PbrDebugMode ?? irradianceSettings.WebGpuDebugMode,
-                _padding1 = 0.0f,
-                _padding2 = 0.0f
-            };
-
-            _api.QueueWriteBuffer(_queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
         }
     }
 }

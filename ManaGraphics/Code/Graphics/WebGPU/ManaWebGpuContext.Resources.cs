@@ -15,42 +15,22 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
+        // Shutdown and failed pipeline initialization both come through here; anything may still be null.
         private void ReleaseDemoResources()
         {
-            foreach (var entry in _shaderModules)
-            {
-                if (entry.Value != 0)
-                {
-                    _api.ShaderModuleRelease((ShaderModule*)entry.Value);
-                }
-            }
-            _shaderModules.Clear();
-
-            if (_sceneCapturePipeline != null)
-            {
-                _api.RenderPipelineRelease(_sceneCapturePipeline);
-                _sceneCapturePipeline = null;
-            }
-
             _hdrPostProcessor?.Dispose();
             _hdrPostProcessor = null;
-
-            ReleaseSceneCaptureDepthResources();
             ReleaseThumbnailResources();
 
-            _environmentPrefilterCompute?.Dispose();
-            _environmentPrefilterCompute = null;
-
+            // Meshes first: they bind the environment and shadow views the owners below release.
+            ReleaseSceneMeshes(immediate: true);
             // Passes build over the shared bindings, and the frame group binds the shadow map.
             ReleasePasses();
             _bindings?.Dispose();
             _bindings = null;
             _shadowMap?.Dispose();
             _shadowMap = null;
-
-            ReleaseSceneMeshes(immediate: true);
-            ReleasePendingEnvironmentWork();
-            ReleaseEnvironmentReflectionMap();
+            _environment?.Release();
 
             foreach (var entry in _shaderModules)
             {
@@ -112,23 +92,5 @@ namespace ManaGraphics.Code.Graphics
             _depth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "depth");
             _handleDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "handle depth");
         }
-
-        private void ReleaseSceneCaptureDepthResources()
-        {
-            _sceneCaptureDepth?.Dispose();
-            _sceneCaptureDepth = null;
-        }
-
-        private void EnsureSceneCaptureDepthResources(uint size)
-        {
-            if (_sceneCaptureDepth != null && _sceneCaptureDepth.Width == size)
-            {
-                return;
-            }
-
-            ReleaseSceneCaptureDepthResources();
-            _sceneCaptureDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, size, size, "scene capture depth");
-        }
-
     }
 }

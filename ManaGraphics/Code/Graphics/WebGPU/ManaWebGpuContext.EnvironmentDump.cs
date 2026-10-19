@@ -22,7 +22,7 @@ namespace ManaGraphics.Code.Graphics
 
         private (nint Buffer, uint Size, uint PaddedRow, string Prefix)? EncodeEnvironmentDump(CommandEncoder* commandEncoder)
         {
-            if (_pendingEnvironmentDump is not { } prefix || _environmentReflectionMap is not { } map)
+            if (_pendingEnvironmentDump is not { } prefix || _environment?.Map is not { } map)
             {
                 return null;
             }

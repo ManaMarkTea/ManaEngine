@@ -65,5 +65,7 @@ namespace ManaGraphics.Code.Graphics
         public TextureView* EnvironmentMap;
         /// <summary>The scene camera's projection corrected to the framebuffer's aspect.</summary>
         public System.Numerics.Matrix4x4 Projection;
+        /// <summary>Seconds since the context started: shader animation time.</summary>
+        public float Time;
     }
 }

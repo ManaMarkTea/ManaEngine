@@ -17,6 +17,36 @@ namespace ManaGraphics.Code.Graphics
 {
     public unsafe sealed partial class ManaWebGpuContext : IDisposable
     {
+        /// <summary>
+        /// Activates a loaded environment map at the frame boundary. Meshes bound to the old one are released and
+        /// come back against the new textures: the provider's scene on its next refresh, or a provider-less demo
+        /// scene uploaded again here -- without that, its meshes vanished the moment the first map landed.
+        /// </summary>
+        public void CheckPendingEnvironmentMap()
+        {
+            if (_disposed || _environment == null || !_environment.ActivatePending(_activeRenderScene))
+            {
+                return;
+            }
+
+            ReleaseSceneMeshes();
+            if (_renderSceneProvider == null && _activeRenderScene != null)
+            {
+                UploadSceneMeshes(_activeRenderScene);
+            }
+        }
+
+        // Also while scene work is suspended: the loading screen waits on the environment map, so it must start
+        // without the mesh upload RefreshRenderScene would otherwise do first.
+        private void EnsureEnvironmentInitializationStarted()
+        {
+            _activeRenderScene ??= _renderSceneProvider?.Invoke();
+            if (_activeRenderScene != null)
+            {
+                _environment?.EnsureMap(_activeRenderScene);
+            }
+        }
+
         private void UpdateDemoMeshBounds(ManaMeshCpuData cpuData)
         {
             if (cpuData.Positions.Length == 0)
@@ -96,7 +126,7 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 textureResource = _meshTextures.AcquireMeshTexture(meshData);
-                var environmentReflectionMap = GetOrCreateEnvironmentReflectionMap();
+                var environmentReflectionMap = _environment!.EnsureMap(_activeRenderScene);
 
                 var bindGroupEntry = new BindGroupEntry
                 {

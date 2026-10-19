@@ -26,6 +26,8 @@ namespace ManaGraphics.Code.Graphics
             // The frame group binds the shadow map, so the map comes first.
             _shadowMap = new ManaWebGpuShadowMap(_gpu);
             _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
+            // Before the shadows, as before anything samples the reflection cubes.
+            AddPass(new ManaWebGpuEnvironmentCapturePass(_gpu, _environment!, () => UseSceneCapture));
             AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
             CreateHdrPostProcessor();
             var sceneColor = GetSceneColorFormat();
