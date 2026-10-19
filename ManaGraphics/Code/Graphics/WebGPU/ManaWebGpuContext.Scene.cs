@@ -152,7 +152,7 @@ namespace ManaGraphics.Code.Graphics
                 // kind, because a bind group has to fill every binding its layout declares.
                 materialMaps = _meshTextures.AcquireMaterialMaps(meshData);
 
-                var bindGroupEntries = new BindGroupEntry[ObjectBindingCount];
+                var bindGroupEntries = new BindGroupEntry[ManaWebGpuSceneBindings.ObjectBindingCount];
                 bindGroupEntries[0] = bindGroupEntry;
                 bindGroupEntries[1] = samplerBindGroupEntry;
                 bindGroupEntries[2] = textureBindGroupEntry;
@@ -162,11 +162,11 @@ namespace ManaGraphics.Code.Graphics
                 bindGroupEntries[6] = brdfLutBindGroupEntry;
                 bindGroupEntries[7] = clampSamplerBindGroupEntry;
 
-                for (var map = 0; map < MaterialMapCount; map++)
+                for (var map = 0; map < ManaWebGpuSceneBindings.MaterialMapCount; map++)
                 {
-                    bindGroupEntries[FirstMaterialMapBinding + map] = new BindGroupEntry
+                    bindGroupEntries[ManaWebGpuSceneBindings.FirstMaterialMapBinding + map] = new BindGroupEntry
                     {
-                        Binding = (uint)(FirstMaterialMapBinding + map),
+                        Binding = (uint)(ManaWebGpuSceneBindings.FirstMaterialMapBinding + map),
                         TextureView = materialMaps[map].TextureView
                     };
                 }
@@ -176,7 +176,7 @@ namespace ManaGraphics.Code.Graphics
                     var bindGroupDescriptor = new BindGroupDescriptor
                     {
                         Layout = _objectBindGroupLayout,
-                        EntryCount = ObjectBindingCount,
+                        EntryCount = ManaWebGpuSceneBindings.ObjectBindingCount,
                         Entries = bindGroupEntriesPointer
                     };
                     bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);

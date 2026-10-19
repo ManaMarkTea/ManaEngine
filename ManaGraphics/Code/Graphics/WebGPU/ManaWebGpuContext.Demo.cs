@@ -23,7 +23,9 @@ namespace ManaGraphics.Code.Graphics
             var renderScene = _renderSceneProvider?.Invoke() ?? ManaWebGpuDemoScene.Create();
 
             _activeRenderScene = renderScene;
-            CreateSharedPipelineLayouts();
+            // The frame group binds the shadow map, so the map comes first.
+            CreateShadowMapResources();
+            _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMapArrayView, _shadowSampler);
             CreateShadowPassResources();
             CreateHdrPostProcessor();
             
@@ -35,37 +37,6 @@ namespace ManaGraphics.Code.Graphics
             {
                 UploadSceneMeshes(renderScene);
             }
-        }
-
-        private static string ResolveAssetPath(string relativePath)
-        {
-            return TryResolveAssetPath(relativePath)
-                ?? throw new FileNotFoundException($"Could not locate asset file '{relativePath}'.");
-        }
-
-        /// <summary>The file, or null -- for one that may legitimately be absent, like the web build's environment photo.</summary>
-        private static string? TryResolveAssetPath(string relativePath)
-        {
-            string[] candidates =
-            {
-                Path.Combine(Environment.CurrentDirectory, relativePath),
-                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
-                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
-                Path.Combine(AppContext.BaseDirectory, relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
-            };
-
-            foreach (var candidate in candidates)
-            {
-                var fullPath = Path.GetFullPath(candidate);
-                if (File.Exists(fullPath))
-                {
-                    return fullPath;
-                }
-            }
-
-            return null;
         }
 
         private void DrawDemoMesh(RenderPassEncoder* renderPass)
@@ -302,7 +273,7 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            var shaderPath = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "hdr_tonemap.wgsl"));
+            var shaderPath = ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl"));
             _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_api, _device, _surfaceFormat, shaderPath);
             _hdrPostProcessor.Resize(_framebufferSize);
         }

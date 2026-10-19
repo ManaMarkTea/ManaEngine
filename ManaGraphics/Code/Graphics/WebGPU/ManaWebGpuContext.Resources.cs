@@ -69,80 +69,12 @@ namespace ManaGraphics.Code.Graphics
             ReleaseSceneCaptureDepthResources();
             ReleaseThumbnailResources();
 
-            if (_sceneCapturePipelineLayout != null)
-            {
-                _api.PipelineLayoutRelease(_sceneCapturePipelineLayout);
-                _sceneCapturePipelineLayout = null;
-            }
-
-            if (_sceneCaptureBindGroupLayout != null)
-            {
-                _api.BindGroupLayoutRelease(_sceneCaptureBindGroupLayout);
-                _sceneCaptureBindGroupLayout = null;
-            }
-
             _environmentPrefilterCompute?.Dispose();
             _environmentPrefilterCompute = null;
 
-            if (_demoPipelineLayout != null)
-            {
-                _api.PipelineLayoutRelease(_demoPipelineLayout);
-                _demoPipelineLayout = null;
-            }
-
-            if (_customUniformPipelineLayout != null)
-            {
-                _api.PipelineLayoutRelease(_customUniformPipelineLayout);
-                _customUniformPipelineLayout = null;
-            }
-
-            if (_customUniformBindGroupLayout != null)
-            {
-                _api.BindGroupLayoutRelease(_customUniformBindGroupLayout);
-                _customUniformBindGroupLayout = null;
-            }
-
-            if (_demoSampler != null)
-            {
-                _api.SamplerRelease(_demoSampler);
-                _demoSampler = null;
-            }
-
-            if (_nearestSampler != null)
-            {
-                _api.SamplerRelease(_nearestSampler);
-                _nearestSampler = null;
-            }
-
-            if (_clampSampler != null)
-            {
-                _api.SamplerRelease(_clampSampler);
-                _clampSampler = null;
-            }
-
-            if (_objectBindGroupLayout != null)
-            {
-                _api.BindGroupLayoutRelease(_objectBindGroupLayout);
-                _objectBindGroupLayout = null;
-            }
-
-            if (_frameBindGroup != null)
-            {
-                _api.BindGroupRelease(_frameBindGroup);
-                _frameBindGroup = null;
-            }
-
-            if (_frameUniformBuffer != null)
-            {
-                _api.BufferRelease(_frameUniformBuffer);
-                _frameUniformBuffer = null;
-            }
-
-            if (_frameBindGroupLayout != null)
-            {
-                _api.BindGroupLayoutRelease(_frameBindGroupLayout);
-                _frameBindGroupLayout = null;
-            }
+            // Before the shadow resources: the frame group binds the shadow map.
+            _bindings?.Dispose();
+            _bindings = null;
 
             ReleaseShadowResources();
 

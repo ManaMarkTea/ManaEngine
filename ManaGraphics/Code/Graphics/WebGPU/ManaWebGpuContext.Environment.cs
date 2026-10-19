@@ -269,7 +269,7 @@ namespace ManaGraphics.Code.Graphics
                 return _environmentPrefilterCompute;
             }
 
-            var shaderPath = ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "environment_prefilter_compute.wgsl"));
+            var shaderPath = ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "environment_prefilter_compute.wgsl"));
             _environmentPrefilterCompute = new ManaWebGpuEnvironmentPrefilterCompute(_api, _device, _queue, shaderPath);
             return _environmentPrefilterCompute;
         }
@@ -312,7 +312,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 ReleaseEnvironmentReflectionMap();
                 _environmentReflectionMap = _pendingEnvironmentMap;
-                var environmentPath = TryResolveAssetPath(_environmentReflectionMap.Source.SourcePath) ?? _environmentReflectionMap.Source.SourcePath;
+                var environmentPath = ManaWebGpuDevice.TryResolveAssetPath(_environmentReflectionMap.Source.SourcePath) ?? _environmentReflectionMap.Source.SourcePath;
                 _pendingEnvironmentMap = null;
                 _isEnvironmentLoading = false;
                 EnvironmentLoading.Complete("WebGPU environment maps ready");
@@ -340,7 +340,7 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuEnvironmentReflectionMap GetOrCreateEnvironmentReflectionMap()
         {
             var source = GetEffectiveEnvironmentReflectionSource(_activeRenderScene?.EnvironmentReflectionSource);
-            var environmentPath = TryResolveAssetPath(source.SourcePath) ?? source.SourcePath;
+            var environmentPath = ManaWebGpuDevice.TryResolveAssetPath(source.SourcePath) ?? source.SourcePath;
 
             if (_environmentRequestedSource == null || !HasSameEnvironmentSource(_environmentRequestedSource, source))
             {

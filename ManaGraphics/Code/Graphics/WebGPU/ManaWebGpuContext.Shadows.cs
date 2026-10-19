@@ -223,7 +223,7 @@ namespace ManaGraphics.Code.Graphics
 
         private RenderPipeline* CreateShadowDepthPipeline()
         {
-            var shaderModule = CreateShaderModule(Path.Combine("Assets", "Shaders", "WebGpu", "shadow_depth.wgsl"));
+            var shaderModule = CreateShaderModule("shadow_depth.wgsl");
             _shaderModules["ShadowDepth"] = (nint)shaderModule;
 
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");

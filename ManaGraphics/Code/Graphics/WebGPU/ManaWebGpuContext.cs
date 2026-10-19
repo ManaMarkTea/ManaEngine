@@ -69,18 +69,17 @@ namespace ManaGraphics.Code.Graphics
         private ulong _frameSerial;
         private Vector3 _demoMeshCenter;
         private float _demoMeshScale = 1.0f;
-        // group 0 -- per-frame globals (camera/time/lights), written+bound once per frame, not per mesh.
-        private BindGroupLayout* _frameBindGroupLayout;
-        private WebGpuBuffer* _frameUniformBuffer;
-        private BindGroup* _frameBindGroup;
-        // group 1 -- per-object data (model/material) + per-mesh textures.
-        private BindGroupLayout* _objectBindGroupLayout;
-        private PipelineLayout* _demoPipelineLayout;
-        // group 2 -- per-material custom uniforms (opt-in, e.g. water ripples).
-        private BindGroupLayout* _customUniformBindGroupLayout;
-        private PipelineLayout* _customUniformPipelineLayout;
-        private BindGroupLayout* _sceneCaptureBindGroupLayout;
-        private PipelineLayout* _sceneCapturePipelineLayout;
+        // Set in FinishInitialization; borrowed by every pass.
+        private ManaWebGpuDevice _gpu = null!;
+        // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
+        private ManaWebGpuSceneBindings? _bindings;
+        private BindGroup* _frameBindGroup => _bindings == null ? null : _bindings.FrameGroup;
+        private BindGroupLayout* _objectBindGroupLayout => _bindings == null ? null : _bindings.ObjectLayout;
+        private BindGroupLayout* _customUniformBindGroupLayout => _bindings == null ? null : _bindings.CustomUniformGroupLayout;
+        private BindGroupLayout* _sceneCaptureBindGroupLayout => _bindings == null ? null : _bindings.SceneCaptureGroupLayout;
+        private PipelineLayout* _demoPipelineLayout => _bindings == null ? null : _bindings.MeshLayout;
+        private PipelineLayout* _customUniformPipelineLayout => _bindings == null ? null : _bindings.MaterialLayout;
+        private PipelineLayout* _sceneCapturePipelineLayout => _bindings == null ? null : _bindings.SceneCaptureLayout;
         private RenderPipeline* _sceneCapturePipeline;
         private RenderPipeline* _outlineMaskPipeline;
         private RenderPipeline* _outlineMaskAlwaysOnTopPipeline;
@@ -97,9 +96,9 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
         private ManaWebGpuDepthTarget? _sceneCaptureDepth;
         private TextureView* _sceneCaptureDepthTextureView => _sceneCaptureDepth == null ? null : _sceneCaptureDepth.View;
-        private Sampler* _demoSampler;
-        private Sampler* _clampSampler;
-        private Sampler* _nearestSampler;
+        private Sampler* _demoSampler => _bindings == null ? null : _bindings.LinearSampler;
+        private Sampler* _clampSampler => _bindings == null ? null : _bindings.ClampSampler;
+        private Sampler* _nearestSampler => _bindings == null ? null : _bindings.NearestSampler;
         private ManaWebGpuEnvironmentReflectionMap? _environmentReflectionMap;
         private int _framesSinceEnvironmentCapture = int.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
@@ -302,6 +301,7 @@ namespace ManaGraphics.Code.Graphics
                 _ => _surfaceFormat
             };
 #endif
+            _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -405,8 +405,8 @@ namespace ManaGraphics.Code.Graphics
                 ManaSky.Seconds);
         }
 
-        private static string? MoonTexturePath => TryResolveAssetPath(Path.Combine("Assets", "Textures", "Sky", "moon_lroc_1k.jpg"));
-        private static string SkyShaderPath => ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu",
+        private static string? MoonTexturePath => ManaWebGpuDevice.TryResolveAssetPath(Path.Combine("Assets", "Textures", "Sky", "moon_lroc_1k.jpg"));
+        private static string SkyShaderPath => ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu",
             SkyMode == 2 ? "skybox.wgsl" : "skybox_mobile.wgsl"));
 
         // A still sky's sun sits where the scene's own sun is, if it has one (its direction is the way the light
@@ -593,7 +593,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
                         _api, _device, _queue, _readbackRegistry,
-                        ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
+                        ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
 
                     LinkTaskResult(
                         _heightSampleCompute.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst),

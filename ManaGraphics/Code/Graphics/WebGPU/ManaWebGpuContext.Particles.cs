@@ -48,7 +48,7 @@ public unsafe sealed partial class ManaWebGpuContext
         using (ManaFrameProfiler.Measure("GPU: Particle Draw Encode"))
         {
             _particles ??= new ManaWebGpuParticles(_api, _device, _queue, GetSceneColorFormat(), _depthFormat,
-                ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "particles.wgsl")));
+                ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "particles.wgsl")));
             LastGpuParticleCount = _particles.Draw(pass, _activeRenderScene.GpuParticles, _activeRenderScene.Camera,
                 GetAspectCorrectedProjection(_activeRenderScene.Camera), _activeRenderScene.Wind, density);
         }
