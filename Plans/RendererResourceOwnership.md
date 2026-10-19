@@ -36,25 +36,27 @@ forwards height-sampling requests to the context and does not own or dispose it.
 | Screenshot/environment-dump requests | Context `Screenshot` / `EnvironmentDump` hold pending metadata; encoded requests own a staging buffer until mapping | After submit, readback registry owns completion. CPU image conversion/writes need no live GPU objects. Unencoded screenshot tasks are canceled and pending dump metadata cleared at shutdown. Disposed contexts reject new requests; encoded readbacks remain registry-owned. |
 | Frame-local encoders, passes, command buffers, acquired surface texture/view | `ClearFrame`, demo/environment passes, compute dispatches and panel render methods | Released in `finally` wherever managed code runs inside them: `ClearFrame` owns its encoder, passes, command buffer and surface texture/view, and a frame abandoned before submit releases its screenshot/dump staging and faults the screenshot. Passes that only record native calls release inline. `FramePassOwnershipChecks` requires a release for every begun pass. |
 
-## Partial-file responsibilities
+## Owners after extraction (2026-10-19)
 
-All 16 `ManaWebGpuContext` files participate in this map:
+The context's partial files were split into owners; the context keeps the device, the frame orchestration
+(`ClearFrame`), the render-thread queue, the public request APIs and shutdown ordering.
 
-| File | Responsibility |
+| Owner | Responsibility |
 |---|---|
-| `ManaWebGpuContext.cs` | Root handles, construction, frame orchestration, render-thread queue, height-sampling entry point and shutdown |
-| `Device.cs`, `BrowserAsync.cs` | Native callbacks versus browser Promise/JSExport initialization |
-| `Resources.cs` | Shared cleanup, surface configuration, main/capture depth target lifetimes |
-| `Pipelines.cs`, `Uniforms.cs` | Pipeline/module/layout caches, bindings, shared uniforms and managed uniform schemas |
-| `Scene.cs` | Mesh reconciliation, construction/rollback, deferred disposal and nested mesh owner |
-| `Demo.cs` | Scene draw encoding, outline/overlay draws and pipeline use |
-| `Environment.cs` | Active/pending reflection maps, asynchronous photo work, captures and prefilter dispatch |
-| `Shadows.cs` | Cascaded-shadow allocations, updates and pass encoding |
-| `Particles.cs` | Lazy particle owner and per-frame budget |
-| `Thumbnail.cs` | Offscreen targets, temporary draw allocations and asynchronous readback |
-| `Screenshot.cs`, `EnvironmentDump.cs` | Frame-copy requests, mapping handoff and CPU image writes |
-| `UiSurface.cs` | Native panel presentation on the shared device |
-| `Diagnostics.cs` | Diagnostics derived from renderer state; no persistent GPU resource owner |
+| `ManaWebGpuContext.cs` | Root handles, construction, scene pipeline setup/teardown (`CreateScenePipelines`/`ReleaseScenePipelines`), surface/depth configuration, frame orchestration and shutdown |
+| `ManaWebGpuContext.Device.cs`, `.BrowserAsync.cs` | Native callbacks versus browser Promise/JSExport initialization (an unsafe type cannot await) |
+| `ManaWebGpuContext.Diagnostics.cs`, `.ResourceReport.cs` | Diagnostics derived from renderer state; no GPU resource owner |
+| `ManaWebGpuDevice` | Borrowed API/device/queue/formats, shader loading, asset paths |
+| `ManaWebGpuSceneBindings` | Samplers, group layouts, frame uniform buffer/group, pipeline layouts |
+| `ManaWebGpuRenderPass` subclasses | Environment capture, shadows, sky, materials, particles, wireframe/normal overlays, outline: each owns its pipelines and frame-local passes |
+| `ManaWebGpuShadowMap`, `ManaWebGpuEnvironment` | Shadow texture/views/cascades; reflection cubes, loading, activation and prefiltering |
+| `ManaWebGpuSceneMeshes`, `ManaWebGpuSceneMesh` | Resident set, upload budget, six-frame retirement; per-mesh geometry and bindings |
+| `ManaWebGpuThumbnailRenderer`, `ManaWebGpuFrameCapture` | Offscreen thumbnails; screenshot/environment-dump copies and their readback handoff |
+| `ManaWebGpuUiCompositor`, `ManaWebGpuPanelSurface` | ManaUI renderer and blur backdrop; native panel presentation on the shared device |
+
+Release order in `ReleaseScenePipelines`: thumbnails and HDR post, resident meshes (they bind the views below),
+passes (reverse registration order), shared bindings, shadow map, environment. Context `Dispose` keeps the
+sequence below, with these owners standing in for the former partial-file members.
 
 ## Current shutdown sequence
 
