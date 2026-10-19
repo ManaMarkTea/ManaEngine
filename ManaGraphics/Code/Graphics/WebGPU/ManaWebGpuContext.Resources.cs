@@ -194,150 +194,38 @@ namespace ManaGraphics.Code.Graphics
 
         private void ReleaseDepthResources()
         {
-            if (_handleDepthTextureView != null)
-            {
-                _api.TextureViewRelease(_handleDepthTextureView);
-                _handleDepthTextureView = null;
-            }
-            if (_handleDepthTexture != null)
-            {
-                _api.TextureRelease(_handleDepthTexture);
-                _handleDepthTexture = null;
-            }
-            if (_depthTextureView != null)
-            {
-                _api.TextureViewRelease(_depthTextureView);
-                _depthTextureView = null;
-            }
-
-            if (_depthTexture != null)
-            {
-                _api.TextureRelease(_depthTexture);
-                _depthTexture = null;
-            }
+            _handleDepth?.Dispose();
+            _handleDepth = null;
+            _depth?.Dispose();
+            _depth = null;
         }
 
         private void CreateDepthResources(Vector2D<int> framebufferSize)
         {
             ReleaseDepthResources();
 
-            var depthTextureDescriptor = new TextureDescriptor
-            {
-                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
-                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
-                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
-                Dimension = TextureDimension.Dimension2D,
-                Size = new Extent3D
-                {
-                    Width = (uint)framebufferSize.X,
-                    Height = (uint)framebufferSize.Y,
-                    DepthOrArrayLayers = 1
-                },
-                Format = _depthFormat,
-                MipLevelCount = 1,
-                SampleCount = 1
-            };
-
-            _depthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
-            if (_depthTexture == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU depth texture.");
-            }
-
-            var depthTextureViewDescriptor = new TextureViewDescriptor
-            {
-                Format = _depthFormat,
-                Dimension = TextureViewDimension.Dimension2D,
-                MipLevelCount = 1,
-                ArrayLayerCount = 1,
-                Aspect = TextureAspect.DepthOnly
-            };
-
-            _depthTextureView = _api.TextureCreateView(_depthTexture, &depthTextureViewDescriptor);
-            if (_depthTextureView == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU depth texture view.");
-            }
-
-            _handleDepthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
-            if (_handleDepthTexture == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU handle depth texture.");
-            }
-            _handleDepthTextureView = _api.TextureCreateView(_handleDepthTexture, &depthTextureViewDescriptor);
-            if (_handleDepthTextureView == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU handle depth texture view.");
-            }
+            var width = (uint)framebufferSize.X;
+            var height = (uint)framebufferSize.Y;
+            // Assigned one at a time: if the second cannot be made the first is still released with the rest.
+            _depth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "depth");
+            _handleDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "handle depth");
         }
 
         private void ReleaseSceneCaptureDepthResources()
         {
-            if (_sceneCaptureDepthTextureView != null)
-            {
-                _api.TextureViewRelease(_sceneCaptureDepthTextureView);
-                _sceneCaptureDepthTextureView = null;
-            }
-
-            if (_sceneCaptureDepthTexture != null)
-            {
-                _api.TextureRelease(_sceneCaptureDepthTexture);
-                _sceneCaptureDepthTexture = null;
-            }
-
-            _sceneCaptureDepthSize = 0;
+            _sceneCaptureDepth?.Dispose();
+            _sceneCaptureDepth = null;
         }
 
         private void EnsureSceneCaptureDepthResources(uint size)
         {
-            if (_sceneCaptureDepthTexture != null &&
-                _sceneCaptureDepthTextureView != null &&
-                _sceneCaptureDepthSize == size)
+            if (_sceneCaptureDepth != null && _sceneCaptureDepth.Width == size)
             {
                 return;
             }
 
             ReleaseSceneCaptureDepthResources();
-
-            var depthTextureDescriptor = new TextureDescriptor
-            {
-                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
-                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
-                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
-                Dimension = TextureDimension.Dimension2D,
-                Size = new Extent3D
-                {
-                    Width = size,
-                    Height = size,
-                    DepthOrArrayLayers = 1
-                },
-                Format = _depthFormat,
-                MipLevelCount = 1,
-                SampleCount = 1
-            };
-
-            _sceneCaptureDepthTexture = _api.DeviceCreateTexture(_device, &depthTextureDescriptor);
-            if (_sceneCaptureDepthTexture == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU scene capture depth texture.");
-            }
-
-            var depthTextureViewDescriptor = new TextureViewDescriptor
-            {
-                Format = _depthFormat,
-                Dimension = TextureViewDimension.Dimension2D,
-                MipLevelCount = 1,
-                ArrayLayerCount = 1,
-                Aspect = TextureAspect.DepthOnly
-            };
-
-            _sceneCaptureDepthTextureView = _api.TextureCreateView(_sceneCaptureDepthTexture, &depthTextureViewDescriptor);
-            if (_sceneCaptureDepthTextureView == null)
-            {
-                throw new InvalidOperationException("Failed to create WebGPU scene capture depth texture view.");
-            }
-
-            _sceneCaptureDepthSize = size;
+            _sceneCaptureDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, size, size, "scene capture depth");
         }
 
     }

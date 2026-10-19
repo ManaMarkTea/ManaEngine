@@ -1,0 +1,78 @@
+using Silk.NET.WebGPU;
+
+namespace ManaGraphics.Code.Graphics
+{
+    /// <summary>
+    /// A depth texture and its view, made and released together. If the view cannot be made the texture is
+    /// released before the constructor throws, so a failed target holds nothing.
+    /// </summary>
+    internal sealed unsafe class ManaWebGpuDepthTarget : IDisposable
+    {
+        private readonly WebGPU _api;
+        private Texture* _texture;
+        private TextureView* _view;
+
+        public ManaWebGpuDepthTarget(WebGPU api, Device* device, TextureFormat format, uint width, uint height, string name)
+        {
+            _api = api;
+            Width = width;
+            Height = height;
+
+            var textureDescriptor = new TextureDescriptor
+            {
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
+                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
+                Format = format,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+
+            _texture = api.DeviceCreateTexture(device, &textureDescriptor);
+            if (_texture == null)
+            {
+                throw new InvalidOperationException($"Failed to create WebGPU {name} texture.");
+            }
+
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = format,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.DepthOnly
+            };
+
+            _view = api.TextureCreateView(_texture, &viewDescriptor);
+            if (_view == null)
+            {
+                api.TextureRelease(_texture);
+                _texture = null;
+                throw new InvalidOperationException($"Failed to create WebGPU {name} texture view.");
+            }
+        }
+
+        public uint Width { get; }
+
+        public uint Height { get; }
+
+        public TextureView* View => _view;
+
+        public void Dispose()
+        {
+            if (_view != null)
+            {
+                _api.TextureViewRelease(_view);
+                _view = null;
+            }
+
+            if (_texture != null)
+            {
+                _api.TextureRelease(_texture);
+                _texture = null;
+            }
+        }
+    }
+}

@@ -44,10 +44,11 @@ namespace ManaGraphics.Code.Graphics
 #endif
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
         private volatile bool _disposed;
-        private Texture* _depthTexture;
-        private TextureView* _depthTextureView;
-        private Texture* _handleDepthTexture;
-        private TextureView* _handleDepthTextureView;
+        // The scene's depth, and a second one the always-on-top handles depth-test against.
+        private ManaWebGpuDepthTarget? _depth;
+        private ManaWebGpuDepthTarget? _handleDepth;
+        private TextureView* _depthTextureView => _depth == null ? null : _depth.View;
+        private TextureView* _handleDepthTextureView => _handleDepth == null ? null : _handleDepth.View;
         private TextureFormat _surfaceFormat;
         private readonly TextureFormat _depthFormat = TextureFormat.Depth24Plus;
         private Vector2D<int> _framebufferSize;
@@ -92,9 +93,8 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
         private ManaWebGpuEnvironmentPrefilterCompute? _environmentPrefilterCompute;
         private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
-        private Texture* _sceneCaptureDepthTexture;
-        private TextureView* _sceneCaptureDepthTextureView;
-        private uint _sceneCaptureDepthSize;
+        private ManaWebGpuDepthTarget? _sceneCaptureDepth;
+        private TextureView* _sceneCaptureDepthTextureView => _sceneCaptureDepth == null ? null : _sceneCaptureDepth.View;
         private Sampler* _demoSampler;
         private Sampler* _clampSampler;
         private Sampler* _nearestSampler;
