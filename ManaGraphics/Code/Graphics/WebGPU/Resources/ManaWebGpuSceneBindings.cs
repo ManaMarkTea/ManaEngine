@@ -2,13 +2,13 @@ using System.Runtime.InteropServices;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>
     /// The layouts, samplers and frame uniform every scene pipeline shares: group 0 frame and shadows, group 1 one
     /// mesh's object data and textures, group 2 custom material uniforms, plus the scene-capture layout.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuSceneBindings : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuSceneBindings : ManaWebGpuDeviceObject
     {
         /// <summary>Where the material maps start in group 1, after the object uniform, samplers, albedo and environment.</summary>
         public const int FirstMaterialMapBinding = 8;

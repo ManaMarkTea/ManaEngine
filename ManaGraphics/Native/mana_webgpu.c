@@ -32,19 +32,19 @@
 EM_JS(void, mana_request_adapter_impl, (int requestId), {
     if (!('gpu' in navigator)) {
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
         }
         return;
     }
     navigator.gpu.requestAdapter().then((adapter) => {
         var adapterId = adapter ? WebGPU.mgrAdapter.create(adapter) : 0;
         var accepted = globalThis.ManaExports &&
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, adapterId);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, adapterId);
         if (adapterId && !accepted) WebGPU.mgrAdapter.release(adapterId);
     }, (ex) => {
         console.error('mana_request_adapter failed', ex);
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, 0);
         }
     });
 });
@@ -58,7 +58,7 @@ EM_JS(void, mana_request_device_impl, (int adapterId, int requestId), {
         var deviceWrapper = { queueId: WebGPU.mgrQueue.create(device.queue) };
         var deviceId = WebGPU.mgrDevice.create(device, deviceWrapper);
         var accepted = globalThis.ManaExports &&
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, deviceId);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, deviceId);
         if (!accepted) {
             device.destroy();
             WebGPU.mgrQueue.release(deviceWrapper.queueId);
@@ -67,7 +67,7 @@ EM_JS(void, mana_request_device_impl, (int adapterId, int requestId), {
     }, (ex) => {
         console.error('mana_request_device failed', ex);
         if (globalThis.ManaExports) {
-            globalThis.ManaExports.ManaGraphics.Code.Graphics.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, 0);
+            globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnDeviceResult(requestId, 0);
         }
     });
 });

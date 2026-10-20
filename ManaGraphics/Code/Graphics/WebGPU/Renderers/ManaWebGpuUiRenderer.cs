@@ -7,21 +7,18 @@ using ManaUI;
 using Silk.NET.WebGPU;
 using Buffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>
     /// Draws a <see cref="ManaUiDrawList"/> as one instanced quad draw; clipping happens in the fragment shader, so
     /// nothing splits the batch.
     /// </summary>
-    internal unsafe sealed class ManaWebGpuUiRenderer : IDisposable
+    internal unsafe sealed class ManaWebGpuUiRenderer : ManaWebGpuDeviceObject
     {
         // Must match sizeof(ManaUiInstance). Checked at start-up rather than trusted, because a mismatch
         // reads every instance at the wrong offset and produces a frame of noise rather than an error.
         private const int InstanceStride = 92;
 
-        private readonly WebGPU _api;
-        private readonly Device* _device;
-        private readonly Queue* _queue;
 
         private readonly ShaderModule* _shaderModule;
         private readonly BindGroupLayout* _bindGroupLayout;
@@ -47,11 +44,9 @@ namespace ManaGraphics.Code.Graphics
         private bool _loggedFirstFrame;
         private bool _disposed;
 
-        public ManaWebGpuUiRenderer(WebGPU api, Device* device, Queue* queue, TextureFormat surfaceFormat)
+        public ManaWebGpuUiRenderer(ManaWebGpuDevice gpu, TextureFormat surfaceFormat)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
-            _queue = queue;
 
             // Next to the executable, not the working directory; the phone apps carry it in Game/.
             var shaderPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl");
@@ -117,17 +112,17 @@ namespace ManaGraphics.Code.Graphics
             // Scissor persists within a pass; the UI clips in the shader and wants the whole target.
             if (framebufferWidth > 0 && framebufferHeight > 0)
             {
-                _api.RenderPassEncoderSetScissorRect(renderPass, 0, 0, framebufferWidth, framebufferHeight);
+                Api.RenderPassEncoderSetScissorRect(renderPass, 0, 0, framebufferWidth, framebufferHeight);
             }
 
-            _api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
-            _api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindGroup, 0, null);
-            _api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _instanceBuffer, 0, _instanceBufferSize);
+            Api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
+            Api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindGroup, 0, null);
+            Api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _instanceBuffer, 0, _instanceBufferSize);
 
             foreach (var batch in drawList.Batches)
             {
                 // Four vertices as a triangle strip; the quad corners come from the vertex index.
-                _api.RenderPassEncoderDraw(
+                Api.RenderPassEncoderDraw(
                     renderPass,
                     4,
                     (uint)batch.InstanceCount,
@@ -209,7 +204,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _imageTexture = _api.DeviceCreateTexture(_device, &descriptor);
+            _imageTexture = Api.DeviceCreateTexture(Device, &descriptor);
 
             var viewDescriptor = new TextureViewDescriptor
             {
@@ -220,7 +215,7 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.All
             };
 
-            _imageTextureView = _api.TextureCreateView(_imageTexture, &viewDescriptor);
+            _imageTextureView = Api.TextureCreateView(_imageTexture, &viewDescriptor);
             _imageAtlasWidth = width;
             _imageAtlasHeight = height;
         }
@@ -229,13 +224,13 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_imageTextureView != null)
             {
-                _api.TextureViewRelease(_imageTextureView);
+                Api.TextureViewRelease(_imageTextureView);
                 _imageTextureView = null;
             }
 
             if (_imageTexture != null)
             {
-                _api.TextureRelease(_imageTexture);
+                Api.TextureRelease(_imageTexture);
                 _imageTexture = null;
             }
 
@@ -278,8 +273,8 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (byte* pixels = &atlas.Pixels[startRow * atlas.Width * 4])
             {
-                _api.QueueWriteTexture(
-                    _queue,
+                Api.QueueWriteTexture(
+                    Queue,
                     &destination,
                     pixels,
                     (nuint)(rowCount * atlas.Width * 4),
@@ -324,8 +319,8 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (byte* pixels = &atlas.Pixels[startRow * atlas.Width])
             {
-                _api.QueueWriteTexture(
-                    _queue,
+                Api.QueueWriteTexture(
+                    Queue,
                     &destination,
                     pixels,
                     (nuint)(rowCount * atlas.Width),
@@ -345,7 +340,7 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (float* data = uniforms)
             {
-                _api.QueueWriteBuffer(_queue, _uniformBuffer, 0, data, 16);
+                Api.QueueWriteBuffer(Queue, _uniformBuffer, 0, data, 16);
             }
         }
 
@@ -357,8 +352,8 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (_instanceBuffer != null)
                 {
-                    _api.BufferDestroy(_instanceBuffer);
-                    _api.BufferRelease(_instanceBuffer);
+                    Api.BufferDestroy(_instanceBuffer);
+                    Api.BufferRelease(_instanceBuffer);
                 }
 
                 // Grown with headroom so a UI that adds a few elements per frame is not reallocating
@@ -371,13 +366,13 @@ namespace ManaGraphics.Code.Graphics
                     Usage = BufferUsage.Vertex | BufferUsage.CopyDst,
                     Size = _instanceBufferSize
                 };
-                _instanceBuffer = _api.DeviceCreateBuffer(_device, &descriptor);
+                _instanceBuffer = Api.DeviceCreateBuffer(Device, &descriptor);
             }
 
             var instances = drawList.Instances;
             fixed (ManaUiInstance* data = instances)
             {
-                _api.QueueWriteBuffer(_queue, _instanceBuffer, 0, data, (nuint)required);
+                Api.QueueWriteBuffer(Queue, _instanceBuffer, 0, data, (nuint)required);
             }
         }
 
@@ -397,7 +392,7 @@ namespace ManaGraphics.Code.Graphics
                 };
 
                 var descriptor = new ShaderModuleDescriptor { NextInChain = &wgslDescriptor.Chain };
-                var module = _api.DeviceCreateShaderModule(_device, &descriptor);
+                var module = Api.DeviceCreateShaderModule(Device, &descriptor);
 
                 if (module == null)
                 {
@@ -430,7 +425,7 @@ namespace ManaGraphics.Code.Graphics
                 MaxAnisotropy = 1
             };
 
-            return _api.DeviceCreateSampler(_device, &descriptor);
+            return Api.DeviceCreateSampler(Device, &descriptor);
         }
 
         private TextureView* _backdropTextureView;
@@ -453,7 +448,7 @@ namespace ManaGraphics.Code.Graphics
                 MaxAnisotropy = 1
             };
 
-            return _api.DeviceCreateSampler(_device, &descriptor);
+            return Api.DeviceCreateSampler(Device, &descriptor);
         }
 
         private BindGroupLayout* CreateBindGroupLayout()
@@ -517,7 +512,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var descriptor = new BindGroupLayoutDescriptor { EntryCount = 6, Entries = entries };
-            return _api.DeviceCreateBindGroupLayout(_device, &descriptor);
+            return Api.DeviceCreateBindGroupLayout(Device, &descriptor);
         }
 
         private PipelineLayout* CreatePipelineLayout()
@@ -531,7 +526,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayouts = layouts
             };
 
-            return _api.DeviceCreatePipelineLayout(_device, &descriptor);
+            return Api.DeviceCreatePipelineLayout(Device, &descriptor);
         }
 
         private Buffer* CreateUniformBuffer()
@@ -542,7 +537,7 @@ namespace ManaGraphics.Code.Graphics
                 Size = 16
             };
 
-            return _api.DeviceCreateBuffer(_device, &descriptor);
+            return Api.DeviceCreateBuffer(Device, &descriptor);
         }
 
         private RenderPipeline* CreatePipeline(TextureFormat surfaceFormat)
@@ -634,7 +629,7 @@ namespace ManaGraphics.Code.Graphics
                     DepthStencil = null
                 };
 
-                var pipeline = _api.DeviceCreateRenderPipeline(_device, &descriptor);
+                var pipeline = Api.DeviceCreateRenderPipeline(Device, &descriptor);
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create the ManaUI render pipeline.");
@@ -661,7 +656,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _glyphTexture = _api.DeviceCreateTexture(_device, &descriptor);
+            _glyphTexture = Api.DeviceCreateTexture(Device, &descriptor);
 
             var viewDescriptor = new TextureViewDescriptor
             {
@@ -672,7 +667,7 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.All
             };
 
-            _glyphTextureView = _api.TextureCreateView(_glyphTexture, &viewDescriptor);
+            _glyphTextureView = Api.TextureCreateView(_glyphTexture, &viewDescriptor);
             _glyphAtlasWidth = width;
             _glyphAtlasHeight = height;
         }
@@ -690,7 +685,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _imageTexture = _api.DeviceCreateTexture(_device, &descriptor);
+            _imageTexture = Api.DeviceCreateTexture(Device, &descriptor);
 
             var viewDescriptor = new TextureViewDescriptor
             {
@@ -701,7 +696,7 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.All
             };
 
-            _imageTextureView = _api.TextureCreateView(_imageTexture, &viewDescriptor);
+            _imageTextureView = Api.TextureCreateView(_imageTexture, &viewDescriptor);
 
             var white = stackalloc byte[4] { 255, 255, 255, 255 };
             var destination = new ImageCopyTexture
@@ -714,7 +709,7 @@ namespace ManaGraphics.Code.Graphics
             var layout = new TextureDataLayout { Offset = 0, BytesPerRow = 4, RowsPerImage = 1 };
             var extent = new Extent3D { Width = 1, Height = 1, DepthOrArrayLayers = 1 };
 
-            _api.QueueWriteTexture(_queue, &destination, white, 4, &layout, &extent);
+            Api.QueueWriteTexture(Queue, &destination, white, 4, &layout, &extent);
         }
 
         /// <summary>The blurred frame under the UI, or null before one is captured.</summary>
@@ -738,7 +733,7 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_bindGroup != null)
             {
-                _api.BindGroupRelease(_bindGroup);
+                Api.BindGroupRelease(_bindGroup);
                 _bindGroup = null;
             }
 
@@ -774,7 +769,7 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 descriptor.Label = (byte*)label;
-                _bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+                _bindGroup = Api.DeviceCreateBindGroup(Device, &descriptor);
             }
             finally
             {
@@ -786,19 +781,19 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_glyphTextureView != null)
             {
-                _api.TextureViewRelease(_glyphTextureView);
+                Api.TextureViewRelease(_glyphTextureView);
                 _glyphTextureView = null;
             }
 
             if (_glyphTexture != null)
             {
-                _api.TextureDestroy(_glyphTexture);
-                _api.TextureRelease(_glyphTexture);
+                Api.TextureDestroy(_glyphTexture);
+                Api.TextureRelease(_glyphTexture);
                 _glyphTexture = null;
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (_disposed)
             {
@@ -809,62 +804,62 @@ namespace ManaGraphics.Code.Graphics
 
             if (_bindGroup != null)
             {
-                _api.BindGroupRelease(_bindGroup);
+                Api.BindGroupRelease(_bindGroup);
             }
 
             ReleaseGlyphTexture();
 
             if (_imageTextureView != null)
             {
-                _api.TextureViewRelease(_imageTextureView);
+                Api.TextureViewRelease(_imageTextureView);
             }
 
             if (_imageTexture != null)
             {
-                _api.TextureDestroy(_imageTexture);
-                _api.TextureRelease(_imageTexture);
+                Api.TextureDestroy(_imageTexture);
+                Api.TextureRelease(_imageTexture);
             }
 
             if (_instanceBuffer != null)
             {
-                _api.BufferDestroy(_instanceBuffer);
-                _api.BufferRelease(_instanceBuffer);
+                Api.BufferDestroy(_instanceBuffer);
+                Api.BufferRelease(_instanceBuffer);
             }
 
             if (_uniformBuffer != null)
             {
-                _api.BufferDestroy(_uniformBuffer);
-                _api.BufferRelease(_uniformBuffer);
+                Api.BufferDestroy(_uniformBuffer);
+                Api.BufferRelease(_uniformBuffer);
             }
 
             if (_pipeline != null)
             {
-                _api.RenderPipelineRelease(_pipeline);
+                Api.RenderPipelineRelease(_pipeline);
             }
 
             if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_pipelineLayout);
+                Api.PipelineLayoutRelease(_pipelineLayout);
             }
 
             if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                Api.BindGroupLayoutRelease(_bindGroupLayout);
             }
 
             if (_sampler != null)
             {
-                _api.SamplerRelease(_sampler);
+                Api.SamplerRelease(_sampler);
             }
 
             if (_backdropSampler != null)
             {
-                _api.SamplerRelease(_backdropSampler);
+                Api.SamplerRelease(_backdropSampler);
             }
 
             if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_shaderModule);
+                Api.ShaderModuleRelease(_shaderModule);
             }
         }
     }

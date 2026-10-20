@@ -6,14 +6,11 @@ using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 using ManaCore.Imaging;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>The environment drawn as a background behind every mesh.</summary>
-    public unsafe sealed class ManaWebGpuSkybox : IDisposable
+    internal unsafe sealed class ManaWebGpuSkybox : ManaWebGpuDeviceObject
     {
-        private readonly WebGPU _api;
-        private readonly Device* _device;
-        private readonly Queue* _queue;
         private readonly TextureFormat? _depthFormat;
         private readonly string _shaderPath;
         private readonly string? _moonPath;
@@ -65,13 +62,11 @@ namespace ManaGraphics.Code.Graphics
 
         /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
         /// <param name="slots">Draws a frame can hold with different cameras -- six for the faces of a cube.</param>
-        public ManaWebGpuSkybox(WebGPU api, Device* device, Queue* queue, TextureFormat? depthFormat, string shaderPath, int slots = 1, string? moonPath = null, bool starCatalogue = true)
+        public ManaWebGpuSkybox(ManaWebGpuDevice gpu, TextureFormat? depthFormat, string shaderPath, int slots = 1, string? moonPath = null, bool starCatalogue = true)
+            : base(gpu)
         {
             _starCatalogue = starCatalogue;
             _moonPath = moonPath;
-            _api = api;
-            _device = device;
-            _queue = queue;
             _depthFormat = depthFormat;
             _shaderPath = shaderPath;
             _slots = Math.Max(1, slots);
@@ -117,9 +112,9 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            _api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
-            _api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
-            _api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
+            Api.RenderPassEncoderSetPipeline(renderPass, _pipeline);
+            Api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
+            Api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
 
         private void UpdateUniform(int slot, ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
@@ -154,7 +149,7 @@ namespace ManaGraphics.Code.Graphics
                 CelestialUp = new Vector4(sky.CelestialUp, 0.0f),
                 CelestialNorth = new Vector4(sky.CelestialNorth, _starCatalogue ? 1.0f : 0.0f)
             };
-            _api.QueueWriteBuffer(_queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
+            Api.QueueWriteBuffer(Queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
 
         private void EnsurePipeline(TextureFormat colorFormat)
@@ -212,7 +207,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 5, Entries = entries };
-            _bindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
+            _bindGroupLayout = Api.DeviceCreateBindGroupLayout(Device, &layoutDescriptor);
             if (_bindGroupLayout == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox bind group layout.");
@@ -225,7 +220,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayouts = &setLayout
             };
 
-            _pipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+            _pipelineLayout = Api.DeviceCreatePipelineLayout(Device, &pipelineLayoutDescriptor);
             if (_pipelineLayout == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox pipeline layout.");
@@ -243,7 +238,7 @@ namespace ManaGraphics.Code.Graphics
 
             for (var slot = 0; slot < _slots; slot++)
             {
-                var buffer = _api.DeviceCreateBuffer(_device, &uniformDescriptor);
+                var buffer = Api.DeviceCreateBuffer(Device, &uniformDescriptor);
                 if (buffer == null)
                 {
                     throw new InvalidOperationException("Failed to create the WebGPU skybox uniform buffer.");
@@ -317,7 +312,7 @@ namespace ManaGraphics.Code.Graphics
                     Fragment = &fragmentState
                 };
 
-                _pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
+                _pipeline = Api.DeviceCreateRenderPipeline(Device, &pipelineDescriptor);
                 if (_pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create the WebGPU skybox render pipeline.");
@@ -342,7 +337,7 @@ namespace ManaGraphics.Code.Graphics
 
             if (_bindGroups[slot] != 0)
             {
-                _api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
+                Api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
                 _bindGroups[slot] = 0;
             }
 
@@ -371,7 +366,7 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 descriptor.Label = (byte*)label;
-                bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+                bindGroup = Api.DeviceCreateBindGroup(Device, &descriptor);
             }
             finally
             {
@@ -409,7 +404,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            _moonTexture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            _moonTexture = Api.DeviceCreateTexture(Device, &textureDescriptor);
             if (_moonTexture == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU moon texture.");
@@ -420,7 +415,7 @@ namespace ManaGraphics.Code.Graphics
                 var destination = new ImageCopyTexture { Texture = _moonTexture, MipLevel = 0, Origin = new Origin3D(), Aspect = TextureAspect.All };
                 var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = width * 4, RowsPerImage = height };
                 var writeSize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
-                _api.QueueWriteTexture(_queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
+                Api.QueueWriteTexture(Queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
             }
 
             var viewDescriptor = new TextureViewDescriptor
@@ -431,7 +426,7 @@ namespace ManaGraphics.Code.Graphics
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.All
             };
-            _moonView = _api.TextureCreateView(_moonTexture, &viewDescriptor);
+            _moonView = Api.TextureCreateView(_moonTexture, &viewDescriptor);
             if (_moonView == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU moon texture view.");
@@ -459,7 +454,7 @@ namespace ManaGraphics.Code.Graphics
                     NextInChain = &wgslDescriptor.Chain
                 };
 
-                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                var shaderModule = Api.DeviceCreateShaderModule(Device, &shaderDescriptor);
                 if (shaderModule == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU shader module from {shaderPath}.");
@@ -478,7 +473,7 @@ namespace ManaGraphics.Code.Graphics
             var bytes = ManaConstellationTable.Bytes();
             _constellationSize = (ulong)bytes.Length;
             var descriptor = new BufferDescriptor { Size = _constellationSize, Usage = BufferUsage.Storage | BufferUsage.CopyDst };
-            _constellationBuffer = _api.DeviceCreateBuffer(_device, &descriptor);
+            _constellationBuffer = Api.DeviceCreateBuffer(Device, &descriptor);
             if (_constellationBuffer == null)
             {
                 throw new InvalidOperationException("Failed to create the WebGPU skybox star buffer.");
@@ -486,17 +481,17 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (byte* data = bytes)
             {
-                _api.QueueWriteBuffer(_queue, _constellationBuffer, 0, data, (nuint)bytes.Length);
+                Api.QueueWriteBuffer(Queue, _constellationBuffer, 0, data, (nuint)bytes.Length);
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             for (var slot = 0; slot < _slots; slot++)
             {
                 if (_bindGroups[slot] != 0)
                 {
-                    _api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
+                    Api.BindGroupRelease((BindGroup*)_bindGroups[slot]);
                     _bindGroups[slot] = 0;
                 }
 
@@ -504,50 +499,50 @@ namespace ManaGraphics.Code.Graphics
 
                 if (_uniformBuffers[slot] != 0)
                 {
-                    _api.BufferRelease((WebGpuBuffer*)_uniformBuffers[slot]);
+                    Api.BufferRelease((WebGpuBuffer*)_uniformBuffers[slot]);
                     _uniformBuffers[slot] = 0;
                 }
             }
 
             if (_pipeline != null)
             {
-                _api.RenderPipelineRelease(_pipeline);
+                Api.RenderPipelineRelease(_pipeline);
                 _pipeline = null;
             }
 
             if (_moonView != null)
             {
-                _api.TextureViewRelease(_moonView);
+                Api.TextureViewRelease(_moonView);
                 _moonView = null;
             }
 
             if (_moonTexture != null)
             {
-                _api.TextureRelease(_moonTexture);
+                Api.TextureRelease(_moonTexture);
                 _moonTexture = null;
             }
 
             if (_constellationBuffer != null)
             {
-                _api.BufferRelease(_constellationBuffer);
+                Api.BufferRelease(_constellationBuffer);
                 _constellationBuffer = null;
             }
 
             if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_pipelineLayout);
+                Api.PipelineLayoutRelease(_pipelineLayout);
                 _pipelineLayout = null;
             }
 
             if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                Api.BindGroupLayoutRelease(_bindGroupLayout);
                 _bindGroupLayout = null;
             }
 
             if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_shaderModule);
+                Api.ShaderModuleRelease(_shaderModule);
                 _shaderModule = null;
             }
         }

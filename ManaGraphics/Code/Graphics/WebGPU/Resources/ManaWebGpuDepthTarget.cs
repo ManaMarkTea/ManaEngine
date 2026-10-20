@@ -1,9 +1,9 @@
 using Silk.NET.WebGPU;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>A depth texture and its view, made and released together; a failed construction holds nothing.</summary>
-    internal sealed unsafe class ManaWebGpuDepthTarget : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuDepthTarget : ManaWebGpuDeviceObject
     {
         private Texture* _texture;
         private TextureView* _view;

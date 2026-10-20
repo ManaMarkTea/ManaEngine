@@ -2,8 +2,10 @@ using System.Numerics;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Renderers;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>
     /// Redraws the reflection cubes before anything samples them: the computed sky whenever it moves, and the scene when
@@ -64,7 +66,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _skybox ??= new ManaWebGpuSkybox(
-                Api, Gpu.Device, Gpu.Queue, null, ManaWebGpuSkyPass.ShaderPath, 6, ManaWebGpuSkyPass.MoonTexturePath,
+                Gpu, null, ManaWebGpuSkyPass.ShaderPath, 6, ManaWebGpuSkyPass.MoonTexturePath,
                 starCatalogue: ManaWebGpuSkyPass.Mode >= 1);
 
             for (var face = 0; face < 6; face++)
@@ -250,7 +252,7 @@ namespace ManaGraphics.Code.Graphics
                     var buffer = sceneMesh.GetSceneCaptureUniformBuffer(face);
                     if (buffer != null)
                     {
-                        Api.QueueWriteBuffer(Gpu.Queue, buffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
+                        Api.QueueWriteBuffer(Queue, buffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
                     }
                     Api.RenderPassEncoderSetBindGroup(renderPass, 0, sceneMesh.GetSceneCaptureBindGroup(face), 0, null);
                     sceneMesh.Mesh.Draw(renderPass);

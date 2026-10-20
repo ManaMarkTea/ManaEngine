@@ -4,16 +4,15 @@ using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>One resident scene mesh: its geometry and the GPU bindings it draws with.</summary>
-    internal sealed unsafe class ManaWebGpuSceneMesh : IDisposable
+    internal sealed unsafe class ManaWebGpuSceneMesh : ManaWebGpuDeviceObject
     {
-        private readonly WebGPU _api;
         private readonly Action<ManaWebGpuMeshTexture> _releaseTexture;
 
         public ManaWebGpuSceneMesh(
-            WebGPU api,
+            ManaWebGpuDevice gpu,
             ManaRenderMeshInstance instance,
             ManaWebGpuMesh mesh,
             WebGpuBuffer* uniformBuffer,
@@ -27,8 +26,8 @@ namespace ManaGraphics.Code.Graphics
             BindGroup* customBindGroup = null,
             ManaWebGpuCustomUniformSchema? customUniformLayout = null,
             byte[]? customUniformData = null)
+            : base(gpu)
         {
-            _api = api;
             _releaseTexture = releaseTexture;
             Instance = instance;
             Mesh = mesh;
@@ -57,7 +56,7 @@ namespace ManaGraphics.Code.Graphics
             var queue = gpu.Queue;
             var textures = meshTextures;
             var meshData = instance.MeshData;
-            var mesh = ManaWebGpuMesh.CreateFromMeshData(api, device, queue, meshData, instance.Name);
+            var mesh = ManaWebGpuMesh.CreateFromMeshData(gpu, meshData, instance.Name);
 
             WebGpuBuffer* uniformBuffer = null;
             WebGpuBuffer* customUniformBuffer = null;
@@ -271,7 +270,7 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 var sceneMesh = new ManaWebGpuSceneMesh(
-                    api,
+                    gpu,
                     instance,
                     mesh,
                     uniformBuffer,
@@ -366,7 +365,7 @@ namespace ManaGraphics.Code.Graphics
 
         // A LineList mesh with each vertex twice, base then tip (uv0.x 0 or 1); the shader extrudes the tip along the
         // normal, so the length stays a live setting.
-        public ManaWebGpuMesh? GetOrCreateNormalLinesMesh(WebGPU api, Device* device, Queue* queue)
+        public ManaWebGpuMesh? GetOrCreateNormalLinesMesh()
         {
             if (_normalLinesMesh != null)
             {
@@ -415,13 +414,13 @@ namespace ManaGraphics.Code.Graphics
                 Indexes = lineIndexes
             };
 
-            _normalLinesMesh = ManaWebGpuMesh.CreateFromMeshData(api, device, queue, lineData, "NormalLines");
+            _normalLinesMesh = ManaWebGpuMesh.CreateFromMeshData(Gpu, lineData, "NormalLines");
             return _normalLinesMesh;
         }
 
         // Pointer types can't be used as a generic type argument (e.g. a (WebGpuBuffer*, uint)
         // tuple), hence out-parameters instead of a tuple return here.
-        public bool TryGetOrCreateWireframeIndexBuffer(WebGPU api, Device* device, Queue* queue, out WebGpuBuffer* buffer, out uint indexCount)
+        public bool TryGetOrCreateWireframeIndexBuffer(out WebGpuBuffer* buffer, out uint indexCount)
         {
             if (_wireframeIndexBuffer != null)
             {
@@ -463,7 +462,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.Index | BufferUsage.CopyDst,
                 Size = (ulong)lineIndexes.Length * sizeof(uint)
             };
-            var createdBuffer = api.DeviceCreateBuffer(device, &bufferDescriptor);
+            var createdBuffer = Api.DeviceCreateBuffer(Device, &bufferDescriptor);
             if (createdBuffer == null)
             {
                 return false;
@@ -471,7 +470,7 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (uint* indexPointer = lineIndexes)
             {
-                api.QueueWriteBuffer(queue, createdBuffer, 0, indexPointer, (nuint)bufferDescriptor.Size);
+                Api.QueueWriteBuffer(Queue, createdBuffer, 0, indexPointer, (nuint)bufferDescriptor.Size);
             }
 
             _wireframeIndexBuffer = createdBuffer;
@@ -486,7 +485,7 @@ namespace ManaGraphics.Code.Graphics
             edges.Add(a < b ? (a, b) : (b, a));
         }
 
-        public bool TryUpdateObjectUniform(WebGPU api, Queue* queue, in ManaWebGpuObjectUniform next)
+        public bool TryUpdateObjectUniform(in ManaWebGpuObjectUniform next)
         {
             if (_lastUploadedObjectUniform is { } last)
             {
@@ -499,12 +498,12 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var value = next;
-            api.QueueWriteBuffer(queue, UniformBuffer, 0, &value, (nuint)sizeof(ManaWebGpuObjectUniform));
+            Api.QueueWriteBuffer(Queue, UniformBuffer, 0, &value, (nuint)sizeof(ManaWebGpuObjectUniform));
             _lastUploadedObjectUniform = next;
             return true;
         }
 
-        public bool TryUpdateCustomUniform(WebGPU api, Queue* queue, byte[] next)
+        public bool TryUpdateCustomUniform(byte[] next)
         {
             if (_lastUploadedCustomUniformData != null && _lastUploadedCustomUniformData.AsSpan().SequenceEqual(next))
             {
@@ -513,7 +512,7 @@ namespace ManaGraphics.Code.Graphics
 
             fixed (byte* nextPointer = next)
             {
-                api.QueueWriteBuffer(queue, CustomUniformBuffer, 0, nextPointer, (nuint)next.Length);
+                Api.QueueWriteBuffer(Queue, CustomUniformBuffer, 0, nextPointer, (nuint)next.Length);
             }
             _lastUploadedCustomUniformData = (byte[])next.Clone();
             return true;
@@ -529,13 +528,13 @@ namespace ManaGraphics.Code.Graphics
             return (BindGroup*)SceneCaptureBindGroups[Math.Clamp(face, 0, SceneCaptureBindGroups.Length - 1)];
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             Mesh.Dispose();
 
             if (_wireframeIndexBuffer != null)
             {
-                _api.BufferRelease(_wireframeIndexBuffer);
+                Api.BufferRelease(_wireframeIndexBuffer);
                 _wireframeIndexBuffer = null;
             }
 
@@ -546,7 +545,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (sceneCaptureBindGroup != 0)
                 {
-                    _api.BindGroupRelease((BindGroup*)sceneCaptureBindGroup);
+                    Api.BindGroupRelease((BindGroup*)sceneCaptureBindGroup);
                 }
             }
             SceneCaptureBindGroups = Array.Empty<nint>();
@@ -555,18 +554,18 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (sceneCaptureUniformBuffer != 0)
                 {
-                    _api.BufferRelease((WebGpuBuffer*)sceneCaptureUniformBuffer);
+                    Api.BufferRelease((WebGpuBuffer*)sceneCaptureUniformBuffer);
                 }
             }
             SceneCaptureUniformBuffers = Array.Empty<nint>();
 
             if (ObjectBindGroup != null)
             {
-                _api.BindGroupRelease(ObjectBindGroup);
+                Api.BindGroupRelease(ObjectBindGroup);
             }
             if (CustomBindGroup != null)
             {
-                _api.BindGroupRelease(CustomBindGroup);
+                Api.BindGroupRelease(CustomBindGroup);
             }
             _releaseTexture(Texture);
 
@@ -578,11 +577,11 @@ namespace ManaGraphics.Code.Graphics
             }
             if (UniformBuffer != null)
             {
-                _api.BufferRelease(UniformBuffer);
+                Api.BufferRelease(UniformBuffer);
             }
             if (CustomUniformBuffer != null)
             {
-                _api.BufferRelease(CustomUniformBuffer);
+                Api.BufferRelease(CustomUniformBuffer);
             }
         }
     }

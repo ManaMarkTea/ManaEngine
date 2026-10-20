@@ -1,8 +1,9 @@
 using System.Numerics;
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Renderers;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>Draws the sky first in the scene pass; skipped until the environment map exists.</summary>
     internal sealed unsafe class ManaWebGpuSkyPass : ManaWebGpuRenderPass
@@ -50,10 +51,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _skybox ??= new ManaWebGpuSkybox(
-                Api,
-                Gpu.Device,
-                Gpu.Queue,
-                Gpu.DepthFormat,
+                Gpu, Gpu.DepthFormat,
                 ShaderPath,
                 moonPath: MoonTexturePath,
                 starCatalogue: Mode >= 1);

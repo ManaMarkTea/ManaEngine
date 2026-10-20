@@ -1,8 +1,9 @@
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics.Overlays
+namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
 {
     /// <summary>
     /// A debug overlay drawn over the meshes. Subclasses give a shader, an enable flag and the per-mesh draw; the
@@ -38,12 +39,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
         public abstract bool IsEnabled(ManaIrradianceSettings settings);
 
         /// <summary>Draws one mesh; pipeline, frame group and the mesh's object group are already bound.</summary>
-        public abstract void DrawMesh(
-            WebGPU api,
-            Device* device,
-            Queue* queue,
-            RenderPassEncoder* renderPass,
-            ManaWebGpuSceneMesh sceneMesh);
+        public abstract void DrawMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh);
 
         // In the scene pass, so the lines depth-test against the depth the meshes just wrote.
         public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)
@@ -78,7 +74,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
                     Api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);
                 }
 
-                DrawMesh(Api, Gpu.Device, Gpu.Queue, pass, sceneMesh);
+                DrawMesh(pass, sceneMesh);
             }
         }
 

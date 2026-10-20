@@ -2,7 +2,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using ManaCore.Graphics;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     // Written once per frame -- group 0, binding 0. Identical for every mesh drawn this frame.
     [StructLayout(LayoutKind.Sequential)]

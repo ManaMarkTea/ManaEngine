@@ -214,7 +214,7 @@ or new tests were needed for this written map. Desktop/browser checks remain req
 
 - [Context and shutdown](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.cs)
 - [Host lifetime](../ManaGraphics/Code/Graphics/WebGPU/GameSilkWebGpu.cs)
-- [Resource base](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuResource.cs)
+- [Device object base](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuDeviceObject.cs)
 - [Render pass base](../ManaGraphics/Code/Graphics/WebGPU/Pipelines/ManaWebGpuRenderPass.cs)
 - [Scene meshes](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuSceneMeshes.cs)
 - [Texture references](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuMeshTextureCache.cs)
@@ -225,7 +225,7 @@ or new tests were needed for this written map. Desktop/browser checks remain req
 - [Environment](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuEnvironment.cs)
 - [Frame captures](../ManaGraphics/Code/Graphics/WebGPU/Renderers/ManaWebGpuFrameCapture.cs)
 - [Browser initialization](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.BrowserAsync.cs)
-- [Browser callback bridge](../ManaGraphics/Code/Graphics/WebGPU/Browser/ManaBrowserWebGpuCallbackBridge.cs)
+- [Browser callback bridge](../ManaGraphics/Code/Graphics/Browser/ManaBrowserWebGpuCallbackBridge.cs)
 - [Initialization request routing](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuInitializationRequests.cs)
 - [Partial acquisition rollback](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuAcquisition.cs)
 - [Browser native shim](../ManaGraphics/Native/mana_webgpu.c)

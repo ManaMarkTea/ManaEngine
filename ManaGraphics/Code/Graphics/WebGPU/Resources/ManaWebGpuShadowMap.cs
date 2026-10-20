@@ -2,12 +2,12 @@ using System.Numerics;
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     // Cascaded shadow maps for the scene's directional sun: three cascades in one texture array, fit to the camera's
     // frustum every frame. Apart from ManaWebGpuShadowPass because the frame bind group needs the map before any
     // pipeline exists. No texel snapping yet, so cascades can shimmer as the camera moves.
-    internal sealed unsafe class ManaWebGpuShadowMap : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuShadowMap : ManaWebGpuDeviceObject
     {
         public const int CascadeCount = 3;
         // Per cascade. 4096 on desktop (three Depth32 layers, about 200 MB); the browser keeps 2048, where memory is tighter.

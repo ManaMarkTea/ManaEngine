@@ -7,12 +7,10 @@ using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 #endif
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
-    internal unsafe sealed class ManaWebGpuHdrPostProcessor : IDisposable
+    internal unsafe sealed class ManaWebGpuHdrPostProcessor : ManaWebGpuDeviceObject
     {
-        private readonly WebGPU _api;
-        private readonly Device* _device;
         private readonly TextureFormat _surfaceFormat;
         private readonly TextureFormat _sceneFormat = TextureFormat.Rgba16float;
         private readonly ShaderModule* _shaderModule;
@@ -44,14 +42,9 @@ namespace ManaGraphics.Code.Graphics
         private BindGroup* _blurVBindGroup;
         private BindGroup* _combineBindGroup;
 
-        public ManaWebGpuHdrPostProcessor(
-            WebGPU api,
-            Device* device,
-            TextureFormat surfaceFormat,
-            string shaderPath)
+        public ManaWebGpuHdrPostProcessor(ManaWebGpuDevice gpu, TextureFormat surfaceFormat, string shaderPath)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
             _surfaceFormat = surfaceFormat;
             _sampler = CreateSampler();
             
@@ -106,12 +99,12 @@ namespace ManaGraphics.Code.Graphics
                     ColorAttachmentCount = 1,
                     ColorAttachments = &colorAttachment
                 };
-                var pass = _api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
-                _api.RenderPassEncoderSetPipeline(pass, _brightPipeline);
-                _api.RenderPassEncoderSetBindGroup(pass, 0, _brightBindGroup, 0, null);
-                _api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
-                _api.RenderPassEncoderEnd(pass);
-                _api.RenderPassEncoderRelease(pass);
+                var pass = Api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
+                Api.RenderPassEncoderSetPipeline(pass, _brightPipeline);
+                Api.RenderPassEncoderSetBindGroup(pass, 0, _brightBindGroup, 0, null);
+                Api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
+                Api.RenderPassEncoderEnd(pass);
+                Api.RenderPassEncoderRelease(pass);
             }
 
             // Pass 2: Blur H -> Bloom B
@@ -128,12 +121,12 @@ namespace ManaGraphics.Code.Graphics
                     ColorAttachmentCount = 1,
                     ColorAttachments = &colorAttachment
                 };
-                var pass = _api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
-                _api.RenderPassEncoderSetPipeline(pass, _blurHPipeline);
-                _api.RenderPassEncoderSetBindGroup(pass, 0, _blurHBindGroup, 0, null);
-                _api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
-                _api.RenderPassEncoderEnd(pass);
-                _api.RenderPassEncoderRelease(pass);
+                var pass = Api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
+                Api.RenderPassEncoderSetPipeline(pass, _blurHPipeline);
+                Api.RenderPassEncoderSetBindGroup(pass, 0, _blurHBindGroup, 0, null);
+                Api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
+                Api.RenderPassEncoderEnd(pass);
+                Api.RenderPassEncoderRelease(pass);
             }
 
             // Pass 3: Blur V -> Bloom A
@@ -150,12 +143,12 @@ namespace ManaGraphics.Code.Graphics
                     ColorAttachmentCount = 1,
                     ColorAttachments = &colorAttachment
                 };
-                var pass = _api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
-                _api.RenderPassEncoderSetPipeline(pass, _blurVPipeline);
-                _api.RenderPassEncoderSetBindGroup(pass, 0, _blurVBindGroup, 0, null);
-                _api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
-                _api.RenderPassEncoderEnd(pass);
-                _api.RenderPassEncoderRelease(pass);
+                var pass = Api.CommandEncoderBeginRenderPass(commandEncoder, &passDescriptor);
+                Api.RenderPassEncoderSetPipeline(pass, _blurVPipeline);
+                Api.RenderPassEncoderSetBindGroup(pass, 0, _blurVBindGroup, 0, null);
+                Api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
+                Api.RenderPassEncoderEnd(pass);
+                Api.RenderPassEncoderRelease(pass);
             }
         }
 
@@ -166,25 +159,25 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            _api.RenderPassEncoderSetPipeline(renderPass, _combinePipeline);
-            _api.RenderPassEncoderSetBindGroup(renderPass, 0, _combineBindGroup, 0, null);
-            _api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
+            Api.RenderPassEncoderSetPipeline(renderPass, _combinePipeline);
+            Api.RenderPassEncoderSetBindGroup(renderPass, 0, _combineBindGroup, 0, null);
+            Api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseSceneTarget();
 
-            if (_combinePipeline != null) _api.RenderPipelineRelease(_combinePipeline);
-            if (_blurVPipeline != null) _api.RenderPipelineRelease(_blurVPipeline);
-            if (_blurHPipeline != null) _api.RenderPipelineRelease(_blurHPipeline);
-            if (_brightPipeline != null) _api.RenderPipelineRelease(_brightPipeline);
+            if (_combinePipeline != null) Api.RenderPipelineRelease(_combinePipeline);
+            if (_blurVPipeline != null) Api.RenderPipelineRelease(_blurVPipeline);
+            if (_blurHPipeline != null) Api.RenderPipelineRelease(_blurHPipeline);
+            if (_brightPipeline != null) Api.RenderPipelineRelease(_brightPipeline);
 
-            if (_pipelineLayout != null) _api.PipelineLayoutRelease(_pipelineLayout);
-            if (_bindGroupLayout != null) _api.BindGroupLayoutRelease(_bindGroupLayout);
+            if (_pipelineLayout != null) Api.PipelineLayoutRelease(_pipelineLayout);
+            if (_bindGroupLayout != null) Api.BindGroupLayoutRelease(_bindGroupLayout);
 
-            if (_sampler != null) _api.SamplerRelease(_sampler);
-            if (_shaderModule != null) _api.ShaderModuleRelease(_shaderModule);
+            if (_sampler != null) Api.SamplerRelease(_sampler);
+            if (_shaderModule != null) Api.ShaderModuleRelease(_shaderModule);
         }
 
         private void CreateSceneTarget(Vector2D<int> framebufferSize)
@@ -205,7 +198,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _sceneTexture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            _sceneTexture = Api.DeviceCreateTexture(Device, &textureDescriptor);
             if (_sceneTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU HDR scene texture.");
@@ -220,7 +213,7 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.All
             };
 
-            _sceneTextureView = _api.TextureCreateView(_sceneTexture, &viewDescriptor);
+            _sceneTextureView = Api.TextureCreateView(_sceneTexture, &viewDescriptor);
             if (_sceneTextureView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU HDR scene texture view.");
@@ -228,7 +221,7 @@ namespace ManaGraphics.Code.Graphics
 
             var outlineMaskDescriptor = textureDescriptor;
             outlineMaskDescriptor.Format = TextureFormat.Rgba8Unorm;
-            _outlineMaskTexture = _api.DeviceCreateTexture(_device, &outlineMaskDescriptor);
+            _outlineMaskTexture = Api.DeviceCreateTexture(Device, &outlineMaskDescriptor);
             if (_outlineMaskTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU outline mask texture.");
@@ -236,7 +229,7 @@ namespace ManaGraphics.Code.Graphics
 
             var outlineMaskViewDescriptor = viewDescriptor;
             outlineMaskViewDescriptor.Format = TextureFormat.Rgba8Unorm;
-            _outlineMaskView = _api.TextureCreateView(_outlineMaskTexture, &outlineMaskViewDescriptor);
+            _outlineMaskView = Api.TextureCreateView(_outlineMaskTexture, &outlineMaskViewDescriptor);
             if (_outlineMaskView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU outline mask texture view.");
@@ -261,25 +254,25 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _bloomTextureA = _api.DeviceCreateTexture(_device, &bloomDescriptor);
+            _bloomTextureA = Api.DeviceCreateTexture(Device, &bloomDescriptor);
             if (_bloomTextureA == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU bloom texture A.");
             }
 
-            _bloomTextureB = _api.DeviceCreateTexture(_device, &bloomDescriptor);
+            _bloomTextureB = Api.DeviceCreateTexture(Device, &bloomDescriptor);
             if (_bloomTextureB == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU bloom texture B.");
             }
 
-            _bloomViewA = _api.TextureCreateView(_bloomTextureA, &viewDescriptor);
+            _bloomViewA = Api.TextureCreateView(_bloomTextureA, &viewDescriptor);
             if (_bloomViewA == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU bloom view A.");
             }
 
-            _bloomViewB = _api.TextureCreateView(_bloomTextureB, &viewDescriptor);
+            _bloomViewB = Api.TextureCreateView(_bloomTextureB, &viewDescriptor);
             if (_bloomViewB == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU bloom view B.");
@@ -292,49 +285,49 @@ namespace ManaGraphics.Code.Graphics
 
             if (_outlineMaskView != null)
             {
-                _api.TextureViewRelease(_outlineMaskView);
+                Api.TextureViewRelease(_outlineMaskView);
                 _outlineMaskView = null;
             }
 
             if (_outlineMaskTexture != null)
             {
-                _api.TextureRelease(_outlineMaskTexture);
+                Api.TextureRelease(_outlineMaskTexture);
                 _outlineMaskTexture = null;
             }
 
             if (_bloomViewB != null)
             {
-                _api.TextureViewRelease(_bloomViewB);
+                Api.TextureViewRelease(_bloomViewB);
                 _bloomViewB = null;
             }
 
             if (_bloomTextureB != null)
             {
-                _api.TextureRelease(_bloomTextureB);
+                Api.TextureRelease(_bloomTextureB);
                 _bloomTextureB = null;
             }
 
             if (_bloomViewA != null)
             {
-                _api.TextureViewRelease(_bloomViewA);
+                Api.TextureViewRelease(_bloomViewA);
                 _bloomViewA = null;
             }
 
             if (_bloomTextureA != null)
             {
-                _api.TextureRelease(_bloomTextureA);
+                Api.TextureRelease(_bloomTextureA);
                 _bloomTextureA = null;
             }
 
             if (_sceneTextureView != null)
             {
-                _api.TextureViewRelease(_sceneTextureView);
+                Api.TextureViewRelease(_sceneTextureView);
                 _sceneTextureView = null;
             }
 
             if (_sceneTexture != null)
             {
-                _api.TextureRelease(_sceneTexture);
+                Api.TextureRelease(_sceneTexture);
                 _sceneTexture = null;
             }
         }
@@ -355,7 +348,7 @@ namespace ManaGraphics.Code.Graphics
                 MaxAnisotropy = 1
             };
 
-            var sampler = _api.DeviceCreateSampler(_device, &descriptor);
+            var sampler = Api.DeviceCreateSampler(Device, &descriptor);
             if (sampler == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU tone-map sampler.");
@@ -415,7 +408,7 @@ namespace ManaGraphics.Code.Graphics
                 Entries = entries
             };
 
-            var layout = _api.DeviceCreateBindGroupLayout(_device, &descriptor);
+            var layout = Api.DeviceCreateBindGroupLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU tone-map bind group layout.");
@@ -433,7 +426,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayouts = &bindGroupLayout
             };
 
-            var layout = _api.DeviceCreatePipelineLayout(_device, &descriptor);
+            var layout = Api.DeviceCreatePipelineLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU tone-map pipeline layout.");
@@ -463,7 +456,7 @@ namespace ManaGraphics.Code.Graphics
                     NextInChain = &wgslDescriptor.Chain
                 };
 
-                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                var shaderModule = Api.DeviceCreateShaderModule(Device, &shaderDescriptor);
                 if (shaderModule == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU tone-map shader module from {shaderPath}.");
@@ -545,7 +538,7 @@ namespace ManaGraphics.Code.Graphics
                     Fragment = &fragmentState
                 };
 
-                var pipeline = _api.DeviceCreateRenderPipeline(_device, &descriptor);
+                var pipeline = Api.DeviceCreateRenderPipeline(Device, &descriptor);
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU pipeline for '{entryPoint}'.");
@@ -620,7 +613,7 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 descriptor->Label = (byte*)label;
-                return _api.DeviceCreateBindGroup(_device, descriptor);
+                return Api.DeviceCreateBindGroup(Device, descriptor);
             }
             finally
             {
@@ -632,25 +625,25 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_combineBindGroup != null)
             {
-                _api.BindGroupRelease(_combineBindGroup);
+                Api.BindGroupRelease(_combineBindGroup);
                 _combineBindGroup = null;
             }
 
             if (_blurVBindGroup != null)
             {
-                _api.BindGroupRelease(_blurVBindGroup);
+                Api.BindGroupRelease(_blurVBindGroup);
                 _blurVBindGroup = null;
             }
 
             if (_blurHBindGroup != null)
             {
-                _api.BindGroupRelease(_blurHBindGroup);
+                Api.BindGroupRelease(_blurHBindGroup);
                 _blurHBindGroup = null;
             }
 
             if (_brightBindGroup != null)
             {
-                _api.BindGroupRelease(_brightBindGroup);
+                Api.BindGroupRelease(_brightBindGroup);
                 _brightBindGroup = null;
             }
         }

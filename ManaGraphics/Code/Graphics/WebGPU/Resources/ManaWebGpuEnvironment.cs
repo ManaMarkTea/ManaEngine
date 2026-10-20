@@ -2,14 +2,15 @@ using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Renderers;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>
     /// The reflection and irradiance cubes: loaded in the background, activated at the frame boundary, prefiltered after
     /// each redraw. Exists even without scene pipelines, since loading waits on it.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuEnvironment : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuEnvironment : ManaWebGpuDeviceObject
     {
         private readonly ManaWebGpuEnvironmentLoad<ManaPreparedEnvironment> _loads = new();
         private ManaWebGpuEnvironmentReflectionMap? _pending;
@@ -48,7 +49,7 @@ namespace ManaGraphics.Code.Graphics
                 _loads.Start((progress, token) =>
                     ManaPreparedEnvironment.PrepareAsync(source, environmentPath, wantsPhoto, false, progress, token));
             }
-            Map ??= ManaWebGpuEnvironmentReflectionMap.CreateDummy(Gpu.Api, Gpu.Device, Gpu.Queue, source);
+            Map ??= ManaWebGpuEnvironmentReflectionMap.CreateDummy(Gpu, source);
 
             // Only ActivatePending swaps maps; reconciliation may already hold live mesh references.
             if (wantsPhoto && HasSameSource(Map.Source, source) && !Map.HasPhoto && !_isLoading)
@@ -93,7 +94,7 @@ namespace ManaGraphics.Code.Graphics
 
         private ManaWebGpuEnvironmentPrefilterCompute GetOrCreatePrefilter()
         {
-            return _prefilter ??= new ManaWebGpuEnvironmentPrefilterCompute(Gpu.Api, Gpu.Device, Gpu.Queue,
+            return _prefilter ??= new ManaWebGpuEnvironmentPrefilterCompute(Gpu,
                 ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("environment_prefilter_compute.wgsl")));
         }
 
@@ -140,7 +141,7 @@ namespace ManaGraphics.Code.Graphics
                         Map is { } active &&
                         HasSameSource(active.Source, prepared.Source) && prepared.Photo != null)
                     {
-                        active.WritePhoto(Gpu.Api, Gpu.Queue, prepared.Photo);
+                        active.WritePhoto(prepared.Photo);
                         PrefilterNow(active);
                         _photoStarted = !active.HasPhoto;
                     }
@@ -156,7 +157,7 @@ namespace ManaGraphics.Code.Graphics
                     return;
                 }
                 Loading.Report(new ManaLoadingProgress("Uploading WebGPU environment textures", 0.96f));
-                candidate = ManaWebGpuEnvironmentReflectionMap.Create(Gpu.Api, Gpu.Device, Gpu.Queue, prepared.Source, prepared.Data);
+                candidate = ManaWebGpuEnvironmentReflectionMap.Create(Gpu, prepared.Source, prepared.Data);
                 PrefilterNow(candidate);
                 _pending?.Dispose();
                 _pending = candidate;

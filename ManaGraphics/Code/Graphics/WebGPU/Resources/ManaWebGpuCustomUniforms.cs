@@ -4,7 +4,7 @@ using System.Numerics;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     internal static class ManaWebGpuCustomUniforms
     {

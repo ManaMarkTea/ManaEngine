@@ -4,7 +4,7 @@ using ManaGraphics.Code.Graphics.Browser;
 using Silk.NET.WebGPU;
 using Silk.NET.Windowing;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Browser
 {
     // Desktop's WebGPUSurface.CreateWebGPUSurface (Silk.NET.WebGPU.Extensions.WGPU) pulls a
     // native platform window handle (HWND/NSWindow/X11) that doesn't exist for a browser canvas.

@@ -2,8 +2,9 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>Draws the opaque meshes depth-only into each shadow cascade, before the scene pass samples them.</summary>
     internal sealed unsafe class ManaWebGpuShadowPass : ManaWebGpuRenderPass
@@ -47,7 +48,7 @@ namespace ManaGraphics.Code.Graphics
             };
             for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
-                _uniformBuffers[cascade] = Api.DeviceCreateBuffer(Gpu.Device, &uniformBufferDescriptor);
+                _uniformBuffers[cascade] = Api.DeviceCreateBuffer(Device, &uniformBufferDescriptor);
                 if (_uniformBuffers[cascade] == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU shadow uniform buffer.");
@@ -70,7 +71,7 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 1,
                 Entries = &layoutEntry
             };
-            _bindGroupLayout = Api.DeviceCreateBindGroupLayout(Gpu.Device, &layoutDescriptor);
+            _bindGroupLayout = Api.DeviceCreateBindGroupLayout(Device, &layoutDescriptor);
             if (_bindGroupLayout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU shadow bind group layout.");
@@ -91,7 +92,7 @@ namespace ManaGraphics.Code.Graphics
                     EntryCount = 1,
                     Entries = &entry
                 };
-                _bindGroups[cascade] = Api.DeviceCreateBindGroup(Gpu.Device, &descriptor);
+                _bindGroups[cascade] = Api.DeviceCreateBindGroup(Device, &descriptor);
                 if (_bindGroups[cascade] == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU shadow bind group.");
@@ -108,7 +109,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayoutCount = 2,
                 BindGroupLayouts = groups
             };
-            _pipelineLayout = Api.DeviceCreatePipelineLayout(Gpu.Device, &pipelineLayoutDescriptor);
+            _pipelineLayout = Api.DeviceCreatePipelineLayout(Device, &pipelineLayoutDescriptor);
             if (_pipelineLayout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU shadow pipeline layout.");
@@ -199,7 +200,7 @@ namespace ManaGraphics.Code.Graphics
                     Fragment = &fragmentState
                 };
 
-                var pipeline = Api.DeviceCreateRenderPipeline(Gpu.Device, &pipelineDescriptor);
+                var pipeline = Api.DeviceCreateRenderPipeline(Device, &pipelineDescriptor);
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU shadow depth pipeline.");
@@ -225,7 +226,7 @@ namespace ManaGraphics.Code.Graphics
             for (var cascade = 0; cascade < CascadeCount; cascade++)
             {
                 var lightViewProjection = _map.CascadeViewProjections[cascade];
-                Api.QueueWriteBuffer(Gpu.Queue, _uniformBuffers[cascade], 0, &lightViewProjection, (nuint)sizeof(Matrix4x4));
+                Api.QueueWriteBuffer(Queue, _uniformBuffers[cascade], 0, &lightViewProjection, (nuint)sizeof(Matrix4x4));
 
                 var depthAttachment = new RenderPassDepthStencilAttachment
                 {
@@ -265,7 +266,7 @@ namespace ManaGraphics.Code.Graphics
 
                         // This pass runs before the scene pass uploads the frame's object uniforms; a dirty-check
                         // against the same value, so the scene pass then finds nothing left to write.
-                        sceneMesh.TryUpdateObjectUniform(Api, Gpu.Queue, ManaWebGpuObjectUniform.For(sceneMesh.Instance));
+                        sceneMesh.TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(sceneMesh.Instance));
 
                         if (sceneMesh.ObjectBindGroup != null)
                         {

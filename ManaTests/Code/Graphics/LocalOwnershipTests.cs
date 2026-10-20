@@ -1,5 +1,6 @@
 using ManaGraphics.Code.Graphics;
 using ManaUI;
+using ManaGraphics.Code.Graphics.Resources;
 
 namespace ManaTests;
 

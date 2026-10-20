@@ -2,30 +2,24 @@ using System.Runtime.InteropServices;
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
-    internal unsafe sealed class ManaWebGpuEnvironmentPrefilterCompute : ManaComputeShader
+    internal unsafe sealed class ManaWebGpuEnvironmentPrefilterCompute : ManaWebGpuDeviceObject, IManaComputeShader
     {
-        private readonly WebGPU _api;
-        private readonly Device* _device;
-        private readonly Queue* _queue;
         private readonly ShaderModule* _shaderModule;
         private readonly BindGroupLayout* _bindGroupLayout;
         private readonly PipelineLayout* _pipelineLayout;
         private readonly ComputePipeline* _pipeline;
         private readonly Sampler* _sampler;
 
-        public ManaWebGpuEnvironmentPrefilterCompute(
-            WebGPU api,
-            Device* device,
-            Queue* queue,
-            string shaderPath)
-            : base(ManaGraphicsBackendKind.WebGpu, "Environment Prefilter")
+        public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
+        public string Name => "Environment Prefilter";
+
+        public ManaWebGpuEnvironmentPrefilterCompute(ManaWebGpuDevice gpu, string shaderPath)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
-            _queue = queue;
             _sampler = CreateSampler();
             _shaderModule = CreateShaderModule(shaderPath);
             _bindGroupLayout = CreateBindGroupLayout();
@@ -39,7 +33,7 @@ namespace ManaGraphics.Code.Graphics
             ManaWebGpuTextureResource irradianceMap)
         {
             var commandEncoderDescriptor = new CommandEncoderDescriptor();
-            var commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+            var commandEncoder = Api.DeviceCreateCommandEncoder(Device, &commandEncoderDescriptor);
             if (commandEncoder == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU command encoder for environment prefilter.");
@@ -52,16 +46,16 @@ namespace ManaGraphics.Code.Graphics
                 DispatchIrradiance(commandEncoder, destinationMap, irradianceMap);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
-                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
-                _api.QueueSubmit(_queue, 1, &commandBuffer);
+                commandBuffer = Api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                Api.QueueSubmit(Queue, 1, &commandBuffer);
             }
             finally
             {
                 if (commandBuffer != null)
                 {
-                    _api.CommandBufferRelease(commandBuffer);
+                    Api.CommandBufferRelease(commandBuffer);
                 }
-                _api.CommandEncoderRelease(commandEncoder);
+                Api.CommandEncoderRelease(commandEncoder);
             }
         }
 
@@ -128,11 +122,11 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (bindGroup != null)
                 {
-                    _api.BindGroupRelease(bindGroup);
+                    Api.BindGroupRelease(bindGroup);
                 }
                 if (parameterBuffer != null)
                 {
-                    _api.BufferRelease(parameterBuffer);
+                    Api.BufferRelease(parameterBuffer);
                 }
             }
         }
@@ -140,40 +134,40 @@ namespace ManaGraphics.Code.Graphics
         private void Run(CommandEncoder* commandEncoder, BindGroup* bindGroup, uint size)
         {
             var computePassDescriptor = new ComputePassDescriptor();
-            var computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
-            _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
-            _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
+            var computePass = Api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
+            Api.ComputePassEncoderSetPipeline(computePass, _pipeline);
+            Api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
             var dispatchSize = new ManaComputeDispatchSize((size + 7u) / 8u, (size + 7u) / 8u, 6u);
-            _api.ComputePassEncoderDispatchWorkgroups(computePass, dispatchSize.X, dispatchSize.Y, dispatchSize.Z);
-            _api.ComputePassEncoderEnd(computePass);
-            _api.ComputePassEncoderRelease(computePass);
+            Api.ComputePassEncoderDispatchWorkgroups(computePass, dispatchSize.X, dispatchSize.Y, dispatchSize.Z);
+            Api.ComputePassEncoderEnd(computePass);
+            Api.ComputePassEncoderRelease(computePass);
         }
 
         public override void Dispose()
         {
             if (_sampler != null)
             {
-                _api.SamplerRelease(_sampler);
+                Api.SamplerRelease(_sampler);
             }
 
             if (_pipeline != null)
             {
-                _api.ComputePipelineRelease(_pipeline);
+                Api.ComputePipelineRelease(_pipeline);
             }
 
             if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_pipelineLayout);
+                Api.PipelineLayoutRelease(_pipelineLayout);
             }
 
             if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                Api.BindGroupLayoutRelease(_bindGroupLayout);
             }
 
             if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_shaderModule);
+                Api.ShaderModuleRelease(_shaderModule);
             }
         }
 
@@ -207,13 +201,13 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
                 Size = (ulong)sizeof(ManaWebGpuEnvironmentPrefilterUniform)
             };
-            var parameterBuffer = _api.DeviceCreateBuffer(_device, &bufferDescriptor);
+            var parameterBuffer = Api.DeviceCreateBuffer(Device, &bufferDescriptor);
             if (parameterBuffer == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU environment prefilter parameter buffer.");
             }
 
-            _api.QueueWriteBuffer(_queue, parameterBuffer, 0, &parameters, (nuint)sizeof(ManaWebGpuEnvironmentPrefilterUniform));
+            Api.QueueWriteBuffer(Queue, parameterBuffer, 0, &parameters, (nuint)sizeof(ManaWebGpuEnvironmentPrefilterUniform));
             return parameterBuffer;
         }
 
@@ -252,7 +246,7 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 4,
                 Entries = bindGroupEntries
             };
-            var bindGroup = _api.DeviceCreateBindGroup(_device, &bindGroupDescriptor);
+            var bindGroup = Api.DeviceCreateBindGroup(Device, &bindGroupDescriptor);
             if (bindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU environment prefilter bind group.");
@@ -276,7 +270,7 @@ namespace ManaGraphics.Code.Graphics
                 Compare = CompareFunction.Undefined,
                 MaxAnisotropy = 1
             };
-            var sampler = _api.DeviceCreateSampler(_device, &samplerDescriptor);
+            var sampler = Api.DeviceCreateSampler(Device, &samplerDescriptor);
             if (sampler == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU environment prefilter sampler.");
@@ -306,7 +300,7 @@ namespace ManaGraphics.Code.Graphics
                     NextInChain = &wgslDescriptor.Chain
                 };
 
-                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                var shaderModule = Api.DeviceCreateShaderModule(Device, &shaderDescriptor);
                 if (shaderModule == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU environment prefilter shader module from {shaderPath}.");
@@ -379,7 +373,7 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 4,
                 Entries = entries
             };
-            var layout = _api.DeviceCreateBindGroupLayout(_device, &descriptor);
+            var layout = Api.DeviceCreateBindGroupLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU environment prefilter bind group layout.");
@@ -396,7 +390,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayoutCount = 1,
                 BindGroupLayouts = &bindGroupLayout
             };
-            var layout = _api.DeviceCreatePipelineLayout(_device, &descriptor);
+            var layout = Api.DeviceCreatePipelineLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU environment prefilter pipeline layout.");
@@ -419,7 +413,7 @@ namespace ManaGraphics.Code.Graphics
                         EntryPoint = (byte*)entryPoint
                     }
                 };
-                var pipeline = _api.DeviceCreateComputePipeline(_device, &descriptor);
+                var pipeline = Api.DeviceCreateComputePipeline(Device, &descriptor);
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU environment prefilter compute pipeline.");

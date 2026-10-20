@@ -1,4 +1,4 @@
-namespace ManaGraphics.Code.Graphics;
+namespace ManaGraphics.Code.Graphics.Resources;
 
 internal static class ManaWebGpuAcquisition
 {

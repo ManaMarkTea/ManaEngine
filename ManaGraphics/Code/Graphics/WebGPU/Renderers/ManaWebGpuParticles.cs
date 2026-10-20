@@ -4,14 +4,11 @@ using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using GpuBuffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics;
+namespace ManaGraphics.Code.Graphics.Renderers;
 
 /// <summary>Six procedural vertices per instance; one uniform and draw per emitter.</summary>
-internal unsafe sealed class ManaWebGpuParticles : IDisposable
+internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
 {
-    private readonly WebGPU _api;
-    private readonly Device* _device;
-    private readonly Queue* _queue;
     private BindGroupLayout* _layout;
     private PipelineLayout* _pipelineLayout;
     private RenderPipeline* _pipeline;
@@ -32,10 +29,9 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
         public Vector4 History, BouncePlane1, BouncePlane2, BounceSettings, Wind;
     }
 
-    public ManaWebGpuParticles(WebGPU api, Device* device, Queue* queue,
-        TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
+    public ManaWebGpuParticles(ManaWebGpuDevice gpu, TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
+        : base(gpu)
     {
-        _api = api; _device = device; _queue = queue;
         try { CreatePipeline(colorFormat, depthFormat, shaderPath); }
         catch { Dispose(); throw; }
     }
@@ -45,7 +41,7 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
     {
         long drawn = 0;
         Matrix4x4.Invert(camera.View, out var inverseView);
-        _api.RenderPassEncoderSetPipeline(pass, _pipeline);
+        Api.RenderPassEncoderSetPipeline(pass, _pipeline);
         for (var i = 0; i < emitters.Count; i++)
         {
             var emitter = emitters[i];
@@ -71,14 +67,14 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
             if (!slot.SpawnTransforms.Equals(emitter.SpawnTransforms) || slot.SpawnRevision != emitter.SpawnRevision)
             {
                 fixed (Matrix4x4* history = emitter.SpawnTransforms.Span)
-                    _api.QueueWriteBuffer(_queue, (GpuBuffer*)slot.History, 0, history,
+                    Api.QueueWriteBuffer(Queue, (GpuBuffer*)slot.History, 0, history,
                         (nuint)(emitter.SpawnTransforms.Length * sizeof(Matrix4x4)));
                 slot.SpawnTransforms = emitter.SpawnTransforms;
                 slot.SpawnRevision = emitter.SpawnRevision;
             }
-            _api.QueueWriteBuffer(_queue, (GpuBuffer*)slot.Buffer, 0, &uniform, (nuint)sizeof(Uniform));
-            _api.RenderPassEncoderSetBindGroup(pass, 0, (BindGroup*)slot.Group, 0, null);
-            _api.RenderPassEncoderDraw(pass, 6, (uint)count, 0, 0);
+            Api.QueueWriteBuffer(Queue, (GpuBuffer*)slot.Buffer, 0, &uniform, (nuint)sizeof(Uniform));
+            Api.RenderPassEncoderSetBindGroup(pass, 0, (BindGroup*)slot.Group, 0, null);
+            Api.RenderPassEncoderDraw(pass, 6, (uint)count, 0, 0);
             drawn += count;
         }
         return drawn;
@@ -90,16 +86,16 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
         while (_slots.Count <= index)
         {
             var descriptor = new BufferDescriptor { Size = (ulong)sizeof(Uniform), Usage = BufferUsage.Uniform | BufferUsage.CopyDst };
-            var buffer = _api.DeviceCreateBuffer(_device, &descriptor);
+            var buffer = Api.DeviceCreateBuffer(Device, &descriptor);
             if (buffer == null) throw new InvalidOperationException("Cannot create GPU particle uniform.");
             var historyDescriptor = new BufferDescriptor { Size = 256 * (ulong)sizeof(Matrix4x4), Usage = BufferUsage.Storage | BufferUsage.CopyDst };
-            var history = _api.DeviceCreateBuffer(_device, &historyDescriptor);
-            if (history == null) { _api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle spawn history."); }
+            var history = Api.DeviceCreateBuffer(Device, &historyDescriptor);
+            if (history == null) { Api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle spawn history."); }
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = buffer, Size = (ulong)sizeof(Uniform) };
             entries[1] = new BindGroupEntry { Binding = 1, Buffer = history, Size = historyDescriptor.Size };
             var groupDescriptor = new BindGroupDescriptor { Layout = _layout, EntryCount = 2, Entries = entries };
-            var group = _api.DeviceCreateBindGroup(_device, &groupDescriptor);
-            if (group == null) { _api.BufferRelease(history); _api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle bind group."); }
+            var group = Api.DeviceCreateBindGroup(Device, &groupDescriptor);
+            if (group == null) { Api.BufferRelease(history); Api.BufferRelease(buffer); throw new InvalidOperationException("Cannot create GPU particle bind group."); }
             _slots.Add(new Slot { Buffer = (nint)buffer, Group = (nint)group, History = (nint)history });
         }
     }
@@ -119,11 +115,11 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
             Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage, MinBindingSize = 256 * (ulong)sizeof(Matrix4x4) }
         };
         var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 2, Entries = entries };
-        _layout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
+        _layout = Api.DeviceCreateBindGroupLayout(Device, &layoutDescriptor);
         if (_layout == null) throw new InvalidOperationException("Cannot create GPU particle layout.");
         var layout = _layout;
         var pipelineLayoutDescriptor = new PipelineLayoutDescriptor { BindGroupLayoutCount = 1, BindGroupLayouts = &layout };
-        _pipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+        _pipelineLayout = Api.DeviceCreatePipelineLayout(Device, &pipelineLayoutDescriptor);
         if (_pipelineLayout == null) throw new InvalidOperationException("Cannot create GPU particle pipeline layout.");
         var source = Marshal.StringToCoTaskMemUTF8(File.ReadAllText(shaderPath));
         var vertexEntry = Marshal.StringToCoTaskMemUTF8("vs_main");
@@ -133,7 +129,7 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
         {
             var wgsl = new ShaderModuleWGSLDescriptor { Chain = new ChainedStruct { SType = SType.ShaderModuleWgslDescriptor }, Code = (byte*)source };
             var shaderDescriptor = new ShaderModuleDescriptor { NextInChain = &wgsl.Chain };
-            shader = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+            shader = Api.DeviceCreateShaderModule(Device, &shaderDescriptor);
             if (shader == null) throw new InvalidOperationException("Cannot create GPU particle shader.");
             var blend = new BlendState
             {
@@ -152,22 +148,22 @@ internal unsafe sealed class ManaWebGpuParticles : IDisposable
                 Primitive = new PrimitiveState { Topology = PrimitiveTopology.TriangleList, FrontFace = FrontFace.Ccw, CullMode = CullMode.None },
                 Multisample = new MultisampleState { Count = 1, Mask = uint.MaxValue }
             };
-            _pipeline = _api.DeviceCreateRenderPipeline(_device, &descriptor);
+            _pipeline = Api.DeviceCreateRenderPipeline(Device, &descriptor);
             if (_pipeline == null) throw new InvalidOperationException("Cannot create GPU particle pipeline.");
         }
         finally
         {
-            if (shader != null) _api.ShaderModuleRelease(shader);
+            if (shader != null) Api.ShaderModuleRelease(shader);
             Marshal.FreeCoTaskMem(source); Marshal.FreeCoTaskMem(vertexEntry); Marshal.FreeCoTaskMem(fragmentEntry);
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
-        foreach (var slot in _slots) { _api.BindGroupRelease((BindGroup*)slot.Group); _api.BufferRelease((GpuBuffer*)slot.Buffer); _api.BufferRelease((GpuBuffer*)slot.History); }
+        foreach (var slot in _slots) { Api.BindGroupRelease((BindGroup*)slot.Group); Api.BufferRelease((GpuBuffer*)slot.Buffer); Api.BufferRelease((GpuBuffer*)slot.History); }
         _slots.Clear();
-        if (_pipeline != null) { _api.RenderPipelineRelease(_pipeline); _pipeline = null; }
-        if (_pipelineLayout != null) { _api.PipelineLayoutRelease(_pipelineLayout); _pipelineLayout = null; }
-        if (_layout != null) { _api.BindGroupLayoutRelease(_layout); _layout = null; }
+        if (_pipeline != null) { Api.RenderPipelineRelease(_pipeline); _pipeline = null; }
+        if (_pipelineLayout != null) { Api.PipelineLayoutRelease(_pipelineLayout); _pipelineLayout = null; }
+        if (_layout != null) { Api.BindGroupLayoutRelease(_layout); _layout = null; }
     }
 }

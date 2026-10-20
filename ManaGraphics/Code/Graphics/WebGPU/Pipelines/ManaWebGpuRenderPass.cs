@@ -1,13 +1,14 @@
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>
     /// One piece of the frame, owning its pipelines and GPU state. Registered in frame order; overrides only the hooks
     /// it draws in. Disposed in reverse order, before the shared bindings and the device.
     /// </summary>
-    internal abstract unsafe class ManaWebGpuRenderPass : ManaWebGpuResource
+    internal abstract unsafe class ManaWebGpuRenderPass : ManaWebGpuDeviceObject
     {
         protected ManaWebGpuRenderPass(ManaWebGpuDevice gpu)
             : base(gpu)

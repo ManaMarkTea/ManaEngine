@@ -3,12 +3,14 @@ using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaGraphics.Code.Graphics.Pipelines;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     // Square off-screen renders for the asset browser's thumbnails (MeshThumbnailCache). Its single worker waits on
     // each request, so one set of targets is reused.
-    internal sealed unsafe class ManaWebGpuThumbnailRenderer : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuThumbnailRenderer : ManaWebGpuDeviceObject
     {
         private const uint ThumbnailBytesPerPixel = 4;
         private const float ThumbnailInset = 0.1f;
@@ -75,7 +77,7 @@ namespace ManaGraphics.Code.Graphics
 
                 // Readback retirement owns submitted draw resources; finally owns partial construction.
                 var commandEncoderDescriptor = new CommandEncoderDescriptor();
-                commandEncoder = Api.DeviceCreateCommandEncoder(Gpu.Device, &commandEncoderDescriptor);
+                commandEncoder = Api.DeviceCreateCommandEncoder(Device, &commandEncoderDescriptor);
                 if (commandEncoder == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU thumbnail command encoder.");
@@ -127,7 +129,7 @@ namespace ManaGraphics.Code.Graphics
 
                     var resources = new DrawResources();
                     drawResources.Add(resources);
-                    var mesh = ManaWebGpuMesh.CreateFromMeshData(Api, Gpu.Device, Gpu.Queue, instance.MeshData, instance.Name);
+                    var mesh = ManaWebGpuMesh.CreateFromMeshData(Gpu, instance.MeshData, instance.Name);
                     resources.Mesh = mesh;
                     var texture = _meshTextures.AcquireMeshTexture(instance.MeshData);
                     resources.Texture = texture;
@@ -137,14 +139,14 @@ namespace ManaGraphics.Code.Graphics
                         Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
                         Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
                     };
-                    var uniformBuffer = Api.DeviceCreateBuffer(Gpu.Device, &uniformBufferDescriptor);
+                    var uniformBuffer = Api.DeviceCreateBuffer(Device, &uniformBufferDescriptor);
                     resources.UniformBuffer = (nint)uniformBuffer;
                     if (uniformBuffer == null)
                     {
                         throw new InvalidOperationException("Failed to create WebGPU thumbnail uniform buffer.");
                     }
                     var uniform = BuildUniform(instance, camera);
-                    Api.QueueWriteBuffer(Gpu.Queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
+                    Api.QueueWriteBuffer(Queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
 
                     bindGroupEntries[0] = new BindGroupEntry
                     {
@@ -162,7 +164,7 @@ namespace ManaGraphics.Code.Graphics
                         EntryCount = 3,
                         Entries = bindGroupEntries
                     };
-                    var bindGroup = Api.DeviceCreateBindGroup(Gpu.Device, &bindGroupDescriptor);
+                    var bindGroup = Api.DeviceCreateBindGroup(Device, &bindGroupDescriptor);
                     resources.BindGroup = (nint)bindGroup;
                     if (bindGroup == null)
                     {
@@ -187,7 +189,7 @@ namespace ManaGraphics.Code.Graphics
                     Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
                     Size = readbackByteCount
                 };
-                outputBuffer = Api.DeviceCreateBuffer(Gpu.Device, &outputBufferDescriptor);
+                outputBuffer = Api.DeviceCreateBuffer(Device, &outputBufferDescriptor);
                 if (outputBuffer == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU thumbnail readback buffer.");
@@ -224,7 +226,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     throw new InvalidOperationException("Failed to finish WebGPU thumbnail commands.");
                 }
-                Api.QueueSubmit(Gpu.Queue, 1, &commandBuffer);
+                Api.QueueSubmit(Queue, 1, &commandBuffer);
                 var retiredDrawResources = drawResources;
                 var readbackTask = ManaWebGpuBufferReadback.MapAsync(Api, outputBuffer, readbackByteCount,
                     _readbacks, () => DisposeDrawResources(retiredDrawResources));
@@ -505,7 +507,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            _colorTexture = Api.DeviceCreateTexture(Gpu.Device, &colorDescriptor);
+            _colorTexture = Api.DeviceCreateTexture(Device, &colorDescriptor);
             if (_colorTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail color texture.");
@@ -536,7 +538,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            _depthTexture = Api.DeviceCreateTexture(Gpu.Device, &depthDescriptor);
+            _depthTexture = Api.DeviceCreateTexture(Device, &depthDescriptor);
             if (_depthTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail depth texture.");

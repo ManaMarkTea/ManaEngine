@@ -1,7 +1,8 @@
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics.Overlays
+namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
 {
     /// <summary>Each mesh's edges: its own vertices through a line index buffer.</summary>
     internal sealed unsafe class ManaWebGpuWireframeOverlay : ManaWebGpuOverlayPass
@@ -17,14 +18,9 @@ namespace ManaGraphics.Code.Graphics.Overlays
 
         public override bool IsEnabled(ManaIrradianceSettings settings) => settings.WireframeEnabled;
 
-        public override void DrawMesh(
-            WebGPU api,
-            Device* device,
-            Queue* queue,
-            RenderPassEncoder* renderPass,
-            ManaWebGpuSceneMesh sceneMesh)
+        public override void DrawMesh(RenderPassEncoder* renderPass, ManaWebGpuSceneMesh sceneMesh)
         {
-            if (!sceneMesh.TryGetOrCreateWireframeIndexBuffer(api, device, queue, out var buffer, out var indexCount))
+            if (!sceneMesh.TryGetOrCreateWireframeIndexBuffer(out var buffer, out var indexCount))
             {
                 return;
             }

@@ -5,17 +5,14 @@ using Silk.NET.WebGPU;
 using Silk.NET.WebGPU.Extensions.WGPU;
 using Silk.NET.Windowing;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>
     /// A UI-only surface for a native panel window on the editor's device; the context disposes any still open before it
-    /// releases the device.
+    /// releases the device. Owns its surface and UI renderer.
     /// </summary>
-    public sealed unsafe class ManaWebGpuPanelSurface : IUiWindowRenderer
+    internal sealed unsafe class ManaWebGpuPanelSurface : ManaWebGpuDeviceObject, IUiWindowRenderer
     {
-        private readonly WebGPU _api;
-        private readonly Device* _device;
-        private readonly Queue* _queue;
         private readonly IWindow _window;
         private readonly Action<ManaWebGpuPanelSurface> _closed;
         private Surface* _surface;
@@ -25,13 +22,11 @@ namespace ManaGraphics.Code.Graphics
         private Vector2D<int> _size;
         private bool _configured;
 
-        internal ManaWebGpuPanelSurface(
-            WebGPU api, Instance* instance, Adapter* adapter, Device* device, Queue* queue, IWindow window,
-            Action<ManaWebGpuPanelSurface> closed)
+        public ManaWebGpuPanelSurface(
+            ManaWebGpuDevice gpu, Instance* instance, Adapter* adapter, IWindow window, Action<ManaWebGpuPanelSurface> closed)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
-            _queue = queue;
+            var api = gpu.Api;
             _window = window;
             _closed = closed;
             try
@@ -65,7 +60,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     api.SurfaceCapabilitiesFreeMembers(capabilities);
                 }
-                _renderer = new ManaWebGpuUiRenderer(api, device, queue, _format);
+                _renderer = new ManaWebGpuUiRenderer(gpu, _format);
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Panel UI surface: present={_presentMode}.");
             }
             catch
@@ -87,15 +82,15 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (_configured)
                 {
-                    _api.SurfaceUnconfigure(_surface);
+                    Api.SurfaceUnconfigure(_surface);
                 }
                 var configuration = new SurfaceConfiguration
                 {
-                    Device = _device, Format = _format, Usage = TextureUsage.RenderAttachment,
+                    Device = Device, Format = _format, Usage = TextureUsage.RenderAttachment,
                     Width = (uint)size.X, Height = (uint)size.Y,
                     PresentMode = _presentMode, AlphaMode = CompositeAlphaMode.Opaque
                 };
-                _api.SurfaceConfigure(_surface, &configuration);
+                Api.SurfaceConfigure(_surface, &configuration);
                 _configured = true;
                 _size = size;
             }
@@ -103,18 +98,18 @@ namespace ManaGraphics.Code.Graphics
             SurfaceTexture texture = default;
             using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Panel UI: Acquire"))
             {
-                _api.SurfaceGetCurrentTexture(_surface, &texture);
+                Api.SurfaceGetCurrentTexture(_surface, &texture);
             }
             if (texture.Status != SurfaceGetCurrentTextureStatus.Success || texture.Texture == null)
             {
                 if (texture.Texture != null)
                 {
-                    _api.TextureRelease(texture.Texture);
+                    Api.TextureRelease(texture.Texture);
                 }
                 // A timeout leaves the surface valid; rebuilding it can wait for the entire shared queue.
                 if (texture.Status != SurfaceGetCurrentTextureStatus.Timeout)
                 {
-                    _api.SurfaceUnconfigure(_surface);
+                    Api.SurfaceUnconfigure(_surface);
                     _configured = false;
                 }
                 return;
@@ -126,39 +121,39 @@ namespace ManaGraphics.Code.Graphics
             CommandBuffer* commands = null;
             try
             {
-                view = _api.TextureCreateView(texture.Texture, (TextureViewDescriptor*)null);
+                view = Api.TextureCreateView(texture.Texture, (TextureViewDescriptor*)null);
                 if (view == null)
                 {
                     return;
                 }
-                encoder = _api.DeviceCreateCommandEncoder(_device, (CommandEncoderDescriptor*)null);
+                encoder = Api.DeviceCreateCommandEncoder(Device, (CommandEncoderDescriptor*)null);
                 var attachment = new RenderPassColorAttachment
                 {
                     View = view, LoadOp = LoadOp.Clear, StoreOp = StoreOp.Store,
                     ClearValue = new Color { R = 0.055, G = 0.06, B = 0.07, A = 1 }
                 };
                 var descriptor = new RenderPassDescriptor { ColorAttachmentCount = 1, ColorAttachments = &attachment };
-                pass = _api.CommandEncoderBeginRenderPass(encoder, &descriptor);
+                pass = Api.CommandEncoderBeginRenderPass(encoder, &descriptor);
                 _renderer!.Render(pass, root.DrawList, root.Atlas, root.Images, root.Size, (uint)size.X, (uint)size.Y);
-                _api.RenderPassEncoderEnd(pass);
-                commands = _api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
-                _api.QueueSubmit(_queue, 1, &commands);
+                Api.RenderPassEncoderEnd(pass);
+                commands = Api.CommandEncoderFinish(encoder, (CommandBufferDescriptor*)null);
+                Api.QueueSubmit(Queue, 1, &commands);
                 using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Panel UI: Present"))
                 {
-                    _api.SurfacePresent(_surface);
+                    Api.SurfacePresent(_surface);
                 }
             }
             finally
             {
-                if (commands != null) { _api.CommandBufferRelease(commands); }
-                if (pass != null) { _api.RenderPassEncoderRelease(pass); }
-                if (encoder != null) { _api.CommandEncoderRelease(encoder); }
-                if (view != null) { _api.TextureViewRelease(view); }
-                _api.TextureRelease(texture.Texture);
+                if (commands != null) { Api.CommandBufferRelease(commands); }
+                if (pass != null) { Api.RenderPassEncoderRelease(pass); }
+                if (encoder != null) { Api.CommandEncoderRelease(encoder); }
+                if (view != null) { Api.TextureViewRelease(view); }
+                Api.TextureRelease(texture.Texture);
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _closed(this);
             _renderer?.Dispose();
@@ -169,9 +164,9 @@ namespace ManaGraphics.Code.Graphics
             }
             if (_configured)
             {
-                _api.SurfaceUnconfigure(_surface);
+                Api.SurfaceUnconfigure(_surface);
             }
-            _api.SurfaceRelease(_surface);
+            Api.SurfaceRelease(_surface);
             _surface = null;
         }
     }

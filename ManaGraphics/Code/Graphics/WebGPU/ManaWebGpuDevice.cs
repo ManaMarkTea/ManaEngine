@@ -1,5 +1,8 @@
 using System.Runtime.InteropServices;
 using Silk.NET.WebGPU;
+#if MANA_BROWSER
+using ManaGraphics.Code.Graphics.Browser;
+#endif
 
 namespace ManaGraphics.Code.Graphics
 {

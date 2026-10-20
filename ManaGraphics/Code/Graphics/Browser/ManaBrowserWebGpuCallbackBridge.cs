@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.JavaScript;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Browser
 {
     // Requests the adapter and device through plain JS, around an Emscripten dynCall bug in the normal callback
     // path. Request IDs keep a late promise out of a fresh context; JS releases rejected handles.

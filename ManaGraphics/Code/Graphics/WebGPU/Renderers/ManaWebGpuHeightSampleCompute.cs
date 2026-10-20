@@ -4,12 +4,13 @@ using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     // Samples planet heights on the GPU (height_sample_compute.wgsl) for PlanetPatchMesh. Buffers are made per call.
     // Not unsafe at class level: SampleHeightsAsync awaits, so pointer members are marked unsafe one by one.
-    internal sealed class ManaWebGpuHeightSampleCompute : ManaComputeShader
+    internal sealed class ManaWebGpuHeightSampleCompute : ManaWebGpuDeviceObject, IManaComputeShader
     {
         // Bounds pre-projected to Web Mercator here, once per tile, instead of per point and tile in the shader's hot loop,
         // which hung the GPU.
@@ -39,26 +40,18 @@ namespace ManaGraphics.Code.Graphics
             return new Vector2(x, y);
         }
 
-        private readonly WebGPU _api;
-        private readonly unsafe Device* _device;
-        private readonly unsafe Queue* _queue;
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry;
         private readonly unsafe ShaderModule* _shaderModule;
         private readonly unsafe BindGroupLayout* _bindGroupLayout;
         private readonly unsafe PipelineLayout* _pipelineLayout;
         private readonly unsafe ComputePipeline* _pipeline;
 
-        public unsafe ManaWebGpuHeightSampleCompute(
-            WebGPU api,
-            Device* device,
-            Queue* queue,
-            ManaWebGpuReadbackRegistry readbackRegistry,
-            string shaderPath)
-            : base(ManaGraphicsBackendKind.WebGpu, "Height Sample")
+        public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
+        public string Name => "Height Sample";
+
+        public unsafe ManaWebGpuHeightSampleCompute(ManaWebGpuDevice gpu, ManaWebGpuReadbackRegistry readbackRegistry, string shaderPath)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
-            _queue = queue;
             _readbackRegistry = readbackRegistry;
             try
             {
@@ -156,52 +149,52 @@ namespace ManaGraphics.Code.Graphics
                 bindGroup = CreateBindGroup(pointsBuffer, tilesBuffer, heightDataBuffer, outputBuffer, tileCountBuffer);
 
                 var commandEncoderDescriptor = new CommandEncoderDescriptor();
-                commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
+                commandEncoder = Api.DeviceCreateCommandEncoder(Device, &commandEncoderDescriptor);
                 if (commandEncoder == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU command encoder for height sampling.");
                 }
 
                 var computePassDescriptor = new ComputePassDescriptor();
-                computePass = _api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
+                computePass = Api.CommandEncoderBeginComputePass(commandEncoder, &computePassDescriptor);
                 if (computePass == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU height-sample compute pass.");
                 }
-                _api.ComputePassEncoderSetPipeline(computePass, _pipeline);
-                _api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
+                Api.ComputePassEncoderSetPipeline(computePass, _pipeline);
+                Api.ComputePassEncoderSetBindGroup(computePass, 0, bindGroup, 0, null);
                 var workgroups = (uint)((points.Length + 63) / 64);
-                _api.ComputePassEncoderDispatchWorkgroups(computePass, workgroups, 1, 1);
-                _api.ComputePassEncoderEnd(computePass);
-                _api.ComputePassEncoderRelease(computePass);
+                Api.ComputePassEncoderDispatchWorkgroups(computePass, workgroups, 1, 1);
+                Api.ComputePassEncoderEnd(computePass);
+                Api.ComputePassEncoderRelease(computePass);
                 computePass = null;
 
-                stagingBuffer = ManaWebGpuBufferReadback.EncodeCopyToStaging(_api, _device, commandEncoder, outputBuffer, outputByteSize);
+                stagingBuffer = ManaWebGpuBufferReadback.EncodeCopyToStaging(Api, Device, commandEncoder, outputBuffer, outputByteSize);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
-                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                commandBuffer = Api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
                 if (commandBuffer == null)
                 {
                     throw new InvalidOperationException("Failed to finish WebGPU height-sample commands.");
                 }
-                _api.QueueSubmit(_queue, 1, &commandBuffer);
+                Api.QueueSubmit(Queue, 1, &commandBuffer);
 
-                var readback = ManaWebGpuBufferReadback.MapAsync(_api, stagingBuffer, outputByteSize, _readbackRegistry);
+                var readback = ManaWebGpuBufferReadback.MapAsync(Api, stagingBuffer, outputByteSize, _readbackRegistry);
                 stagingBuffer = null;
                 return readback;
             }
             finally
             {
-                if (computePass != null) { _api.ComputePassEncoderRelease(computePass); }
-                if (commandBuffer != null) { _api.CommandBufferRelease(commandBuffer); }
-                if (commandEncoder != null) { _api.CommandEncoderRelease(commandEncoder); }
-                if (bindGroup != null) { _api.BindGroupRelease(bindGroup); }
-                if (pointsBuffer != null) { _api.BufferRelease(pointsBuffer); }
-                if (tilesBuffer != null) { _api.BufferRelease(tilesBuffer); }
-                if (heightDataBuffer != null) { _api.BufferRelease(heightDataBuffer); }
-                if (outputBuffer != null) { _api.BufferRelease(outputBuffer); }
-                if (tileCountBuffer != null) { _api.BufferRelease(tileCountBuffer); }
-                if (stagingBuffer != null) { _api.BufferRelease(stagingBuffer); }
+                if (computePass != null) { Api.ComputePassEncoderRelease(computePass); }
+                if (commandBuffer != null) { Api.CommandBufferRelease(commandBuffer); }
+                if (commandEncoder != null) { Api.CommandEncoderRelease(commandEncoder); }
+                if (bindGroup != null) { Api.BindGroupRelease(bindGroup); }
+                if (pointsBuffer != null) { Api.BufferRelease(pointsBuffer); }
+                if (tilesBuffer != null) { Api.BufferRelease(tilesBuffer); }
+                if (heightDataBuffer != null) { Api.BufferRelease(heightDataBuffer); }
+                if (outputBuffer != null) { Api.BufferRelease(outputBuffer); }
+                if (tileCountBuffer != null) { Api.BufferRelease(tileCountBuffer); }
+                if (stagingBuffer != null) { Api.BufferRelease(stagingBuffer); }
             }
         }
 
@@ -216,22 +209,22 @@ namespace ManaGraphics.Code.Graphics
             _disposed = true;
             if (_pipeline != null)
             {
-                _api.ComputePipelineRelease(_pipeline);
+                Api.ComputePipelineRelease(_pipeline);
             }
 
             if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_pipelineLayout);
+                Api.PipelineLayoutRelease(_pipelineLayout);
             }
 
             if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                Api.BindGroupLayoutRelease(_bindGroupLayout);
             }
 
             if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_shaderModule);
+                Api.ShaderModuleRelease(_shaderModule);
             }
         }
 
@@ -242,7 +235,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = usage,
                 Size = Math.Max(4ul, byteSize)
             };
-            var buffer = _api.DeviceCreateBuffer(_device, &descriptor);
+            var buffer = Api.DeviceCreateBuffer(Device, &descriptor);
             if (buffer == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU height-sample buffer.");
@@ -259,7 +252,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 fixed (T* dataPointer = data)
                 {
-                    _api.QueueWriteBuffer(_queue, buffer, 0, dataPointer, (nuint)byteSize);
+                    Api.QueueWriteBuffer(Queue, buffer, 0, dataPointer, (nuint)byteSize);
                 }
             }
 
@@ -269,7 +262,7 @@ namespace ManaGraphics.Code.Graphics
         private unsafe WebGpuBuffer* CreateUniformBuffer(uint value)
         {
             var buffer = CreateBuffer(sizeof(uint), BufferUsage.Uniform | BufferUsage.CopyDst);
-            _api.QueueWriteBuffer(_queue, buffer, 0, &value, sizeof(uint));
+            Api.QueueWriteBuffer(Queue, buffer, 0, &value, sizeof(uint));
             return buffer;
         }
 
@@ -293,7 +286,7 @@ namespace ManaGraphics.Code.Graphics
                 EntryCount = 5,
                 Entries = entries
             };
-            var bindGroup = _api.DeviceCreateBindGroup(_device, &descriptor);
+            var bindGroup = Api.DeviceCreateBindGroup(Device, &descriptor);
             if (bindGroup == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU height-sample bind group.");
@@ -314,7 +307,7 @@ namespace ManaGraphics.Code.Graphics
                     Code = (byte*)sourcePointer
                 };
                 var shaderDescriptor = new ShaderModuleDescriptor { NextInChain = &wgslDescriptor.Chain };
-                var shaderModule = _api.DeviceCreateShaderModule(_device, &shaderDescriptor);
+                var shaderModule = Api.DeviceCreateShaderModule(Device, &shaderDescriptor);
                 if (shaderModule == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU height-sample shader module from {shaderPath}.");
@@ -338,7 +331,7 @@ namespace ManaGraphics.Code.Graphics
             entries[4] = new BindGroupLayoutEntry { Binding = 4, Visibility = ShaderStage.Compute, Buffer = new BufferBindingLayout { Type = BufferBindingType.Uniform } };
 
             var descriptor = new BindGroupLayoutDescriptor { EntryCount = 5, Entries = entries };
-            var layout = _api.DeviceCreateBindGroupLayout(_device, &descriptor);
+            var layout = Api.DeviceCreateBindGroupLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU height-sample bind group layout.");
@@ -351,7 +344,7 @@ namespace ManaGraphics.Code.Graphics
         {
             var bindGroupLayout = _bindGroupLayout;
             var descriptor = new PipelineLayoutDescriptor { BindGroupLayoutCount = 1, BindGroupLayouts = &bindGroupLayout };
-            var layout = _api.DeviceCreatePipelineLayout(_device, &descriptor);
+            var layout = Api.DeviceCreatePipelineLayout(Device, &descriptor);
             if (layout == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU height-sample pipeline layout.");
@@ -370,7 +363,7 @@ namespace ManaGraphics.Code.Graphics
                     Layout = _pipelineLayout,
                     Compute = new ProgrammableStageDescriptor { Module = _shaderModule, EntryPoint = (byte*)entryPoint }
                 };
-                var pipeline = _api.DeviceCreateComputePipeline(_device, &descriptor);
+                var pipeline = Api.DeviceCreateComputePipeline(Device, &descriptor);
                 if (pipeline == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU height-sample compute pipeline.");

@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Silk.NET.Core.Contexts;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Browser
 {
     // Maps Silk.NET's wgpu* names to the mana_wgpu* shims in mana_webgpu.c, since browser-wasm has no native
     // library to load. Keep the map in sync with Silk.NET.WebGPU.

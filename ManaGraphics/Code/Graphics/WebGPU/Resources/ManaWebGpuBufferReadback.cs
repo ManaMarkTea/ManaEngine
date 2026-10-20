@@ -1,7 +1,7 @@
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     // Staging ownership transfers here; callbacks and shutdown release it before completing the task.
     internal static unsafe class ManaWebGpuBufferReadback

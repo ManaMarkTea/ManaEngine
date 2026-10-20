@@ -1,7 +1,8 @@
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>
     /// Draws outlined meshes into the HDR outline mask, depth-tested against the scene (handles against their own depth),

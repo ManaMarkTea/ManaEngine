@@ -2,14 +2,15 @@ using ManaCore.Imaging;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>
     /// Frame copies for automation: the presented frame as a PNG and the reflection cube's faces. A request rides the
     /// next frame's submit; then the readback owns its buffer. Render thread only, one screenshot at a time.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuFrameCapture : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuFrameCapture : ManaWebGpuDeviceObject
     {
         private const uint BytesPerPixel = 4;
 
@@ -106,7 +107,7 @@ namespace ManaGraphics.Code.Graphics
                     Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
                     Size = byteCount
                 };
-                outputBuffer = Gpu.Api.DeviceCreateBuffer(Gpu.Device, &outputBufferDescriptor);
+                outputBuffer = Api.DeviceCreateBuffer(Device, &outputBufferDescriptor);
                 if (outputBuffer == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU screenshot staging buffer.");
@@ -130,7 +131,7 @@ namespace ManaGraphics.Code.Graphics
                     }
                 };
                 var copySize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
-                Gpu.Api.CommandEncoderCopyTextureToBuffer(encoder, &copySource, &copyDestination, &copySize);
+                Api.CommandEncoderCopyTextureToBuffer(encoder, &copySource, &copyDestination, &copySize);
 
                 var encoded = copies with
                 {
@@ -149,7 +150,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (outputBuffer != null)
                 {
-                    Gpu.Api.BufferRelease(outputBuffer);
+                    Api.BufferRelease(outputBuffer);
                 }
             }
         }
@@ -164,7 +165,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
                 Size = (ulong)paddedRow * size * 6
             };
-            var buffer = Gpu.Api.DeviceCreateBuffer(Gpu.Device, &descriptor);
+            var buffer = Api.DeviceCreateBuffer(Device, &descriptor);
 
             var source = new ImageCopyTexture { Texture = resource.Texture, MipLevel = 0, Origin = new Origin3D(), Aspect = TextureAspect.All };
             var destination = new ImageCopyBuffer
@@ -173,7 +174,7 @@ namespace ManaGraphics.Code.Graphics
                 Layout = new TextureDataLayout { Offset = 0, BytesPerRow = paddedRow, RowsPerImage = size }
             };
             var extent = new Extent3D { Width = size, Height = size, DepthOrArrayLayers = 6 };
-            Gpu.Api.CommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &extent);
+            Api.CommandEncoderCopyTextureToBuffer(encoder, &source, &destination, &extent);
             return copies with { DumpBuffer = (nint)buffer, DumpSize = size, DumpRowBytes = paddedRow, DumpPrefix = prefix };
         }
 
@@ -196,14 +197,14 @@ namespace ManaGraphics.Code.Graphics
         {
             if (copies.ScreenshotBuffer != 0)
             {
-                Gpu.Api.BufferRelease((WebGpuBuffer*)copies.ScreenshotBuffer);
+                Api.BufferRelease((WebGpuBuffer*)copies.ScreenshotBuffer);
                 copies.Request?.Completion.TrySetException(
                     new InvalidOperationException("The frame carrying the screenshot failed before submission."));
             }
 
             if (copies.DumpBuffer != 0)
             {
-                Gpu.Api.BufferRelease((WebGpuBuffer*)copies.DumpBuffer);
+                Api.BufferRelease((WebGpuBuffer*)copies.DumpBuffer);
             }
         }
 
@@ -220,7 +221,7 @@ namespace ManaGraphics.Code.Graphics
 
         private void FinishScreenshot(EncodedCopies copies, Screenshot request)
         {
-            var readbackTask = ManaWebGpuBufferReadback.MapAsync(Gpu.Api, (WebGpuBuffer*)copies.ScreenshotBuffer, copies.ScreenshotBytes, _readbacks);
+            var readbackTask = ManaWebGpuBufferReadback.MapAsync(Api, (WebGpuBuffer*)copies.ScreenshotBuffer, copies.ScreenshotBytes, _readbacks);
 
             // Only CPU work follows, so it can run wherever the readback's continuation lands.
             readbackTask.ContinueWith(
@@ -272,7 +273,7 @@ namespace ManaGraphics.Code.Graphics
         private void FinishDump(EncodedCopies copies, string prefix)
         {
             var byteCount = (ulong)copies.DumpRowBytes * copies.DumpSize * 6;
-            ManaWebGpuBufferReadback.MapAsync(Gpu.Api, (WebGpuBuffer*)copies.DumpBuffer, byteCount, _readbacks).ContinueWith(readback =>
+            ManaWebGpuBufferReadback.MapAsync(Api, (WebGpuBuffer*)copies.DumpBuffer, byteCount, _readbacks).ContinueWith(readback =>
             {
                 if (readback.Exception != null || readback.IsCanceled)
                 {

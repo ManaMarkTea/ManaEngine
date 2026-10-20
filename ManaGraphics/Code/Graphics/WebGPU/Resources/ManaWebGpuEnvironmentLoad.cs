@@ -1,6 +1,6 @@
 using ManaCore.Loading;
 
-namespace ManaGraphics.Code.Graphics;
+namespace ManaGraphics.Code.Graphics.Resources;
 
 // Background jobs own CPU data only. Render-thread consumers take the newest generation's result.
 internal sealed class ManaWebGpuEnvironmentLoad<T> where T : class

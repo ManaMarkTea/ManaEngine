@@ -6,7 +6,7 @@ using System.Text;
 using ManaGraphics.Code.Diagnostics;
 using ManaCore.Graphics;
 using Silk.NET.Maths;
-using ManaGraphics.Code.Graphics.Overlays;
+using ManaGraphics.Code.Graphics.Pipelines.Overlays;
 using Silk.NET.WebGPU;
 #if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
@@ -15,6 +15,12 @@ using Silk.NET.Windowing;
 using Silk.NET.Input;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 using ManaCore.Diagnostics;
+using ManaGraphics.Code.Graphics.Pipelines;
+using ManaGraphics.Code.Graphics.Renderers;
+using ManaGraphics.Code.Graphics.Resources;
+#if MANA_BROWSER
+using ManaGraphics.Code.Graphics.Browser;
+#endif
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -186,7 +192,6 @@ namespace ManaGraphics.Code.Graphics
         {
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
             _queue = _api.DeviceGetQueue(_device);
-            _meshTextures = new ManaWebGpuMeshTextureCache(_api, _device, _queue);
 #if !MANA_BROWSER
             if (!_api.TryGetDeviceExtension(_device, out _wgpuNativeExtension))
             {
@@ -214,6 +219,7 @@ namespace ManaGraphics.Code.Graphics
             };
 #endif
             _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
+            _meshTextures = new ManaWebGpuMeshTextureCache(_gpu);
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
@@ -295,7 +301,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var shaderPath = ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl"));
-            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_api, _device, _surfaceFormat, shaderPath);
+            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_gpu, _surfaceFormat, shaderPath);
             _hdrPostProcessor.Resize(_framebufferSize);
         }
 
@@ -515,7 +521,7 @@ namespace ManaGraphics.Code.Graphics
                 try
                 {
                     _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
-                        _api, _device, _queue, _readbackRegistry,
+                        _gpu, _readbackRegistry,
                         ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
 
                     LinkTaskResult(
@@ -582,9 +588,9 @@ namespace ManaGraphics.Code.Graphics
 
 #if !MANA_BROWSER
         /// <summary>A UI-only presentation surface for a native panel window, sharing this device and queue.</summary>
-        public ManaWebGpuPanelSurface CreateUiSurface(IWindow window)
+        public ManaUI.IUiWindowRenderer CreateUiSurface(IWindow window)
         {
-            var surface = new ManaWebGpuPanelSurface(_api, _instance, _adapter, _device, _queue, window, closed => _panelSurfaces.Remove(closed));
+            var surface = new ManaWebGpuPanelSurface(_gpu, _instance, _adapter, window, closed => _panelSurfaces.Remove(closed));
             _panelSurfaces.Add(surface);
             return surface;
         }
@@ -952,6 +958,8 @@ namespace ManaGraphics.Code.Graphics
             _ui?.Dispose();
 
             ReleaseScenePipelines();
+            // After every mesh and thumbnail has returned its references.
+            _meshTextures?.Dispose();
 
             if (_surface != null && _configured)
             {

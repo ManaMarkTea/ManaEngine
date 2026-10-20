@@ -5,21 +5,20 @@ using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using ManaCore.Imaging;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
-    internal unsafe sealed class ManaWebGpuEnvironmentReflectionMap : IManaEnvironmentReflectionMap
+    internal unsafe sealed class ManaWebGpuEnvironmentReflectionMap : ManaWebGpuDeviceObject, IManaEnvironmentReflectionMap
     {
-        private readonly WebGPU _api;
 
         private ManaWebGpuEnvironmentReflectionMap(
-            WebGPU api,
+            ManaWebGpuDevice gpu,
             ManaEnvironmentReflectionSource source,
             ManaWebGpuTextureResource environmentMap,
             ManaWebGpuTextureResource irradianceMap,
             ManaWebGpuTextureResource prefilteredReflectionMap,
             ManaWebGpuTextureResource brdfLut)
+            : base(gpu)
         {
-            _api = api;
             Source = source;
             EnvironmentMapResource = environmentMap;
             IrradianceMapResource = irradianceMap;
@@ -52,8 +51,11 @@ namespace ManaGraphics.Code.Graphics
         public ManaWebGpuTextureResource PrefilteredReflectionMapResource { get; }
         public ManaWebGpuTextureResource BrdfLutResource { get; }
 
-        public static ManaWebGpuEnvironmentReflectionMap CreateDummy(WebGPU api, Device* device, Queue* queue, ManaEnvironmentReflectionSource source)
+        public static ManaWebGpuEnvironmentReflectionMap CreateDummy(ManaWebGpuDevice gpu, ManaEnvironmentReflectionSource source)
         {
+            var api = gpu.Api;
+            var device = gpu.Device;
+            var queue = gpu.Queue;
             var resources = ManaWebGpuAcquisition.Acquire(4, index => index switch
             {
                 0 => CreateCubeResource(api, device, "DummyEnvironmentMap", 16, 1),
@@ -63,7 +65,7 @@ namespace ManaGraphics.Code.Graphics
                     TextureUsage.TextureBinding | TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.StorageBinding, true),
                 _ => Create2DResource(api, device, "DummyBrdfLut", 16, 16, TextureFormat.RG16float)
             }, resource => resource.Dispose());
-            return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), resources[0], resources[1], resources[2], resources[3]);
+            return new ManaWebGpuEnvironmentReflectionMap(gpu, source.Clone(), resources[0], resources[1], resources[2], resources[3]);
         }
 
         internal sealed record PreparedTexture(int Width, int Height, int Layers, uint BytesPerRow, byte[] Pixels);
@@ -91,9 +93,11 @@ namespace ManaGraphics.Code.Graphics
                 "Converting environment cube map", cancellationToken);
         }
 
-        public static ManaWebGpuEnvironmentReflectionMap Create(
-            WebGPU api, Device* device, Queue* queue, ManaEnvironmentReflectionSource source, PreparedData data)
+        public static ManaWebGpuEnvironmentReflectionMap Create(ManaWebGpuDevice gpu, ManaEnvironmentReflectionSource source, PreparedData data)
         {
+            var api = gpu.Api;
+            var device = gpu.Device;
+            var queue = gpu.Queue;
             var allocated = new List<ManaWebGpuTextureResource>();
             ManaWebGpuTextureResource Own(ManaWebGpuTextureResource resource)
             {
@@ -119,7 +123,7 @@ namespace ManaGraphics.Code.Graphics
                     Upload(api, queue, environmentMap.Texture, data.Photo);
                 }
                 Upload(api, queue, brdfLut.Texture, data.Brdf);
-                return new ManaWebGpuEnvironmentReflectionMap(api, source.Clone(), environmentMap, irradianceMap,
+                return new ManaWebGpuEnvironmentReflectionMap(gpu, source.Clone(), environmentMap, irradianceMap,
                     prefilteredReflectionMap, brdfLut) { HasPhoto = data.Photo != null };
             }
             catch
@@ -132,9 +136,9 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        public void WritePhoto(WebGPU api, Queue* queue, PreparedTexture photo)
+        public void WritePhoto(PreparedTexture photo)
         {
-            Upload(api, queue, EnvironmentMapResource.Texture, photo);
+            Upload(Api, Queue, EnvironmentMapResource.Texture, photo);
             HasPhoto = true;
             DrawnSky = null;
         }
@@ -150,7 +154,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             EnvironmentMapResource.Dispose();
             IrradianceMapResource.Dispose();

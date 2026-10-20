@@ -3,13 +3,13 @@ using ManaCore.Diagnostics;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>
     /// The scene meshes resident on the GPU, keyed by instance. A replaced or removed mesh is disposed a fixed number of
     /// frames later, once nothing in flight can still draw it.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuSceneMeshes : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuSceneMeshes : ManaWebGpuDeviceObject
     {
         private readonly ManaWebGpuMeshTextureCache _textures;
         private readonly ManaWebGpuEnvironment _environment;
@@ -153,7 +153,7 @@ namespace ManaGraphics.Code.Graphics
 
                     // Same mesh with new vertices (skinned characters, every frame): rewrite geometry, keep the bindings.
                     if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance) &&
-                        existing.Mesh.TryUpdateGeometryInPlace(Gpu.Queue, instance.MeshData))
+                        existing.Mesh.TryUpdateGeometryInPlace(Queue, instance.MeshData))
                     {
                         existing.Instance = instance;
                         existing.InvalidateDerivedGeometry();

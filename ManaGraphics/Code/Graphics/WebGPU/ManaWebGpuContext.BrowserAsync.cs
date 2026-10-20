@@ -2,6 +2,7 @@
 using System;
 using System.Threading.Tasks;
 using ManaGraphics.Code.Diagnostics;
+using ManaGraphics.Code.Graphics.Browser;
 
 namespace ManaGraphics.Code.Graphics
 {

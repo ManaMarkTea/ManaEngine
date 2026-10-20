@@ -2,8 +2,9 @@ using System.Numerics;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>
     /// Draws every mesh with its material: opaque, then transparent back to front, then always-on-top handles against
@@ -115,12 +116,12 @@ namespace ManaGraphics.Code.Graphics
         private void DrawMesh(RenderPassEncoder* pass, ManaWebGpuSceneMesh sceneMesh)
         {
             // Only reaches the GPU when the mesh's transform or material changed since last frame.
-            sceneMesh.TryUpdateObjectUniform(Api, Gpu.Queue, ManaWebGpuObjectUniform.For(sceneMesh.Instance));
+            sceneMesh.TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(sceneMesh.Instance));
 
             if (sceneMesh.CustomUniformBuffer != null)
             {
                 ManaWebGpuCustomUniforms.Fill(sceneMesh.Instance, sceneMesh.CustomUniformLayout, sceneMesh.CustomUniformData);
-                sceneMesh.TryUpdateCustomUniform(Api, Gpu.Queue, sceneMesh.CustomUniformData);
+                sceneMesh.TryUpdateCustomUniform(sceneMesh.CustomUniformData);
             }
 
             var instance = sceneMesh.Instance;

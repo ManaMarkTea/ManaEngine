@@ -3,10 +3,10 @@ using ManaUI;
 using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>Draws ManaUI over the tone-mapped frame, with the blurred backdrop frosted panels sample. Built on first use.</summary>
-    internal sealed unsafe class ManaWebGpuUiCompositor : ManaWebGpuResource
+    internal sealed unsafe class ManaWebGpuUiCompositor : ManaWebGpuDeviceObject
     {
         private ManaWebGpuUiRenderer? _renderer;
         private ManaWebGpuUiBackdrop? _backdrop;
@@ -33,7 +33,7 @@ namespace ManaGraphics.Code.Graphics
         /// reports its new size a frame before the surface catches up, and copying that much overruns the frame.</param>
         public void CaptureBackdrop(CommandEncoder* encoder, Texture* frame, Vector2D<int> size)
         {
-            _backdrop ??= new ManaWebGpuUiBackdrop(Gpu.Api, Gpu.Device, Gpu.SurfaceFormat);
+            _backdrop ??= new ManaWebGpuUiBackdrop(Gpu, Gpu.SurfaceFormat);
             _backdrop.Capture(encoder, frame, size);
 
             UiBackdropStats.Captured++;
@@ -50,7 +50,7 @@ namespace ManaGraphics.Code.Graphics
                     // The first time anything asks to draw ManaUI, which for a mode with a loading overlay is the very
                     // first loading frame -- a candidate for the gap before the loading screen shows.
                     ManaConsole.WriteDiagnosticElapsed("Creating the ManaUI renderer (first draw request).");
-                    _renderer = new ManaWebGpuUiRenderer(Gpu.Api, Gpu.Device, Gpu.Queue, Gpu.SurfaceFormat);
+                    _renderer = new ManaWebGpuUiRenderer(Gpu, Gpu.SurfaceFormat);
                     ManaConsole.WriteDiagnosticElapsed("ManaUI renderer ready; submitting its first draw list.");
                 }
                 catch (Exception ex)

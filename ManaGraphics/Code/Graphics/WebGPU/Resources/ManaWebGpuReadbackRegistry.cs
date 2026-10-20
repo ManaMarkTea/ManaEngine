@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using Silk.NET.WebGPU;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     // Native userdata is a never-reused ID, not a pointer to managed storage that shutdown can free.
     internal sealed class ManaWebGpuReadbackRegistry

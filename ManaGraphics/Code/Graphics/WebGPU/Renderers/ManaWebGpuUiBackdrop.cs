@@ -4,19 +4,17 @@ using Silk.NET.Maths;
 using Silk.NET.WebGPU;
 using Silk.NET.Core.Native;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Renderers
 {
     /// <summary>
     /// A blurred snapshot of the frame for frosted UI panels: copied out between the scene and the UI, then halved down a
     /// mip chain, so a blur radius picks a level. Repeated halving approximates a gaussian at a fraction of its cost.
     /// </summary>
-    public sealed unsafe class ManaWebGpuUiBackdrop : IDisposable
+    internal sealed unsafe class ManaWebGpuUiBackdrop : ManaWebGpuDeviceObject
     {
         /// <summary>Levels of blur: six halvings take 4K to about 60 pixels, past where more blur reads as anything but grey.</summary>
         private const uint MaxLevels = 6;
 
-        private readonly Silk.NET.WebGPU.WebGPU _api;
-        private readonly Device* _device;
         private readonly TextureFormat _format;
 
         private Texture* _texture;
@@ -34,10 +32,9 @@ namespace ManaGraphics.Code.Graphics
         private Vector2D<int> _size;
         private uint _levels;
 
-        public ManaWebGpuUiBackdrop(Silk.NET.WebGPU.WebGPU api, Device* device, TextureFormat format)
+        public ManaWebGpuUiBackdrop(ManaWebGpuDevice gpu, TextureFormat format)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
             _format = format;
         }
 
@@ -79,7 +76,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var extent = new Extent3D((uint)size.X, (uint)size.Y, 1);
-            _api.CommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
+            Api.CommandEncoderCopyTextureToTexture(encoder, &source, &destination, &extent);
 
             // Each level is drawn from the one above it, so the blur compounds down the chain.
             for (var level = 1u; level < _levels; level++)
@@ -104,12 +101,12 @@ namespace ManaGraphics.Code.Graphics
                 ColorAttachments = &attachment
             };
 
-            var pass = _api.CommandEncoderBeginRenderPass(encoder, &descriptor);
-            _api.RenderPassEncoderSetPipeline(pass, _pipeline);
-            _api.RenderPassEncoderSetBindGroup(pass, 0, _bindGroups[level], 0, null);
-            _api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
-            _api.RenderPassEncoderEnd(pass);
-            _api.RenderPassEncoderRelease(pass);
+            var pass = Api.CommandEncoderBeginRenderPass(encoder, &descriptor);
+            Api.RenderPassEncoderSetPipeline(pass, _pipeline);
+            Api.RenderPassEncoderSetBindGroup(pass, 0, _bindGroups[level], 0, null);
+            Api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
+            Api.RenderPassEncoderEnd(pass);
+            Api.RenderPassEncoderRelease(pass);
         }
 
         private void EnsureResources(Vector2D<int> size)
@@ -146,7 +143,7 @@ namespace ManaGraphics.Code.Graphics
                 Usage = TextureUsage.CopyDst | TextureUsage.RenderAttachment | TextureUsage.TextureBinding
             };
 
-            _texture = _api.DeviceCreateTexture(_device, &descriptor);
+            _texture = Api.DeviceCreateTexture(Device, &descriptor);
 
             var viewDescriptor = new TextureViewDescriptor
             {
@@ -159,7 +156,7 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.All
             };
 
-            _view = _api.TextureCreateView(_texture, &viewDescriptor);
+            _view = Api.TextureCreateView(_texture, &viewDescriptor);
             Generation++;
 
             EnsurePipeline();
@@ -180,7 +177,7 @@ namespace ManaGraphics.Code.Graphics
                     Aspect = TextureAspect.All
                 };
 
-                _levelViews[level] = _api.TextureCreateView(_texture, &single);
+                _levelViews[level] = Api.TextureCreateView(_texture, &single);
             }
 
             // Each level reads the one above it, so the bind group for level N samples level N-1.
@@ -197,7 +194,7 @@ namespace ManaGraphics.Code.Graphics
                     Entries = entries
                 };
 
-                _bindGroups[level] = _api.DeviceCreateBindGroup(_device, &bindGroup);
+                _bindGroups[level] = Api.DeviceCreateBindGroup(Device, &bindGroup);
             }
         }
 
@@ -221,7 +218,7 @@ namespace ManaGraphics.Code.Graphics
                 MaxAnisotropy = 1
             };
 
-            _sampler = _api.DeviceCreateSampler(_device, &samplerDescriptor);
+            _sampler = Api.DeviceCreateSampler(Device, &samplerDescriptor);
 
             var entries = stackalloc BindGroupLayoutEntry[2];
             entries[0] = new BindGroupLayoutEntry
@@ -244,7 +241,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 2, Entries = entries };
-            _bindGroupLayout = _api.DeviceCreateBindGroupLayout(_device, &layoutDescriptor);
+            _bindGroupLayout = Api.DeviceCreateBindGroupLayout(Device, &layoutDescriptor);
 
             var layout = _bindGroupLayout;
             var pipelineLayoutDescriptor = new PipelineLayoutDescriptor
@@ -253,7 +250,7 @@ namespace ManaGraphics.Code.Graphics
                 BindGroupLayouts = &layout
             };
 
-            _pipelineLayout = _api.DeviceCreatePipelineLayout(_device, &pipelineLayoutDescriptor);
+            _pipelineLayout = Api.DeviceCreatePipelineLayout(Device, &pipelineLayoutDescriptor);
             _shader = CreateShaderModule();
 
             var blend = new BlendState
@@ -308,7 +305,7 @@ namespace ManaGraphics.Code.Graphics
                 Fragment = &fragment
             };
 
-            _pipeline = _api.DeviceCreateRenderPipeline(_device, &pipelineDescriptor);
+            _pipeline = Api.DeviceCreateRenderPipeline(Device, &pipelineDescriptor);
 
             SilkMarshal.Free((nint)entryPointVertex);
             SilkMarshal.Free((nint)entryPointFragment);
@@ -327,7 +324,7 @@ namespace ManaGraphics.Code.Graphics
                 };
 
                 var descriptor = new ShaderModuleDescriptor { NextInChain = &wgslDescriptor.Chain };
-                var module = _api.DeviceCreateShaderModule(_device, &descriptor);
+                var module = Api.DeviceCreateShaderModule(Device, &descriptor);
 
                 if (module == null)
                 {
@@ -383,7 +380,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             {
                 if (group != null)
                 {
-                    _api.BindGroupRelease(group);
+                    Api.BindGroupRelease(group);
                 }
             }
 
@@ -393,7 +390,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             {
                 if (view != null)
                 {
-                    _api.TextureViewRelease(view);
+                    Api.TextureViewRelease(view);
                 }
             }
 
@@ -401,49 +398,49 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
             if (_view != null)
             {
-                _api.TextureViewRelease(_view);
+                Api.TextureViewRelease(_view);
                 _view = null;
             }
 
             if (_texture != null)
             {
-                _api.TextureDestroy(_texture);
-                _api.TextureRelease(_texture);
+                Api.TextureDestroy(_texture);
+                Api.TextureRelease(_texture);
                 _texture = null;
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseTextures();
 
             if (_pipeline != null)
             {
-                _api.RenderPipelineRelease(_pipeline);
+                Api.RenderPipelineRelease(_pipeline);
                 _pipeline = null;
             }
 
             if (_pipelineLayout != null)
             {
-                _api.PipelineLayoutRelease(_pipelineLayout);
+                Api.PipelineLayoutRelease(_pipelineLayout);
                 _pipelineLayout = null;
             }
 
             if (_bindGroupLayout != null)
             {
-                _api.BindGroupLayoutRelease(_bindGroupLayout);
+                Api.BindGroupLayoutRelease(_bindGroupLayout);
                 _bindGroupLayout = null;
             }
 
             if (_shader != null)
             {
-                _api.ShaderModuleRelease(_shader);
+                Api.ShaderModuleRelease(_shader);
                 _shader = null;
             }
 
             if (_sampler != null)
             {
-                _api.SamplerRelease(_sampler);
+                Api.SamplerRelease(_sampler);
                 _sampler = null;
             }
         }

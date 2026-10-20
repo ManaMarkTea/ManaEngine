@@ -1,7 +1,8 @@
 using ManaCore.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Renderers;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>Draws GPU particle emitters after the meshes; the renderer is built when the first emitter appears.</summary>
     internal sealed unsafe class ManaWebGpuParticlePass : ManaWebGpuRenderPass
@@ -43,7 +44,7 @@ namespace ManaGraphics.Code.Graphics
             var density = budget < 0 || Requested <= budget ? 1.0 : (double)budget / Requested;
             using (ManaFrameProfiler.Measure(ProfileName))
             {
-                _particles ??= new ManaWebGpuParticles(Api, Gpu.Device, Gpu.Queue, _colorFormat, Gpu.DepthFormat,
+                _particles ??= new ManaWebGpuParticles(Gpu, _colorFormat, Gpu.DepthFormat,
                     ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("particles.wgsl")));
                 Drawn = _particles.Draw(pass, emitters, frame.Scene.Camera, frame.Projection, frame.Scene.Wind, density);
             }

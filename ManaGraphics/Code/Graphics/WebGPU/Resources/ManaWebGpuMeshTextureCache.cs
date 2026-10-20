@@ -4,24 +4,19 @@ using ManaCore.Imaging;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
     /// <summary>
     /// Every mesh's albedo and material maps, ref-counted and shared by file (untextured meshes share a neutral 1x1
     /// per map kind).
     /// </summary>
-    internal unsafe sealed class ManaWebGpuMeshTextureCache
+    internal unsafe sealed class ManaWebGpuMeshTextureCache : ManaWebGpuDeviceObject
     {
-        private readonly WebGPU _api;
-        private readonly Device* _device;
-        private readonly Queue* _queue;
         private readonly Dictionary<string, ManaWebGpuMeshTexture> _cache = new(StringComparer.OrdinalIgnoreCase);
 
-        public ManaWebGpuMeshTextureCache(WebGPU api, Device* device, Queue* queue)
+        public ManaWebGpuMeshTextureCache(ManaWebGpuDevice gpu)
+            : base(gpu)
         {
-            _api = api;
-            _device = device;
-            _queue = queue;
         }
 
         public int Count => _cache.Count;
@@ -60,6 +55,16 @@ namespace ManaGraphics.Code.Graphics
                 index => AcquireMaterialMap(maps[index].Path, maps[index].Kind), ReleaseMeshTexture);
         }
 
+        // Shutdown: whatever a reference was never returned for, so nothing outlives the device.
+        public override void Dispose()
+        {
+            foreach (var texture in _cache.Values.ToArray())
+            {
+                texture.RefCount = 1;
+                ReleaseMeshTexture(texture);
+            }
+        }
+
         public void ReleaseMeshTexture(ManaWebGpuMeshTexture textureResource)
         {
             if (textureResource.RefCount <= 0)
@@ -76,13 +81,13 @@ namespace ManaGraphics.Code.Graphics
             _cache.Remove(textureResource.Key);
             if (textureResource.TextureView != null)
             {
-                _api.TextureViewRelease(textureResource.TextureView);
+                Api.TextureViewRelease(textureResource.TextureView);
                 textureResource.TextureView = null;
             }
 
             if (textureResource.Texture != null)
             {
-                _api.TextureRelease(textureResource.Texture);
+                Api.TextureRelease(textureResource.Texture);
                 textureResource.Texture = null;
             }
         }
@@ -205,7 +210,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            texture = _api.DeviceCreateTexture(_device, &textureDescriptor);
+            texture = Api.DeviceCreateTexture(Device, &textureDescriptor);
             if (texture == null)
             {
                 throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} texture.");
@@ -227,7 +232,7 @@ namespace ManaGraphics.Code.Graphics
                     RowsPerImage = height
                 };
                 var writeSize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
-                _api.QueueWriteTexture(_queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
+                Api.QueueWriteTexture(Queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
             }
 
             var textureViewDescriptor = new TextureViewDescriptor
@@ -238,10 +243,10 @@ namespace ManaGraphics.Code.Graphics
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.All
             };
-            textureView = _api.TextureCreateView(texture, &textureViewDescriptor);
+            textureView = Api.TextureCreateView(texture, &textureViewDescriptor);
             if (textureView == null)
             {
-                _api.TextureRelease(texture);
+                Api.TextureRelease(texture);
                 texture = null;
                 throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} texture view.");
             }

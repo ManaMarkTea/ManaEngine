@@ -2,8 +2,9 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Pipelines
 {
     /// <summary>Builds a render pipeline over the scene mesh vertex layout; every mesh-drawing pass uses it.</summary>
     internal static unsafe class ManaWebGpuMeshPipeline

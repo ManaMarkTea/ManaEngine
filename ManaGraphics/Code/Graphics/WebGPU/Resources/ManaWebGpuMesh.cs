@@ -4,14 +4,13 @@ using ManaCore.Graphics;
 using Silk.NET.WebGPU;
 using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
-namespace ManaGraphics.Code.Graphics
+namespace ManaGraphics.Code.Graphics.Resources
 {
-    public unsafe sealed class ManaWebGpuMesh : IManaGpuMesh
+    internal unsafe sealed class ManaWebGpuMesh : ManaWebGpuDeviceObject, IManaGpuMesh
     {
         public const ulong VertexStride = (ulong)(sizeof(float) * (3 + 3 + 4 + 2));
 
 
-        private readonly WebGPU _api;
         private WebGpuBuffer* _vertexBuffer;
         private WebGpuBuffer* _indexBuffer;
 
@@ -19,17 +18,20 @@ namespace ManaGraphics.Code.Graphics
         public uint IndexCount { get; }
         public uint VertexCount { get; }
 
-        private ManaWebGpuMesh(WebGPU api, WebGpuBuffer* vertexBuffer, WebGpuBuffer* indexBuffer, uint indexCount, uint vertexCount)
+        private ManaWebGpuMesh(ManaWebGpuDevice gpu, WebGpuBuffer* vertexBuffer, WebGpuBuffer* indexBuffer, uint indexCount, uint vertexCount)
+            : base(gpu)
         {
-            _api = api;
             _vertexBuffer = vertexBuffer;
             _indexBuffer = indexBuffer;
             IndexCount = indexCount;
             VertexCount = vertexCount;
         }
 
-        public static ManaWebGpuMesh CreateFromMeshData(WebGPU api, Device* device, Queue* queue, ManaMeshCpuData meshData, string meshName)
+        public static ManaWebGpuMesh CreateFromMeshData(ManaWebGpuDevice gpu, ManaMeshCpuData meshData, string meshName)
         {
+            var api = gpu.Api;
+            var device = gpu.Device;
+            var queue = gpu.Queue;
             var vertices = BuildVertices(meshData);
 
             var vertexBufferDescriptor = new BufferDescriptor
@@ -67,7 +69,7 @@ namespace ManaGraphics.Code.Graphics
                 api.QueueWriteBuffer(queue, indexBuffer, 0, indexPointer, (nuint)indexBufferDescriptor.Size);
             }
 
-            return new ManaWebGpuMesh(api, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length, (uint)meshData.Positions.Length);
+            return new ManaWebGpuMesh(gpu, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length, (uint)meshData.Positions.Length);
         }
 
         // Rewrites the existing buffers when the counts are unchanged (the caller checks); skinned meshes do this
@@ -84,12 +86,12 @@ namespace ManaGraphics.Code.Graphics
             var vertices = BuildVertices(meshData);
             fixed (ManaWebGpuVertex* vertexPointer = vertices)
             {
-                _api.QueueWriteBuffer(queue, _vertexBuffer, 0, vertexPointer, (nuint)((ulong)vertices.Length * VertexStride));
+                Api.QueueWriteBuffer(queue, _vertexBuffer, 0, vertexPointer, (nuint)((ulong)vertices.Length * VertexStride));
             }
 
             fixed (uint* indexPointer = meshData.Indexes)
             {
-                _api.QueueWriteBuffer(queue, _indexBuffer, 0, indexPointer, (nuint)(meshData.Indexes.Length * sizeof(uint)));
+                Api.QueueWriteBuffer(queue, _indexBuffer, 0, indexPointer, (nuint)(meshData.Indexes.Length * sizeof(uint)));
             }
 
             return true;
@@ -126,9 +128,9 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            _api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
-            _api.RenderPassEncoderSetIndexBuffer(renderPass, _indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
-            _api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, 1, 0, 0, 0);
+            Api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
+            Api.RenderPassEncoderSetIndexBuffer(renderPass, _indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
+            Api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, 1, 0, 0, 0);
         }
 
         // Draws this mesh's vertices through another index buffer: the wireframe overlay's edge list.
@@ -139,22 +141,22 @@ namespace ManaGraphics.Code.Graphics
                 return;
             }
 
-            _api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
-            _api.RenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
-            _api.RenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
+            Api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
+            Api.RenderPassEncoderSetIndexBuffer(renderPass, indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
+            Api.RenderPassEncoderDrawIndexed(renderPass, indexCount, 1, 0, 0, 0);
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (_indexBuffer != null)
             {
-                _api.BufferRelease(_indexBuffer);
+                Api.BufferRelease(_indexBuffer);
                 _indexBuffer = null;
             }
 
             if (_vertexBuffer != null)
             {
-                _api.BufferRelease(_vertexBuffer);
+                Api.BufferRelease(_vertexBuffer);
                 _vertexBuffer = null;
             }
         }

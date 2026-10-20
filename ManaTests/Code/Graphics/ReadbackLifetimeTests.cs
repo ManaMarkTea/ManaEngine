@@ -1,6 +1,7 @@
 using ManaGraphics.Code.Graphics;
 using ManaUI;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Resources;
 
 namespace ManaTests;
 

@@ -4,6 +4,8 @@ using System.Linq;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
+using ManaGraphics.Code.Graphics.Pipelines;
+using ManaGraphics.Code.Graphics.Resources;
 #if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
 #endif
