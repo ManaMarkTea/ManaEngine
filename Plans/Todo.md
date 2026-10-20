@@ -2,7 +2,10 @@
     [x] First playable (2026-10-20): finite mining, belts/backpressure, crafting, power, science goal,
         responsive ManaUI board, manual recovery/feeding, example layout, desktop save/load and automation check.
         Play Content/Levels/Foundry.manalevel; controls and recipes in Games/Foundry/README.md.
-    Next: splitters/merging, in-place rotation, production graphs, scrolling world, sound/art, autosave and browser checks.
+    [x] 3D and depth (2026-10-20): rebuilt in 3D on the Kenney factory kit with a class per building, smooth belts
+        with curves and side-loading, splitters/sorting, day/night with solar, coal and batteries, assembler recipes,
+        a tech tree with red/green science, guided goals and a Space Beacon finale. Games/Foundry/README.md.
+    Next: inserters/two-lane belts, production graphs, sound, autosave, browser and macOS checks.
 
 [x] - Code Screensaver: split terminal windows scroll random real repository source, with soft typing.
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.

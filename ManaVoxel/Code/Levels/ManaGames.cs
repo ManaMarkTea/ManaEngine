@@ -18,6 +18,15 @@ namespace ManaVoxel.Code.Levels
         [System.Runtime.CompilerServices.ModuleInitializer]
         internal static void Register()
         {
+            Foundry.View.ModelLibrary.Loader = (asset, context) =>
+            {
+                var prototype = GridMapPrototype.Load(asset, context);
+                if (!prototype.HasGeometry)
+                {
+                    throw new InvalidOperationException($"Foundry asset '{asset}': {prototype.Error}");
+                }
+                return new Foundry.View.FoundryModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
+            };
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = FoundryMode.ModeType,
