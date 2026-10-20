@@ -38,7 +38,7 @@ forwards height-sampling requests to the context and does not own or dispose it.
 
 ## Owners after extraction (2026-10-19)
 
-The context's partial files were split into owners; the context keeps the device, the frame orchestration
+The context's partial files were split into owners (it is no longer partial); the context keeps the device, the frame orchestration
 (`ClearFrame`), the render-thread queue, the public request APIs and shutdown ordering.
 
 | Owner | Responsibility |
@@ -47,7 +47,7 @@ The context's partial files were split into owners; the context keeps the device
 | `ManaWebGpuWindowSurface` | Surface configuration, scene and handle depth targets, acquire and present |
 | `ManaWebGpuSceneRenderer` | Shadow map, scene bindings, HDR post and the registered passes; frame uniform and the scene half of a frame |
 | `ManaWebGpuNativeDevice` | Instance, window surface, adapter, device and queue; desktop native request callbacks, the browser's promise requests and late-result rejection, the callback pump, release in reverse order |
-| `ManaWebGpuContext.Diagnostics.cs`, `.ResourceReport.cs` | Diagnostics derived from renderer state; no GPU resource owner |
+| `ManaWebGpuDiagnostics`, `ManaWebGpuResourceReport` | Diagnostics snapshot and startup report from a state record the context builds; wgpu-native's object counts. No GPU resource owner |
 | `ManaWebGpuDevice` | Borrowed API/device/queue/formats, shader loading, asset paths |
 | `ManaWebGpuSceneBindings` | Samplers, group layouts, frame uniform buffer/group, pipeline layouts |
 | `ManaWebGpuRenderPass` subclasses | Environment capture, shadows, sky, materials, particles, wireframe/normal overlays, outline: each owns its pipelines and frame-local passes |

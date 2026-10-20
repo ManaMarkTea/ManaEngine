@@ -4,32 +4,36 @@ using Silk.NET.WebGPU.Extensions.WGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    public unsafe sealed partial class ManaWebGpuContext
+    /// <summary>
+    /// Publishes wgpu-native's registry of every object it made as the app's GPU resource report (desktop and mobile:
+    /// the browser's WebGPU cannot list what it holds). Diagnostic only; never touches a resource.
+    /// </summary>
+    internal sealed unsafe class ManaWebGpuResourceReport : IDisposable
     {
-        private Func<IReadOnlyDictionary<string, long>?>? _resourceReportProvider;
+        private readonly ManaWebGpuNativeDevice _native;
+        private readonly Func<IReadOnlyDictionary<string, long>?> _provider;
+        private bool _retracted;
 
-        // wgpu-native keeps a registry of every object it made; this reads it (desktop and mobile only -- the browser's
-        // WebGPU has no way to list what it holds). Diagnostic: never touches or releases a resource.
-        private void PublishResourceReport()
+        public ManaWebGpuResourceReport(ManaWebGpuNativeDevice native)
         {
-            _resourceReportProvider = ReadResourceCounts;
-            ManaGpuResourceReport.Provider = _resourceReportProvider;
+            _native = native;
+            _provider = ReadResourceCounts;
+            ManaGpuResourceReport.Provider = _provider;
         }
 
-        private void RetractResourceReport()
+        public void Dispose()
         {
+            _retracted = true;
             // Only our own: a newer context (a pop-out, a reopened editor) may have replaced the provider already.
-            if (_resourceReportProvider != null && ManaGpuResourceReport.Provider == _resourceReportProvider)
+            if (ManaGpuResourceReport.Provider == _provider)
             {
                 ManaGpuResourceReport.Provider = null;
             }
-
-            _resourceReportProvider = null;
         }
 
         private IReadOnlyDictionary<string, long>? ReadResourceCounts()
         {
-            if (_disposed || _native?.NativeExtension is not { } extension || _native.Instance == null)
+            if (_retracted || _native.NativeExtension is not { } extension || _native.Instance == null)
             {
                 return null;
             }

@@ -23,7 +23,7 @@ using ManaGraphics.Code.Graphics.Browser;
 
 namespace ManaGraphics.Code.Graphics
 {
-    public unsafe sealed partial class ManaWebGpuContext : ManaGraphicsDiagnosticsProvider, IDisposable
+    public unsafe sealed class ManaWebGpuContext : ManaGraphicsDiagnosticsProvider, IDisposable
     {
         public bool UseSceneCapture = false;
 
@@ -35,6 +35,10 @@ namespace ManaGraphics.Code.Graphics
         private readonly string? _requestedBackend;
         // Made first and released last; null only if its own construction failed.
         private ManaWebGpuNativeDevice? _native;
+        private ManaWebGpuDiagnostics? _diagnostics;
+#if !MANA_BROWSER
+        private ManaWebGpuResourceReport? _resourceReport;
+#endif
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
         private volatile bool _disposed;
         private TextureFormat _surfaceFormat;
@@ -132,9 +136,10 @@ namespace ManaGraphics.Code.Graphics
 #if !MANA_BROWSER
             if (native.NativeExtension != null)
             {
-                PublishResourceReport();
+                _resourceReport = new ManaWebGpuResourceReport(native);
             }
 #endif
+            _diagnostics = new ManaWebGpuDiagnostics(_api, native);
             _surfaceFormat = native.PreferredSurfaceFormat();
             _gpu = new ManaWebGpuDevice(_api, native.Device, native.Queue, _surfaceFormat, _depthFormat);
             _meshTextures = new ManaWebGpuMeshTextureCache(_gpu);
@@ -174,7 +179,8 @@ namespace ManaGraphics.Code.Graphics
             }
             ManaConsole.WriteDiagnostic($"WebGPU surface configured: {window.FramebufferSize.X}x{window.FramebufferSize.Y}, format={_surfaceFormat}.");
 #if !MANA_BROWSER
-            LogWebGpuDiagnostics(requestedBackend, native.InstanceBackend);
+            _diagnostics.LogStartup(DiagnosticsState());
+            CaptureInitializationSnapshot();
 #endif
         }
 
@@ -322,6 +328,37 @@ namespace ManaGraphics.Code.Graphics
 
         private bool _loggedFirstPresent;
         private bool _loggedFirstSceneWork;
+
+        protected override ManaGraphicsDiagnosticsSnapshot CaptureSnapshotCore()
+        {
+            return _diagnostics?.Capture(DiagnosticsState()) ?? ManaGraphicsDiagnosticsSnapshot.Empty;
+        }
+
+        private ManaWebGpuDiagnosticsState DiagnosticsState()
+        {
+            return new ManaWebGpuDiagnosticsState(
+                _requestedBackend,
+                _window.Size,
+                _window.FramesPerSecond,
+                _window.UpdatesPerSecond,
+                _input,
+                _windowSurface?.Size ?? default,
+                _surfaceFormat,
+                _depthFormat,
+                _scene?.SceneColorFormat ?? _surfaceFormat,
+                _scene != null,
+                _renderSceneProvider != null,
+                _windowSurface?.IsConfigured == true,
+                UseSceneCapture,
+                _activeRenderScene?.EnvironmentReflectionSource,
+                _environment?.Map != null,
+                RequestedGpuParticleCount,
+                LastGpuParticleCount,
+                _meshes?.Meshes ?? [],
+                _meshTextures?.Count ?? 0,
+                (_thumbnails?.ShaderModuleCount ?? 0) + (_scene?.ShaderModuleCount ?? 0),
+                (_thumbnails?.PipelineCount ?? 0) + (_scene?.PipelineCount ?? 0));
+        }
 
         public void ClearFrame(Color clearColor)
         {
@@ -498,7 +535,8 @@ namespace ManaGraphics.Code.Graphics
             // Retire readbacks while the device is live; late native callbacks see no registered request.
             _disposed = true;
 #if !MANA_BROWSER
-            RetractResourceReport();
+            _resourceReport?.Dispose();
+            _resourceReport = null;
 #endif
             _frameCapture?.Close();
 #if MANA_BROWSER

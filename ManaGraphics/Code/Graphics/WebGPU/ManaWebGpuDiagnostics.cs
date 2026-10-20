@@ -1,33 +1,69 @@
 using static ManaGraphics.Code.Graphics.ManaWebGpuMemoryDiagnostics;
 using System.Runtime.InteropServices;
-using System.Linq;
 using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
-using Silk.NET.WebGPU;
 using ManaGraphics.Code.Graphics.Pipelines;
 using ManaGraphics.Code.Graphics.Renderers;
 using ManaGraphics.Code.Graphics.Resources;
-#if !MANA_BROWSER
-using Silk.NET.WebGPU.Extensions.WGPU;
-#endif
+using Silk.NET.Input;
+using Silk.NET.Maths;
+using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    public unsafe sealed partial class ManaWebGpuContext
+    /// <summary>What the context reports about itself, gathered in one place so diagnostics never reach into it.</summary>
+    internal readonly record struct ManaWebGpuDiagnosticsState(
+        string? RequestedBackend,
+        Vector2D<int> WindowSize,
+        double FramesPerSecond,
+        double UpdatesPerSecond,
+        IInputContext? Input,
+        Vector2D<int> FramebufferSize,
+        TextureFormat SurfaceFormat,
+        TextureFormat DepthFormat,
+        TextureFormat SceneColorFormat,
+        bool HasScene,
+        bool HasSceneProvider,
+        bool SurfaceConfigured,
+        bool SceneCapture,
+        ManaEnvironmentReflectionSource? EnvironmentReflectionSource,
+        bool HasEnvironmentMap,
+        long ParticlesRequested,
+        long ParticlesDrawn,
+        IReadOnlyList<ManaWebGpuSceneMesh> Meshes,
+        int MeshTextureCount,
+        int ShaderModuleCount,
+        int PipelineCount);
+
+    /// <summary>
+    /// The diagnostics panel's snapshot and the startup log report: the adapter and device, their limits and features,
+    /// the surface, renderer state and resource counts. Reads the device; never changes anything.
+    /// </summary>
+    internal sealed unsafe class ManaWebGpuDiagnostics
     {
+        private readonly WebGPU _api;
+        private readonly ManaWebGpuNativeDevice _native;
+
+        public ManaWebGpuDiagnostics(WebGPU api, ManaWebGpuNativeDevice native)
+        {
+            _api = api;
+            _native = native;
+        }
+
         private const int MaxReportedFeatureCount = 256;
 
-        protected override ManaGraphicsDiagnosticsSnapshot CaptureSnapshotCore()
+        /// <summary>The snapshot the diagnostics panel shows.</summary>
+        public ManaGraphicsDiagnosticsSnapshot Capture(in ManaWebGpuDiagnosticsState state)
         {
             try
             {
                 var properties = new AdapterProperties();
-                _api.AdapterGetProperties(_native!.Adapter, &properties);
+                _api.AdapterGetProperties(_native.Adapter, &properties);
 
                 var adapterLimits = CreateSupportedLimitsQuery();
-                var hasAdapterLimits = _api.AdapterGetLimits(_native!.Adapter, &adapterLimits);
+                var hasAdapterLimits = _api.AdapterGetLimits(_native.Adapter, &adapterLimits);
                 var deviceLimits = CreateSupportedLimitsQuery();
-                var hasDeviceLimits = _api.DeviceGetLimits(_native!.Device, &deviceLimits);
+                var hasDeviceLimits = _api.DeviceGetLimits(_native.Device, &deviceLimits);
                 var effectiveLimits = deviceLimits.Limits;
                 var unavailable = ManaGraphicsDiagnosticsCommonSections.NotExposed;
                 var sections = new List<ManaGraphicsDiagnosticSection>
@@ -45,9 +81,9 @@ namespace ManaGraphics.Code.Graphics
                         architecture: ReadDiagnosticString(properties.Architecture),
                         backend: properties.BackendType.ToString(),
 #if MANA_BROWSER
-                        contextProfile: $"instance=browser; requested={(_requestedBackend ?? "Automatic")}",
+                        contextProfile: $"instance=browser; requested={(state.RequestedBackend ?? "Automatic")}",
 #else
-                        contextProfile: $"instance={_native!.InstanceBackend}; requested={(_requestedBackend ?? "Automatic")}",
+                        contextProfile: $"instance={_native.InstanceBackend}; requested={(state.RequestedBackend ?? "Automatic")}",
 #endif
                         powerPreference: PowerPreference.HighPerformance.ToString()),
                     CreateVideoMemorySection(properties),
@@ -71,49 +107,49 @@ namespace ManaGraphics.Code.Graphics
                     adapterLimits.Limits));
 
                 var environmentSource = ManaWebGpuEnvironment.EffectiveSource(
-                    _activeRenderScene?.EnvironmentReflectionSource);
+                    state.EnvironmentReflectionSource);
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateDisplay(
                     backend: properties.BackendType.ToString(),
-                    windowSize: $"{_window.Size.X} x {_window.Size.Y}",
-                    framebufferSize: $"{FramebufferSize.X} x {FramebufferSize.Y}",
-                    colorFormat: _surfaceFormat.ToString(),
-                    depthFormat: _depthFormat.ToString(),
+                    windowSize: $"{state.WindowSize.X} x {state.WindowSize.Y}",
+                    framebufferSize: $"{state.FramebufferSize.X} x {state.FramebufferSize.Y}",
+                    colorFormat: state.SurfaceFormat.ToString(),
+                    depthFormat: state.DepthFormat.ToString(),
                     stencilFormat: "None",
                     presentation: PresentMode.Fifo.ToString(),
                     sampleCount: "1",
-                    viewport: $"0, 0 — {FramebufferSize.X} x {FramebufferSize.Y}",
-                    hdr: $"{FormatBoolean(_scene != null)} ({SceneColorFormat})",
+                    viewport: $"0, 0 — {state.FramebufferSize.X} x {state.FramebufferSize.Y}",
+                    hdr: $"{FormatBoolean(state.HasScene)} ({state.SceneColorFormat})",
                     depthTest: "Enabled",
                     blending: "Pipeline-dependent",
                     faceCulling: "Pipeline-dependent",
                     new ManaGraphicsDiagnosticEntry("Alpha mode", CompositeAlphaMode.Opaque.ToString(), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(_windowSurface?.IsConfigured == true), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_scene != null), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Scene capture", FormatBoolean(UseSceneCapture), ManaGraphicsDiagnosticScope.WebGpu)));
+                    new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(state.SurfaceConfigured), ManaGraphicsDiagnosticScope.WebGpu),
+                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(state.HasScene), ManaGraphicsDiagnosticScope.WebGpu),
+                    new ManaGraphicsDiagnosticEntry("Scene capture", FormatBoolean(state.SceneCapture), ManaGraphicsDiagnosticScope.WebGpu)));
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateInputAndTiming(
-                    targetFrameRate: $"{_window.FramesPerSecond:0.##} Hz",
-                    targetUpdateRate: $"{_window.UpdatesPerSecond:0.##} Hz",
-                    keyboards: _input?.Keyboards.Count.ToString("N0") ?? "Unavailable",
-                    mice: _input?.Mice.Count.ToString("N0") ?? "Unavailable",
-                    gamepads: _input?.Gamepads.Count.ToString("N0") ?? "Unavailable",
-                    joysticks: _input?.Joysticks.Count.ToString("N0") ?? "Unavailable"));
+                    targetFrameRate: $"{state.FramesPerSecond:0.##} Hz",
+                    targetUpdateRate: $"{state.UpdatesPerSecond:0.##} Hz",
+                    keyboards: state.Input?.Keyboards.Count.ToString("N0") ?? "Unavailable",
+                    mice: state.Input?.Mice.Count.ToString("N0") ?? "Unavailable",
+                    gamepads: state.Input?.Gamepads.Count.ToString("N0") ?? "Unavailable",
+                    joysticks: state.Input?.Joysticks.Count.ToString("N0") ?? "Unavailable"));
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateEnvironment(
                     environmentSource,
-                    _environment?.Map != null));
+                    state.HasEnvironmentMap));
                 sections.Add(CreateSection("Rendering Quality",
                     ("Profile", ManaWebGpuDevice.UseMobileRendering ? "Mobile (adaptive particles)" : "Desktop"),
                     ("Sky background", ManaWebGpuSkyPass.Mode switch { 0 => "Simple gradients and procedural stars", 1 => "Simple gradients and the star catalogue", _ => "Per-pixel atmosphere" }),
-                    ("GPU particles requested", RequestedGpuParticleCount.ToString("N0")),
-                    ("GPU particles drawn", LastGpuParticleCount.ToString("N0"))));
+                    ("GPU particles requested", state.ParticlesRequested.ToString("N0")),
+                    ("GPU particles drawn", state.ParticlesDrawn.ToString("N0"))));
 
-                var totalWebGpuPolygons = (SceneMeshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
-                var totalWebGpuVertices = SceneMeshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
+                var totalWebGpuPolygons = (state.Meshes.Sum(mesh => (long)mesh.Mesh.IndexCount) / 3).ToString("N0");
+                var totalWebGpuVertices = state.Meshes.Sum(mesh => (long)mesh.Mesh.VertexCount).ToString("N0");
 
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateResources(
-                    sceneMeshes: SceneMeshes.Count.ToString("N0"),
-                    meshTextures: _meshTextures.Count.ToString("N0"),
-                    shaders: ShaderModuleCount.ToString("N0"),
-                    pipelines: PipelineCount.ToString("N0"),
+                    sceneMeshes: state.Meshes.Count.ToString("N0"),
+                    meshTextures: state.MeshTextureCount.ToString("N0"),
+                    shaders: state.ShaderModuleCount.ToString("N0"),
+                    pipelines: state.PipelineCount.ToString("N0"),
                     totalPolygons: totalWebGpuPolygons,
                     totalVertices: totalWebGpuVertices));
 
@@ -206,18 +242,20 @@ namespace ManaGraphics.Code.Graphics
         }
 
 #if !MANA_BROWSER
-        private void LogWebGpuDiagnostics(string? requestedBackend, InstanceBackend instanceBackend)
+        /// <summary>The device and renderer report written to the log once, after startup.</summary>
+        public void LogStartup(in ManaWebGpuDiagnosticsState state)
         {
             try
             {
                 var properties = new AdapterProperties();
-                _api.AdapterGetProperties(_native!.Adapter, &properties);
+                _api.AdapterGetProperties(_native.Adapter, &properties);
 
-                var requestedBackendName = string.IsNullOrWhiteSpace(requestedBackend)
+                var requestedBackendName = string.IsNullOrWhiteSpace(state.RequestedBackend)
                     ? "automatic"
-                    : requestedBackend.Trim();
+                    : state.RequestedBackend.Trim();
+                var instanceBackend = _native.InstanceBackend;
                 var environmentSource = ManaWebGpuEnvironment.EffectiveSource(
-                    _activeRenderScene?.EnvironmentReflectionSource);
+                    state.EnvironmentReflectionSource);
 
                 ManaConsole.WriteDiagnostic("[WebGPU Diagnostics] ===== Device and renderer report =====");
                 ManaConsole.WriteDiagnostic(
@@ -243,29 +281,24 @@ namespace ManaGraphics.Code.Graphics
                 LogDeviceLimits();
 
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Surface: {FramebufferSize.X}x{FramebufferSize.Y}; " +
-                    $"color={_surfaceFormat}; depth={_depthFormat}; sceneColor={SceneColorFormat}; " +
+                    $"[WebGPU Diagnostics] Surface: {state.FramebufferSize.X}x{state.FramebufferSize.Y}; " +
+                    $"color={state.SurfaceFormat}; depth={state.DepthFormat}; sceneColor={state.SceneColorFormat}; " +
                     $"present={PresentMode.Fifo}; alpha={CompositeAlphaMode.Opaque}; samples=1.");
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Renderer: configured={_windowSurface?.IsConfigured == true}; HDR={_scene != null}; " +
-                    $"meshPipeline={_scene != null}; sceneProvider={_renderSceneProvider != null}; " +
-                    $"fallbackDemoRequested={ManaWebGpuSceneRenderer.DemoRequested}; sceneCapture={UseSceneCapture}.");
+                    $"[WebGPU Diagnostics] Renderer: configured={state.SurfaceConfigured}; HDR={state.HasScene}; " +
+                    $"meshPipeline={state.HasScene}; sceneProvider={state.HasSceneProvider}; " +
+                    $"fallbackDemoRequested={ManaWebGpuSceneRenderer.DemoRequested}; sceneCapture={state.SceneCapture}.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Environment: source={environmentSource.SourceKind}; " +
                     $"projection={environmentSource.Projection}; cube={environmentSource.EnvironmentCubeSize}; " +
                     $"irradiance={environmentSource.IrradianceCubeSize}; prefilter={environmentSource.PrefilterCubeSize}; " +
                     $"BRDF LUT={environmentSource.BrdfLutSize}; refresh={environmentSource.SceneCaptureRefreshIntervalFrames} frames.");
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Resources: sceneMeshes={SceneMeshes.Count}; meshTextures={_meshTextures.Count}; " +
-                    $"shaderModules={ShaderModuleCount}; renderPipelines={PipelineCount}; " +
-#if MANA_BROWSER
-                    $"environmentMap={_environment?.Map != null}.");
-#else
-                    $"environmentMap={_environment?.Map != null}.");
-#endif
+                    $"[WebGPU Diagnostics] Resources: sceneMeshes={state.Meshes.Count}; meshTextures={state.MeshTextureCount}; " +
+                    $"shaderModules={state.ShaderModuleCount}; renderPipelines={state.PipelineCount}; " +
+                    $"environmentMap={state.HasEnvironmentMap}.");
 
                 LogVideoMemoryDiagnostics(properties);
-                CaptureInitializationSnapshot();
                 ManaConsole.WriteDiagnostic("[WebGPU Diagnostics] ===== End report =====");
             }
             catch (Exception exception)
@@ -279,7 +312,7 @@ namespace ManaGraphics.Code.Graphics
         private void LogAdapterLimits()
         {
             var supportedLimits = new SupportedLimits();
-            if (_api.AdapterGetLimits(_native!.Adapter, &supportedLimits))
+            if (_api.AdapterGetLimits(_native.Adapter, &supportedLimits))
             {
                 LogLimits("Adapter limits", supportedLimits.Limits);
             }
@@ -292,7 +325,7 @@ namespace ManaGraphics.Code.Graphics
         private void LogDeviceLimits()
         {
             var supportedLimits = new SupportedLimits();
-            if (_api.DeviceGetLimits(_native!.Device, &supportedLimits))
+            if (_api.DeviceGetLimits(_native.Device, &supportedLimits))
             {
                 LogLimits("Device limits", supportedLimits.Limits);
             }
@@ -337,12 +370,12 @@ namespace ManaGraphics.Code.Graphics
 
         private int GetAdapterFeatureCount()
         {
-            return GetFeatureCount(_api.AdapterEnumerateFeatures(_native!.Adapter, (FeatureName*)null));
+            return GetFeatureCount(_api.AdapterEnumerateFeatures(_native.Adapter, (FeatureName*)null));
         }
 
         private int GetDeviceFeatureCount()
         {
-            return GetFeatureCount(_api.DeviceEnumerateFeatures(_native!.Device, (FeatureName*)null));
+            return GetFeatureCount(_api.DeviceEnumerateFeatures(_native.Device, (FeatureName*)null));
         }
 
         private string GetAdapterFeatureSummary()
@@ -359,7 +392,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var features = stackalloc FeatureName[featureCount];
-            var written = GetFeatureCount(_api.AdapterEnumerateFeatures(_native!.Adapter, features));
+            var written = GetFeatureCount(_api.AdapterEnumerateFeatures(_native.Adapter, features));
             return FormatFeatures(features, Math.Min(featureCount, written));
         }
 
@@ -377,7 +410,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var features = stackalloc FeatureName[featureCount];
-            var written = GetFeatureCount(_api.DeviceEnumerateFeatures(_native!.Device, features));
+            var written = GetFeatureCount(_api.DeviceEnumerateFeatures(_native.Device, features));
             return FormatFeatures(features, Math.Min(featureCount, written));
         }
 
@@ -414,12 +447,5 @@ namespace ManaGraphics.Code.Graphics
         {
             return new SupportedLimits();
         }
-
-
-        private int ShaderModuleCount => (_thumbnails?.ShaderModuleCount ?? 0) + (_scene?.ShaderModuleCount ?? 0);
-        private int PipelineCount => (_thumbnails?.PipelineCount ?? 0) + (_scene?.PipelineCount ?? 0);
-        private IReadOnlyList<ManaWebGpuSceneMesh> SceneMeshes => _meshes?.Meshes ?? [];
-        private Silk.NET.Maths.Vector2D<int> FramebufferSize => _windowSurface?.Size ?? default;
-        private TextureFormat SceneColorFormat => _scene?.SceneColorFormat ?? _surfaceFormat;
     }
 }
