@@ -8,9 +8,8 @@ using Silk.NET.Windowing;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// A UI-only presentation surface for a native panel window, drawing on the editor's device and queue. Borrows the
-    /// API, instance, adapter, device and queue; owns its surface and UI renderer. Made by
-    /// <see cref="ManaWebGpuContext.CreateUiSurface"/>, which disposes any still open before it releases the device.
+    /// A UI-only surface for a native panel window on the editor's device; the context disposes any still open before it
+    /// releases the device.
     /// </summary>
     public sealed unsafe class ManaWebGpuPanelSurface : IUiWindowRenderer
     {

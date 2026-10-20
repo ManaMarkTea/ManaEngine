@@ -5,20 +5,11 @@ using ManaGraphics.Code.Diagnostics;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Deliberately NOT declared `unsafe`, unlike every other ManaWebGpuContext.*.cs partial file:
-    // C# doesn't allow `await` inside an unsafe context at all (the whole textual extent of an
-    // `unsafe class` counts, not just methods that touch a pointer themselves), so the async
-    // adapter/device bring-up this class needs for a real browser has to live in its own
-    // non-unsafe partial declaration, calling into small unsafe non-async helpers
-    // (StartAdapterRequest/StartDeviceRequest, in ManaWebGpuContext.Device.cs) for the pointer-
-    // touching parts. See ManaWebGpuContext.cs's constructor comment for the full reasoning.
+    // Not unsafe, unlike the other partials: C# forbids await anywhere in an unsafe type, so the browser's
+    // async bring-up lives here and calls small unsafe helpers in Device.cs.
     public sealed partial class ManaWebGpuContext
     {
-        /// <summary>
-        /// Must be awaited once, right after constructing a browser ManaWebGpuContext, before it's
-        /// usable for anything else -- the constructor itself only does the synchronous part
-        /// (instance + surface creation).
-        /// </summary>
+        /// <summary>Awaited once after constructing a browser context, before anything else uses it.</summary>
         public async Task CompleteBrowserInitializationAsync()
         {
             ObjectDisposedException.ThrowIf(_disposed, this);

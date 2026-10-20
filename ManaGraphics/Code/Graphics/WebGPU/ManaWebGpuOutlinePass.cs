@@ -4,9 +4,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Draws every outlined mesh into the HDR post-processor's outline mask, which the tone map then edges. Depth-tested
-    /// against what the scene pass left, so a highlighted mesh only shows where nothing is in front of it; handles test
-    /// against their own depth buffer instead.
+    /// Draws outlined meshes into the HDR outline mask, depth-tested against the scene (handles against their own depth),
+    /// for the tone map to edge.
     /// </summary>
     internal sealed unsafe class ManaWebGpuOutlinePass : ManaWebGpuRenderPass
     {

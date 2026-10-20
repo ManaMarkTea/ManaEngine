@@ -5,10 +5,7 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// Draws every opaque scene mesh depth-only into each cascade of the <see cref="ManaWebGpuShadowMap"/>, before the
-    /// scene pass samples it.
-    /// </summary>
+    /// <summary>Draws the opaque meshes depth-only into each shadow cascade, before the scene pass samples them.</summary>
     internal sealed unsafe class ManaWebGpuShadowPass : ManaWebGpuRenderPass
     {
         private const int CascadeCount = ManaWebGpuShadowMap.CascadeCount;
@@ -258,9 +255,7 @@ namespace ManaGraphics.Code.Graphics
 
                     foreach (var sceneMesh in frame.Meshes)
                     {
-                        // The editor room only receives: its floor casting onto itself is nothing but acne, and
-                        // its ceiling would put the whole room in shade. Editor helpers -- handles, collider and
-                        // trigger wireframes, markers -- are kept out of reflections the same way, and cast nothing.
+                        // The editor room and helpers cast nothing: the room's floor would only shadow itself.
                         if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
                             || !sceneMesh.Instance.IncludeInEnvironmentCapture
                             || sceneMesh.Instance.ShaderName == "ManaGridShader")

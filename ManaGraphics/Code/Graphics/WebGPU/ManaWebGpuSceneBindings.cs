@@ -5,17 +5,12 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// The bind group layouts, samplers and frame uniform every scene pipeline shares: group 0 (frame globals and the
-    /// shadow map), group 1 (one mesh's object uniform and textures), group 2 (a material's custom uniforms), and the
-    /// separate scene-capture layout. Passes build their pipelines over <see cref="MeshLayout"/>,
-    /// <see cref="MaterialLayout"/> or <see cref="SceneCaptureLayout"/>; scene meshes build their groups from these layouts.
+    /// The layouts, samplers and frame uniform every scene pipeline shares: group 0 frame and shadows, group 1 one
+    /// mesh's object data and textures, group 2 custom material uniforms, plus the scene-capture layout.
     /// </summary>
     internal sealed unsafe class ManaWebGpuSceneBindings : IDisposable
     {
-        /// <summary>
-        /// Where the material maps start in group(1). Bindings 0..7 are the object uniform, the two
-        /// samplers, albedo and the environment set; the rest follow in the order below.
-        /// </summary>
+        /// <summary>Where the material maps start in group 1, after the object uniform, samplers, albedo and environment.</summary>
         public const int FirstMaterialMapBinding = 8;
 
         /// <summary>Normal, emission, metallic, roughness, ambient occlusion and opacity.</summary>
@@ -110,9 +105,7 @@ namespace ManaGraphics.Code.Graphics
                     throw new InvalidOperationException("Failed to create WebGPU clamp sampler.");
                 }
 
-                // Group 0: per-frame globals (camera/time/lights) -- one persistent buffer+bind group,
-                // written once per frame, bound once per frame, shared by every mesh's draw call. See
-                // ManaWebGpuFrameUniform.For and the passes that bind it.
+                // Group 0: frame globals, written and bound once a frame.
                 var frameBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
                     Binding = 0,
@@ -125,9 +118,7 @@ namespace ManaGraphics.Code.Graphics
                     }
                 };
 
-                // Shadow map array (one layer per cascade) + comparison sampler, sampled by pbr_irradiance.wgsl
-                // alongside the frame uniform. Declared here (not group 2) so every existing pipeline layout
-                // that already includes group 0 gets them for free -- see CreateShadowMapResources.
+                // The shadow map array and comparison sampler, in group 0 so every pipeline has them.
                 var shadowMapBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
                     Binding = 1,
@@ -298,10 +289,7 @@ namespace ManaGraphics.Code.Graphics
                     }
                 };
 
-                // The rest of the PBR maps. Every one is present in the layout whether or not a material uses
-                // it: a bind group must fill every binding its layout declares, so an unassigned channel is
-                // bound to a neutral 1x1 rather than left out. A shader that reads none of them is fine --
-                // a layout may declare more than the shader consumes.
+                // Every map is in the layout whether a material uses it or not; an unused one binds a neutral 1x1.
                 var bindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[ObjectBindingCount];
                 bindGroupLayoutEntries[0] = bindGroupLayoutEntry;
                 bindGroupLayoutEntries[1] = samplerBindGroupLayoutEntry;
@@ -330,9 +318,7 @@ namespace ManaGraphics.Code.Graphics
                     throw new InvalidOperationException("Failed to create WebGPU object bind group layout.");
                 }
 
-                // Scene capture (cubemap probe refresh) intentionally keeps its own, larger, unsplit
-                // uniform layout -- see UpdateSceneCaptureUniform/ManaWebGpuSceneCaptureUniform in
-                // ManaWebGpuUniforms.cs for why.
+                // Scene capture keeps its own unsplit uniform layout (ManaWebGpuSceneCaptureUniform).
                 var sceneCaptureBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
                     Binding = 0,
@@ -388,11 +374,8 @@ namespace ManaGraphics.Code.Graphics
                     throw new InvalidOperationException("Failed to create WebGPU scene capture pipeline layout.");
                 }
 
-                // Third bind group, used only by shaders that opt into per-material custom uniforms
-                // (lightning_ball.wgsl, liquid_ball.wgsl, water.wgsl today). Additive to groups 0/1, so
-                // every other WGSL shader/pipeline is untouched. Visible to both stages because
-                // water.wgsl reads custom uniforms in its vertex shader (wave/ripple displacement),
-                // not just the fragment shader like the earlier shaders that only needed this for color.
+                // Group 2: per-material custom uniforms for shaders that declare them (water, lightning, liquid). Vertex stage
+                // too: water displaces with them.
                 var customUniformBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
                     Binding = 0,

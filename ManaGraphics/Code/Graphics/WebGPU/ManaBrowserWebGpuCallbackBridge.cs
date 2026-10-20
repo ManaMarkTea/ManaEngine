@@ -4,13 +4,8 @@ using System.Runtime.InteropServices.JavaScript;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Bridges wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice around a confirmed Emscripten
-    // runtime bug in their normal callback-delivery path (RuntimeError: getWasmTableEntry(...)
-    // is not a function; see mana_webgpu.c's mana_request_adapter/mana_request_device for the
-    // details). Called directly via [LibraryImport], not resolved through ManaBrowserWebGpuNativeContext -- these
-    // aren't part of Silk.NET.WebGPU's API surface at all, just a private detour around it.
-    //
-    // Request IDs keep late promises from routing into a fresh context; JS releases rejected handles.
+    // Requests the adapter and device through plain JS, around an Emscripten dynCall bug in the normal callback
+    // path. Request IDs keep a late promise out of a fresh context; JS releases rejected handles.
     public static partial class ManaBrowserWebGpuCallbackBridge
     {
         [LibraryImport("mana_webgpu", EntryPoint = "mana_request_adapter")]

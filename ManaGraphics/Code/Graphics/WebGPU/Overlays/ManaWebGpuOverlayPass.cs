@@ -5,9 +5,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics.Overlays
 {
     /// <summary>
-    /// A debug overlay drawn over the scene after the meshes -- wireframe, vertex normals, and anything similar
-    /// added later. Subclasses supply a WGSL file, an enable flag and per-mesh draw behaviour; the pipeline is built
-    /// the first frame the overlay is on. Adding one is a subclass registered with the context, nothing more.
+    /// A debug overlay drawn over the meshes. Subclasses give a shader, an enable flag and the per-mesh draw; the
+    /// pipeline is built the first frame the overlay is on.
     /// </summary>
     internal abstract unsafe class ManaWebGpuOverlayPass : ManaWebGpuRenderPass
     {
@@ -38,10 +37,7 @@ namespace ManaGraphics.Code.Graphics.Overlays
 
         public abstract bool IsEnabled(ManaIrradianceSettings settings);
 
-        /// <summary>
-        /// Issues draw calls for one scene mesh. The pipeline, the frame bind group and this mesh's
-        /// object bind group are already bound.
-        /// </summary>
+        /// <summary>Draws one mesh; pipeline, frame group and the mesh's object group are already bound.</summary>
         public abstract void DrawMesh(
             WebGPU api,
             Device* device,

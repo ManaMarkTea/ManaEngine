@@ -3,10 +3,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// Draws the scene's GPU particle emitters after the meshes. The renderer and its pipeline are built the first
-    /// frame an emitter exists, so a level without particles never compiles the shader.
-    /// </summary>
+    /// <summary>Draws GPU particle emitters after the meshes; the renderer is built when the first emitter appears.</summary>
     internal sealed unsafe class ManaWebGpuParticlePass : ManaWebGpuRenderPass
     {
         private readonly TextureFormat _colorFormat;

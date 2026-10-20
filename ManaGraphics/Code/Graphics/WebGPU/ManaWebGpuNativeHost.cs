@@ -6,9 +6,8 @@ using Silk.NET.Windowing;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// A platform that brings its own window, input and wgpu-native (iOS, Android): GLFW and Silk.NET's desktop
-    /// library loading do not exist there. Set <see cref="ManaWebGpuNativeHost.Current"/> before running a game mode
-    /// and <see cref="GameSilkWebGpu"/> runs on it instead of opening a desktop window.
+    /// A platform that brings its own window, input and wgpu-native (iOS, Android). Set
+    /// <see cref="ManaWebGpuNativeHost.Current"/> and <see cref="GameSilkWebGpu"/> runs on it instead of a desktop window.
     /// </summary>
     public unsafe interface IManaWebGpuNativeHost
     {

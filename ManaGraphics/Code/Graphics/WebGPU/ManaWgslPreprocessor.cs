@@ -4,16 +4,8 @@ using System.Text.RegularExpressions;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Resolves `#include "other.wgsl"` before source reaches wgpu, so shared declarations (the frame and
-    /// object uniform structs above all) live in one file instead of being copy-pasted into every shader.
-    /// Paths resolve relative to the including file; each file is included at most once per module.
-    /// <para>
-    /// Also supports a single conditional symbol, <c>MANA_BROWSER</c>, via
-    /// <c>#if MANA_BROWSER</c> / <c>#else</c> / <c>#endif</c> -- deliberately not a general
-    /// expression language, just enough to express the handful of places where the browser target
-    /// genuinely needs different shader code than desktop (see hdr_tonemap.wgsl's surface encode).
-    /// Nesting is not supported.
-    /// </para>
+    /// Resolves `#include "other.wgsl"` (relative to the including file, each once per module) and a single
+    /// unnested <c>#if MANA_BROWSER</c> / <c>#else</c> / <c>#endif</c> before source reaches wgpu.
     /// </summary>
     internal static partial class ManaWgslPreprocessor
     {
@@ -28,10 +20,7 @@ namespace ManaGraphics.Code.Graphics
             return ApplyConditionals(builder.ToString());
         }
 
-        /// <summary>
-        /// Strips `#if MANA_BROWSER` / `#else` / `#endif` blocks, keeping whichever branch matches
-        /// the build. Runs after includes so an included file can carry conditionals too.
-        /// </summary>
+        /// <summary>Keeps the matching branch of each MANA_BROWSER block; runs after includes.</summary>
         private static string ApplyConditionals(string source)
         {
 #if MANA_BROWSER

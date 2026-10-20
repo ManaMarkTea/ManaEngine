@@ -6,19 +6,14 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Off-screen square renders for the mesh-asset picker's thumbnails (MeshThumbnailCache), through the
-    // real renderer rather than the CPU rasterizer -- see mesh_thumbnail.wgsl's header for why.
-    //
-    // One render at a time is assumed: MeshThumbnailCache's single background worker waits on each request
-    // before the next, which is why the colour and depth targets are made once and reused, not pooled.
+    // Square off-screen renders for the asset browser's thumbnails (MeshThumbnailCache). Its single worker waits on
+    // each request, so one set of targets is reused.
     internal sealed unsafe class ManaWebGpuThumbnailRenderer : IDisposable
     {
         private const uint ThumbnailBytesPerPixel = 4;
         private const float ThumbnailInset = 0.1f;
 
-        // Fixed top-down isometric view, identical across every thumbnail. The fit changes per asset; the
-        // angle does not, so a grid of assets reads as a consistent catalogue instead of a set of random
-        // screenshots. Forward is camera-to-target, so the eye is placed in the opposite direction.
+        // One fixed isometric angle for every thumbnail, so a grid of assets reads as a catalogue.
         private static readonly Vector3 ThumbnailForwardWorld = Vector3.Normalize(new Vector3(-1.0f, -1.35f, -1.0f));
         private static readonly Vector3 ThumbnailUpWorld = Vector3.UnitY;
         private static readonly Vector3 ThumbnailLightDirectionWorld = Vector3.Normalize(new Vector3(-0.45f, 0.85f, 0.35f));
@@ -55,9 +50,8 @@ namespace ManaGraphics.Code.Graphics
         public int ShaderModuleCount => _shaderModule != null ? 1 : 0;
 
         /// <summary>
-        /// Render thread only. Draws <paramref name="instances"/> (world transforms already composed) into a square
-        /// straight-alpha RGBA buffer and settles <paramref name="completion"/> with it once read back, or with null
-        /// when there was nothing to draw.
+        /// Render thread only. Draws <paramref name="instances"/> to a square straight-alpha RGBA buffer and completes with
+        /// it once read back, or null when there is nothing to draw.
         /// </summary>
         public void EncodeAndSubmit(
             IReadOnlyList<ManaRenderMeshInstance> instances,

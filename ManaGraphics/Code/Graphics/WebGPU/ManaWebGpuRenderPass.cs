@@ -4,9 +4,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// One piece of the frame -- shadows, outlines, an overlay -- owning its own pipelines and GPU state. The context
-    /// registers passes in frame order and calls each hook at its point in the frame; a pass overrides only the
-    /// hooks it draws in. Disposed (in reverse order) before the shared bindings and the device are released.
+    /// One piece of the frame, owning its pipelines and GPU state. Registered in frame order; overrides only the hooks
+    /// it draws in. Disposed in reverse order, before the shared bindings and the device.
     /// </summary>
     internal abstract unsafe class ManaWebGpuRenderPass : IDisposable
     {

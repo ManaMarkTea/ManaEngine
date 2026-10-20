@@ -4,10 +4,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// Draws the sky behind the scene, first in the scene pass so every mesh draws over it. Skipped until the
-    /// environment map exists -- the first frames after startup, while it loads, show the scene pass's clear.
-    /// </summary>
+    /// <summary>Draws the sky first in the scene pass; skipped until the environment map exists.</summary>
     internal sealed unsafe class ManaWebGpuSkyPass : ManaWebGpuRenderPass
     {
         private ManaWebGpuSkybox? _skybox;

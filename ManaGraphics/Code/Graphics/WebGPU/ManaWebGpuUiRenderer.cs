@@ -10,13 +10,8 @@ using Buffer = Silk.NET.WebGPU.Buffer;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Draws a <see cref="ManaUiDrawList"/> with WebGPU.
-    /// <para>
-    /// The whole UI is one instanced draw of a unit quad -- there is no vertex or index buffer, only a
-    /// per-instance stream of <see cref="ManaUiInstance"/>. Clipping is handled in the fragment shader
-    /// rather than by scissor rects, so nothing forces a batch split and a typical frame is a single
-    /// <c>Draw</c> call regardless of how many panels and glyphs it contains.
-    /// </para>
+    /// Draws a <see cref="ManaUiDrawList"/> as one instanced quad draw; clipping happens in the fragment shader, so
+    /// nothing splits the batch.
     /// </summary>
     internal unsafe sealed class ManaWebGpuUiRenderer : IDisposable
     {
@@ -58,9 +53,7 @@ namespace ManaGraphics.Code.Graphics
             _device = device;
             _queue = queue;
 
-            // Resolved against the output directory the .wgsl is copied to, not the working directory --
-            // `dotnet run` from the repo root leaves the CWD somewhere else entirely. The phone apps carry it in their
-            // working folder (Game/) instead.
+            // Next to the executable, not the working directory; the phone apps carry it in Game/.
             var shaderPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", "manaui.wgsl");
             if (!File.Exists(shaderPath))
             {
@@ -78,9 +71,7 @@ namespace ManaGraphics.Code.Graphics
             CreateImagePlaceholder();
         }
 
-        /// <summary>
-        /// Uploads any atlas changes and draws the list. Safe to call with an empty list.
-        /// </summary>
+        /// <summary>Uploads atlas changes and draws the list.</summary>
         public void Render(
             RenderPassEncoder* renderPass,
             ManaUiDrawList drawList,
@@ -123,10 +114,7 @@ namespace ManaGraphics.Code.Graphics
             UploadUniforms(logicalSize, atlas);
             UploadInstances(drawList);
 
-            // Scissor state persists across draws within a render pass, so anything that set one earlier in
-            // this same pass -- sets one per command. Without resetting it here, the whole UI ends up
-            // clipped to whatever ImGui's last widget happened to be. ManaUI does its own clipping in the
-            // fragment shader, so full-target scissor is what it wants.
+            // Scissor persists within a pass; the UI clips in the shader and wants the whole target.
             if (framebufferWidth > 0 && framebufferHeight > 0)
             {
                 _api.RenderPassEncoderSetScissorRect(renderPass, 0, 0, framebufferWidth, framebufferHeight);
@@ -150,10 +138,7 @@ namespace ManaGraphics.Code.Graphics
 
         // ----- resource sync ---------------------------------------------------------------------------
 
-        /// <summary>
-        /// (Re)creates the glyph texture if the atlas was resized or reset, then uploads its dirty region.
-        /// Only the changed rows are copied, so adding one glyph does not re-upload a megabyte.
-        /// </summary>
+        /// <summary>(Re)creates the glyph texture when the atlas resized, then uploads only its dirty rows.</summary>
         private void SyncGlyphAtlas(ManaGlyphAtlas atlas)
         {
             if (_glyphTexture == null || _glyphAtlasWidth != atlas.Width || _glyphAtlasHeight != atlas.Height)
@@ -179,10 +164,7 @@ namespace ManaGraphics.Code.Graphics
             atlas.ClearDirty();
         }
 
-        /// <summary>
-        /// The colour atlas, uploaded the same way as the glyph one. Replaces the 1x1 white placeholder the
-        /// binding was created with, the first time anything actually puts an image in it.
-        /// </summary>
+        /// <summary>The colour atlas, uploaded like the glyph one; replaces the 1x1 placeholder on first use.</summary>
         private void SyncImageAtlas(ManaImageAtlas atlas)
         {
             if (_imageTexture == null || _imageAtlasWidth != atlas.Width || _imageAtlasHeight != atlas.Height)
@@ -212,19 +194,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>
-        /// The colour atlas, as an sRGB texture.
-        /// <para>
-        /// The format is the whole fix for emoji looking washed out. Its contents are sRGB-encoded bytes,
-        /// straight out of a PNG; the shader works in linear and the surface re-encodes on write. Sampling
-        /// through Rgba8Unorm handed those sRGB values to the shader as though they were already linear,
-        /// so the surface encoded them a second time -- which lifts the midtones and reads exactly as
-        /// desaturated. Rgba8UnormSrgb makes the hardware decode on sample, for free, and it leaves alpha
-        /// alone as it should.
-        /// </para>
-        /// <para>
-        /// This assumes the atlas holds sRGB-authored content, which emoji and icons are. Anything already
-        /// linear -- a normal map thumbnail, say -- would need its own texture rather than a slot here.
-        /// </para>
+        /// The colour atlas as sRGB, so sampling decodes the PNG bytes; as Unorm they were encoded twice and emoji looked
+        /// washed out. Linear content would need its own texture.
         /// </summary>
         private void CreateImageTexture(int width, int height)
         {
@@ -317,10 +288,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// Uploads whole rows rather than a tight rectangle: WriteTexture wants a contiguous source with a
-        /// fixed row stride, and the atlas is row-major, so full rows avoid a staging copy entirely.
-        /// </summary>
+        /// <summary>Whole rows: WriteTexture wants a fixed stride, so this avoids a staging copy.</summary>
         private void UploadGlyphRegion(ManaGlyphAtlas atlas, int startRow, int endRow)
         {
             startRow = Math.Clamp(startRow, 0, atlas.Height);
@@ -468,10 +436,7 @@ namespace ManaGraphics.Code.Graphics
         private TextureView* _backdropTextureView;
         private Sampler* _backdropSampler;
 
-        /// <summary>
-        /// The backdrop's sampler. Separate from the atlas one, which clamps LOD to 1 so a glyph can never
-        /// land on a mip -- the backdrop is a chain of mips and needs the whole range.
-        /// </summary>
+        /// <summary>The backdrop's sampler: the atlas one clamps LOD to 1, and the backdrop is all mips.</summary>
         private Sampler* CreateBackdropSampler()
         {
             var descriptor = new SamplerDescriptor
@@ -530,9 +495,7 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            // The blurred backdrop. Declared whether or not anything uses it, so the pipeline is built once
-            // -- a bind group must fill every binding its layout declares, and a layout that came and went
-            // would mean rebuilding the pipeline the first time a panel asked for blur.
+            // Always declared, so turning blur on never rebuilds the pipeline.
             entries[4] = new BindGroupLayoutEntry
             {
                 Binding = 4,
@@ -545,9 +508,7 @@ namespace ManaGraphics.Code.Graphics
                 }
             };
 
-            // The backdrop needs a sampler of its own. The atlas one clamps LOD to 1 because a glyph must
-            // never sample a mip, and the backdrop is nothing but mips -- shared, it clamps a level-4 blur
-            // to level 1, which is a single halving and looks like no blur at all.
+            // Its own sampler: the atlas one clamps LOD to 1, which turns a deep blur into one halving.
             entries[5] = new BindGroupLayoutEntry
             {
                 Binding = 5,
@@ -756,13 +717,9 @@ namespace ManaGraphics.Code.Graphics
             _api.QueueWriteTexture(_queue, &destination, white, 4, &layout, &extent);
         }
 
-        /// <summary>
-        /// The blurred snapshot of the frame under the UI, or null before one has been captured. Owned by
-        /// the context, which is what has the frame to snapshot.
-        /// </summary>
-        /// <param name="generation">The backdrop's <see cref="ManaWebGpuUiBackdrop.Generation"/>: a recreated
-        /// texture can reuse the freed one's address, and a bind group kept by pointer would go on naming the freed
-        /// view -- invalid on every frame after, which froze the editor's whole UI.</param>
+        /// <summary>The blurred frame under the UI, or null before one is captured.</summary>
+        /// <param name="generation">A recreated texture can reuse the freed one's address; the generation keeps a stale
+        /// bind group from naming the freed view.</param>
         public void SetBackdrop(TextureView* view, int generation)
         {
             if (_backdropTextureView == view && _backdropGeneration == generation)

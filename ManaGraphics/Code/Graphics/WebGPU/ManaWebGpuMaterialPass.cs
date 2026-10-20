@@ -6,9 +6,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Draws every scene mesh with its material's shader: opaque first, then transparent back to front, then the
-    /// always-on-top handles in a pass of their own against a separate depth buffer. Owns one pipeline per shader and
-    /// blend/depth/cull combination, built the first time a mesh asks for it.
+    /// Draws every mesh with its material: opaque, then transparent back to front, then always-on-top handles against
+    /// their own depth. One pipeline per shader and state combination, built on first use.
     /// </summary>
     internal sealed unsafe class ManaWebGpuMaterialPass : ManaWebGpuRenderPass
     {
@@ -129,9 +128,7 @@ namespace ManaGraphics.Code.Graphics
                 instance.ShaderName,
                 instance.IsTransparent,
                 instance.DisableDepthWrite,
-                // Only real alpha-blended materials (glTF glass etc) self-cull -- not the intrinsically
-                // transparent shaders (water/liquid/lightning), which stay OpacityMode.Auto/Opaque at the
-                // material level and want both faces for their own volumetric/surface effects.
+                // Only blended materials cull; water, liquid and lightning want both faces.
                 cullBackFaces: instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
                 alwaysOnTop: instance.AlwaysOnTop,
                 additiveBlend: instance.OpacityMode == ManaOpacityMode.Additive);

@@ -3,10 +3,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics.Overlays
 {
-    /// <summary>
-    /// Draws each mesh's edges, reusing the mesh's own vertex buffer against a separate line index
-    /// buffer (see ManaWebGpuSceneMesh.TryGetOrCreateWireframeIndexBuffer).
-    /// </summary>
+    /// <summary>Each mesh's edges: its own vertices through a line index buffer.</summary>
     internal sealed unsafe class ManaWebGpuWireframeOverlay : ManaWebGpuOverlayPass
     {
         public ManaWebGpuWireframeOverlay(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)

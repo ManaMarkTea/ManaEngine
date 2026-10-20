@@ -6,13 +6,8 @@ using Silk.NET.Core.Contexts;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Silk.NET's default loader expects a native shared library, which does not exist as a
-    // separate artifact in browser-wasm. This context maps Silk.NET's wgpu* names to the
-    // mana_wgpu* forwarding shims in mana_webgpu.c. The LibraryImport declarations register
-    // those exports with the wasm P/Invoke table; NativeLibrary resolves them at runtime.
-    // Keep the shim declarations and name map in sync with Silk.NET.WebGPU when updating it.
-    // Adapter/device requests use the separate JS Promise bridge because callbacks through the
-    // legacy Emscripten WebGPU path are not reliable in this .NET wasm setup.
+    // Maps Silk.NET's wgpu* names to the mana_wgpu* shims in mana_webgpu.c, since browser-wasm has no native
+    // library to load. Keep the map in sync with Silk.NET.WebGPU.
     public sealed partial class ManaBrowserWebGpuNativeContext : INativeContext
     {
         private static readonly Dictionary<string, string> ShimNames = new()
@@ -93,11 +88,8 @@ namespace ManaGraphics.Code.Graphics
 
         static ManaBrowserWebGpuNativeContext()
         {
-            // Keeps the registration declarations below reachable so the PInvokeTableGenerator
-            // doesn't trim them before it ever sees them (confirmed necessary during the M0
-            // spike -- an unreachable [LibraryImport] declaration's table entry silently never
-            // gets generated, no build error, just a runtime failure later). The condition is
-            // never true at runtime but isn't a compile-time constant, so it can't be folded away.
+            // Keeps the registrations below reachable so the P/Invoke table generator does not trim them; never true at
+            // runtime, but not a constant the compiler can fold.
             if (Environment.TickCount64 < 0)
             {
                 _ = mana_wgpuAdapterEnumerateFeatures_reg();

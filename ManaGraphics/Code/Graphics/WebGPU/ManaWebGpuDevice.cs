@@ -3,10 +3,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// What every render pass needs from the context: the API, device and queue, the target formats and shader
-    /// loading. Borrowed -- the context owns the device and releases it after every pass is disposed.
-    /// </summary>
+    /// <summary>What every pass borrows from the context: API, device, queue, formats and shader loading.</summary>
     internal sealed unsafe class ManaWebGpuDevice
     {
         public ManaWebGpuDevice(WebGPU api, Device* device, Queue* queue, TextureFormat surfaceFormat, TextureFormat depthFormat)

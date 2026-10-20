@@ -114,9 +114,7 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>Texture coordinate scale in XY, offset in ZW. Applies to every map.</summary>
         public Vector4 UvTransform;
 
-        // Pure function, no GPU call -- lets callers dirty-check the result against the mesh's last
-        // uploaded value before spending a QueueWriteBuffer on it (see
-        // ManaWebGpuSceneMesh.TryUpdateObjectUniform in ManaWebGpuContext.Scene.cs).
+        // Pure, so callers can dirty-check before uploading.
         public static ManaWebGpuObjectUniform For(ManaRenderMeshInstance meshInstance)
         {
             var model = meshInstance.WorldTransform;
@@ -130,9 +128,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 Model = model,
                 NormalMatrix = normalMatrix,
-                // The material's opacity folds into the albedo's alpha rather than travelling as its own
-                // field: both answer "how solid is this", the shader already reads this channel, and
-                // multiplying is what composing them means.
+                // Opacity folds into albedo alpha.
                 MaterialAlbedo = new Vector4(
                     meshInstance.Albedo.X,
                     meshInstance.Albedo.Y,
@@ -194,9 +190,7 @@ namespace ManaGraphics.Code.Graphics
         public float _padding1;
         public float _padding2;
 
-        // Captures keep the old combined per-mesh-per-face layout rather than the frame/object split: they are
-        // infrequent, so rewriting a mesh's whole uniform per face costs nothing worth threading a second per-face
-        // frame buffer through, and scene_capture.wgsl's struct stays as it was.
+        // Captures keep the old combined per-face layout: they are rare, and scene_capture.wgsl stays as it was.
         public static ManaWebGpuSceneCaptureUniform For(ManaRenderMeshInstance meshInstance, ManaCameraData camera, ManaRenderScene scene, float seconds)
         {
             var model = meshInstance.WorldTransform;

@@ -6,10 +6,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// The reflection and irradiance cubes every lit mesh samples: loads them in the background (CPU only), activates a
-    /// prepared map at the frame boundary, and prefilters whatever is drawn into them. Exists whether or not the scene
-    /// pipelines do -- the loading screen waits on <see cref="IsInitializationPending"/> either way.
-    /// <see cref="ManaWebGpuEnvironmentCapturePass"/> redraws the sky or scene into the active map.
+    /// The reflection and irradiance cubes: loaded in the background, activated at the frame boundary, prefiltered after
+    /// each redraw. Exists even without scene pipelines, since loading waits on it.
     /// </summary>
     internal sealed unsafe class ManaWebGpuEnvironment : IDisposable
     {
@@ -35,10 +33,7 @@ namespace ManaGraphics.Code.Graphics
 
         public bool IsInitializationPending => Map == null || _isLoading || _pending != null;
 
-        /// <summary>
-        /// The active map, made (as a placeholder until its load lands) the first time anything asks. Starts a load
-        /// whenever the scene's source changes, and the photo once the sky wants one.
-        /// </summary>
+        /// <summary>The active map (a placeholder until its load lands); starts a load when the scene's source changes.</summary>
         public ManaWebGpuEnvironmentReflectionMap EnsureMap(ManaRenderScene? scene)
         {
             var source = EffectiveSource(scene?.EnvironmentReflectionSource);
@@ -65,10 +60,7 @@ namespace ManaGraphics.Code.Graphics
             return Map;
         }
 
-        /// <summary>
-        /// Frame boundary only: drains the background load and makes a prepared map active. True when the map was
-        /// replaced -- every mesh bound to the old one must be rebuilt.
-        /// </summary>
+        /// <summary>Frame boundary only: activates a loaded map. True when it replaced one, so bound meshes must rebuild.</summary>
         public bool ActivatePending(ManaRenderScene? scene)
         {
             DrainLoad(scene);

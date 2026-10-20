@@ -8,17 +8,9 @@ namespace ManaGraphics.Code.Graphics
 {
     internal static class ManaWebGpuCustomUniforms
     {
-        // Generic per-material uniform block, shared by every WGSL material shader (group 1). Any
-        // shader can opt in just by declaring a matching struct + @group(1)@binding(0) in its own
-        // .wgsl file — nothing here is specific to any one shader, so adding tunable parameters to a
-        // new shader never requires touching this C# renderer code.
-        //
-        // Packing convention: each field of the shader's own "CustomMaterialUniform" struct is named
-        // after the ManaMaterial.SetShaderUniform(name, value) it holds, e.g.
-        // "sphereRadius : vec4<f32>, // slot 0" (the "// slot N" comment is just a human-readable
-        // annotation — the real slot index is the field's declaration order, parsed straight out of
-        // the .wgsl source by ParseCustomUniformSlotNames). So the mapping lives in exactly one
-        // place — the shader file itself — instead of being hand-mirrored between C# and WGSL.
+        // Per-material custom uniforms, for any shader that declares a CustomMaterialUniform struct. Fields are packed in
+        // declaration order, parsed from the .wgsl, and named after ManaMaterial.SetShaderUniform keys, so the shader file
+        // is the only place the mapping lives.
         private static readonly ConcurrentDictionary<string, ManaWebGpuCustomUniformSchema> Layouts = new();
         private static readonly ConcurrentDictionary<string, bool> WarnedUnmapped = new();
 

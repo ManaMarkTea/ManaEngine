@@ -6,9 +6,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Redraws the reflection cubes before anything samples them: the computed sky (Day, Day and Night, Space) whenever
-    /// it has moved -- so reflections show the sky on screen rather than the photo -- and, when scene capture is on,
-    /// the scene itself from the capture point. Each redraw is prefiltered by <see cref="ManaWebGpuEnvironment"/>.
+    /// Redraws the reflection cubes before anything samples them: the computed sky whenever it moves, and the scene when
+    /// scene capture is on. Each redraw is prefiltered.
     /// </summary>
     internal sealed unsafe class ManaWebGpuEnvironmentCapturePass : ManaWebGpuRenderPass
     {
@@ -124,10 +123,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// A camera looking out of one cube face, oriented as WebGPU samples a cube: face order +X -X +Y -Y +Z -Z,
-        /// with each face's screen right and up taken from the cube sampling rules (as GetCubeDirection writes them).
-        /// </summary>
+        /// <summary>A camera looking out of one cube face, in WebGPU's face order and orientation (+X -X +Y -Y +Z -Z).</summary>
         private static ManaCameraData CubeFaceCamera(int face)
         {
             var (forward, right, up) = face switch

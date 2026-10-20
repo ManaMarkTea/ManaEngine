@@ -8,15 +8,7 @@ using ManaCore.Imaging;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// The environment shown as a background, behind every mesh.
-    /// <para>
-    /// Standalone rather than another slice of <see cref="ManaWebGpuContext"/>, the same shape as
-    /// <see cref="ManaWebGpuUiBackdrop"/>: everything it touches (api/device/queue/depth format, and a
-    /// clamp sampler and environment view passed in per draw) is a value the context can hand over once,
-    /// not a private field it needs to reach back into.
-    /// </para>
-    /// </summary>
+    /// <summary>The environment drawn as a background behind every mesh.</summary>
     public unsafe sealed class ManaWebGpuSkybox : IDisposable
     {
         private readonly WebGPU _api;
@@ -47,11 +39,7 @@ namespace ManaGraphics.Code.Graphics
         private readonly nint[] _bindGroups;
         private readonly nint[] _boundTextureViews;
 
-        /// <summary>
-        /// True once the skybox has failed to build. Latched rather than retried every frame, the same as
-        /// the ManaUI renderer's own first-use failure: a background that cannot draw should disappear
-        /// once and quietly, not throw again on every subsequent frame.
-        /// </summary>
+        /// <summary>Latched on the first build failure, so a broken sky disappears once instead of throwing every frame.</summary>
         private bool _failed;
 
         [StructLayout(LayoutKind.Sequential)]
@@ -92,11 +80,7 @@ namespace ManaGraphics.Code.Graphics
             _boundTextureViews = new nint[_slots];
         }
 
-        /// <summary>
-        /// Drawn first in the scene pass, with depth write off and the compare forced to Always, so it can
-        /// never block or be blocked by anything drawn after it: it is the one thing in the pass that is
-        /// not geometry.
-        /// </summary>
+        /// <summary>Drawn first in the scene pass, with no depth write and Always compare: a background, not geometry.</summary>
         public void Draw(
             RenderPassEncoder* renderPass,
             TextureFormat colorFormat,
@@ -140,10 +124,7 @@ namespace ManaGraphics.Code.Graphics
 
         private void UpdateUniform(int slot, ManaCameraData camera, Matrix4x4 aspectCorrectedProjection, Vector3 towardSun, ManaSky.State sky, float seconds)
         {
-            // The view's
-            // translation is zeroed before combining with the projection, so unprojecting a screen position
-            // through the inverse yields a direction straight away rather than a point that would still
-            // need the camera's position subtracted back out of it.
+            // The view's translation is zeroed, so unprojecting a screen position gives a direction directly.
             var directionOnlyView = camera.View;
             directionOnlyView.Translation = Vector3.Zero;
 
@@ -158,9 +139,7 @@ namespace ManaGraphics.Code.Graphics
             var directionViewProjection = directionOnlyView * projection;
             if (!Matrix4x4.Invert(directionViewProjection, out var inverse))
             {
-                // Degenerate only when the projection itself is degenerate (a zero far plane, say), which
-                // means every other draw this frame is already in trouble. Leaving the last good matrix in
-                // the uniform buffer is a safer failure than writing a NaN-filled one.
+                // Only fails on a degenerate projection; keeping the last good matrix beats writing NaNs.
                 return;
             }
 
@@ -293,9 +272,7 @@ namespace ManaGraphics.Code.Graphics
                     Targets = &colorTarget
                 };
 
-                // Never writes depth and always passes the compare -- a background cannot occlude anything
-                // and cannot be occluded by whatever the depth buffer held before this draw, which is the
-                // whole point of drawing it first rather than sorting it against real geometry.
+                // A background neither occludes nor is occluded.
                 var depthStencilState = new DepthStencilState
                 {
                     Format = _depthFormat ?? TextureFormat.Depth24Plus,
@@ -355,11 +332,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// Rebuilt whenever the bound texture view changes -- which happens exactly once in the ordinary
-        /// case, when the real environment map swaps in for the startup placeholder, since scene capture is
-        /// off on this backend and nothing else replaces it afterwards.
-        /// </summary>
+        /// <summary>Rebuilt when the bound view changes: in practice once, when the loaded map replaces the placeholder.</summary>
         private void EnsureBindGroup(int slot, Sampler* clampSampler, TextureView* environmentView)
         {
             if (_bindGroups[slot] != 0 && _boundTextureViews[slot] == (nint)environmentView)

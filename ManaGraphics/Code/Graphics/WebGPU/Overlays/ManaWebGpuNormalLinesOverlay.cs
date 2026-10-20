@@ -3,10 +3,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics.Overlays
 {
-    /// <summary>
-    /// Draws a short line along each vertex normal. Needs its own vertex buffer rather than an index
-    /// buffer over the mesh's, because the line tips aren't existing vertices.
-    /// </summary>
+    /// <summary>A short line along each vertex normal, from a vertex buffer of its own (the tips are not mesh vertices).</summary>
     internal sealed unsafe class ManaWebGpuNormalLinesOverlay : ManaWebGpuOverlayPass
     {
         public ManaWebGpuNormalLinesOverlay(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)

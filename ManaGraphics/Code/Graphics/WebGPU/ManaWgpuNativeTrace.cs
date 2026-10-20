@@ -5,11 +5,8 @@ using ManaGraphics.Code.Diagnostics;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// wgpu-native's own trace log routed into the app's (MANA_WGPU_NATIVE_TRACE=1). Opt-in only: Trace is the noisiest
-    /// level across wgpu_core/wgpu_hal/wgpu, and the callback fires synchronously through ManaLog's single lock on
-    /// whichever native thread logs. With several threads submitting at once (planet splits dispatching compute while
-    /// the main thread renders) that traffic made the app appear to hang at the next present -- the cause of an
-    /// intermittent "deadlock on patch click". For deep driver debugging only.
+    /// Routes wgpu-native's trace log into the app's when MANA_WGPU_NATIVE_TRACE is set. Debugging only: the
+    /// synchronous callback traffic from several submitting threads once made the app appear to deadlock.
     /// </summary>
     internal static class ManaWgpuNativeTrace
     {

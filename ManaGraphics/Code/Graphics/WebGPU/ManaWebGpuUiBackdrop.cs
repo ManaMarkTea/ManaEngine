@@ -7,26 +7,12 @@ using Silk.NET.Core.Native;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// A blurred snapshot of the frame, for UI panels that want the scene softened behind them.
-    /// <para>
-    /// A fragment cannot read the target it is writing, so the blur cannot happen inside the UI pass. The
-    /// frame is copied out after the scene has drawn and before ManaUI does, then reduced down a
-    /// mip chain; each level is blurrier than the last, so a panel's blur radius picks a level rather than
-    /// paying for a filter of its own.
-    /// </para>
-    /// <para>
-    /// A mip chain rather than a separable gaussian because the cost is what matters here: this runs every
-    /// frame a blurred panel is on screen. Successive halving is a box blur repeated, which converges on a
-    /// gaussian quickly enough that nobody looking at a frosted panel can tell, and each level costs a
-    /// quarter of the one before it.
-    /// </para>
+    /// A blurred snapshot of the frame for frosted UI panels: copied out between the scene and the UI, then halved down a
+    /// mip chain, so a blur radius picks a level. Repeated halving approximates a gaussian at a fraction of its cost.
     /// </summary>
     public sealed unsafe class ManaWebGpuUiBackdrop : IDisposable
     {
-        /// <summary>
-        /// Levels of blur. Six halvings take a 4K frame down to about 60 pixels across, which is far past
-        /// the point where more blur reads as anything but grey.
-        /// </summary>
+        /// <summary>Levels of blur: six halvings take 4K to about 60 pixels, past where more blur reads as anything but grey.</summary>
         private const uint MaxLevels = 6;
 
         private readonly Silk.NET.WebGPU.WebGPU _api;
@@ -58,16 +44,10 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>The blurred chain, or null before anything has been captured.</summary>
         public TextureView* View => _view;
 
-        /// <summary>
-        /// Bumped each time the texture is made anew (the window's size changed). A replacement view can come
-        /// back at the very address of the one just freed, so a pointer comparison cannot tell them apart.
-        /// </summary>
+        /// <summary>Bumped when the texture is remade: a new view can reuse the freed one's address.</summary>
         public int Generation { get; private set; }
 
-        /// <summary>
-        /// Copies the frame out and reduces it. The copy is the reason the surface is configured with
-        /// CopySrc; without that the frame would have to be rendered twice.
-        /// </summary>
+        /// <summary>Copies the frame out (hence the surface's CopySrc) and reduces it.</summary>
         public void Capture(CommandEncoder* encoder, Texture* frame, Vector2D<int> size)
         {
             if (size.X <= 0 || size.Y <= 0)
@@ -362,11 +342,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// A full-screen triangle that averages four taps of the level above. The taps sit at pixel corners
-        /// so the bilinear filter folds four texels into each, giving a sixteen-texel average for four
-        /// samples -- the standard trick, and the reason this is cheap enough to run every frame.
-        /// </summary>
+        /// <summary>A full-screen triangle averaging four bilinear taps at pixel corners: sixteen texels for four samples.</summary>
         private const string ShaderSource = @"
 @group(0) @binding(0) var source_sampler : sampler;
 @group(0) @binding(1) var source : texture_2d<f32>;

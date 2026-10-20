@@ -2,10 +2,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// A depth texture and its view, made and released together. If the view cannot be made the texture is
-    /// released before the constructor throws, so a failed target holds nothing.
-    /// </summary>
+    /// <summary>A depth texture and its view, made and released together; a failed construction holds nothing.</summary>
     internal sealed unsafe class ManaWebGpuDepthTarget : IDisposable
     {
         private readonly WebGPU _api;

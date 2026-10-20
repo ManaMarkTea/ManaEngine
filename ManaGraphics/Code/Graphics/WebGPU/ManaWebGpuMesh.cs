@@ -70,10 +70,8 @@ namespace ManaGraphics.Code.Graphics
             return new ManaWebGpuMesh(api, vertexBuffer, indexBuffer, (uint)meshData.Indexes.Length, (uint)meshData.Positions.Length);
         }
 
-        // Rewrites this mesh's existing buffers instead of building new ones. Only valid when the
-        // topology is unchanged (same vertex and index counts) -- the caller checks that. CPU-skinned
-        // meshes hit this every frame, and rebuilding them the normal way would mean recreating a
-        // uniform buffer, seven bind groups and a texture binding per character per frame.
+        // Rewrites the existing buffers when the counts are unchanged (the caller checks); skinned meshes do this
+        // every frame.
         public bool TryUpdateGeometryInPlace(Queue* queue, ManaMeshCpuData meshData)
         {
             if (_vertexBuffer == null || _indexBuffer == null ||
@@ -133,10 +131,7 @@ namespace ManaGraphics.Code.Graphics
             _api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, 1, 0, 0, 0);
         }
 
-        // Draws this mesh's own vertex buffer against a CALLER-supplied index buffer instead of the
-        // mesh's own -- used for the wireframe overlay pass, which draws the same vertices through a
-        // separate line-topology edge list (see ManaWebGpuSceneMesh.GetOrCreateWireframeIndexBuffer)
-        // rather than the mesh's normal triangle-list index buffer.
+        // Draws this mesh's vertices through another index buffer: the wireframe overlay's edge list.
         public void DrawWithIndexBuffer(RenderPassEncoder* renderPass, WebGpuBuffer* indexBuffer, uint indexCount)
         {
             if (_vertexBuffer == null || indexBuffer == null || indexCount == 0)

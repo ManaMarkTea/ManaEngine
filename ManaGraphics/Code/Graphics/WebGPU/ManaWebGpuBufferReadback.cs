@@ -17,10 +17,7 @@ namespace ManaGraphics.Code.Graphics
         private static void OnBufferMappedNative(BufferMapAsyncStatus status, void* userdata) => OnBufferMapped(status, userdata);
 #endif
 
-        // Creates a MapRead|CopyDst staging buffer sized byteSize and encodes a copy from sourceBuffer
-        // into it, into the CALLER's own (already-open) command encoder -- call this right after encoding
-        // the compute dispatch that fills sourceBuffer, before CommandEncoderFinish, so the copy rides
-        // along in the same QueueSubmit instead of forcing a second, wasted submit round-trip.
+        // Encodes the copy into the caller's open encoder, so it rides the same submit as the work that fills the buffer.
         public static WebGpuBuffer* EncodeCopyToStaging(
             WebGPU api,
             Device* device,

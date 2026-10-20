@@ -6,9 +6,8 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Copies of what a frame drew, for automation (ManaCommandRunner): the presented frame as a PNG, and the
-    /// reflection cube's six faces. Requests wait for the next frame; the copy rides that frame's submit, and after it
-    /// the readback registry owns the staging buffer. Render thread only, one screenshot in flight at a time.
+    /// Frame copies for automation: the presented frame as a PNG and the reflection cube's faces. A request rides the
+    /// next frame's submit; then the readback owns its buffer. Render thread only, one screenshot at a time.
     /// </summary>
     internal sealed unsafe class ManaWebGpuFrameCapture
     {
@@ -62,9 +61,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>
-        /// Called right before the frame's encoder finishes, so the copies ride its submit. The surface texture already
-        /// carries CopySrc (ConfigureSurface). Returns the staging buffers to hand to <see cref="Finish"/> after
-        /// submission, or to <see cref="Abandon"/> if the frame fails first.
+        /// Encodes the copies just before the frame finishes. Hand the result to <see cref="Finish"/> after submit, or to
+        /// <see cref="Abandon"/> if the frame fails first.
         /// </summary>
         public EncodedCopies? Encode(CommandEncoder* encoder, Texture* frame, Vector2D<int> framebufferSize, ManaWebGpuEnvironmentReflectionMap? environment)
         {

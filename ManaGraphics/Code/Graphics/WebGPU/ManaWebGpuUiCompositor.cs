@@ -5,10 +5,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// Draws the app's ManaUI draw list over the tone-mapped frame, and the blurred copy of the frame that frosted
-    /// panels sample. Both are built on first use, so a project that never assigns a UI root pays nothing.
-    /// </summary>
+    /// <summary>Draws ManaUI over the tone-mapped frame, with the blurred backdrop frosted panels sample. Built on first use.</summary>
     internal sealed unsafe class ManaWebGpuUiCompositor : IDisposable
     {
         private readonly ManaWebGpuDevice _gpu;
@@ -20,10 +17,7 @@ namespace ManaGraphics.Code.Graphics
             _gpu = gpu;
         }
 
-        /// <summary>
-        /// Whether anything in this frame's UI asked for a blurred backdrop. Read before the tone-map pass is split,
-        /// because splitting it is the cost being avoided.
-        /// </summary>
+        /// <summary>Whether the UI asked for blur; checked before splitting the tone-map pass for it.</summary>
         public static bool WantsBackdrop(UiRoot? root)
         {
             UiBackdropStats.Supported = true;

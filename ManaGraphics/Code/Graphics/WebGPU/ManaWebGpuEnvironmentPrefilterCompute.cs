@@ -89,10 +89,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// Convolves the prefiltered reflection cube into the diffuse irradiance cube. Run after <see cref="Dispatch"/>,
-        /// which it reads: irradiance taken from the sharp sky shows its clouds on every curved surface.
-        /// </summary>
+        /// <summary>Convolves the prefiltered cube into irradiance; reading the sharp cube instead put clouds on every curve.</summary>
         public void DispatchIrradiance(
             CommandEncoder* commandEncoder,
             ManaWebGpuTextureResource prefilteredMap,

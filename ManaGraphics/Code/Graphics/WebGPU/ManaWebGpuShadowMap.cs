@@ -4,16 +4,9 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // Cascaded shadow maps for the scene's single directional "sun" light (see ManaWorld.CollectLightsFromNode
-    // / ManaRenderScene.HasSun). Point lights are never shadow-cast -- only a Directional ManaLightSourceComponent
-    // with CastsShadows set produces one.
-    //
-    // Three cascades, each a depth-only render into its own layer of one Texture2DArray, fit to a slice of the main
-    // camera's frustum every frame (UpdateCascades) and sampled back in pbr_irradiance.wgsl via the array view and
-    // comparison sampler bound alongside the frame uniform in group 0 (ManaWebGpuSceneBindings). The map lives apart
-    // from ManaWebGpuShadowPass because the frame bind group needs it before any pipeline exists.
-    //
-    // Known limitation: no texel snapping, so the cascades can shimmer slightly as the camera moves.
+    // Cascaded shadow maps for the scene's directional sun: three cascades in one texture array, fit to the camera's
+    // frustum every frame. Apart from ManaWebGpuShadowPass because the frame bind group needs the map before any
+    // pipeline exists. No texel snapping yet, so cascades can shimmer as the camera moves.
     internal sealed unsafe class ManaWebGpuShadowMap : IDisposable
     {
         public const int CascadeCount = 3;
@@ -116,9 +109,7 @@ namespace ManaGraphics.Code.Graphics
                 _cascadeViews[cascade] = view;
             }
 
-            // Nearest, not linear: a filtering comparison sampler is inconsistently supported across wgpu's
-            // backends, whereas nearest + the shader's own manual PCF tap (pbr_irradiance.wgsl) works
-            // everywhere and is what actually softens the edge.
+            // Nearest: filtering comparison samplers are unevenly supported; the shader does its own PCF.
             var samplerDescriptor = new SamplerDescriptor
             {
                 AddressModeU = AddressMode.ClampToEdge,
@@ -211,10 +202,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // View-space frustum corners at the given near/far distance, reconstructed straight from the
-        // projection's x/y scale terms (M11/M22) rather than by unprojecting NDC -- that way this does not
-        // need to know the projection matrix's near/far-to-NDC-z convention at all, only that it is a
-        // standard symmetric perspective matrix.
+        // Frustum corners from the projection's scale terms, so the depth convention does not matter.
         private static void FillFrustumCorners(
             Span<Vector3> corners, Matrix4x4 inverseView, float tanHalfFovX, float tanHalfFovY, float near, float far)
         {

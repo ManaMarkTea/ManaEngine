@@ -30,10 +30,7 @@ namespace ManaGraphics.Code.Graphics
         public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
         public ManaEnvironmentReflectionSource Source { get; }
 
-        /// <summary>
-        /// True while the cubes hold the environment photo. A computed sky draws over them on the GPU instead
-        /// (<see cref="DrawnSky"/>), so the 4K photo is decoded only for the Photo sky.
-        /// </summary>
+        /// <summary>True while the cubes hold the photo; a computed sky draws over them instead (<see cref="DrawnSky"/>).</summary>
         public bool HasPhoto { get; set; }
 
         /// <summary>The sky last drawn into the cubes, or null when they have not been drawn yet.</summary>
@@ -512,9 +509,7 @@ namespace ManaGraphics.Code.Graphics
             var progressSync = new object();
             Parallel.For(0, height, new ParallelOptions { CancellationToken = cancellationToken }, y =>
             {
-                // Row y IS roughness, matching both brdf.frag's IntegrateBRDF(TexCoords.x, TexCoords.y)
-                // and the shader's textureSample(brdf_lut, vec2(ndotv, roughness)). No V flip: row 0 of a
-                // QueueWriteTexture upload lands at v=0.
+                // Row y is roughness, as the shader samples it; no V flip.
                 var roughness = y / (float)Math.Max(1, height - 1);
                 for (var x = 0; x < width; x++)
                 {

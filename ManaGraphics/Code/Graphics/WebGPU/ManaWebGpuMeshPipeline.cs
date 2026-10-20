@@ -5,10 +5,7 @@ using Silk.NET.WebGPU;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// Builds a render pipeline over the scene mesh vertex layout (position, normal, colour, uv) -- the material,
-    /// outline, overlay, capture and thumbnail pipelines all draw the same vertices with different shaders.
-    /// </summary>
+    /// <summary>Builds a render pipeline over the scene mesh vertex layout; every mesh-drawing pass uses it.</summary>
     internal static unsafe class ManaWebGpuMeshPipeline
     {
         /// <summary>How far the grid is pushed behind whatever shares its depth.</summary>
@@ -148,9 +145,7 @@ namespace ManaGraphics.Code.Graphics
                     StencilReadMask = uint.MaxValue,
                     StencilWriteMask = uint.MaxValue,
 
-                    // The editor grid is the backdrop, and anything laid on it -- a grid map's floor tiles --
-                    // sits at exactly its height. Pushed back a hair, the grid loses every tie instead of
-                    // striping through the floor as the two fight for the same depth.
+                    // The grid is pushed back a hair so tiles laid at its height win every depth tie.
                     DepthBias = isGrid ? GridDepthBias : 0,
                     DepthBiasSlopeScale = isGrid ? GridDepthBiasSlope : 0,
                     DepthBiasClamp = 0
@@ -165,16 +160,8 @@ namespace ManaGraphics.Code.Graphics
                         Topology = primitiveTopology,
                         StripIndexFormat = IndexFormat.Undefined,
                         FrontFace = FrontFace.Ccw,
-                        // Procedural meshes do not currently guarantee a single winding
-                        // convention. The lightning volume must retain both sides so the
-                        // visible entry surface always performs the interior ray march.
-                        //
-                        // cullBackFaces is the one exception, opted into only for OpacityMode.Blend
-                        // materials (glTF glass etc, see DrawSceneMesh): a single glass draw call has no
-                        // way to sort its own front and back faces against each other, so both surfaces
-                        // fight for the same pixel through the transparency. Culling the far surface --
-                        // exactly what real glass thickness would occlude anyway from outside -- removes
-                        // the fight instead of trying to order it.
+                        // Both faces by default: procedural meshes have no fixed winding. Blended materials cull back faces,
+                        // since one draw cannot sort a glass mesh's own front and back.
                         CullMode = cullBackFaces ? CullMode.Back : CullMode.None
                     },
                     Multisample = new MultisampleState

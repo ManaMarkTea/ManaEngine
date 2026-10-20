@@ -22,8 +22,7 @@ namespace ManaGraphics.Code.Graphics
     {
         public bool UseSceneCapture = false;
 
-        // Never disposed: that would free wgpu_native, which the static log hooks, other contexts and the
-        // iOS framework still use. Only the GPU objects made through it are this context's to release.
+        // Never disposed: that would free wgpu_native, which other contexts and the iOS framework still use.
         private readonly WebGPU _api;
         private readonly IWindow _window;
         private readonly IInputContext? _input;
@@ -39,9 +38,7 @@ namespace ManaGraphics.Code.Graphics
         private Device* _device;
         private Queue* _queue;
 #if !MANA_BROWSER
-        // Resolved once, right after _device/_queue exist -- wgpu-native's own extension for pumping
-        // async callbacks (BufferMapAsync, QueueOnSubmittedWorkDone) to actually fire. Falls back to the
-        // portable InstanceProcessEvents if this build's WebGPU implementation doesn't expose it.
+        // wgpu-native's callback pump; InstanceProcessEvents when a build lacks it.
         private Wgpu? _wgpuNativeExtension;
 #endif
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
@@ -58,11 +55,9 @@ namespace ManaGraphics.Code.Graphics
         private bool _configured;
         // Made with the device; meshes are only uploaded once the scene bindings exist.
         private ManaWebGpuSceneMeshes? _meshes;
-        // Work handed in from background threads that must run on the render thread instead -- see
-        // EnqueueRenderThreadWork for why submitting from anywhere else deadlocks wgpu-native.
+        // Background work that must run on the render thread (see EnqueueRenderThreadWork).
         private readonly ConcurrentQueue<Action> _renderThreadWork = new();
-        // Not readonly: set from FinishInitialization, which for MANA_BROWSER runs after the
-        // constructor returns (see ManaWebGpuContext.BrowserAsync.cs), not inside it.
+        // Set in FinishInitialization, which in the browser runs after the constructor.
         private ManaWebGpuMeshTextureCache _meshTextures = null!;
         private ManaRenderScene? _activeRenderScene;
         // Set in FinishInitialization; borrowed by every pass.
@@ -92,36 +87,18 @@ namespace ManaGraphics.Code.Graphics
         private ManaWebGpuUiCompositor? _ui;
 
         /// <summary>
-        /// The ManaUI tree to draw over the scene, or null when the host has not built one.
-        /// <para>
-        /// The app layer owns the root and records its draw list during its own render phase; this context
-        /// only submits whatever was last recorded. Keeping layout out of the present path means a UI bug
-        /// cannot stall the GPU timeline, and it keeps the dependency pointing the right way -- ManaGraphics
-        /// knows about ManaUI, never about Mana.
-        /// </para>
+        /// The ManaUI tree to draw over the scene, or null. The app records its draw list; this only submits it, so a UI
+        /// bug cannot stall the GPU timeline.
         /// </summary>
         public ManaUI.UiRoot? UiRoot { get; set; }
 
         /// <summary>
-        /// Skips walking, uploading and drawing the scene for one frame -- everything else (clear, tone
-        /// map, ManaUI) still runs.
-        /// <para>
-        /// Set by the app layer, the same way <see cref="UiRoot"/> is, rather than this context knowing
-        /// what "loading" means: OpenGL already never touches the scene while a game mode is loading
-        /// (BaseGameMode.Render's IsLoading branch simply does not call DrawWorld), but this backend's
-        /// equivalent, RefreshRenderScene, ran unconditionally every frame with no such gate. On a load
-        /// fast enough to add most of a scene within the first couple of seconds, the very first frame that
-        /// could have presented a loading screen instead spent over a second uploading meshes and compiling
-        /// shaders for content nobody could see yet, arriving late enough that the screen was visible for
-        /// only the tail end of the load it was supposed to cover. This is that gate.
-        /// </para>
+        /// Skips refreshing and drawing the scene this frame (clear, tone map and UI still run). The app sets it while
+        /// loading, so the first frames show the loading screen instead of uploading meshes nobody can see yet.
         /// </summary>
         public bool SuspendSceneWork { get; set; }
 
-        // Per-frame CPU-side timing for the last completed ClearFrame call, in milliseconds.
-        // Read by the app layer (which owns Mana/ManaWorld) once per frame to feed a live perf HUD —
-        // ManaGraphics can't call into Mana directly (wrong dependency direction), so it's exposed
-        // here instead of pushed.
+        // CPU timings of the last frame, in milliseconds, read by the app's perf HUD.
         public double LastCollectMs { get; private set; }
         public double LastDrawMs { get; private set; }
         public double LastSubmitMs { get; private set; }
@@ -146,13 +123,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
 #if MANA_BROWSER
-                // No wgpu-native-style backend selection in-browser -- the browser's own WebGPU
-                // implementation picks its backend internally. Deliberately a real null pointer, NOT
-                // `&(new InstanceDescriptor())`: a pointer to a zeroed-but-real struct silently hung
-                // forever inside Emscripten's legacy wgpuCreateInstance (confirmed by isolating the
-                // exact call via a raw function pointer probe -- null succeeded instantly, a pointer to
-                // an identical zeroed struct never returned). Matches the M0 spike's own
-                // wgpuCreateInstance(NULL) call, which is the only shape ever actually proven to work.
+                // A real null pointer: a pointer to a zeroed descriptor hangs Emscripten's wgpuCreateInstance.
                 _instance = _api.CreateInstance((InstanceDescriptor*)null);
 #else
                 ManaWgpuNativeTrace.EnableIfRequested();
@@ -201,14 +172,8 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnosticElapsed("Device granted.");
                 FinishInitialization(requestedBackend, window);
 #endif
-                // MANA_BROWSER: adapter/device request is genuinely asynchronous in a real browser
-                // (navigator.gpu.requestAdapter() resolves on a JS microtask, not synchronously within
-                // this call the way wgpu-native's desktop implementation does) -- a constructor can't
-                // await that, and this whole class is declared `unsafe`, which C# doesn't allow an
-                // `await` to appear within at all (regardless of whether the specific method touches a
-                // pointer). See ManaWebGpuContext.BrowserAsync.cs's CompleteBrowserInitializationAsync,
-                // a separate non-unsafe partial declaration of this same class, which callers must
-                // await before this context is usable.
+                // MANA_BROWSER: the adapter and device arrive asynchronously; callers await
+                // CompleteBrowserInitializationAsync (BrowserAsync.cs) before using the context.
             }
             catch
             {
@@ -235,21 +200,12 @@ namespace ManaGraphics.Code.Graphics
 #if !MANA_BROWSER
             _api.DeviceSetUncapturedErrorCallback(_device, new PfnErrorCallback(&OnError), null);
 #else
-            // Skipped in the browser build: this callback's delivery goes through the same
-            // getWasmTableEntry-dependent dynCall path as the adapter/device request callbacks
-            // that ManaBrowserWebGpuCallbackBridge already had to bypass (see mana_webgpu.c),
-            // and hitting it here just spams "getWasmTableEntry(...) is not a function" on every
-            // validation error instead of ever calling _errorCallback. Not worth its own EM_JS
-            // bridge: the browser's real WebGPU implementation already prints validation errors
-            // straight to the devtools console on its own, unconditionally, regardless of
-            // whether an uncaptured-error callback is registered at all.
+            // Not in the browser: the callback goes through the dynCall path that fails there, and the browser
+            // prints validation errors to the console anyway.
 #endif
             _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
 #if MANA_BROWSER
-            // getPreferredCanvasFormat() is always non-sRGB, but the canvas is configured with the
-            // sRGB variant in viewFormats (see mana_configure_surface_impl), so everything that
-            // renders to the surface targets the sRGB view and gets the linear-to-sRGB transfer on
-            // write -- matching desktop, where wgpu-native hands back an Srgb surface directly.
+            // The canvas is configured with the sRGB view format, matching desktop's sRGB surface.
             _surfaceFormat = _surfaceFormat switch
             {
                 TextureFormat.Bgra8Unorm => TextureFormat.Bgra8UnormSrgb,
@@ -269,8 +225,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     try
                     {
-                        // Shader compilation, synchronous, on this thread -- another candidate for time
-                        // spent before the first frame can present, alongside the adapter/device request.
+                        // Synchronous shader compilation, before the first frame can present.
                         ManaConsole.WriteDiagnosticElapsed("Creating scene mesh pipeline (shader compile).");
                         CreateScenePipelines();
                         ManaConsole.WriteDiagnosticElapsed("Scene mesh pipeline ready.");
@@ -384,8 +339,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 Device = _device,
                 Format = _surfaceFormat,
-                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
-                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
+                // CopySrc so the UI's blur can snapshot the frame; free unless used.
                 Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
                 Width = (uint)framebufferSize.X,
                 Height = (uint)framebufferSize.Y,
@@ -420,9 +374,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>
-        /// Activates a loaded environment map at the frame boundary. Meshes bound to the old one are released and
-        /// come back against the new textures: the provider's scene on its next refresh, or a provider-less demo
-        /// scene uploaded again here -- without that, its meshes vanished the moment the first map landed.
+        /// Activates a loaded environment map at the frame boundary. Meshes bound to the old map are rebuilt: a provider's
+        /// scene on its next refresh, a provider-less demo scene here.
         /// </summary>
         public void CheckPendingEnvironmentMap()
         {
@@ -438,8 +391,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Also while scene work is suspended: the loading screen waits on the environment map, so it must start
-        // without the mesh upload RefreshRenderScene would otherwise do first.
+        // Also while scene work is suspended: the loading screen waits on the environment map.
         private void EnsureEnvironmentInitializationStarted()
         {
             _activeRenderScene ??= _renderSceneProvider?.Invoke();
@@ -511,9 +463,8 @@ namespace ManaGraphics.Code.Graphics
             return _passFrame;
         }
 
-        // Callable from any thread; runs FIFO on the render thread via DrainRenderThreadWork.
-        // wgpu-native takes device locks in opposite orders for surface-present and queue-submit, so a
-        // background-thread submit overlapping SurfacePresent deadlocks both threads.
+        // Callable from any thread; runs on the render thread. A background submit overlapping SurfacePresent
+        // deadlocks wgpu-native.
         private void EnqueueRenderThreadWork(Action work)
         {
             _renderThreadWork.Enqueue(work);
@@ -525,8 +476,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Render thread only. Each item checks _disposed itself so Dispose()'s drain cancels rather
-        // than submits.
+        // Render thread only. Items check _disposed, so Dispose's drain cancels rather than submits.
         private void DrainRenderThreadWork()
         {
             while (_renderThreadWork.TryDequeue(out var work))
@@ -542,9 +492,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Backs IHeightSamplingComputeDevice.SampleHeightsAsync. Callable from any thread; only the
-        // encode+submit is marshalled to the render thread (see EnqueueRenderThreadWork), the readback
-        // still completes off it.
+        // Callable from any thread; only the encode and submit run on the render thread.
         public Task<float[]> SampleHeightsAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
@@ -584,9 +532,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>
-        /// Renders <paramref name="instances"/> (already loaded, world transforms composed) to a square
-        /// straight-alpha RGBA buffer, or completes with null when there was nothing to draw. Callable from any
-        /// thread; the GPU work runs on the render thread (see <see cref="EnqueueRenderThreadWork"/>).
+        /// Renders <paramref name="instances"/> to a square straight-alpha RGBA buffer, or null when there is nothing to
+        /// draw. Callable from any thread.
         /// </summary>
         public Task<byte[]?> RenderThumbnailAsync(IReadOnlyList<ManaRenderMeshInstance> instances, int thumbnailSize)
         {
@@ -616,10 +563,7 @@ namespace ManaGraphics.Code.Graphics
             return completion.Task;
         }
 
-        /// <summary>
-        /// Saves the next frame this context renders to <paramref name="path"/> as a PNG. Render-thread only, one
-        /// capture in flight at a time; <paramref name="withoutUi"/> leaves ManaUI out of that frame.
-        /// </summary>
+        /// <summary>Saves the next frame as a PNG; <paramref name="withoutUi"/> leaves ManaUI out. One at a time.</summary>
         public Task CaptureFrameAsync(string path, bool withoutUi = false)
         {
             return _disposed || _frameCapture == null
@@ -677,10 +621,7 @@ namespace ManaGraphics.Code.Graphics
 
         public void ClearFrame(Color clearColor)
         {
-            // Pumps any in-flight ManaWebGpuBufferReadback's native BufferMapAsync callback -- must run
-            // every frame, unconditionally, before either early-return path below, so a pending readback
-            // never stalls while the window is minimized/mid-resize/reconfiguring. Cheap (near-no-op) when
-            // nothing's pending, so not worth gating behind a pending-count check.
+            // Pumps readback callbacks every frame, before the early returns, so a minimized window never stalls one.
 #if MANA_BROWSER
             _api.InstanceProcessEvents(_instance);
 #else
@@ -696,8 +637,7 @@ namespace ManaGraphics.Code.Graphics
 
             _meshes?.BeginFrame();
 
-            // Above the !_configured early-return so deferred work still progresses while minimized,
-            // and above this frame's own submit/present so it never races it.
+            // Before the early return, so deferred work progresses while minimized; before this frame's submit, so it never races it.
             DrainRenderThreadWork();
 
             if (!_configured)
@@ -716,8 +656,7 @@ namespace ManaGraphics.Code.Graphics
                     _api.TextureRelease(surfaceTexture.Texture);
                 }
 
-                // Acquire can transiently fail during startup/resize; reconfigure and
-                // retry on the next frame instead of getting stuck on a blank surface.
+                // Acquire can fail during startup or resize; reconfigure and retry next frame.
                 ConfigureSurface(_window.FramebufferSize);
 
                 return;
@@ -733,9 +672,7 @@ namespace ManaGraphics.Code.Graphics
             };
 
             var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
-            // Explicit ternary, NOT `_hdrPostProcessor?.SceneTextureView`: `?.` yields a nullable result,
-            // and a pointer type can't be made nullable (CS8978). Some Roslyn versions miss that here and
-            // some don't, so the null-conditional form builds on one machine and fails on the next.
+            // Not `?.`: a pointer cannot be nullable (CS8978), and some compilers miss that.
             var hdrSceneTextureView = _hdrPostProcessor != null ? _hdrPostProcessor.SceneTextureView : null;
             if (textureView == null)
             {
@@ -788,21 +725,14 @@ namespace ManaGraphics.Code.Graphics
                 commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
                 var collectStopwatch = Stopwatch.StartNew();
 
-                // See SuspendSceneWork's own doc comment. RefreshRenderScene is where a fast-running background
-                // load turns into a synchronous stall on the render thread: it walks whatever the scene has
-                // grown to since last frame and uploads all of it right here, and on a load that outpaces the
-                // frame loop that can mean minutes of normal per-frame uploads compressed into whichever single
-                // frame happens to run next. The scene pass still clears below either way, so skipping this
-                // costs nothing but an empty frame -- exactly what a loading screen is drawn over.
+                // See SuspendSceneWork: during a fast load this is where the frame would stall uploading.
                 if (!SuspendSceneWork)
                 {
                     if (!_loggedFirstSceneWork)
                     {
                         _loggedFirstSceneWork = true;
 
-                        // Closes the loop with the rest of the startup timeline: whatever gap remains between
-                        // "first frame presented" and this is the loading screen actually having its moment on
-                        // screen before the scene catches up behind it.
+                        // Marks when the scene starts uploading behind the loading screen.
                         ManaConsole.WriteDiagnosticElapsed("First unsuspended RefreshRenderScene (scene upload resumes).");
                     }
 
@@ -818,12 +748,7 @@ namespace ManaGraphics.Code.Graphics
                 }
                 LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
-                // Not gated on SuspendSceneWork like the block above: the loading screen's own completion
-                // waits on IsEnvironmentInitializationPending (see VoxelEditorGameMode.CanCompleteLoading),
-                // so suspending this too meant the environment map could never start loading while the
-                // screen that's waiting on it was up -- loading waiting on loading, forever. Kicking off the
-                // Task.Run load here only needs the active render scene, not the mesh upload/reconcile work
-                // RefreshRenderScene does, so it's safe to run every frame regardless of suspension.
+                // Not gated on SuspendSceneWork: loading waits on the environment map, so it must start meanwhile.
                 EnsureEnvironmentInitializationStarted();
 
                 var frame = PassFrame(commandEncoder);
@@ -897,10 +822,8 @@ namespace ManaGraphics.Code.Graphics
                     _hdrPostProcessor?.Draw(toneMapRenderPass);
                 }
 
-                // A blurred backdrop needs the frame as it stands, and a fragment cannot read the target it is
-                // writing. So the pass ends here, the frame is copied out and reduced, and the UI draws in a
-                // second pass that loads what the first one left. Skipped entirely unless something asked for
-                // blur, which keeps the ordinary frame exactly one pass as before.
+                // Blur needs the finished frame, which the pass is writing: end it, copy and reduce the frame, then draw
+                // the UI in a second pass. Only when something asked for blur.
                 if (ManaWebGpuUiCompositor.WantsBackdrop(UiRoot))
                 {
                     _api.RenderPassEncoderEnd(toneMapRenderPass);
@@ -943,9 +866,7 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _loggedFirstPresent = true;
 
-                    // The end of the trail: the moment a frame was actually handed to the window, as opposed to
-                    // recorded, submitted or merely attempted. Everything before this in the log was a guess at
-                    // why the window looked blank; this is when it stopped being one.
+                    // The first frame actually handed to the window.
                     ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
                 }
 
@@ -993,8 +914,7 @@ namespace ManaGraphics.Code.Graphics
                 _api.TextureRelease(surfaceTexture.Texture);
             }
 
-            // Handed to the profiler as well as the World Perf panel: the panel shows this frame, the
-            // profiler keeps the peak, and a hitch is only ever visible in the peak.
+            // The profiler keeps the peak, where a hitch shows.
             ManaFrameProfiler.Record("GPU: Scene Collect", LastCollectMs);
             ManaFrameProfiler.Record("GPU: Draw Meshes", LastDrawMs);
             ManaFrameProfiler.Record("GPU: Submit + Present", LastSubmitMs);
@@ -1075,8 +995,7 @@ namespace ManaGraphics.Code.Graphics
                 _instance = null;
             }
 
-            // _api and _wgpuNativeExtension are deliberately not disposed: the native library outlives the context
-            // (see Plans/RendererResourceOwnership.md, binding-wrapper contract).
+            // _api and _wgpuNativeExtension stay: the native library outlives the context.
         }
     }
 }

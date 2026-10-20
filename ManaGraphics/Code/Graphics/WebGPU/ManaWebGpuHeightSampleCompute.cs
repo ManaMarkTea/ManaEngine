@@ -7,22 +7,12 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
-    // GPU-accelerated replacement for PlanetPatchMesh.GenerateData()'s per-vertex CPU height sampling
-    // (see height_sample_compute.wgsl for the actual sampling algorithm). Structured like
-    // ManaWebGpuEnvironmentPrefilterCompute (pipeline/bind-group-layout built once in the constructor),
-    // but has no persistent per-dispatch resources -- every buffer here is created fresh per call and
-    // released once encoded/submitted.
-    //
-    // Deliberately NOT declared `unsafe` at the class level (unlike ManaWebGpuEnvironmentPrefilterCompute)
-    // -- SampleHeightsAsync needs to `await`, and `await` is illegal anywhere inside a type whose unsafe
-    // modifier is declared at the class level, even in methods that don't themselves touch a pointer. Each
-    // pointer-touching member below is individually marked unsafe instead.
+    // Samples planet heights on the GPU (height_sample_compute.wgsl) for PlanetPatchMesh. Buffers are made per call.
+    // Not unsafe at class level: SampleHeightsAsync awaits, so pointer members are marked unsafe one by one.
     internal sealed class ManaWebGpuHeightSampleCompute : ManaComputeShader
     {
-        // Bounds are pre-projected into normalized Web Mercator space (not raw lon/lat degrees) -- see
-        // this struct's field-level comment inline in height_sample_compute.wgsl for why: computing the
-        // lon/lat->Mercator projection (asinh+tan) once per tile here, instead of once per (point, tile)
-        // pair inside the shader's hot loop, is what actually fixes the GPU hang this was built to avoid.
+        // Bounds pre-projected to Web Mercator here, once per tile, instead of per point and tile in the shader's hot loop,
+        // which hung the GPU.
         [StructLayout(LayoutKind.Sequential)]
         private struct GpuTileDescriptor
         {
@@ -36,14 +26,10 @@ namespace ManaGraphics.Code.Graphics
             public uint Padding0;
         }
 
-        // Const MaxLatitudeDegrees is intentionally duplicated (not shared with e.g. SlippyMapMath)
-        // -- ManaGraphics doesn't reference ManaGeoTools (wrong dependency direction), and this needs to
-        // match height_sample_compute.wgsl's own MAX_LATITUDE_DEGREES constant exactly regardless.
+        // Must match the shader's MAX_LATITUDE_DEGREES; ManaGraphics cannot reference ManaGeoTools.
         private const float MaxLatitudeDegrees = 85.0511287798f;
 
-        // Mirrors height_sample_compute.wgsl's own mercator_xy function exactly -- called once per tile
-        // here (CPU), matching the shader's once-per-point call, instead of the shader ALSO doing it
-        // once per tile inside its hot loop (the original, much slower design).
+        // The shader's mercator_xy, done once per tile here.
         private static Vector2 MercatorXy(float lonDegrees, float latDegrees)
         {
             var latClamped = Math.Clamp(latDegrees, -MaxLatitudeDegrees, MaxLatitudeDegrees);
@@ -116,10 +102,7 @@ namespace ManaGraphics.Code.Graphics
             return heights;
         }
 
-        // All the actual WebGPU/pointer work -- builds every input buffer, dispatches the compute pass,
-        // encodes the readback copy, submits, and returns the (still in-flight) readback Task. Kept
-        // separate from SampleHeightsAsync above so the async/await machinery never has to live inside an
-        // unsafe context.
+        // The pointer work, apart from SampleHeightsAsync so the async machinery stays out of unsafe code.
         private unsafe Task<byte[]> DispatchAndRequestReadback(
             ReadOnlySpan<Vector2> points,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)

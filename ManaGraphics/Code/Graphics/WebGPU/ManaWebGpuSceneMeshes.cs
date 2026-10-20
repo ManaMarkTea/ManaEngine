@@ -6,9 +6,8 @@ using ManaGraphics.Code.Diagnostics;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// The scene meshes resident on the GPU, keyed by instance so unchanged meshes keep their buffers frame to frame.
-    /// A replaced or removed mesh is retired, not destroyed: it is disposed after the frames that may still draw it
-    /// (a fixed frame count, not a GPU fence).
+    /// The scene meshes resident on the GPU, keyed by instance. A replaced or removed mesh is disposed a fixed number of
+    /// frames later, once nothing in flight can still draw it.
     /// </summary>
     internal sealed unsafe class ManaWebGpuSceneMeshes : IDisposable
     {
@@ -45,19 +44,11 @@ namespace ManaGraphics.Code.Graphics
 
         private const ulong SceneMeshDeferredDisposeFrameDelay = 6;
 
-        // Two per-frame ceilings on fresh scene-mesh creation (geometry buffers, uniform buffer, bind group,
-        // texture binding), because that cost has two independent components and either one alone can blow a
-        // frame. Whatever doesn't fit is retried next frame: a mesh being replaced keeps drawing its old
-        // geometry meanwhile, a brand-new one appears a frame or two late, and at least one always uploads so
-        // a single mesh over budget can't stall forever.
-        //
-        // Count, for the per-mesh fixed cost -- measured at roughly 4ms each regardless of size, so the first
-        // unsuspended frame creating a whole planet's worth of patches at once cost ~880ms even though their
-        // combined geometry was only 1.6M indexes.
+        // Ceilings on mesh creation per frame; what does not fit waits a frame, a replaced mesh drawing its old geometry
+        // meanwhile, and at least one always uploads. Count, for the fixed cost of about 4 ms a mesh:
         private const int MaxSceneMeshCreationsPerFrame = 8;
 
-        // Indexes, for the size-proportional part -- a handful of terrain patches at up to ~1M vertices each
-        // finishing together would pass the count cap while still moving far too much data in one frame.
+        // Indexes, for the size-proportional cost of a burst of large terrain patches.
         private const ulong MaxSceneMeshIndexUploadsPerFrame = 4_000_000;
 
         /// <summary>Retires every resident mesh: after the in-flight frames by default, now when <paramref name="immediate"/>.</summary>
@@ -134,10 +125,7 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"WebGPU scene upload complete: meshes={_sceneMeshes.Count}, indexes={totalIndexes}.");
         }
 
-        /// <summary>
-        /// Brings the resident set in line with this frame's renderables: reuses unchanged meshes, rewrites
-        /// skinned geometry in place, and creates the rest within the per-frame upload budget.
-        /// </summary>
+        /// <summary>Matches the resident set to this frame's renderables within the upload budget.</summary>
         public void Reconcile(IReadOnlyList<ManaRenderMeshInstance> renderableMeshes, ManaRenderScene scene, ManaWebGpuSceneBindings bindings)
         {
             var nextSceneMeshes = new List<ManaWebGpuSceneMesh>(renderableMeshes.Count);
@@ -164,9 +152,7 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
-                    // Same mesh, same topology, new vertex data -- CPU-skinned characters produce this
-                    // every frame. Rewriting the two geometry buffers keeps the (far more expensive)
-                    // uniform buffers, bind groups and texture binding alive.
+                    // Same mesh with new vertices (skinned characters, every frame): rewrite geometry, keep the bindings.
                     if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance) &&
                         existing.Mesh.TryUpdateGeometryInPlace(_gpu.Queue, instance.MeshData))
                     {
@@ -176,9 +162,7 @@ namespace ManaGraphics.Code.Graphics
                         continue;
                     }
 
-                    // Out of upload budget: hold the existing scene mesh, Instance and all, so it keeps
-                    // drawing last frame's geometry rather than vanishing. Its key stays in activeKeys,
-                    // so the stale sweep below leaves it alone and the swap retries next frame.
+                    // Over budget: keep drawing the old mesh; the swap retries next frame.
                     if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes))
                     {
                         deferredCount++;
@@ -199,9 +183,7 @@ namespace ManaGraphics.Code.Graphics
                     continue;
                 }
 
-                // Scoped separately from the reconcile pass around it: walking the scene is cheap and
-                // steady, while buffer creation and upload is the part that spikes with a burst of
-                // finished terrain, and only one of those two is worth a budget.
+                // Measured apart from the reconcile: uploads are what spike.
                 ManaWebGpuSceneMesh created;
                 using (ManaFrameProfiler.Measure("GPU: Mesh Buffer Upload"))
                 {
@@ -285,11 +267,7 @@ namespace ManaGraphics.Code.Graphics
             return builder.ToString();
         }
 
-        /// <summary>
-        /// Whether two meshes wear the same maps. Every channel counts: the textures are baked into the
-        /// bind group, so a mesh that keeps its GPU resources keeps whatever it was built with -- which is
-        /// why assigning a map to a live material has to force a rebuild rather than merely a redraw.
-        /// </summary>
+        /// <summary>Whether two meshes wear the same maps; textures are baked into the bind group, so any change rebuilds.</summary>
         private static bool SameMaterialMaps(ManaMeshCpuData current, ManaMeshCpuData incoming)
         {
             return string.Equals(current.AlbedoTexturePath, incoming.AlbedoTexturePath, StringComparison.Ordinal)
@@ -321,9 +299,7 @@ namespace ManaGraphics.Code.Graphics
             return ReferenceEquals(current.MeshData, incoming.MeshData);
         }
 
-        // Narrower than CanReuseSceneMesh: same GPU resources are still valid, but the vertex/index
-        // bytes need rewriting. Deliberately requires the same MeshKey -- a different source mesh that
-        // happens to share a vertex count would also need a different texture and bind group.
+        // Same bindings, new vertex bytes. Requires the same MeshKey: another mesh would need other textures.
         private static bool CanUpdateSceneMeshGeometryInPlace(ManaRenderMeshInstance current, ManaRenderMeshInstance incoming)
         {
             return string.Equals(current.MeshKey, incoming.MeshKey, StringComparison.Ordinal) &&

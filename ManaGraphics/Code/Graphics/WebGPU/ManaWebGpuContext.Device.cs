@@ -58,21 +58,8 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 #else
-        // wgpuInstanceRequestAdapter/wgpuAdapterRequestDevice's own callback-delivery path hits a
-        // confirmed Emscripten runtime bug in this exact SDK/bundling (RuntimeError:
-        // getWasmTableEntry(...) is not a function -- not fixed by AOT compilation or by forcing
-        // getWasmTableEntry past tree-shaking), so the browser build never uses OnRequestAdapter/
-        // OnRequestDevice (below, #if !MANA_BROWSER) at all. Instead, ManaWebGpuContext.
-        // BrowserAsync.cs's RequestAdapterAsync/RequestDeviceAsync go through
-        // ManaBrowserWebGpuCallbackBridge (EM_JS-injected plain JS calling
-        // navigator.gpu.requestAdapter()/adapter.requestDevice() directly, registering the result
-        // into library_webgpu.js's own id tables, delivered back via [JSExport] -- the same
-        // mechanism ManaBrowserInterop.cs already used successfully for the RAF loop/resize).
-        // SetAdapterFromId/SetDeviceFromId below just assign the resulting integer id as the
-        // opaque Adapter*/Device* handle Silk.NET's other (still-working) calls expect. Split into
-        // a separate non-unsafe partial file (ManaWebGpuContext.BrowserAsync.cs) because this
-        // whole class is declared `unsafe`, and C# doesn't allow `await` inside an unsafe context
-        // at all, regardless of whether the awaiting method itself touches a pointer.
+        // The browser never uses the native request callbacks (an Emscripten dynCall bug breaks them); BrowserAsync.cs
+        // requests through ManaBrowserWebGpuCallbackBridge and assigns the returned ids as the handles.
         private System.Threading.Tasks.TaskCompletionSource<bool>? _adapterRequestTcs;
         private System.Threading.Tasks.TaskCompletionSource<bool>? _deviceRequestTcs;
 

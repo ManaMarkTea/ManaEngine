@@ -7,13 +7,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Every mesh's albedo and material maps, ref-counted and shared across meshes that use the same file
-    /// (or, for an untextured mesh, the same neutral 1x1 per map kind).
-    /// <para>
-    /// Standalone rather than another slice of <see cref="ManaWebGpuContext"/>: everything it needs is
-    /// api/device/queue, handed over once at construction, and its own cache dictionary -- nothing here
-    /// reaches back into the context's per-frame state the way the scene/pipeline partials do.
-    /// </para>
+    /// Every mesh's albedo and material maps, ref-counted and shared by file (untextured meshes share a neutral 1x1
+    /// per map kind).
     /// </summary>
     internal unsafe sealed class ManaWebGpuMeshTextureCache
     {
@@ -49,11 +44,7 @@ namespace ManaGraphics.Code.Graphics
             return textureResource;
         }
 
-        /// <summary>
-        /// The six non-albedo maps in binding order. Kept as one call so the order lives in exactly one
-        /// place -- it has to agree with the bind group layout and with the WGSL, and three copies of an
-        /// ordering is three chances to get it wrong.
-        /// </summary>
+        /// <summary>The six non-albedo maps in binding order, which must match the layout and the WGSL.</summary>
         public ManaWebGpuMeshTexture[] AcquireMaterialMaps(ManaMeshCpuData cpuData)
         {
             (string? Path, ManaMaterialMapKind Kind)[] maps =
@@ -96,10 +87,7 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        /// <summary>
-        /// One of a material's maps, shared by every mesh using the same file. Absent maps share a single
-        /// neutral 1x1 per kind, so a scene of untextured meshes costs three tiny textures in total.
-        /// </summary>
+        /// <summary>One of a material's maps, shared by file; absent maps share one neutral 1x1 per kind.</summary>
         private ManaWebGpuMeshTexture AcquireMaterialMap(string? path, ManaMaterialMapKind kind)
         {
             var textureKey = string.IsNullOrWhiteSpace(path) || !File.Exists(path)
@@ -160,18 +148,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>
-        /// One of a material's maps, uploaded in the colour space its contents actually live in.
-        /// <para>
-        /// Only albedo and emission are colour. Normal, metallic, roughness, occlusion and opacity carry
-        /// measurements -- a direction, a coefficient, a coverage -- and uploading those as sRGB has the
-        /// sampler apply a transfer curve to numbers that were never encoded with one, which bends every
-        /// value and is invisible until the lighting looks subtly wrong.
-        /// </para>
-        /// <para>
-        /// Absent maps get a 1x1 neutral rather than a flag in the shader: the identity value for each
-        /// channel leaves the material's scalar untouched, so "no map" and "a map of all ones" are the
-        /// same thing and the shader needs no branch.
-        /// </para>
+        /// One of a material's maps in its own colour space: only albedo and emission are sRGB, the rest are data. An absent
+        /// map is a 1x1 of the channel's identity value, so the shader needs no branch.
         /// </summary>
         private void CreateMaterialMapTexture(
             string? path,
@@ -192,10 +170,7 @@ namespace ManaGraphics.Code.Graphics
             CreateRgba8Texture(NeutralPixel(kind), 1, 1, $"{kind} fallback", format, out texture, out textureView);
         }
 
-        /// <summary>
-        /// A texture's picture flipped for GPU texture coordinates, or null when it cannot be read -- or, in the
-        /// browser, is not decoded yet -- so the mesh draws with the neutral map rather than failing the frame.
-        /// </summary>
+        /// <summary>The picture flipped for GPU coordinates, or null when unreadable (or, in the browser, not decoded yet).</summary>
         private static ManaImage? TryDecode(Func<ManaImage> load)
         {
             try

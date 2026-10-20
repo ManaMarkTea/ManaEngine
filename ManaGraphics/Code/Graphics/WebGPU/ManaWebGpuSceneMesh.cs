@@ -6,10 +6,7 @@ using WebGpuBuffer = Silk.NET.WebGPU.Buffer;
 
 namespace ManaGraphics.Code.Graphics
 {
-    /// <summary>
-    /// One resident scene mesh: its geometry and every GPU binding it draws with. Passes read these through
-    /// <see cref="ManaWebGpuFrame.Meshes"/>; <see cref="ManaWebGpuSceneMeshes"/> creates, reuses and retires them.
-    /// </summary>
+    /// <summary>One resident scene mesh: its geometry and the GPU bindings it draws with.</summary>
     internal sealed unsafe class ManaWebGpuSceneMesh : IDisposable
     {
         private readonly WebGPU _api;
@@ -47,10 +44,7 @@ namespace ManaGraphics.Code.Graphics
             CustomUniformData = customUniformData ?? new byte[CustomUniformLayout.BufferSize];
         }
 
-        /// <summary>
-        /// Uploads one mesh and builds every binding it draws with: object, material maps, environment, capture
-        /// faces and custom uniforms. Ownership transfers only on success; a failure releases what was made.
-        /// </summary>
+        /// <summary>Uploads one mesh and builds its bindings; a failure releases whatever was made.</summary>
         public static ManaWebGpuSceneMesh Create(
             ManaWebGpuDevice gpu,
             ManaWebGpuMeshTextureCache meshTextures,
@@ -180,9 +174,7 @@ namespace ManaGraphics.Code.Graphics
                     throw new InvalidOperationException($"Failed to create WebGPU bind group for mesh '{instance.Name}'.");
                 }
 
-                // Scene capture keeps its own, larger, unsplit uniform layout (see
-                // ManaWebGpuSceneCaptureUniform), so it needs its own
-                // buffer size distinct from the (now much smaller) per-object bufferDescriptor above.
+                // Capture uses its own, larger uniform layout (ManaWebGpuSceneCaptureUniform).
                 var sceneCaptureBufferDescriptor = new BufferDescriptor
                 {
                     Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
@@ -352,21 +344,12 @@ namespace ManaGraphics.Code.Graphics
         public ManaWebGpuCustomUniformSchema CustomUniformLayout { get; }
         public byte[] CustomUniformData { get; }
 
-        // Dirty-check caches: the object/custom uniform buffers are only rewritten when the
-        // freshly-built payload differs from what's already resident on the GPU, instead of every
-        // frame regardless. null on first use, so the first real draw always uploads once.
+        // Last uploaded payloads: a buffer is rewritten only when its contents change.
         private ManaWebGpuObjectUniform? _lastUploadedObjectUniform;
         private byte[]? _lastUploadedCustomUniformData;
 
-        // Lazily built the first time the wireframe overlay is actually enabled (see
-        // ManaWebGpuContext.Demo.cs's DrawWireframeOverlay), not eagerly for every mesh -- this is
-        // a rarely-toggled debug view, so the ~2000 resident meshes in a typical scene shouldn't
-        // all pay edge-extraction cost unconditionally. Cached for this object's whole lifetime:
-        // a ManaWebGpuSceneMesh is only ever kept across frames when the index data is identical
-        // (CanReuseSceneMesh requires a matching MeshVersion or the same MeshData reference;
-        // CanUpdateSceneMeshGeometryInPlace requires a matching index count on the same source
-        // mesh), so a real topology change always builds a brand new ManaWebGpuSceneMesh and this
-        // cache needs no extra invalidation bookkeeping.
+        // Built the first time the wireframe overlay is on. Topology never changes for the life of this object, so the
+        // buffer never needs invalidating.
         private WebGpuBuffer* _wireframeIndexBuffer;
         private uint _wireframeIndexCount;
 
@@ -374,22 +357,15 @@ namespace ManaGraphics.Code.Graphics
         // actual positions and normals, so an in-place geometry rewrite does invalidate it.
         private ManaWebGpuMesh? _normalLinesMesh;
 
-        // Called when ReconcileSceneMeshes rewrites this mesh's vertex buffer in place rather than
-        // rebuilding the whole scene mesh (skinned meshes, every frame). The wireframe index buffer
-        // survives -- it is derived from topology alone, which an in-place update never changes.
+        // After an in-place vertex rewrite; the wireframe depends on topology alone and survives.
         public void InvalidateDerivedGeometry()
         {
             _normalLinesMesh?.Dispose();
             _normalLinesMesh = null;
         }
 
-        // Builds a separate LineList mesh whose vertices alternate base/tip -- the tip positions
-        // don't exist in the source mesh, so unlike the wireframe this can't be done with an index
-        // buffer over the original vertices.
-        //
-        // Both vertices of a line are stored at the surface position; uv0.x is 0 on the base and 1 on
-        // the tip, and normal_lines.wgsl extrudes the tip by normal * uv0.x * length. Keeping length
-        // out of the buffer is what lets it be a live setting instead of a rebuild.
+        // A LineList mesh with each vertex twice, base then tip (uv0.x 0 or 1); the shader extrudes the tip along the
+        // normal, so the length stays a live setting.
         public ManaWebGpuMesh? GetOrCreateNormalLinesMesh(WebGPU api, Device* device, Queue* queue)
         {
             if (_normalLinesMesh != null)
