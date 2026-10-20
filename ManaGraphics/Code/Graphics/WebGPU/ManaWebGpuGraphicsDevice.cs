@@ -1,5 +1,6 @@
 using System.Numerics;
 using ManaCore.Graphics;
+using ManaGraphics.Code.Graphics.Renderers;
 
 namespace ManaGraphics.Code.Graphics
 {
@@ -24,12 +25,12 @@ namespace ManaGraphics.Code.Graphics
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
         {
-            if (Context == null)
+            if (Context?.HeightSampler is not { } sampler)
             {
                 throw new InvalidOperationException("WebGPU context is not yet initialized.");
             }
 
-            return Context.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst);
+            return sampler.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst);
         }
     }
 }

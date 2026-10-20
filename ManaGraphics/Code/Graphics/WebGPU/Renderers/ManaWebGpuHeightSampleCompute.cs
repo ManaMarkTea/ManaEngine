@@ -8,8 +8,9 @@ using ManaGraphics.Code.Graphics.Resources;
 
 namespace ManaGraphics.Code.Graphics.Renderers
 {
-    // Samples planet heights on the GPU (height_sample_compute.wgsl) for PlanetPatchMesh. Buffers are made per call.
-    // Not unsafe at class level: SampleHeightsAsync awaits, so pointer members are marked unsafe one by one.
+    // Samples planet heights on the GPU (height_sample_compute.wgsl) for PlanetPatchMesh: callable from any thread, encoded
+    // on the render thread. The pipeline is built on first use; buffers are made per call.
+    // Not unsafe at class level: it awaits, so pointer members are marked unsafe one by one.
     internal sealed class ManaWebGpuHeightSampleCompute : ManaWebGpuDeviceObject, IManaComputeShader
     {
         // Bounds pre-projected to Web Mercator here, once per tile, instead of per point and tile in the shader's hot loop,
@@ -41,37 +42,98 @@ namespace ManaGraphics.Code.Graphics.Renderers
         }
 
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry;
-        private readonly unsafe ShaderModule* _shaderModule;
-        private readonly unsafe BindGroupLayout* _bindGroupLayout;
-        private readonly unsafe PipelineLayout* _pipelineLayout;
-        private readonly unsafe ComputePipeline* _pipeline;
+        private readonly ManaWebGpuRenderThreadQueue _renderThread;
+        private unsafe ShaderModule* _shaderModule;
+        private unsafe BindGroupLayout* _bindGroupLayout;
+        private unsafe PipelineLayout* _pipelineLayout;
+        private unsafe ComputePipeline* _pipeline;
 
         public ManaGraphicsBackendKind Backend => ManaGraphicsBackendKind.WebGpu;
         public string Name => "Height Sample";
 
-        public unsafe ManaWebGpuHeightSampleCompute(ManaWebGpuDevice gpu, ManaWebGpuReadbackRegistry readbackRegistry, string shaderPath)
+        public ManaWebGpuHeightSampleCompute(ManaWebGpuDevice gpu, ManaWebGpuReadbackRegistry readbackRegistry, ManaWebGpuRenderThreadQueue renderThread)
             : base(gpu)
         {
             _readbackRegistry = readbackRegistry;
+            _renderThread = renderThread;
+        }
+
+        /// <summary>Callable from any thread; the encode and submit run on the render thread, the readback completes off it.</summary>
+        public Task<float[]> SampleHeightsAsync(
+            ReadOnlyMemory<Vector2> lonLatPointsDegrees,
+            IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
+        {
+            if (_renderThread.IsClosed)
+            {
+                return Task.FromCanceled<float[]>(new CancellationToken(true));
+            }
+
+            // Asynchronous continuations keep callers off the render thread mid-drain.
+            var completion = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _renderThread.Enqueue(() =>
+            {
+                if (_renderThread.IsClosed)
+                {
+                    completion.TrySetCanceled();
+                    return;
+                }
+
+                try
+                {
+                    EnsurePipeline();
+                    Complete(SampleOnRenderThreadAsync(lonLatPointsDegrees, tilesNewestFirst), completion);
+                }
+                catch (Exception ex)
+                {
+                    completion.TrySetException(ex);
+                }
+            });
+            return completion.Task;
+        }
+
+        private static async void Complete(Task<float[]> sampling, TaskCompletionSource<float[]> completion)
+        {
             try
             {
-                _shaderModule = CreateShaderModule(shaderPath);
+                completion.TrySetResult(await sampling.ConfigureAwait(false));
+            }
+            catch (OperationCanceledException)
+            {
+                completion.TrySetCanceled();
+            }
+            catch (Exception ex)
+            {
+                completion.TrySetException(ex);
+            }
+        }
+
+        // A failed build leaves nothing behind, so the next request tries again.
+        private unsafe void EnsurePipeline()
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (_pipeline != null)
+            {
+                return;
+            }
+
+            try
+            {
+                _shaderModule = CreateShaderModule(ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("height_sample_compute.wgsl")));
                 _bindGroupLayout = CreateBindGroupLayout();
                 _pipelineLayout = CreatePipelineLayout();
                 _pipeline = CreatePipeline();
             }
             catch
             {
-                Dispose();
+                ReleasePipeline();
                 throw;
             }
         }
 
-        public async Task<float[]> SampleHeightsAsync(
+        private async Task<float[]> SampleOnRenderThreadAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
             if (lonLatPointsDegrees.Length == 0)
             {
                 return Array.Empty<float>();
@@ -95,7 +157,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             return heights;
         }
 
-        // The pointer work, apart from SampleHeightsAsync so the async machinery stays out of unsafe code.
+        // The pointer work, apart from the async methods so their machinery stays out of unsafe code.
         private unsafe Task<byte[]> DispatchAndRequestReadback(
             ReadOnlySpan<Vector2> points,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
@@ -207,24 +269,33 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 return;
             }
             _disposed = true;
+            ReleasePipeline();
+        }
+
+        private unsafe void ReleasePipeline()
+        {
             if (_pipeline != null)
             {
                 Api.ComputePipelineRelease(_pipeline);
+                _pipeline = null;
             }
 
             if (_pipelineLayout != null)
             {
                 Api.PipelineLayoutRelease(_pipelineLayout);
+                _pipelineLayout = null;
             }
 
             if (_bindGroupLayout != null)
             {
                 Api.BindGroupLayoutRelease(_bindGroupLayout);
+                _bindGroupLayout = null;
             }
 
             if (_shaderModule != null)
             {
                 Api.ShaderModuleRelease(_shaderModule);
+                _shaderModule = null;
             }
         }
 

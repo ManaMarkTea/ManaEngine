@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Numerics;
@@ -61,8 +60,7 @@ namespace ManaGraphics.Code.Graphics
         private bool _configured;
         // Made with the device; meshes are only uploaded once the scene bindings exist.
         private ManaWebGpuSceneMeshes? _meshes;
-        // Background work that must run on the render thread (see EnqueueRenderThreadWork).
-        private readonly ConcurrentQueue<Action> _renderThreadWork = new();
+        private readonly ManaWebGpuRenderThreadQueue _renderThread = new();
         // Set in FinishInitialization, which in the browser runs after the constructor.
         private ManaWebGpuMeshTextureCache _meshTextures = null!;
         private ManaRenderScene? _activeRenderScene;
@@ -83,7 +81,8 @@ namespace ManaGraphics.Code.Graphics
         // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
         private ManaWebGpuSceneBindings? _bindings;
         private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
-        private ManaWebGpuHeightSampleCompute? _heightSampleCompute;
+        // Set in FinishInitialization; ManaWebGpuGraphicsDevice forwards planet height requests to it.
+        internal ManaWebGpuHeightSampleCompute? HeightSampler { get; private set; }
         // Made with the device; outlives pipeline failures, since loading waits on it either way.
         private ManaWebGpuEnvironment? _environment;
         public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
@@ -224,6 +223,7 @@ namespace ManaGraphics.Code.Graphics
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
             _ui = new ManaWebGpuUiCompositor(_gpu);
+            HeightSampler = new ManaWebGpuHeightSampleCompute(_gpu, _readbackRegistry, _renderThread);
             ConfigureSurface(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
@@ -469,74 +469,6 @@ namespace ManaGraphics.Code.Graphics
             return _passFrame;
         }
 
-        // Callable from any thread; runs on the render thread. A background submit overlapping SurfacePresent
-        // deadlocks wgpu-native.
-        private void EnqueueRenderThreadWork(Action work)
-        {
-            _renderThreadWork.Enqueue(work);
-
-            // Dispose()'s drain may already have run; flush inline so a racing item still cancels.
-            if (_disposed)
-            {
-                DrainRenderThreadWork();
-            }
-        }
-
-        // Render thread only. Items check _disposed, so Dispose's drain cancels rather than submits.
-        private void DrainRenderThreadWork()
-        {
-            while (_renderThreadWork.TryDequeue(out var work))
-            {
-                try
-                {
-                    work();
-                }
-                catch (Exception ex)
-                {
-                    ManaConsole.WriteDiagnostic($"[WebGPU] Deferred render-thread work failed: {ex}");
-                }
-            }
-        }
-
-        // Callable from any thread; only the encode and submit run on the render thread.
-        public Task<float[]> SampleHeightsAsync(
-            ReadOnlyMemory<Vector2> lonLatPointsDegrees,
-            IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)
-        {
-            if (_disposed)
-            {
-                return Task.FromCanceled<float[]>(new CancellationToken(true));
-            }
-
-            // RunContinuationsAsynchronously keeps caller continuations off the render thread mid-drain.
-            var completion = new TaskCompletionSource<float[]>(TaskCreationOptions.RunContinuationsAsynchronously);
-            EnqueueRenderThreadWork(() =>
-            {
-                if (_disposed)
-                {
-                    completion.TrySetCanceled();
-                    return;
-                }
-
-                try
-                {
-                    _heightSampleCompute ??= new ManaWebGpuHeightSampleCompute(
-                        _gpu, _readbackRegistry,
-                        ManaWebGpuDevice.ResolveAssetPath(Path.Combine("Assets", "Shaders", "WebGpu", "height_sample_compute.wgsl")));
-
-                    LinkTaskResult(
-                        _heightSampleCompute.SampleHeightsAsync(lonLatPointsDegrees, tilesNewestFirst),
-                        completion);
-                }
-                catch (Exception ex)
-                {
-                    completion.TrySetException(ex);
-                }
-            });
-
-            return completion.Task;
-        }
-
         /// <summary>
         /// Renders <paramref name="instances"/> to a square straight-alpha RGBA buffer, or null when there is nothing to
         /// draw. Callable from any thread.
@@ -549,7 +481,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var completion = new TaskCompletionSource<byte[]?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            EnqueueRenderThreadWork(() =>
+            _renderThread.Enqueue(() =>
             {
                 if (_disposed)
                 {
@@ -596,32 +528,6 @@ namespace ManaGraphics.Code.Graphics
         }
 #endif
 
-        // ContinueWith rather than await: this class is `unsafe` at the type level, which bans await.
-        private static void LinkTaskResult<T>(Task<T> source, TaskCompletionSource<T> destination)
-        {
-            source.ContinueWith(
-                static (completed, state) =>
-                {
-                    var target = (TaskCompletionSource<T>)state!;
-                    if (completed.IsCanceled)
-                    {
-                        target.TrySetCanceled();
-                    }
-                    else if (completed.Exception != null)
-                    {
-                        target.TrySetException(completed.Exception.InnerExceptions);
-                    }
-                    else
-                    {
-                        target.TrySetResult(completed.Result);
-                    }
-                },
-                destination,
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-        }
-
         private bool _loggedFirstPresent;
         private bool _loggedFirstSceneWork;
 
@@ -644,7 +550,7 @@ namespace ManaGraphics.Code.Graphics
             _meshes?.BeginFrame();
 
             // Before the early return, so deferred work progresses while minimized; before this frame's submit, so it never races it.
-            DrainRenderThreadWork();
+            _renderThread.Drain();
 
             if (!_configured)
             {
@@ -947,10 +853,9 @@ namespace ManaGraphics.Code.Graphics
 #endif
             _environment?.Retire();
             // Before FaultAllPending: an item that slipped through can still register a readback.
-            DrainRenderThreadWork();
+            _renderThread.Close();
             _readbackRegistry.FaultAllPending();
-            _heightSampleCompute?.Dispose();
-            _heightSampleCompute = null;
+            HeightSampler?.Dispose();
 
             _meshes?.DrainDeferred(force: true);
 
