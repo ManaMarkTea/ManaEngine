@@ -1,3 +1,9 @@
+[] - Foundry factory builder: plan and roadmap in Plans/Foundry.md; game lives in Games/Foundry.
+    [x] First playable (2026-10-20): finite mining, belts/backpressure, crafting, power, science goal,
+        responsive ManaUI board, manual recovery/feeding, example layout, desktop save/load and automation check.
+        Play Content/Levels/Foundry.manalevel; controls and recipes in Games/Foundry/README.md.
+    Next: splitters/merging, in-place rotation, production graphs, scrolling world, sound/art, autosave and browser checks.
+
 [x] - Code Screensaver: split terminal windows scroll random real repository source, with soft typing.
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
     Standalone Pages route: /code-screensaver/ (Tools/WebAssets/screensaver), with a right-side sound toggle.

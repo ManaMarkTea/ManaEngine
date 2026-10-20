@@ -1,5 +1,6 @@
 using ManaVoxel.Code.Assets;
 using CodeScreensaver;
+using Foundry;
 using YachtJousting;
 using ManaVoxel.Code.GridMaps;
 using Runner;
@@ -17,6 +18,14 @@ namespace ManaVoxel.Code.Levels
         [System.Runtime.CompilerServices.ModuleInitializer]
         internal static void Register()
         {
+            ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
+            {
+                Type = FoundryMode.ModeType,
+                DisplayName = FoundryMode.DisplayName,
+                Description = FoundryMode.Description,
+                ModeType = typeof(FoundryMode),
+                Create = () => new FoundryMode()
+            });
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = CodeScreensaverMode.ModeType,

@@ -68,6 +68,8 @@
          network to listen on; the browser build leaves the LiveScan code out (MANA_BROWSER). -->
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <!-- Games in projects of their own; ManaGames.cs registers their level game modes. -->
+    <ProjectReference Include="..\Games\Foundry\Foundry.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Games\Foundry\Foundry.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\Games\YachtJousting\YachtJousting.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
