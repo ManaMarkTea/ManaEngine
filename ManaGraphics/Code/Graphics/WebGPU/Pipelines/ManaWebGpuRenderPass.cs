@@ -7,11 +7,11 @@ namespace ManaGraphics.Code.Graphics
     /// One piece of the frame, owning its pipelines and GPU state. Registered in frame order; overrides only the hooks
     /// it draws in. Disposed in reverse order, before the shared bindings and the device.
     /// </summary>
-    internal abstract unsafe class ManaWebGpuRenderPass : IDisposable
+    internal abstract unsafe class ManaWebGpuRenderPass : ManaWebGpuResource
     {
         protected ManaWebGpuRenderPass(ManaWebGpuDevice gpu)
+            : base(gpu)
         {
-            Gpu = gpu;
         }
 
         /// <summary>The frame profiler's label for this pass's encoding time.</summary>
@@ -20,9 +20,6 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>For the diagnostics panel's resource counts.</summary>
         public virtual int PipelineCount => 0;
         public virtual int ShaderModuleCount => 0;
-
-        protected ManaWebGpuDevice Gpu { get; }
-        protected WebGPU Api => Gpu.Api;
 
         /// <summary>Before the scene pass opens, on the frame's encoder: passes rendering into their own targets.</summary>
         public virtual void Prepare(ManaWebGpuFrame frame)
@@ -39,7 +36,7 @@ namespace ManaGraphics.Code.Graphics
         {
         }
 
-        public virtual void Dispose()
+        public override void Dispose()
         {
         }
     }

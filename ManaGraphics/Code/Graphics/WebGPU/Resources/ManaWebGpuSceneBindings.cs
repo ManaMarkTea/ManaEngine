@@ -8,7 +8,7 @@ namespace ManaGraphics.Code.Graphics
     /// The layouts, samplers and frame uniform every scene pipeline shares: group 0 frame and shadows, group 1 one
     /// mesh's object data and textures, group 2 custom material uniforms, plus the scene-capture layout.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuSceneBindings : IDisposable
+    internal sealed unsafe class ManaWebGpuSceneBindings : ManaWebGpuResource
     {
         /// <summary>Where the material maps start in group 1, after the object uniform, samplers, albedo and environment.</summary>
         public const int FirstMaterialMapBinding = 8;
@@ -18,7 +18,6 @@ namespace ManaGraphics.Code.Graphics
 
         public const int ObjectBindingCount = FirstMaterialMapBinding + MaterialMapCount;
 
-        private readonly WebGPU _api;
 
         public Sampler* LinearSampler { get; private set; }
         public Sampler* NearestSampler { get; private set; }
@@ -41,8 +40,8 @@ namespace ManaGraphics.Code.Graphics
 
         /// <param name="shadowMapArrayView">Bound into group 0; the shadow pass keeps it alive for as long as these bindings.</param>
         public ManaWebGpuSceneBindings(ManaWebGpuDevice gpu, TextureView* shadowMapArrayView, Sampler* shadowSampler)
+            : base(gpu)
         {
-            _api = gpu.Api;
             var api = gpu.Api;
             var device = gpu.Device;
             try
@@ -419,24 +418,24 @@ namespace ManaGraphics.Code.Graphics
         {
             fixed (ManaWebGpuFrameUniform* data = &uniform)
             {
-                _api.QueueWriteBuffer(queue, FrameBuffer, 0, data, (nuint)sizeof(ManaWebGpuFrameUniform));
+                Api.QueueWriteBuffer(queue, FrameBuffer, 0, data, (nuint)sizeof(ManaWebGpuFrameUniform));
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
-            if (SceneCaptureLayout != null) { _api.PipelineLayoutRelease(SceneCaptureLayout); SceneCaptureLayout = null; }
-            if (SceneCaptureGroupLayout != null) { _api.BindGroupLayoutRelease(SceneCaptureGroupLayout); SceneCaptureGroupLayout = null; }
-            if (MeshLayout != null) { _api.PipelineLayoutRelease(MeshLayout); MeshLayout = null; }
-            if (MaterialLayout != null) { _api.PipelineLayoutRelease(MaterialLayout); MaterialLayout = null; }
-            if (CustomUniformGroupLayout != null) { _api.BindGroupLayoutRelease(CustomUniformGroupLayout); CustomUniformGroupLayout = null; }
-            if (LinearSampler != null) { _api.SamplerRelease(LinearSampler); LinearSampler = null; }
-            if (NearestSampler != null) { _api.SamplerRelease(NearestSampler); NearestSampler = null; }
-            if (ClampSampler != null) { _api.SamplerRelease(ClampSampler); ClampSampler = null; }
-            if (ObjectLayout != null) { _api.BindGroupLayoutRelease(ObjectLayout); ObjectLayout = null; }
-            if (FrameGroup != null) { _api.BindGroupRelease(FrameGroup); FrameGroup = null; }
-            if (FrameBuffer != null) { _api.BufferRelease(FrameBuffer); FrameBuffer = null; }
-            if (FrameLayout != null) { _api.BindGroupLayoutRelease(FrameLayout); FrameLayout = null; }
+            if (SceneCaptureLayout != null) { Api.PipelineLayoutRelease(SceneCaptureLayout); SceneCaptureLayout = null; }
+            if (SceneCaptureGroupLayout != null) { Api.BindGroupLayoutRelease(SceneCaptureGroupLayout); SceneCaptureGroupLayout = null; }
+            if (MeshLayout != null) { Api.PipelineLayoutRelease(MeshLayout); MeshLayout = null; }
+            if (MaterialLayout != null) { Api.PipelineLayoutRelease(MaterialLayout); MaterialLayout = null; }
+            if (CustomUniformGroupLayout != null) { Api.BindGroupLayoutRelease(CustomUniformGroupLayout); CustomUniformGroupLayout = null; }
+            if (LinearSampler != null) { Api.SamplerRelease(LinearSampler); LinearSampler = null; }
+            if (NearestSampler != null) { Api.SamplerRelease(NearestSampler); NearestSampler = null; }
+            if (ClampSampler != null) { Api.SamplerRelease(ClampSampler); ClampSampler = null; }
+            if (ObjectLayout != null) { Api.BindGroupLayoutRelease(ObjectLayout); ObjectLayout = null; }
+            if (FrameGroup != null) { Api.BindGroupRelease(FrameGroup); FrameGroup = null; }
+            if (FrameBuffer != null) { Api.BufferRelease(FrameBuffer); FrameBuffer = null; }
+            if (FrameLayout != null) { Api.BindGroupLayoutRelease(FrameLayout); FrameLayout = null; }
         }
     }
 }

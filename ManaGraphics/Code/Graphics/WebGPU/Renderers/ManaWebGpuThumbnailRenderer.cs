@@ -8,7 +8,7 @@ namespace ManaGraphics.Code.Graphics
 {
     // Square off-screen renders for the asset browser's thumbnails (MeshThumbnailCache). Its single worker waits on
     // each request, so one set of targets is reused.
-    internal sealed unsafe class ManaWebGpuThumbnailRenderer : IDisposable
+    internal sealed unsafe class ManaWebGpuThumbnailRenderer : ManaWebGpuResource
     {
         private const uint ThumbnailBytesPerPixel = 4;
         private const float ThumbnailInset = 0.1f;
@@ -18,8 +18,6 @@ namespace ManaGraphics.Code.Graphics
         private static readonly Vector3 ThumbnailUpWorld = Vector3.UnitY;
         private static readonly Vector3 ThumbnailLightDirectionWorld = Vector3.Normalize(new Vector3(-0.45f, 0.85f, 0.35f));
 
-        private readonly ManaWebGpuDevice _gpu;
-        private readonly WebGPU _api;
         private readonly ManaWebGpuReadbackRegistry _readbacks;
         private readonly ManaWebGpuMeshTextureCache _meshTextures;
         private ShaderModule* _shaderModule;
@@ -39,9 +37,8 @@ namespace ManaGraphics.Code.Graphics
         }
 
         public ManaWebGpuThumbnailRenderer(ManaWebGpuDevice gpu, ManaWebGpuReadbackRegistry readbacks, ManaWebGpuMeshTextureCache meshTextures)
+            : base(gpu)
         {
-            _gpu = gpu;
-            _api = gpu.Api;
             _readbacks = readbacks;
             _meshTextures = meshTextures;
         }
@@ -78,7 +75,7 @@ namespace ManaGraphics.Code.Graphics
 
                 // Readback retirement owns submitted draw resources; finally owns partial construction.
                 var commandEncoderDescriptor = new CommandEncoderDescriptor();
-                commandEncoder = _api.DeviceCreateCommandEncoder(_gpu.Device, &commandEncoderDescriptor);
+                commandEncoder = Api.DeviceCreateCommandEncoder(Gpu.Device, &commandEncoderDescriptor);
                 if (commandEncoder == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU thumbnail command encoder.");
@@ -113,12 +110,12 @@ namespace ManaGraphics.Code.Graphics
                     DepthStencilAttachment = &depthAttachment
                 };
 
-                renderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
+                renderPass = Api.CommandEncoderBeginRenderPass(commandEncoder, &renderPassDescriptor);
                 if (renderPass == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU thumbnail render pass.");
                 }
-                _api.RenderPassEncoderSetPipeline(renderPass, pipeline);
+                Api.RenderPassEncoderSetPipeline(renderPass, pipeline);
 
                 var bindGroupEntries = stackalloc BindGroupEntry[3];
                 foreach (var instance in instances)
@@ -130,7 +127,7 @@ namespace ManaGraphics.Code.Graphics
 
                     var resources = new DrawResources();
                     drawResources.Add(resources);
-                    var mesh = ManaWebGpuMesh.CreateFromMeshData(_api, _gpu.Device, _gpu.Queue, instance.MeshData, instance.Name);
+                    var mesh = ManaWebGpuMesh.CreateFromMeshData(Api, Gpu.Device, Gpu.Queue, instance.MeshData, instance.Name);
                     resources.Mesh = mesh;
                     var texture = _meshTextures.AcquireMeshTexture(instance.MeshData);
                     resources.Texture = texture;
@@ -140,14 +137,14 @@ namespace ManaGraphics.Code.Graphics
                         Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
                         Size = (ulong)sizeof(ManaWebGpuSceneCaptureUniform)
                     };
-                    var uniformBuffer = _api.DeviceCreateBuffer(_gpu.Device, &uniformBufferDescriptor);
+                    var uniformBuffer = Api.DeviceCreateBuffer(Gpu.Device, &uniformBufferDescriptor);
                     resources.UniformBuffer = (nint)uniformBuffer;
                     if (uniformBuffer == null)
                     {
                         throw new InvalidOperationException("Failed to create WebGPU thumbnail uniform buffer.");
                     }
                     var uniform = BuildUniform(instance, camera);
-                    _api.QueueWriteBuffer(_gpu.Queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
+                    Api.QueueWriteBuffer(Gpu.Queue, uniformBuffer, 0, &uniform, (nuint)sizeof(ManaWebGpuSceneCaptureUniform));
 
                     bindGroupEntries[0] = new BindGroupEntry
                     {
@@ -165,19 +162,19 @@ namespace ManaGraphics.Code.Graphics
                         EntryCount = 3,
                         Entries = bindGroupEntries
                     };
-                    var bindGroup = _api.DeviceCreateBindGroup(_gpu.Device, &bindGroupDescriptor);
+                    var bindGroup = Api.DeviceCreateBindGroup(Gpu.Device, &bindGroupDescriptor);
                     resources.BindGroup = (nint)bindGroup;
                     if (bindGroup == null)
                     {
                         throw new InvalidOperationException($"Failed to create WebGPU thumbnail bind group for mesh '{instance.Name}'.");
                     }
 
-                    _api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
+                    Api.RenderPassEncoderSetBindGroup(renderPass, 0, bindGroup, 0, null);
                     mesh.Draw(renderPass);
                 }
 
-                _api.RenderPassEncoderEnd(renderPass);
-                _api.RenderPassEncoderRelease(renderPass);
+                Api.RenderPassEncoderEnd(renderPass);
+                Api.RenderPassEncoderRelease(renderPass);
                 renderPass = null;
 
                 // Texture-copy rows must be 256-byte aligned; padded rows are compacted after the readback.
@@ -190,7 +187,7 @@ namespace ManaGraphics.Code.Graphics
                     Usage = BufferUsage.MapRead | BufferUsage.CopyDst,
                     Size = readbackByteCount
                 };
-                outputBuffer = _api.DeviceCreateBuffer(_gpu.Device, &outputBufferDescriptor);
+                outputBuffer = Api.DeviceCreateBuffer(Gpu.Device, &outputBufferDescriptor);
                 if (outputBuffer == null)
                 {
                     throw new InvalidOperationException("Failed to create WebGPU thumbnail readback buffer.");
@@ -219,17 +216,17 @@ namespace ManaGraphics.Code.Graphics
                     Height = thumbnailSize,
                     DepthOrArrayLayers = 1
                 };
-                _api.CommandEncoderCopyTextureToBuffer(commandEncoder, &copySource, &copyDestination, &copySize);
+                Api.CommandEncoderCopyTextureToBuffer(commandEncoder, &copySource, &copyDestination, &copySize);
 
                 var commandBufferDescriptor = new CommandBufferDescriptor();
-                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                commandBuffer = Api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
                 if (commandBuffer == null)
                 {
                     throw new InvalidOperationException("Failed to finish WebGPU thumbnail commands.");
                 }
-                _api.QueueSubmit(_gpu.Queue, 1, &commandBuffer);
+                Api.QueueSubmit(Gpu.Queue, 1, &commandBuffer);
                 var retiredDrawResources = drawResources;
-                var readbackTask = ManaWebGpuBufferReadback.MapAsync(_api, outputBuffer, readbackByteCount,
+                var readbackTask = ManaWebGpuBufferReadback.MapAsync(Api, outputBuffer, readbackByteCount,
                     _readbacks, () => DisposeDrawResources(retiredDrawResources));
                 outputBuffer = null;
                 drawResources = null;
@@ -268,19 +265,19 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (renderPass != null)
                 {
-                    _api.RenderPassEncoderRelease(renderPass);
+                    Api.RenderPassEncoderRelease(renderPass);
                 }
                 if (commandBuffer != null)
                 {
-                    _api.CommandBufferRelease(commandBuffer);
+                    Api.CommandBufferRelease(commandBuffer);
                 }
                 if (commandEncoder != null)
                 {
-                    _api.CommandEncoderRelease(commandEncoder);
+                    Api.CommandEncoderRelease(commandEncoder);
                 }
                 if (outputBuffer != null)
                 {
-                    _api.BufferRelease(outputBuffer);
+                    Api.BufferRelease(outputBuffer);
                 }
                 if (drawResources != null)
                 {
@@ -295,11 +292,11 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (resource.BindGroup != 0)
                 {
-                    _api.BindGroupRelease((BindGroup*)resource.BindGroup);
+                    Api.BindGroupRelease((BindGroup*)resource.BindGroup);
                 }
                 if (resource.UniformBuffer != 0)
                 {
-                    _api.BufferRelease((WebGpuBuffer*)resource.UniformBuffer);
+                    Api.BufferRelease((WebGpuBuffer*)resource.UniformBuffer);
                 }
                 if (resource.Texture != null)
                 {
@@ -478,9 +475,9 @@ namespace ManaGraphics.Code.Graphics
 
             if (_shaderModule == null)
             {
-                _shaderModule = _gpu.CreateShaderModule("mesh_thumbnail.wgsl");
+                _shaderModule = Gpu.CreateShaderModule("mesh_thumbnail.wgsl");
             }
-            _pipeline = ManaWebGpuMeshPipeline.Create(_gpu, _shaderModule, TextureFormat.Rgba8UnormSrgb, bindings.SceneCaptureLayout, "MeshThumbnail");
+            _pipeline = ManaWebGpuMeshPipeline.Create(Gpu, _shaderModule, TextureFormat.Rgba8UnormSrgb, bindings.SceneCaptureLayout, "MeshThumbnail");
             ManaConsole.WriteDiagnostic("WebGPU mesh thumbnail pipeline created successfully.");
             return _pipeline;
         }
@@ -508,7 +505,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            _colorTexture = _api.DeviceCreateTexture(_gpu.Device, &colorDescriptor);
+            _colorTexture = Api.DeviceCreateTexture(Gpu.Device, &colorDescriptor);
             if (_colorTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail color texture.");
@@ -522,7 +519,7 @@ namespace ManaGraphics.Code.Graphics
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.All
             };
-            _colorView = _api.TextureCreateView(_colorTexture, &colorViewDescriptor);
+            _colorView = Api.TextureCreateView(_colorTexture, &colorViewDescriptor);
             if (_colorView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail color texture view.");
@@ -535,11 +532,11 @@ namespace ManaGraphics.Code.Graphics
                 Usage = TextureUsage.RenderAttachment,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = thumbnailSize, Height = thumbnailSize, DepthOrArrayLayers = 1 },
-                Format = _gpu.DepthFormat,
+                Format = Gpu.DepthFormat,
                 MipLevelCount = 1,
                 SampleCount = 1
             };
-            _depthTexture = _api.DeviceCreateTexture(_gpu.Device, &depthDescriptor);
+            _depthTexture = Api.DeviceCreateTexture(Gpu.Device, &depthDescriptor);
             if (_depthTexture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail depth texture.");
@@ -547,13 +544,13 @@ namespace ManaGraphics.Code.Graphics
 
             var depthViewDescriptor = new TextureViewDescriptor
             {
-                Format = _gpu.DepthFormat,
+                Format = Gpu.DepthFormat,
                 Dimension = TextureViewDimension.Dimension2D,
                 MipLevelCount = 1,
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.DepthOnly
             };
-            _depthView = _api.TextureCreateView(_depthTexture, &depthViewDescriptor);
+            _depthView = Api.TextureCreateView(_depthTexture, &depthViewDescriptor);
             if (_depthView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU thumbnail depth texture view.");
@@ -564,44 +561,44 @@ namespace ManaGraphics.Code.Graphics
         {
             if (_colorView != null)
             {
-                _api.TextureViewRelease(_colorView);
+                Api.TextureViewRelease(_colorView);
                 _colorView = null;
             }
 
             if (_colorTexture != null)
             {
-                _api.TextureRelease(_colorTexture);
+                Api.TextureRelease(_colorTexture);
                 _colorTexture = null;
             }
 
             if (_depthView != null)
             {
-                _api.TextureViewRelease(_depthView);
+                Api.TextureViewRelease(_depthView);
                 _depthView = null;
             }
 
             if (_depthTexture != null)
             {
-                _api.TextureRelease(_depthTexture);
+                Api.TextureRelease(_depthTexture);
                 _depthTexture = null;
             }
 
             _targetSize = 0;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseTargets();
 
             if (_pipeline != null)
             {
-                _api.RenderPipelineRelease(_pipeline);
+                Api.RenderPipelineRelease(_pipeline);
                 _pipeline = null;
             }
 
             if (_shaderModule != null)
             {
-                _api.ShaderModuleRelease(_shaderModule);
+                Api.ShaderModuleRelease(_shaderModule);
                 _shaderModule = null;
             }
         }

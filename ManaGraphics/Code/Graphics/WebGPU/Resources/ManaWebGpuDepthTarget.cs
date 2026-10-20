@@ -3,15 +3,15 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>A depth texture and its view, made and released together; a failed construction holds nothing.</summary>
-    internal sealed unsafe class ManaWebGpuDepthTarget : IDisposable
+    internal sealed unsafe class ManaWebGpuDepthTarget : ManaWebGpuResource
     {
-        private readonly WebGPU _api;
         private Texture* _texture;
         private TextureView* _view;
 
-        public ManaWebGpuDepthTarget(WebGPU api, Device* device, TextureFormat format, uint width, uint height, string name)
+        public ManaWebGpuDepthTarget(ManaWebGpuDevice gpu, uint width, uint height, string name)
+            : base(gpu)
         {
-            _api = api;
+            var format = gpu.DepthFormat;
             Width = width;
             Height = height;
 
@@ -27,7 +27,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _texture = api.DeviceCreateTexture(device, &textureDescriptor);
+            _texture = Api.DeviceCreateTexture(Device, &textureDescriptor);
             if (_texture == null)
             {
                 throw new InvalidOperationException($"Failed to create WebGPU {name} texture.");
@@ -42,10 +42,10 @@ namespace ManaGraphics.Code.Graphics
                 Aspect = TextureAspect.DepthOnly
             };
 
-            _view = api.TextureCreateView(_texture, &viewDescriptor);
+            _view = Api.TextureCreateView(_texture, &viewDescriptor);
             if (_view == null)
             {
-                api.TextureRelease(_texture);
+                Api.TextureRelease(_texture);
                 _texture = null;
                 throw new InvalidOperationException($"Failed to create WebGPU {name} texture view.");
             }
@@ -57,17 +57,17 @@ namespace ManaGraphics.Code.Graphics
 
         public TextureView* View => _view;
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (_view != null)
             {
-                _api.TextureViewRelease(_view);
+                Api.TextureViewRelease(_view);
                 _view = null;
             }
 
             if (_texture != null)
             {
-                _api.TextureRelease(_texture);
+                Api.TextureRelease(_texture);
                 _texture = null;
             }
         }

@@ -9,9 +9,8 @@ namespace ManaGraphics.Code.Graphics
     /// The scene meshes resident on the GPU, keyed by instance. A replaced or removed mesh is disposed a fixed number of
     /// frames later, once nothing in flight can still draw it.
     /// </summary>
-    internal sealed unsafe class ManaWebGpuSceneMeshes : IDisposable
+    internal sealed unsafe class ManaWebGpuSceneMeshes : ManaWebGpuResource
     {
-        private readonly ManaWebGpuDevice _gpu;
         private readonly ManaWebGpuMeshTextureCache _textures;
         private readonly ManaWebGpuEnvironment _environment;
         private readonly List<ManaWebGpuSceneMesh> _sceneMeshes = new();
@@ -22,8 +21,8 @@ namespace ManaGraphics.Code.Graphics
         private readonly record struct DeferredSceneMeshDisposal(ulong DisposeAfterFrame, ManaWebGpuSceneMesh SceneMesh);
 
         public ManaWebGpuSceneMeshes(ManaWebGpuDevice gpu, ManaWebGpuMeshTextureCache textures, ManaWebGpuEnvironment environment)
+            : base(gpu)
         {
-            _gpu = gpu;
             _textures = textures;
             _environment = environment;
         }
@@ -39,7 +38,7 @@ namespace ManaGraphics.Code.Graphics
 
         private ManaWebGpuSceneMesh Create(ManaRenderMeshInstance instance, ManaRenderScene scene, ManaWebGpuSceneBindings bindings)
         {
-            return ManaWebGpuSceneMesh.Create(_gpu, _textures, bindings, _environment.EnsureMap(scene), instance);
+            return ManaWebGpuSceneMesh.Create(Gpu, _textures, bindings, _environment.EnsureMap(scene), instance);
         }
 
         private const ulong SceneMeshDeferredDisposeFrameDelay = 6;
@@ -154,7 +153,7 @@ namespace ManaGraphics.Code.Graphics
 
                     // Same mesh with new vertices (skinned characters, every frame): rewrite geometry, keep the bindings.
                     if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance) &&
-                        existing.Mesh.TryUpdateGeometryInPlace(_gpu.Queue, instance.MeshData))
+                        existing.Mesh.TryUpdateGeometryInPlace(Gpu.Queue, instance.MeshData))
                     {
                         existing.Instance = instance;
                         existing.InvalidateDerivedGeometry();
@@ -332,7 +331,7 @@ namespace ManaGraphics.Code.Graphics
                 .ToList();
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             ReleaseAll(immediate: true);
         }

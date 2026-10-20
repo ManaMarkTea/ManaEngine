@@ -188,7 +188,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 _captureDepth?.Dispose();
                 _captureDepth = null;
-                _captureDepth = new ManaWebGpuDepthTarget(Api, Gpu.Device, Gpu.DepthFormat, environmentMap.Width, environmentMap.Width, "scene capture depth");
+                _captureDepth = new ManaWebGpuDepthTarget(Gpu, environmentMap.Width, environmentMap.Width, "scene capture depth");
             }
 
             for (var face = 0; face < 6; face++)

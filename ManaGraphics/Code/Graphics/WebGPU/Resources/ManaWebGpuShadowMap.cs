@@ -7,7 +7,7 @@ namespace ManaGraphics.Code.Graphics
     // Cascaded shadow maps for the scene's directional sun: three cascades in one texture array, fit to the camera's
     // frustum every frame. Apart from ManaWebGpuShadowPass because the frame bind group needs the map before any
     // pipeline exists. No texel snapping yet, so cascades can shimmer as the camera moves.
-    internal sealed unsafe class ManaWebGpuShadowMap : IDisposable
+    internal sealed unsafe class ManaWebGpuShadowMap : ManaWebGpuResource
     {
         public const int CascadeCount = 3;
         // Per cascade. 4096 on desktop (three Depth32 layers, about 200 MB); the browser keeps 2048, where memory is tighter.
@@ -24,13 +24,12 @@ namespace ManaGraphics.Code.Graphics
         // tower, or behind the camera -- still shadow what is in it.
         private const float CasterReach = 200.0f;
 
-        private readonly WebGPU _api;
         private Texture* _texture;
         private readonly TextureView*[] _cascadeViews = new TextureView*[CascadeCount];
 
         public ManaWebGpuShadowMap(ManaWebGpuDevice gpu)
+            : base(gpu)
         {
-            _api = gpu.Api;
             try
             {
                 Create(gpu.Device);
@@ -68,7 +67,7 @@ namespace ManaGraphics.Code.Graphics
                 SampleCount = 1
             };
 
-            _texture = _api.DeviceCreateTexture(device, &textureDescriptor);
+            _texture = Api.DeviceCreateTexture(device, &textureDescriptor);
             if (_texture == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU shadow map texture.");
@@ -83,7 +82,7 @@ namespace ManaGraphics.Code.Graphics
                 MipLevelCount = 1,
                 Aspect = TextureAspect.DepthOnly
             };
-            ArrayView = _api.TextureCreateView(_texture, &arrayViewDescriptor);
+            ArrayView = Api.TextureCreateView(_texture, &arrayViewDescriptor);
             if (ArrayView == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU shadow map array view.");
@@ -100,7 +99,7 @@ namespace ManaGraphics.Code.Graphics
                     MipLevelCount = 1,
                     Aspect = TextureAspect.DepthOnly
                 };
-                var view = _api.TextureCreateView(_texture, &layerViewDescriptor);
+                var view = Api.TextureCreateView(_texture, &layerViewDescriptor);
                 if (view == null)
                 {
                     throw new InvalidOperationException($"Failed to create WebGPU shadow cascade {cascade} view.");
@@ -123,7 +122,7 @@ namespace ManaGraphics.Code.Graphics
                 Compare = CompareFunction.LessEqual,
                 MaxAnisotropy = 1
             };
-            Sampler = _api.DeviceCreateSampler(device, &samplerDescriptor);
+            Sampler = Api.DeviceCreateSampler(device, &samplerDescriptor);
             if (Sampler == null)
             {
                 throw new InvalidOperationException("Failed to create WebGPU shadow comparison sampler.");
@@ -224,11 +223,11 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             if (Sampler != null)
             {
-                _api.SamplerRelease(Sampler);
+                Api.SamplerRelease(Sampler);
                 Sampler = null;
             }
 
@@ -236,20 +235,20 @@ namespace ManaGraphics.Code.Graphics
             {
                 if (_cascadeViews[cascade] != null)
                 {
-                    _api.TextureViewRelease(_cascadeViews[cascade]);
+                    Api.TextureViewRelease(_cascadeViews[cascade]);
                     _cascadeViews[cascade] = null;
                 }
             }
 
             if (ArrayView != null)
             {
-                _api.TextureViewRelease(ArrayView);
+                Api.TextureViewRelease(ArrayView);
                 ArrayView = null;
             }
 
             if (_texture != null)
             {
-                _api.TextureRelease(_texture);
+                Api.TextureRelease(_texture);
                 _texture = null;
             }
         }

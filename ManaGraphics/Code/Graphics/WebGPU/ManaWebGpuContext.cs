@@ -369,8 +369,8 @@ namespace ManaGraphics.Code.Graphics
             var width = (uint)framebufferSize.X;
             var height = (uint)framebufferSize.Y;
             // Assigned one at a time: if the second cannot be made the first is still released with the rest.
-            _depth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "depth");
-            _handleDepth = new ManaWebGpuDepthTarget(_api, _device, _depthFormat, width, height, "handle depth");
+            _depth = new ManaWebGpuDepthTarget(_gpu, width, height, "depth");
+            _handleDepth = new ManaWebGpuDepthTarget(_gpu, width, height, "handle depth");
         }
 
         /// <summary>

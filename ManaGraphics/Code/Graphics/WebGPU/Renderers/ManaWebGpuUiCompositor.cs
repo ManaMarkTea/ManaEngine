@@ -6,15 +6,14 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>Draws ManaUI over the tone-mapped frame, with the blurred backdrop frosted panels sample. Built on first use.</summary>
-    internal sealed unsafe class ManaWebGpuUiCompositor : IDisposable
+    internal sealed unsafe class ManaWebGpuUiCompositor : ManaWebGpuResource
     {
-        private readonly ManaWebGpuDevice _gpu;
         private ManaWebGpuUiRenderer? _renderer;
         private ManaWebGpuUiBackdrop? _backdrop;
 
         public ManaWebGpuUiCompositor(ManaWebGpuDevice gpu)
+            : base(gpu)
         {
-            _gpu = gpu;
         }
 
         /// <summary>Whether the UI asked for blur; checked before splitting the tone-map pass for it.</summary>
@@ -34,7 +33,7 @@ namespace ManaGraphics.Code.Graphics
         /// reports its new size a frame before the surface catches up, and copying that much overruns the frame.</param>
         public void CaptureBackdrop(CommandEncoder* encoder, Texture* frame, Vector2D<int> size)
         {
-            _backdrop ??= new ManaWebGpuUiBackdrop(_gpu.Api, _gpu.Device, _gpu.SurfaceFormat);
+            _backdrop ??= new ManaWebGpuUiBackdrop(Gpu.Api, Gpu.Device, Gpu.SurfaceFormat);
             _backdrop.Capture(encoder, frame, size);
 
             UiBackdropStats.Captured++;
@@ -51,7 +50,7 @@ namespace ManaGraphics.Code.Graphics
                     // The first time anything asks to draw ManaUI, which for a mode with a loading overlay is the very
                     // first loading frame -- a candidate for the gap before the loading screen shows.
                     ManaConsole.WriteDiagnosticElapsed("Creating the ManaUI renderer (first draw request).");
-                    _renderer = new ManaWebGpuUiRenderer(_gpu.Api, _gpu.Device, _gpu.Queue, _gpu.SurfaceFormat);
+                    _renderer = new ManaWebGpuUiRenderer(Gpu.Api, Gpu.Device, Gpu.Queue, Gpu.SurfaceFormat);
                     ManaConsole.WriteDiagnosticElapsed("ManaUI renderer ready; submitting its first draw list.");
                 }
                 catch (Exception ex)
@@ -81,7 +80,7 @@ namespace ManaGraphics.Code.Graphics
             return true;
         }
 
-        public void Dispose()
+        public override void Dispose()
         {
             _renderer?.Dispose();
             _renderer = null;
