@@ -48,16 +48,9 @@ namespace ManaGraphics.Code.Graphics
 #endif
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
         private volatile bool _disposed;
-        // The scene's depth, and a second one the always-on-top handles depth-test against.
-        private ManaWebGpuDepthTarget? _depth;
-        private ManaWebGpuDepthTarget? _handleDepth;
-        private TextureView* _depthTextureView => _depth == null ? null : _depth.View;
-        private TextureView* _handleDepthTextureView => _handleDepth == null ? null : _handleDepth.View;
         private TextureFormat _surfaceFormat;
         private readonly TextureFormat _depthFormat = TextureFormat.Depth24Plus;
-        private Vector2D<int> _framebufferSize;
         private readonly DateTime _startTime = DateTime.UtcNow;
-        private bool _configured;
         // Made with the device; meshes are only uploaded once the scene bindings exist.
         private ManaWebGpuSceneMeshes? _meshes;
         private readonly ManaWebGpuRenderThreadQueue _renderThread = new();
@@ -66,29 +59,23 @@ namespace ManaGraphics.Code.Graphics
         private ManaRenderScene? _activeRenderScene;
         // Set in FinishInitialization; borrowed by every pass.
         private ManaWebGpuDevice _gpu = null!;
-        // In frame order; each owns its pipelines (see ManaWebGpuRenderPass).
-        private readonly List<ManaWebGpuRenderPass> _passes = new();
-        private readonly ManaWebGpuFrame _passFrame = new();
-        private ManaWebGpuShadowMap? _shadowMap;
-        private ManaWebGpuParticlePass? _particlePass;
+        // Set in FinishInitialization: the window's swap chain and depth targets.
+        private ManaWebGpuWindowSurface? _windowSurface;
+        // The scene pipelines and passes; null while the renderer is clear-only.
+        private ManaWebGpuSceneRenderer? _scene;
         private ManaWebGpuThumbnailRenderer? _thumbnails;
         private ManaWebGpuFrameCapture? _frameCapture;
 #if !MANA_BROWSER
         private readonly List<ManaWebGpuPanelSurface> _panelSurfaces = new();
 #endif
-        public long LastGpuParticleCount => _particlePass?.Drawn ?? 0;
-        public long RequestedGpuParticleCount => _particlePass?.Requested ?? 0;
-        // Shared layouts, samplers and frame uniform; null while the renderer is clear-only.
-        private ManaWebGpuSceneBindings? _bindings;
-        private ManaWebGpuHdrPostProcessor? _hdrPostProcessor;
+        public long LastGpuParticleCount => _scene?.ParticlesDrawn ?? 0;
+        public long RequestedGpuParticleCount => _scene?.ParticlesRequested ?? 0;
         // Set in FinishInitialization; ManaWebGpuGraphicsDevice forwards planet height requests to it.
         internal ManaWebGpuHeightSampleCompute? HeightSampler { get; private set; }
         // Made with the device; outlives pipeline failures, since loading waits on it either way.
         private ManaWebGpuEnvironment? _environment;
         public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
         public bool IsEnvironmentInitializationPending => _environment?.IsInitializationPending ?? true;
-#if !MANA_BROWSER
-#endif
         private ManaWebGpuUiCompositor? _ui;
 
         /// <summary>
@@ -224,7 +211,8 @@ namespace ManaGraphics.Code.Graphics
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
             _ui = new ManaWebGpuUiCompositor(_gpu);
             HeightSampler = new ManaWebGpuHeightSampleCompute(_gpu, _readbackRegistry, _renderThread);
-            ConfigureSurface(window.FramebufferSize);
+            _windowSurface = new ManaWebGpuWindowSurface(_gpu, _surface);
+            _windowSurface.Configure(window.FramebufferSize);
             if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
             {
                 if (CanCreateDemoMeshPipeline(requestedBackend))
@@ -260,123 +248,35 @@ namespace ManaGraphics.Code.Graphics
 
         public void Resize(Vector2D<int> framebufferSize)
         {
-            ConfigureSurface(framebufferSize);
+            if (_windowSurface?.Configure(framebufferSize) == true)
+            {
+                _scene?.Resize(framebufferSize);
+            }
         }
 
         private void CreateScenePipelines()
         {
             ManaConsole.WriteDiagnostic("Creating WebGPU mesh pipeline.");
-
             var renderScene = _renderSceneProvider?.Invoke() ?? ManaWebGpuDemoScene.Create();
-
             _activeRenderScene = renderScene;
-            // The frame group binds the shadow map, so the map comes first.
-            _shadowMap = new ManaWebGpuShadowMap(_gpu);
-            _bindings = new ManaWebGpuSceneBindings(_gpu, _shadowMap.ArrayView, _shadowMap.Sampler);
-            // Before the shadows, as before anything samples the reflection cubes.
-            AddPass(new ManaWebGpuEnvironmentCapturePass(_gpu, _environment!, () => UseSceneCapture));
-            AddPass(new ManaWebGpuShadowPass(_gpu, _bindings, _shadowMap));
-            CreateHdrPostProcessor();
-            var sceneColor = GetSceneColorFormat();
-            // First, so ordinary depth-tested geometry draws over it: the sky is a background.
-            AddPass(new ManaWebGpuSkyPass(_gpu));
-            AddPass(new ManaWebGpuMaterialPass(_gpu, _bindings, sceneColor));
-            _particlePass = AddPass(new ManaWebGpuParticlePass(_gpu, sceneColor));
-            AddPass(new ManaWebGpuWireframeOverlay(_gpu, _bindings, sceneColor));
-            AddPass(new ManaWebGpuNormalLinesOverlay(_gpu, _bindings, sceneColor));
-            AddPass(new ManaWebGpuOutlinePass(_gpu, _bindings));
-
+            _scene = new ManaWebGpuSceneRenderer(_gpu, _environment!, _meshes!, _windowSurface!.Size, () => UseSceneCapture);
             ManaConsole.WriteDiagnostic("WebGPU mesh pipeline ready.");
             if (renderScene.Meshes.Count > 0)
             {
-                _meshes!.Upload(renderScene, _bindings);
+                _meshes!.Upload(renderScene, _scene.Bindings);
             }
-        }
-
-        private void CreateHdrPostProcessor()
-        {
-            if (_hdrPostProcessor != null)
-            {
-                return;
-            }
-
-            var shaderPath = ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl"));
-            _hdrPostProcessor = new ManaWebGpuHdrPostProcessor(_gpu, _surfaceFormat, shaderPath);
-            _hdrPostProcessor.Resize(_framebufferSize);
-        }
-
-        private TextureFormat GetSceneColorFormat()
-        {
-            return _hdrPostProcessor?.SceneFormat ?? _surfaceFormat;
         }
 
         // Shutdown and failed pipeline initialization both come through here; anything may still be null.
         private void ReleaseScenePipelines()
         {
-            _hdrPostProcessor?.Dispose();
-            _hdrPostProcessor = null;
             _thumbnails?.Dispose();
             _thumbnails = null;
-
             // Meshes first: they bind the environment and shadow views the owners below release.
             _meshes?.ReleaseAll(immediate: true);
-            // Passes build over the shared bindings, and the frame group binds the shadow map.
-            ReleasePasses();
-            _bindings?.Dispose();
-            _bindings = null;
-            _shadowMap?.Dispose();
-            _shadowMap = null;
+            _scene?.Dispose();
+            _scene = null;
             _environment?.Release();
-        }
-
-        private void ConfigureSurface(Vector2D<int> framebufferSize)
-        {
-            if (_device == null || _surface == null || framebufferSize.X <= 0 || framebufferSize.Y <= 0)
-            {
-                return;
-            }
-
-            if (_configured)
-            {
-                _api.SurfaceUnconfigure(_surface);
-            }
-
-            var configuration = new SurfaceConfiguration
-            {
-                Device = _device,
-                Format = _surfaceFormat,
-                // CopySrc so the UI's blur can snapshot the frame; free unless used.
-                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
-                Width = (uint)framebufferSize.X,
-                Height = (uint)framebufferSize.Y,
-                PresentMode = PresentMode.Fifo,
-                AlphaMode = CompositeAlphaMode.Opaque
-            };
-
-            _api.SurfaceConfigure(_surface, &configuration);
-            _framebufferSize = framebufferSize;
-            CreateDepthResources(framebufferSize);
-            _hdrPostProcessor?.Resize(framebufferSize);
-            _configured = true;
-        }
-
-        private void ReleaseDepthResources()
-        {
-            _handleDepth?.Dispose();
-            _handleDepth = null;
-            _depth?.Dispose();
-            _depth = null;
-        }
-
-        private void CreateDepthResources(Vector2D<int> framebufferSize)
-        {
-            ReleaseDepthResources();
-
-            var width = (uint)framebufferSize.X;
-            var height = (uint)framebufferSize.Y;
-            // Assigned one at a time: if the second cannot be made the first is still released with the rest.
-            _depth = new ManaWebGpuDepthTarget(_gpu, width, height, "depth");
-            _handleDepth = new ManaWebGpuDepthTarget(_gpu, width, height, "handle depth");
         }
 
         /// <summary>
@@ -391,9 +291,9 @@ namespace ManaGraphics.Code.Graphics
             }
 
             _meshes?.ReleaseAll();
-            if (_renderSceneProvider == null && _activeRenderScene != null && _bindings != null)
+            if (_renderSceneProvider == null && _activeRenderScene != null && _scene != null)
             {
-                _meshes!.Upload(_activeRenderScene, _bindings);
+                _meshes!.Upload(_activeRenderScene, _scene.Bindings);
             }
         }
 
@@ -411,7 +311,7 @@ namespace ManaGraphics.Code.Graphics
         {
             var renderScene = _renderSceneProvider?.Invoke();
             // Without scene pipelines there is nothing to draw meshes with, or to build their bindings from.
-            if (renderScene == null || _bindings == null)
+            if (renderScene == null || _scene == null)
             {
                 return;
             }
@@ -425,48 +325,25 @@ namespace ManaGraphics.Code.Graphics
             _activeRenderScene = renderScene;
             using (ManaFrameProfiler.Measure("GPU: Reconcile Scene Meshes"))
             {
-                _meshes!.Reconcile(renderableMeshes, renderScene, _bindings!);
+                _meshes!.Reconcile(renderableMeshes, renderScene, _scene.Bindings);
             }
         }
 
-        private T AddPass<T>(T pass) where T : ManaWebGpuRenderPass
+        // Runs pending GPU callbacks (readbacks); wgpu-native's own poll when this build has it.
+        private void PumpCallbacks()
         {
-            _passes.Add(pass);
-            return pass;
-        }
-
-        private void ReleasePasses()
-        {
-            for (var i = _passes.Count - 1; i >= 0; i--)
+#if MANA_BROWSER
+            _api.InstanceProcessEvents(_instance);
+#else
+            if (_wgpuNativeExtension != null)
             {
-                _passes[i].Dispose();
+                _wgpuNativeExtension.DevicePoll(_device, false, null);
             }
-            _passes.Clear();
-        }
-
-        // Null while the renderer is clear-only or has no scene yet.
-        private ManaWebGpuFrame? PassFrame(CommandEncoder* encoder)
-        {
-            if (_bindings == null || _activeRenderScene == null)
+            else
             {
-                return null;
+                _api.InstanceProcessEvents(_instance);
             }
-
-            _passFrame.Encoder = encoder;
-            _passFrame.Scene = _activeRenderScene;
-            _passFrame.Meshes = _meshes!.Meshes;
-            _passFrame.Bindings = _bindings;
-            _passFrame.SceneColorFormat = GetSceneColorFormat();
-            _passFrame.Depth = _depthTextureView;
-            _passFrame.HandleDepth = _handleDepthTextureView;
-            _passFrame.Projection = _activeRenderScene.Camera.Projection;
-            _passFrame.Time = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
-            _passFrame.SceneTarget = null;
-            _passFrame.OutlineMask = null;
-            var environment = _environment?.Map;
-            _passFrame.EnvironmentMap = environment == null ? null : environment.EnvironmentMapResource.TextureView;
-            _passFrame.SceneSuspended = SuspendSceneWork;
-            return _passFrame;
+#endif
         }
 
         /// <summary>
@@ -489,14 +366,14 @@ namespace ManaGraphics.Code.Graphics
                     return;
                 }
 
-                if (_bindings == null)
+                if (_scene == null)
                 {
                     completion.TrySetException(new InvalidOperationException("WebGPU scene pipelines are unavailable for thumbnails."));
                     return;
                 }
 
                 _thumbnails ??= new ManaWebGpuThumbnailRenderer(_gpu, _readbackRegistry, _meshTextures);
-                _thumbnails.EncodeAndSubmit(instances, (uint)thumbnailSize, _bindings, completion);
+                _thumbnails.EncodeAndSubmit(instances, (uint)thumbnailSize, _scene.Bindings, completion);
             });
             return completion.Task;
         }
@@ -533,117 +410,44 @@ namespace ManaGraphics.Code.Graphics
 
         public void ClearFrame(Color clearColor)
         {
-            // Pumps readback callbacks every frame, before the early returns, so a minimized window never stalls one.
-#if MANA_BROWSER
-            _api.InstanceProcessEvents(_instance);
-#else
-            if (_wgpuNativeExtension != null)
-            {
-                _wgpuNativeExtension.DevicePoll(_device, false, null);
-            }
-            else
-            {
-                _api.InstanceProcessEvents(_instance);
-            }
-#endif
-
+            // Before the early returns, so a minimized window never stalls a readback.
+            PumpCallbacks();
             _meshes?.BeginFrame();
 
             // Before the early return, so deferred work progresses while minimized; before this frame's submit, so it never races it.
             _renderThread.Drain();
 
-            if (!_configured)
+            if (_windowSurface is not { IsConfigured: true } surface)
             {
                 return;
             }
 
             CheckPendingEnvironmentMap();
 
-            var surfaceTexture = new SurfaceTexture();
-            _api.SurfaceGetCurrentTexture(_surface, &surfaceTexture);
-            if (surfaceTexture.Status != SurfaceGetCurrentTextureStatus.Success || surfaceTexture.Texture == null)
+            if (!surface.TryAcquire(out var surfaceTexture, out var surfaceView))
             {
-                if (surfaceTexture.Texture != null)
-                {
-                    _api.TextureRelease(surfaceTexture.Texture);
-                }
-
-                // Acquire can fail during startup or resize; reconfigure and retry next frame.
-                ConfigureSurface(_window.FramebufferSize);
-
+                Resize(_window.FramebufferSize);
                 return;
             }
 
-            var viewDescriptor = new TextureViewDescriptor
-            {
-                Format = _surfaceFormat,
-                Dimension = TextureViewDimension.Dimension2D,
-                MipLevelCount = 1,
-                ArrayLayerCount = 1,
-                Aspect = TextureAspect.All
-            };
-
-            var textureView = _api.TextureCreateView(surfaceTexture.Texture, &viewDescriptor);
-            // Not `?.`: a pointer cannot be nullable (CS8978), and some compilers miss that.
-            var hdrSceneTextureView = _hdrPostProcessor != null ? _hdrPostProcessor.SceneTextureView : null;
-            if (textureView == null)
-            {
-                _api.TextureRelease(surfaceTexture.Texture);
-
-                return;
-            }
-
-            CommandEncoder* commandEncoder = null;
-            RenderPassEncoder* sceneRenderPass = null;
-            RenderPassEncoder* toneMapRenderPass = null;
+            var size = surface.Size;
+            CommandEncoder* encoder = null;
+            RenderPassEncoder* toneMapPass = null;
             CommandBuffer* commandBuffer = null;
             ManaWebGpuFrameCapture.EncodedCopies? copies = null;
             try
             {
-                var sceneTargetView = hdrSceneTextureView != null ? hdrSceneTextureView : textureView;
-                var useHdrPost = _hdrPostProcessor != null && hdrSceneTextureView != null;
-
-                var sceneColorAttachment = new RenderPassColorAttachment
-                {
-                    View = sceneTargetView,
-                    LoadOp = LoadOp.Clear,
-                    StoreOp = StoreOp.Store,
-                    ClearValue = clearColor
-                };
-
-                var depthStencilAttachment = new RenderPassDepthStencilAttachment
-                {
-                    View = _depthTextureView,
-                    DepthLoadOp = LoadOp.Clear,
-                    DepthStoreOp = StoreOp.Store,
-                    DepthClearValue = 1.0f,
-                    DepthReadOnly = false,
-                    StencilLoadOp = LoadOp.Undefined,
-                    StencilStoreOp = StoreOp.Undefined,
-                    StencilClearValue = 0,
-                    StencilReadOnly = true
-                };
-
-                var sceneRenderPassDescriptor = new RenderPassDescriptor
-                {
-                    ColorAttachmentCount = 1,
-                    ColorAttachments = &sceneColorAttachment,
-                    DepthStencilAttachment = &depthStencilAttachment
-                };
-
                 var frameStopwatch = Stopwatch.StartNew();
+                var encoderDescriptor = new CommandEncoderDescriptor();
+                encoder = _api.DeviceCreateCommandEncoder(_device, &encoderDescriptor);
 
-                var commandEncoderDescriptor = new CommandEncoderDescriptor();
-                commandEncoder = _api.DeviceCreateCommandEncoder(_device, &commandEncoderDescriptor);
                 var collectStopwatch = Stopwatch.StartNew();
-
                 // See SuspendSceneWork: during a fast load this is where the frame would stall uploading.
                 if (!SuspendSceneWork)
                 {
                     if (!_loggedFirstSceneWork)
                     {
                         _loggedFirstSceneWork = true;
-
                         // Marks when the scene starts uploading behind the loading screen.
                         ManaConsole.WriteDiagnosticElapsed("First unsuspended RefreshRenderScene (scene upload resumes).");
                     }
@@ -651,121 +455,74 @@ namespace ManaGraphics.Code.Graphics
                     RefreshRenderScene();
                 }
 
-                _shadowMap?.UpdateCascades(_activeRenderScene);
-                // The bindings are made with the shadow map, so it exists whenever they do.
-                if (_activeRenderScene != null && _bindings != null)
+                var seconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+                if (_scene != null && _activeRenderScene != null)
                 {
-                    _bindings.WriteFrame(_queue, ManaWebGpuFrameUniform.For(
-                        _activeRenderScene, _shadowMap!, (float)(DateTime.UtcNow - _startTime).TotalSeconds));
+                    _scene.UpdateFrame(_activeRenderScene, seconds);
                 }
                 LastCollectMs = collectStopwatch.Elapsed.TotalMilliseconds;
 
                 // Not gated on SuspendSceneWork: loading waits on the environment map, so it must start meanwhile.
                 EnsureEnvironmentInitializationStarted();
 
-                var frame = PassFrame(commandEncoder);
-                if (frame != null && !SuspendSceneWork)
-                {
-                    foreach (var pass in _passes)
-                    {
-                        using (ManaFrameProfiler.Measure(pass.ProfileName))
-                        {
-                            pass.Prepare(frame);
-                        }
-                    }
-                }
+                // Without a scene the tone-map pass clears the surface itself.
+                var drewToSurface = _scene != null && _activeRenderScene != null &&
+                    _scene.Encode(encoder, _activeRenderScene, surface, surfaceView, clearColor, SuspendSceneWork, seconds);
+                var drewScene = _scene != null && _activeRenderScene != null;
+                LastDrawMs = _scene?.LastDrawMs ?? 0;
 
-                sceneRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &sceneRenderPassDescriptor);
-                var drawStopwatch = Stopwatch.StartNew();
-
-                if (frame != null)
+                var surfaceAttachment = new RenderPassColorAttachment
                 {
-                    frame.SceneTarget = sceneTargetView;
-                    frame.SceneSuspended = SuspendSceneWork;
-                    frame.OutlineMask = useHdrPost ? _hdrPostProcessor!.OutlineMaskView : null;
-                }
-
-                if (!SuspendSceneWork)
-                {
-                    if (frame != null)
-                    {
-                        foreach (var pass in _passes)
-                        {
-                            pass.DrawScene(frame, sceneRenderPass);
-                        }
-                    }
-                }
-
-                _api.RenderPassEncoderEnd(sceneRenderPass);
-                if (frame != null)
-                {
-                    foreach (var pass in _passes)
-                    {
-                        pass.AfterScene(frame);
-                    }
-                }
-                LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
-
-                if (useHdrPost)
-                {
-                    using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
-                    {
-                        _hdrPostProcessor?.Process(commandEncoder);
-                    }
-                }
-
-                var surfaceColorAttachment = new RenderPassColorAttachment
-                {
-                    View = textureView,
-                    LoadOp = useHdrPost ? LoadOp.Clear : LoadOp.Load,
+                    View = surfaceView,
+                    LoadOp = drewToSurface ? LoadOp.Load : LoadOp.Clear,
                     StoreOp = StoreOp.Store,
                     ClearValue = clearColor
                 };
-
-                var toneMapRenderPassDescriptor = new RenderPassDescriptor
+                var toneMapDescriptor = new RenderPassDescriptor
                 {
                     ColorAttachmentCount = 1,
-                    ColorAttachments = &surfaceColorAttachment
+                    ColorAttachments = &surfaceAttachment
                 };
 
-                toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
-                using (ManaFrameProfiler.Measure("GPU: Tone Map"))
+                toneMapPass = _api.CommandEncoderBeginRenderPass(encoder, &toneMapDescriptor);
+                if (drewScene && !drewToSurface)
                 {
-                    _hdrPostProcessor?.Draw(toneMapRenderPass);
+                    using (ManaFrameProfiler.Measure("GPU: Tone Map"))
+                    {
+                        _scene!.DrawToneMap(toneMapPass);
+                    }
                 }
 
                 // Blur needs the finished frame, which the pass is writing: end it, copy and reduce the frame, then draw
                 // the UI in a second pass. Only when something asked for blur.
                 if (ManaWebGpuUiCompositor.WantsBackdrop(UiRoot))
                 {
-                    _api.RenderPassEncoderEnd(toneMapRenderPass);
-                    _api.RenderPassEncoderRelease(toneMapRenderPass);
-                    toneMapRenderPass = null;
-                    _ui!.CaptureBackdrop(commandEncoder, surfaceTexture.Texture, _framebufferSize);
+                    _api.RenderPassEncoderEnd(toneMapPass);
+                    _api.RenderPassEncoderRelease(toneMapPass);
+                    toneMapPass = null;
+                    _ui!.CaptureBackdrop(encoder, surfaceTexture, size);
 
-                    surfaceColorAttachment.LoadOp = LoadOp.Load;
-                    toneMapRenderPass = _api.CommandEncoderBeginRenderPass(commandEncoder, &toneMapRenderPassDescriptor);
+                    surfaceAttachment.LoadOp = LoadOp.Load;
+                    toneMapPass = _api.CommandEncoderBeginRenderPass(encoder, &toneMapDescriptor);
                 }
 
-                // The UI draws last, over the tone-mapped scene.
                 using (ManaFrameProfiler.Measure("GPU: Draw ManaUI"))
                 {
                     // Left out of a clean screenshot: the scene across the whole window.
-                    if (UiRoot is { } root && _frameCapture?.WithoutUi != true && !_ui!.Draw(toneMapRenderPass, root, _framebufferSize))
+                    if (UiRoot is { } root && _frameCapture?.WithoutUi != true && !_ui!.Draw(toneMapPass, root, size))
                     {
                         UiRoot = null;
                     }
                 }
 
-                _api.RenderPassEncoderEnd(toneMapRenderPass);
+                _api.RenderPassEncoderEnd(toneMapPass);
+                copies = _frameCapture?.Encode(encoder, surfaceTexture, size, _environment?.Map);
 
-                copies = _frameCapture?.Encode(commandEncoder, surfaceTexture.Texture, _framebufferSize, _environment?.Map);
-
-                var commandBufferDescriptor = new CommandBufferDescriptor();
                 var submitStopwatch = Stopwatch.StartNew();
-                commandBuffer = _api.CommandEncoderFinish(commandEncoder, &commandBufferDescriptor);
+                var commandBufferDescriptor = new CommandBufferDescriptor();
+                commandBuffer = _api.CommandEncoderFinish(encoder, &commandBufferDescriptor);
                 _api.QueueSubmit(_queue, 1, &commandBuffer);
-                _api.SurfacePresent(_surface);
+                surface.Present();
 
                 // Submitted: each staging buffer now belongs to its readback.
                 if (copies is { } submitted)
@@ -777,24 +534,10 @@ namespace ManaGraphics.Code.Graphics
                 if (!_loggedFirstPresent)
                 {
                     _loggedFirstPresent = true;
-
-                    // The first frame actually handed to the window.
                     ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
                 }
 
-#if MANA_BROWSER
-                _api.InstanceProcessEvents(_instance);
-#else
-                if (_wgpuNativeExtension != null)
-                {
-                    _wgpuNativeExtension.DevicePoll(_device, false, null);
-                }
-                else
-                {
-                    _api.InstanceProcessEvents(_instance);
-                }
-#endif
-
+                PumpCallbacks();
                 LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
                 LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
             }
@@ -805,25 +548,20 @@ namespace ManaGraphics.Code.Graphics
                 {
                     _frameCapture!.Abandon(unsubmitted);
                 }
-
                 if (commandBuffer != null)
                 {
                     _api.CommandBufferRelease(commandBuffer);
                 }
-                if (sceneRenderPass != null)
+                if (toneMapPass != null)
                 {
-                    _api.RenderPassEncoderRelease(sceneRenderPass);
+                    _api.RenderPassEncoderRelease(toneMapPass);
                 }
-                if (toneMapRenderPass != null)
+                if (encoder != null)
                 {
-                    _api.RenderPassEncoderRelease(toneMapRenderPass);
+                    _api.CommandEncoderRelease(encoder);
                 }
-                if (commandEncoder != null)
-                {
-                    _api.CommandEncoderRelease(commandEncoder);
-                }
-                _api.TextureViewRelease(textureView);
-                _api.TextureRelease(surfaceTexture.Texture);
+                _api.TextureViewRelease(surfaceView);
+                _api.TextureRelease(surfaceTexture);
             }
 
             // The profiler keeps the peak, where a hitch shows.
@@ -866,13 +604,7 @@ namespace ManaGraphics.Code.Graphics
             // After every mesh and thumbnail has returned its references.
             _meshTextures?.Dispose();
 
-            if (_surface != null && _configured)
-            {
-                _api.SurfaceUnconfigure(_surface);
-                _configured = false;
-            }
-
-            ReleaseDepthResources();
+            _windowSurface?.Dispose();
 
             if (_queue != null)
             {

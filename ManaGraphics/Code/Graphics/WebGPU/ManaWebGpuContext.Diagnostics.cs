@@ -74,20 +74,20 @@ namespace ManaGraphics.Code.Graphics
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateDisplay(
                     backend: properties.BackendType.ToString(),
                     windowSize: $"{_window.Size.X} x {_window.Size.Y}",
-                    framebufferSize: $"{_framebufferSize.X} x {_framebufferSize.Y}",
+                    framebufferSize: $"{FramebufferSize.X} x {FramebufferSize.Y}",
                     colorFormat: _surfaceFormat.ToString(),
                     depthFormat: _depthFormat.ToString(),
                     stencilFormat: "None",
                     presentation: PresentMode.Fifo.ToString(),
                     sampleCount: "1",
-                    viewport: $"0, 0 — {_framebufferSize.X} x {_framebufferSize.Y}",
-                    hdr: $"{FormatBoolean(_hdrPostProcessor != null)} ({GetSceneColorFormat()})",
+                    viewport: $"0, 0 — {FramebufferSize.X} x {FramebufferSize.Y}",
+                    hdr: $"{FormatBoolean(_scene != null)} ({SceneColorFormat})",
                     depthTest: "Enabled",
                     blending: "Pipeline-dependent",
                     faceCulling: "Pipeline-dependent",
                     new ManaGraphicsDiagnosticEntry("Alpha mode", CompositeAlphaMode.Opaque.ToString(), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(_configured), ManaGraphicsDiagnosticScope.WebGpu),
-                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_bindings != null), ManaGraphicsDiagnosticScope.WebGpu),
+                    new ManaGraphicsDiagnosticEntry("Surface configured", FormatBoolean(_windowSurface?.IsConfigured == true), ManaGraphicsDiagnosticScope.WebGpu),
+                    new ManaGraphicsDiagnosticEntry("Mesh pipeline", FormatBoolean(_scene != null), ManaGraphicsDiagnosticScope.WebGpu),
                     new ManaGraphicsDiagnosticEntry("Scene capture", FormatBoolean(UseSceneCapture), ManaGraphicsDiagnosticScope.WebGpu)));
                 sections.Add(ManaGraphicsDiagnosticsCommonSections.CreateInputAndTiming(
                     targetFrameRate: $"{_window.FramesPerSecond:0.##} Hz",
@@ -242,12 +242,12 @@ namespace ManaGraphics.Code.Graphics
                 LogDeviceLimits();
 
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Surface: {_framebufferSize.X}x{_framebufferSize.Y}; " +
-                    $"color={_surfaceFormat}; depth={_depthFormat}; sceneColor={GetSceneColorFormat()}; " +
+                    $"[WebGPU Diagnostics] Surface: {FramebufferSize.X}x{FramebufferSize.Y}; " +
+                    $"color={_surfaceFormat}; depth={_depthFormat}; sceneColor={SceneColorFormat}; " +
                     $"present={PresentMode.Fifo}; alpha={CompositeAlphaMode.Opaque}; samples=1.");
                 ManaConsole.WriteDiagnostic(
-                    $"[WebGPU Diagnostics] Renderer: configured={_configured}; HDR={_hdrPostProcessor != null}; " +
-                    $"meshPipeline={_bindings != null}; sceneProvider={_renderSceneProvider != null}; " +
+                    $"[WebGPU Diagnostics] Renderer: configured={_windowSurface?.IsConfigured == true}; HDR={_scene != null}; " +
+                    $"meshPipeline={_scene != null}; sceneProvider={_renderSceneProvider != null}; " +
                     $"fallbackDemoRequested={IsDemoMeshPipelineEnabled()}; sceneCapture={UseSceneCapture}.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Environment: source={environmentSource.SourceKind}; " +
@@ -415,8 +415,10 @@ namespace ManaGraphics.Code.Graphics
         }
 
 
-        private int ShaderModuleCount => (_thumbnails?.ShaderModuleCount ?? 0) + _passes.Sum(pass => pass.ShaderModuleCount);
-        private int PipelineCount => (_thumbnails?.PipelineCount ?? 0) + _passes.Sum(pass => pass.PipelineCount);
+        private int ShaderModuleCount => (_thumbnails?.ShaderModuleCount ?? 0) + (_scene?.ShaderModuleCount ?? 0);
+        private int PipelineCount => (_thumbnails?.PipelineCount ?? 0) + (_scene?.PipelineCount ?? 0);
         private IReadOnlyList<ManaWebGpuSceneMesh> SceneMeshes => _meshes?.Meshes ?? [];
+        private Silk.NET.Maths.Vector2D<int> FramebufferSize => _windowSurface?.Size ?? default;
+        private TextureFormat SceneColorFormat => _scene?.SceneColorFormat ?? _surfaceFormat;
     }
 }

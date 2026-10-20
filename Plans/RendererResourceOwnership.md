@@ -43,7 +43,9 @@ The context's partial files were split into owners; the context keeps the device
 
 | Owner | Responsibility |
 |---|---|
-| `ManaWebGpuContext.cs` | Root handles, construction, scene pipeline setup/teardown (`CreateScenePipelines`/`ReleaseScenePipelines`), surface/depth configuration, frame orchestration and shutdown |
+| `ManaWebGpuContext.cs` | Root handles, construction, the frame skeleton (acquire, scene, tone map and UI, capture, submit, present) and shutdown order |
+| `ManaWebGpuWindowSurface` | Surface configuration, scene and handle depth targets, acquire and present |
+| `ManaWebGpuSceneRenderer` | Shadow map, scene bindings, HDR post and the registered passes; frame uniform and the scene half of a frame |
 | `ManaWebGpuContext.Device.cs`, `.BrowserAsync.cs` | Native callbacks versus browser Promise/JSExport initialization (an unsafe type cannot await) |
 | `ManaWebGpuContext.Diagnostics.cs`, `.ResourceReport.cs` | Diagnostics derived from renderer state; no GPU resource owner |
 | `ManaWebGpuDevice` | Borrowed API/device/queue/formats, shader loading, asset paths |
