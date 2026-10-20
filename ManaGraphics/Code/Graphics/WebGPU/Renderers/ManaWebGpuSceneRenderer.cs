@@ -67,6 +67,28 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _hdr = hdr;
         }
 
+        /// <summary>Whether the scene pipelines run on <paramref name="requestedBackend"/>: on Windows only Vulkan, while the
+        /// Direct3D paths remain unstable.</summary>
+        public static bool SupportsBackend(string? requestedBackend)
+        {
+            return !System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows)
+                || string.IsNullOrWhiteSpace(requestedBackend)
+                || requestedBackend.Trim().ToLowerInvariant() is "vulkan" or "vk";
+        }
+
+        /// <summary>MANA_WEBGPU_DEMO_MESH=1: build the scene pipelines over a demo mesh when the app supplies no scene.</summary>
+        public static bool DemoRequested
+        {
+            get
+            {
+                var value = Environment.GetEnvironmentVariable("MANA_WEBGPU_DEMO_MESH") ??
+                    Environment.GetEnvironmentVariable("MANA_WEBGPU_UNSAFE_DEMO_MESH");
+                return value == "1" ||
+                    value?.Equals("true", StringComparison.OrdinalIgnoreCase) == true ||
+                    value?.Equals("yes", StringComparison.OrdinalIgnoreCase) == true;
+            }
+        }
+
         public ManaWebGpuSceneBindings Bindings => _bindings!;
         public TextureFormat SceneColorFormat => _hdr.SceneFormat;
         public long ParticlesDrawn => _particles.Drawn;

@@ -46,7 +46,7 @@ The context's partial files were split into owners; the context keeps the device
 | `ManaWebGpuContext.cs` | Root handles, construction, the frame skeleton (acquire, scene, tone map and UI, capture, submit, present) and shutdown order |
 | `ManaWebGpuWindowSurface` | Surface configuration, scene and handle depth targets, acquire and present |
 | `ManaWebGpuSceneRenderer` | Shadow map, scene bindings, HDR post and the registered passes; frame uniform and the scene half of a frame |
-| `ManaWebGpuContext.Device.cs`, `.BrowserAsync.cs` | Native callbacks versus browser Promise/JSExport initialization (an unsafe type cannot await) |
+| `ManaWebGpuNativeDevice` | Instance, window surface, adapter, device and queue; desktop native request callbacks, the browser's promise requests and late-result rejection, the callback pump, release in reverse order |
 | `ManaWebGpuContext.Diagnostics.cs`, `.ResourceReport.cs` | Diagnostics derived from renderer state; no GPU resource owner |
 | `ManaWebGpuDevice` | Borrowed API/device/queue/formats, shader loading, asset paths |
 | `ManaWebGpuSceneBindings` | Samplers, group layouts, frame uniform buffer/group, pipeline layouts |
@@ -226,7 +226,7 @@ or new tests were needed for this written map. Desktop/browser checks remain req
 - [Thumbnails](../ManaGraphics/Code/Graphics/WebGPU/Renderers/ManaWebGpuThumbnailRenderer.cs)
 - [Environment](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuEnvironment.cs)
 - [Frame captures](../ManaGraphics/Code/Graphics/WebGPU/Renderers/ManaWebGpuFrameCapture.cs)
-- [Browser initialization](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuContext.BrowserAsync.cs)
+- [Native device and browser initialization](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuNativeDevice.cs)
 - [Browser callback bridge](../ManaGraphics/Code/Graphics/Browser/ManaBrowserWebGpuCallbackBridge.cs)
 - [Initialization request routing](../ManaGraphics/Code/Graphics/WebGPU/ManaWebGpuInitializationRequests.cs)
 - [Partial acquisition rollback](../ManaGraphics/Code/Graphics/WebGPU/Resources/ManaWebGpuAcquisition.cs)

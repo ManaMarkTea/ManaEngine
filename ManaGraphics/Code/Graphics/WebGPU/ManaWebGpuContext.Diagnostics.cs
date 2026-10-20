@@ -5,6 +5,7 @@ using ManaCore.Graphics;
 using ManaGraphics.Code.Diagnostics;
 using Silk.NET.WebGPU;
 using ManaGraphics.Code.Graphics.Pipelines;
+using ManaGraphics.Code.Graphics.Renderers;
 using ManaGraphics.Code.Graphics.Resources;
 #if !MANA_BROWSER
 using Silk.NET.WebGPU.Extensions.WGPU;
@@ -21,12 +22,12 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 var properties = new AdapterProperties();
-                _api.AdapterGetProperties(_adapter, &properties);
+                _api.AdapterGetProperties(_native!.Adapter, &properties);
 
                 var adapterLimits = CreateSupportedLimitsQuery();
-                var hasAdapterLimits = _api.AdapterGetLimits(_adapter, &adapterLimits);
+                var hasAdapterLimits = _api.AdapterGetLimits(_native!.Adapter, &adapterLimits);
                 var deviceLimits = CreateSupportedLimitsQuery();
-                var hasDeviceLimits = _api.DeviceGetLimits(_device, &deviceLimits);
+                var hasDeviceLimits = _api.DeviceGetLimits(_native!.Device, &deviceLimits);
                 var effectiveLimits = deviceLimits.Limits;
                 var unavailable = ManaGraphicsDiagnosticsCommonSections.NotExposed;
                 var sections = new List<ManaGraphicsDiagnosticSection>
@@ -46,7 +47,7 @@ namespace ManaGraphics.Code.Graphics
 #if MANA_BROWSER
                         contextProfile: $"instance=browser; requested={(_requestedBackend ?? "Automatic")}",
 #else
-                        contextProfile: $"instance={_instanceBackend}; requested={(_requestedBackend ?? "Automatic")}",
+                        contextProfile: $"instance={_native!.InstanceBackend}; requested={(_requestedBackend ?? "Automatic")}",
 #endif
                         powerPreference: PowerPreference.HighPerformance.ToString()),
                     CreateVideoMemorySection(properties),
@@ -210,7 +211,7 @@ namespace ManaGraphics.Code.Graphics
             try
             {
                 var properties = new AdapterProperties();
-                _api.AdapterGetProperties(_adapter, &properties);
+                _api.AdapterGetProperties(_native!.Adapter, &properties);
 
                 var requestedBackendName = string.IsNullOrWhiteSpace(requestedBackend)
                     ? "automatic"
@@ -248,7 +249,7 @@ namespace ManaGraphics.Code.Graphics
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Renderer: configured={_windowSurface?.IsConfigured == true}; HDR={_scene != null}; " +
                     $"meshPipeline={_scene != null}; sceneProvider={_renderSceneProvider != null}; " +
-                    $"fallbackDemoRequested={IsDemoMeshPipelineEnabled()}; sceneCapture={UseSceneCapture}.");
+                    $"fallbackDemoRequested={ManaWebGpuSceneRenderer.DemoRequested}; sceneCapture={UseSceneCapture}.");
                 ManaConsole.WriteDiagnostic(
                     $"[WebGPU Diagnostics] Environment: source={environmentSource.SourceKind}; " +
                     $"projection={environmentSource.Projection}; cube={environmentSource.EnvironmentCubeSize}; " +
@@ -278,7 +279,7 @@ namespace ManaGraphics.Code.Graphics
         private void LogAdapterLimits()
         {
             var supportedLimits = new SupportedLimits();
-            if (_api.AdapterGetLimits(_adapter, &supportedLimits))
+            if (_api.AdapterGetLimits(_native!.Adapter, &supportedLimits))
             {
                 LogLimits("Adapter limits", supportedLimits.Limits);
             }
@@ -291,7 +292,7 @@ namespace ManaGraphics.Code.Graphics
         private void LogDeviceLimits()
         {
             var supportedLimits = new SupportedLimits();
-            if (_api.DeviceGetLimits(_device, &supportedLimits))
+            if (_api.DeviceGetLimits(_native!.Device, &supportedLimits))
             {
                 LogLimits("Device limits", supportedLimits.Limits);
             }
@@ -336,12 +337,12 @@ namespace ManaGraphics.Code.Graphics
 
         private int GetAdapterFeatureCount()
         {
-            return GetFeatureCount(_api.AdapterEnumerateFeatures(_adapter, (FeatureName*)null));
+            return GetFeatureCount(_api.AdapterEnumerateFeatures(_native!.Adapter, (FeatureName*)null));
         }
 
         private int GetDeviceFeatureCount()
         {
-            return GetFeatureCount(_api.DeviceEnumerateFeatures(_device, (FeatureName*)null));
+            return GetFeatureCount(_api.DeviceEnumerateFeatures(_native!.Device, (FeatureName*)null));
         }
 
         private string GetAdapterFeatureSummary()
@@ -358,7 +359,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var features = stackalloc FeatureName[featureCount];
-            var written = GetFeatureCount(_api.AdapterEnumerateFeatures(_adapter, features));
+            var written = GetFeatureCount(_api.AdapterEnumerateFeatures(_native!.Adapter, features));
             return FormatFeatures(features, Math.Min(featureCount, written));
         }
 
@@ -376,7 +377,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             var features = stackalloc FeatureName[featureCount];
-            var written = GetFeatureCount(_api.DeviceEnumerateFeatures(_device, features));
+            var written = GetFeatureCount(_api.DeviceEnumerateFeatures(_native!.Device, features));
             return FormatFeatures(features, Math.Min(featureCount, written));
         }
 

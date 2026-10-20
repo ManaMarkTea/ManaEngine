@@ -29,13 +29,13 @@ namespace ManaGraphics.Code.Graphics
 
         private IReadOnlyDictionary<string, long>? ReadResourceCounts()
         {
-            if (_disposed || _wgpuNativeExtension == null || _instance == null)
+            if (_disposed || _native?.NativeExtension is not { } extension || _native.Instance == null)
             {
                 return null;
             }
 
             var report = new GlobalReport();
-            _wgpuNativeExtension.GenerateReport(_instance, &report);
+            extension.GenerateReport(_native.Instance, &report);
 
             var counts = new Dictionary<string, long>();
             // Only the backend actually in use has anything in it; summing them all keeps that from mattering.

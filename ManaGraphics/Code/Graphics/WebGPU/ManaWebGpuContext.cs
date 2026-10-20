@@ -33,19 +33,8 @@ namespace ManaGraphics.Code.Graphics
         private readonly IInputContext? _input;
         private readonly Func<ManaRenderScene>? _renderSceneProvider;
         private readonly string? _requestedBackend;
-#if !MANA_BROWSER
-        private readonly InstanceBackend _instanceBackend;
-#endif
-
-        private Instance* _instance;
-        private Surface* _surface;
-        private Adapter* _adapter;
-        private Device* _device;
-        private Queue* _queue;
-#if !MANA_BROWSER
-        // wgpu-native's callback pump; InstanceProcessEvents when a build lacks it.
-        private Wgpu? _wgpuNativeExtension;
-#endif
+        // Made first and released last; null only if its own construction failed.
+        private ManaWebGpuNativeDevice? _native;
         private readonly ManaWebGpuReadbackRegistry _readbackRegistry = new();
         private volatile bool _disposed;
         private TextureFormat _surfaceFormat;
@@ -113,59 +102,12 @@ namespace ManaGraphics.Code.Graphics
 
             try
             {
-                ManaConsole.WriteDiagnostic("Creating WebGPU instance.");
-#if MANA_BROWSER
-                // A real null pointer: a pointer to a zeroed descriptor hangs Emscripten's wgpuCreateInstance.
-                _instance = _api.CreateInstance((InstanceDescriptor*)null);
-#else
-                ManaWgpuNativeTrace.EnableIfRequested();
-                _instanceBackend = ParseInstanceBackend(requestedBackend);
-                var instanceExtras = new InstanceExtras
-                {
-                    Chain = new ChainedStruct
-                    {
-                        SType = (SType)NativeSType.STypeInstanceExtras
-                    },
-                    Backends = _instanceBackend
-                };
-
-                var instanceDescriptor = new InstanceDescriptor
-                {
-                    NextInChain = &instanceExtras.Chain
-                };
-
-                _instance = _api.CreateInstance(&instanceDescriptor);
-#endif
-                if (_instance == null)
-                {
-                    throw new InvalidOperationException("Failed to create WebGPU instance.");
-                }
-
-                ManaConsole.WriteDiagnostic("Creating WebGPU surface.");
-#if MANA_BROWSER
-                Console.WriteLine("[ManaWebGpuContext] Calling CreateFromCanvas...");
-                _surface = ManaBrowserWebGpuSurface.CreateFromCanvas(window, _api, _instance);
-                Console.WriteLine($"[ManaWebGpuContext] CreateFromCanvas returned: {(nint)_surface:X}");
-#else
-                _surface = ManaWebGpuNativeHost.Current is { } host
-                    ? host.CreateSurface(_api, _instance)
-                    : WebGPUSurface.CreateWebGPUSurface(window, _api, _instance);
-#endif
-                if (_surface == null)
-                {
-                    throw new InvalidOperationException("Failed to create WebGPU surface.");
-                }
-
+                _native = new ManaWebGpuNativeDevice(_api, window, requestedBackend);
 #if !MANA_BROWSER
-                ManaConsole.WriteDiagnosticElapsed("Requesting WebGPU adapter.");
-                RequestAdapter(requestedBackend);
-                ManaConsole.WriteDiagnosticElapsed("Adapter granted; requesting WebGPU device.");
-                RequestDevice();
-                ManaConsole.WriteDiagnosticElapsed("Device granted.");
                 FinishInitialization(requestedBackend, window);
 #endif
                 // MANA_BROWSER: the adapter and device arrive asynchronously; callers await
-                // CompleteBrowserInitializationAsync (BrowserAsync.cs) before using the context.
+                // CompleteBrowserInitializationAsync before using the context.
             }
             catch
             {
@@ -174,48 +116,38 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
+#if MANA_BROWSER
+        /// <summary>Awaited once after constructing a browser context, before anything else uses it.</summary>
+        public Task CompleteBrowserInitializationAsync()
+        {
+            ObjectDisposedException.ThrowIf(_disposed || _native == null, this);
+            return _native.CompleteAsync(() => FinishInitialization(_requestedBackend, _window), Dispose);
+        }
+#endif
+
         private void FinishInitialization(string? requestedBackend, IWindow window)
         {
             ManaConsole.WriteDiagnostic("Configuring WebGPU queue and surface.");
-            _queue = _api.DeviceGetQueue(_device);
+            var native = _native!;
 #if !MANA_BROWSER
-            if (!_api.TryGetDeviceExtension(_device, out _wgpuNativeExtension))
-            {
-                ManaConsole.WriteDiagnostic("WGPU native extension unavailable; falling back to InstanceProcessEvents for async GPU callback pumping.");
-            }
-            else
+            if (native.NativeExtension != null)
             {
                 PublishResourceReport();
             }
 #endif
-#if !MANA_BROWSER
-            _api.DeviceSetUncapturedErrorCallback(_device, new PfnErrorCallback(&OnError), null);
-#else
-            // Not in the browser: the callback goes through the dynCall path that fails there, and the browser
-            // prints validation errors to the console anyway.
-#endif
-            _surfaceFormat = _api.SurfaceGetPreferredFormat(_surface, _adapter);
-#if MANA_BROWSER
-            // The canvas is configured with the sRGB view format, matching desktop's sRGB surface.
-            _surfaceFormat = _surfaceFormat switch
-            {
-                TextureFormat.Bgra8Unorm => TextureFormat.Bgra8UnormSrgb,
-                TextureFormat.Rgba8Unorm => TextureFormat.Rgba8UnormSrgb,
-                _ => _surfaceFormat
-            };
-#endif
-            _gpu = new ManaWebGpuDevice(_api, _device, _queue, _surfaceFormat, _depthFormat);
+            _surfaceFormat = native.PreferredSurfaceFormat();
+            _gpu = new ManaWebGpuDevice(_api, native.Device, native.Queue, _surfaceFormat, _depthFormat);
             _meshTextures = new ManaWebGpuMeshTextureCache(_gpu);
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
             _ui = new ManaWebGpuUiCompositor(_gpu);
             HeightSampler = new ManaWebGpuHeightSampleCompute(_gpu, _readbackRegistry, _renderThread);
-            _windowSurface = new ManaWebGpuWindowSurface(_gpu, _surface);
+            _windowSurface = new ManaWebGpuWindowSurface(_gpu, native.Surface);
             _windowSurface.Configure(window.FramebufferSize);
-            if (_renderSceneProvider != null || IsDemoMeshPipelineEnabled())
+            if (_renderSceneProvider != null || ManaWebGpuSceneRenderer.DemoRequested)
             {
-                if (CanCreateDemoMeshPipeline(requestedBackend))
+                if (ManaWebGpuSceneRenderer.SupportsBackend(requestedBackend))
                 {
                     try
                     {
@@ -242,7 +174,7 @@ namespace ManaGraphics.Code.Graphics
             }
             ManaConsole.WriteDiagnostic($"WebGPU surface configured: {window.FramebufferSize.X}x{window.FramebufferSize.Y}, format={_surfaceFormat}.");
 #if !MANA_BROWSER
-            LogWebGpuDiagnostics(requestedBackend, _instanceBackend);
+            LogWebGpuDiagnostics(requestedBackend, native.InstanceBackend);
 #endif
         }
 
@@ -329,23 +261,6 @@ namespace ManaGraphics.Code.Graphics
             }
         }
 
-        // Runs pending GPU callbacks (readbacks); wgpu-native's own poll when this build has it.
-        private void PumpCallbacks()
-        {
-#if MANA_BROWSER
-            _api.InstanceProcessEvents(_instance);
-#else
-            if (_wgpuNativeExtension != null)
-            {
-                _wgpuNativeExtension.DevicePoll(_device, false, null);
-            }
-            else
-            {
-                _api.InstanceProcessEvents(_instance);
-            }
-#endif
-        }
-
         /// <summary>
         /// Renders <paramref name="instances"/> to a square straight-alpha RGBA buffer, or null when there is nothing to
         /// draw. Callable from any thread.
@@ -399,7 +314,7 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>A UI-only presentation surface for a native panel window, sharing this device and queue.</summary>
         public ManaUI.IUiWindowRenderer CreateUiSurface(IWindow window)
         {
-            var surface = new ManaWebGpuPanelSurface(_gpu, _instance, _adapter, window, closed => _panelSurfaces.Remove(closed));
+            var surface = new ManaWebGpuPanelSurface(_gpu, _native!.Instance, _native.Adapter, window, closed => _panelSurfaces.Remove(closed));
             _panelSurfaces.Add(surface);
             return surface;
         }
@@ -411,7 +326,7 @@ namespace ManaGraphics.Code.Graphics
         public void ClearFrame(Color clearColor)
         {
             // Before the early returns, so a minimized window never stalls a readback.
-            PumpCallbacks();
+            _native!.PumpCallbacks();
             _meshes?.BeginFrame();
 
             // Before the early return, so deferred work progresses while minimized; before this frame's submit, so it never races it.
@@ -439,7 +354,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 var frameStopwatch = Stopwatch.StartNew();
                 var encoderDescriptor = new CommandEncoderDescriptor();
-                encoder = _api.DeviceCreateCommandEncoder(_device, &encoderDescriptor);
+                encoder = _api.DeviceCreateCommandEncoder(_native!.Device, &encoderDescriptor);
 
                 var collectStopwatch = Stopwatch.StartNew();
                 // See SuspendSceneWork: during a fast load this is where the frame would stall uploading.
@@ -521,7 +436,7 @@ namespace ManaGraphics.Code.Graphics
                 var submitStopwatch = Stopwatch.StartNew();
                 var commandBufferDescriptor = new CommandBufferDescriptor();
                 commandBuffer = _api.CommandEncoderFinish(encoder, &commandBufferDescriptor);
-                _api.QueueSubmit(_queue, 1, &commandBuffer);
+                _api.QueueSubmit(_native.Queue, 1, &commandBuffer);
                 surface.Present();
 
                 // Submitted: each staging buffer now belongs to its readback.
@@ -537,7 +452,7 @@ namespace ManaGraphics.Code.Graphics
                     ManaConsole.WriteDiagnosticElapsed("First frame presented to the window.");
                 }
 
-                PumpCallbacks();
+                _native!.PumpCallbacks();
                 LastSubmitMs = submitStopwatch.Elapsed.TotalMilliseconds;
                 LastFrameTotalMs = frameStopwatch.Elapsed.TotalMilliseconds;
             }
@@ -587,7 +502,7 @@ namespace ManaGraphics.Code.Graphics
 #endif
             _frameCapture?.Close();
 #if MANA_BROWSER
-            CancelBrowserInitialization();
+            _native?.CancelInitialization();
 #endif
             _environment?.Retire();
             // Before FaultAllPending: an item that slipped through can still register a readback.
@@ -606,41 +521,10 @@ namespace ManaGraphics.Code.Graphics
 
             _windowSurface?.Dispose();
 
-            if (_queue != null)
-            {
-                _api.QueueRelease(_queue);
-                _queue = null;
-            }
+            _native?.Dispose();
+            _native = null;
 
-            if (_device != null)
-            {
-                _api.DeviceRelease(_device);
-                _device = null;
-            }
-#if !MANA_BROWSER
-            // A view over _api's library for the released device, not a separate owner.
-            _wgpuNativeExtension = null;
-#endif
-
-            if (_adapter != null)
-            {
-                _api.AdapterRelease(_adapter);
-                _adapter = null;
-            }
-
-            if (_surface != null)
-            {
-                _api.SurfaceRelease(_surface);
-                _surface = null;
-            }
-
-            if (_instance != null)
-            {
-                _api.InstanceRelease(_instance);
-                _instance = null;
-            }
-
-            // _api and _wgpuNativeExtension stay: the native library outlives the context.
+            // _api stays: the native library outlives the context.
         }
     }
 }

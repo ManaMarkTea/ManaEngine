@@ -239,7 +239,8 @@ are baked from; the live editor draws new ones with the GPU instead.
   a game mode that frames the shot itself uses `ManaComputedCameraRig` (Train Yard Wars, Yacht Jousting) or its own rig
   (`RunnerCamera`), and detaches it on `Suspend` (F8) -- never by borrowing `ShouldCapture*Input`.
 - **Render loop:** `BaseGameMode` drives update + render. `ManaGameModeGraphicsBridge` finalizes material texture data for WebGPU. `ManaWorld.CreateRenderScene()` collects mesh instances each frame.
-- **WebGPU frame:** `ManaWebGpuContext` owns the device and the frame skeleton; `ManaWebGpuWindowSurface` the swap chain
+- **WebGPU frame:** `ManaWebGpuContext` owns the frame skeleton and shutdown order; `ManaWebGpuNativeDevice` the native
+  handles and their (desktop or browser) bring-up, `ManaWebGpuWindowSurface` the swap chain
   and depth targets, `ManaWebGpuSceneRenderer` the scene half of the frame. Each piece of that is a
   `ManaWebGpuRenderPass` that owns its pipelines and overrides the hooks it draws in (`Prepare` before the scene pass,
   `DrawScene` inside it, `AfterScene` after it), registered in frame order with `AddPass` in `CreateScenePipelines`:
