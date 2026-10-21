@@ -15,7 +15,9 @@ namespace ManaUI
         Brick,
         Dot,
         Arrow,
-        Warning
+        Warning,
+        Drop,
+        Pipe
     }
 
     /// <summary>
@@ -172,6 +174,17 @@ namespace ManaUI
                     break;
                 case ItemIconShape.Dot:
                     d.FillRect(R(0.25f, 0.25f, 0.5f, 0.5f), color, new CornerRadius(s * 0.25f));
+                    break;
+                case ItemIconShape.Drop:
+                    d.Rotated(R(0.31f, 0.27f, 0.38f, 0.38f), MathF.PI / 4, color, new CornerRadius(s * 0.04f));
+                    d.FillRect(R(0.22f, 0.36f, 0.56f, 0.52f), color, new CornerRadius(s * 0.26f));
+                    d.FillRect(R(0.32f, 0.52f, 0.1f, 0.2f), light.WithAlpha(0.8f), new CornerRadius(s * 0.05f));
+                    break;
+                case ItemIconShape.Pipe:
+                    d.FillRect(R(0.08f, 0.38f, 0.84f, 0.24f), color, new CornerRadius(s * 0.04f));
+                    d.FillRect(R(0.08f, 0.38f, 0.84f, 0.07f), light, new CornerRadius(s * 0.03f));
+                    d.FillRect(R(0.16f, 0.3f, 0.09f, 0.4f), dark, new CornerRadius(s * 0.03f));
+                    d.FillRect(R(0.75f, 0.3f, 0.09f, 0.4f), dark, new CornerRadius(s * 0.03f));
                     break;
             }
         }
