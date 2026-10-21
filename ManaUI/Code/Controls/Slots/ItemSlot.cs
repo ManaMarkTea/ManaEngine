@@ -1,9 +1,8 @@
 namespace ManaUI
 {
     /// <summary>
-    /// One square inventory or toolbar slot: a bevelled well holding an icon (any element, usually an
-    /// <see cref="ItemIcon"/>), with a count in the bottom-right corner and an optional hotkey in the top-left. It can be
-    /// selected (an outline), unavailable (a red well, as for a recipe you cannot afford) or show progress along its foot.
+    /// A square inventory or toolbar slot: a bevelled well holding an icon, a shortened count and an optional hotkey,
+    /// selectable, marked unavailable in red, or showing progress along its foot.
     /// </summary>
     public class ItemSlot : Control
     {

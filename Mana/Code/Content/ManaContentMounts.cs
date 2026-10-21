@@ -7,9 +7,8 @@ namespace Mana.Code.Content
     }
 
     /// <summary>
-    /// Content lives in the project's Content folder and in each game's own <c>Games/&lt;Name&gt;/Content</c>, so a game
-    /// carries its prefabs and assets with it. A path into a game's folder is written <c>@Name/rest</c>
-    /// (<c>@Foundry/Prefabs/Conveyor.manaprefab</c>); any other path is under the main Content folder, as before.
+    /// Content lives in the project's Content folder and each game's own <c>Games/&lt;Name&gt;/Content</c>, written
+    /// <c>@Name/...</c> in references (<c>@Foundry/Prefabs/Conveyor.manaprefab</c>); other paths are under Content.
     /// </summary>
     public static class ManaContentMounts
     {
