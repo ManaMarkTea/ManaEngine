@@ -145,6 +145,9 @@ namespace ManaUI
 
         public ItemSlot this[int row, int column] => (ItemSlot)_rows[row].Slots.Children[column];
 
+        /// <summary>The numbered button at the start of a row, for a game that gives it another job (a page switch).</summary>
+        public ItemSlot RowButton(int row) => _rows[row].Number;
+
         public int ActiveRow
         {
             get => _activeRow;
