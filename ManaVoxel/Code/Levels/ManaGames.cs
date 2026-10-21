@@ -15,12 +15,28 @@ namespace ManaVoxel.Code.Levels
     /// </summary>
     internal static class ManaGames
     {
+        // A prefab built once in a holding scene and read for its meshes, so a game can place shared copies of it.
+        private static GridMapPrototype PrefabPrototype(string asset, Mana.Code.ManaContext context)
+        {
+            var root = ManaContentLibrary.RootFor(context.World);
+            var file = Mana.Code.Content.ManaContentMounts.FullPath(root, asset) ?? throw new FileNotFoundException($"No content folder for '{asset}'.");
+            var node = ManaPrefabRuntime.Instantiate(context, new Mana.ManaScene(context) { Name = "Prefab Prototypes" }, new ManaLevelNode
+            {
+                Kind = Mana.Code.Levels.ManaLevelSourceKind.Prefab,
+                Name = Path.GetFileNameWithoutExtension(asset),
+                Prefab = new ManaPrefabReference { AssetPath = asset, AssetId = ManaPrefab.ReadId(file) }
+            });
+            return GridMapPrototype.FromNode(Path.GetFileNameWithoutExtension(asset), node);
+        }
+
         [System.Runtime.CompilerServices.ModuleInitializer]
         internal static void Register()
         {
             Foundry.View.ModelLibrary.Loader = (asset, context) =>
             {
-                var prototype = GridMapPrototype.Load(asset, context);
+                var prototype = asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase)
+                    ? PrefabPrototype(asset, context)
+                    : GridMapPrototype.Load(asset, context);
                 if (!prototype.HasGeometry)
                 {
                     throw new InvalidOperationException($"Foundry asset '{asset}': {prototype.Error}");
