@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Mana.Code.Content;
 
 namespace ManaVoxel.Code.Assets
 {
@@ -32,12 +33,15 @@ namespace ManaVoxel.Code.Assets
         public static IReadOnlyList<ManaContentEntry> List(string? root = null)
         {
             root ??= Root;
-            return Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+            var contentRoot = root;
+            // The main Content folder and each game's own (Games/<Name>/Content, listed as @Name/...).
+            return ManaContentMounts.For(contentRoot).Where(mount => Directory.Exists(mount.Root))
+                .SelectMany(mount => Directory.EnumerateFiles(mount.Root, "*", SearchOption.AllDirectories))
                 .Select(p => (Path: p, Kind: ManaContentKinds.ForPath(p)))
                 .Where(item => item.Kind != null)
-                .OrderBy(item => item.Path, StringComparer.OrdinalIgnoreCase)
-                .Select(item => new ManaContentEntry(item.Path, Path.GetRelativePath(root, item.Path), Path.GetFileNameWithoutExtension(item.Path),
-                    item.Kind?.Name ?? string.Empty)).ToList();
+                .Select(item => new ManaContentEntry(item.Path, ManaContentMounts.RelativePath(contentRoot, item.Path), Path.GetFileNameWithoutExtension(item.Path),
+                    item.Kind?.Name ?? string.Empty))
+                .OrderBy(entry => entry.RelativePath, StringComparer.OrdinalIgnoreCase).ToList();
         }
 
         public static string NewPath(string name, string folder, string extension, string? root = null)
@@ -47,7 +51,7 @@ namespace ManaVoxel.Code.Assets
             {
                 throw new InvalidDataException("Enter an asset name.");
             }
-            var path = Path.Combine(root ?? Root, folder, safe + extension);
+            var path = Path.Combine(ManaContentMounts.FullPath(root ?? Root, folder) ?? throw new DirectoryNotFoundException($"No content folder '{folder}'."), safe + extension);
             if (File.Exists(path))
             {
                 throw new IOException("An asset with that name already exists. Choose a different name.");
@@ -55,18 +59,19 @@ namespace ManaVoxel.Code.Assets
             return path;
         }
 
-        public static string Reference(string path, string? root = null) => Path.GetRelativePath(
-            Canonical(root ?? Root), Canonical(path)).Replace('\\', '/');
+        public static string Reference(string path, string? root = null) =>
+            ManaContentMounts.RelativePath(Canonical(root ?? Root), Canonical(path)).Replace('\\', '/');
 
         public static string ResolvePrefab(string id, string relativePath, string? root = null)
         {
             root = Canonical(root ?? Root);
-            var candidate = Canonical(Path.Combine(root, relativePath));
-            if (!candidate.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            var mapped = ManaContentMounts.FullPath(root, relativePath);
+            var candidate = mapped == null ? null : Canonical(mapped);
+            if (candidate != null && !ManaContentMounts.Contains(root, candidate))
             {
                 throw new InvalidDataException("Prefab reference must stay inside Content.");
             }
-            if (File.Exists(candidate) && ManaPrefab.ReadId(candidate) == id)
+            if (candidate != null && File.Exists(candidate) && ManaPrefab.ReadId(candidate) == id)
             {
                 return candidate;
             }

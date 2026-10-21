@@ -1165,6 +1165,12 @@ namespace ManaVoxel.Code.GridMaps
                 return new GridMapPrototype { Name = name, Error = exception.Message };
             }
 
+            return FromNode(name, root);
+        }
+
+        /// <summary>The meshes of an already-built tree (a prefab instance, say), relative to its root.</summary>
+        public static GridMapPrototype FromNode(string name, ManaSceneNode root)
+        {
             var prototype = new GridMapPrototype { Name = name };
             root.UpdateTransform();
             Matrix4x4.Invert(root.WorldTransform, out var toRoot);

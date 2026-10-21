@@ -129,6 +129,7 @@ public static class TestRunner
         ("ManaVoxel", "asset multi-select", AssetMultiSelectChecks.Run),
         ("ManaVoxel", "content assets", ContentAssetChecks.Run),
         ("ManaVoxel", "prefab lamps", PrefabLampChecks.Run),
+        ("ManaVoxel", "content mounts: each game's own Content folder", ContentMountChecks.Run),
         ("ManaVoxel", "collider intent", ColliderIntentChecks.Run),
         ("ManaVoxel", "box collider persistence", BoxColliderPersistenceChecks.Run),
         ("ManaVoxel", "level library", LevelLibraryChecks.Run),

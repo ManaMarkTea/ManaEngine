@@ -269,9 +269,10 @@ namespace ManaVoxel.Code.UI
             }
 
             var source = ManaPrefab.Load(path, ContentRoot);
-            var folder = Path.GetRelativePath(ContentRoot, Path.GetDirectoryName(Path.GetFullPath(path))!);
+            // Beside its source, in whichever content folder that is (a game's own included).
+            var folder = Mana.Code.Content.ManaContentMounts.RelativePath(ContentRoot, Path.GetDirectoryName(Path.GetFullPath(path))!);
             var name = $"{source.Name} Variant";
-            for (var suffix = 2; File.Exists(Path.Combine(ContentRoot, folder, name + ManaPrefab.Extension)); suffix++)
+            for (var suffix = 2; File.Exists(Path.Combine(Path.GetDirectoryName(Path.GetFullPath(path))!, name + ManaPrefab.Extension)); suffix++)
             {
                 name = $"{source.Name} Variant {suffix}";
             }

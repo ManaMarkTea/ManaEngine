@@ -76,11 +76,19 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static UiElement BuildFolders(UiTheme theme, ProjectAssetViewModel model)
         {
             var root = new ContentFolder("Content", "");
+            // A game's own content (Games/<Name>/Content, paths @Name/...) is a root of its own beside Content.
+            var roots = new List<ContentFolder> { root };
             foreach (var entry in model.Entries)
             {
+                var segments = (Path.GetDirectoryName(entry.RelativePath) ?? "").Split(
+                    new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
                 var parent = root;
-                foreach (var segment in (Path.GetDirectoryName(entry.RelativePath) ?? "").Split(
-                    new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries))
+                if (segments.Length > 0 && segments[0].StartsWith(Mana.Code.Content.ManaContentMounts.Prefix))
+                {
+                    parent = roots.FirstOrDefault(r => r.Path == segments[0]) ?? Add(roots, new ContentFolder($"{segments[0][1..]} (game)", segments[0]));
+                    segments = segments[1..];
+                }
+                foreach (var segment in segments)
                 {
                     var child = parent.Children.FirstOrDefault(f => f.Name == segment);
                     if (child == null)
@@ -91,9 +99,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                     parent = child;
                 }
             }
+            static ContentFolder Add(List<ContentFolder> list, ContentFolder folder)
+            {
+                list.Add(folder);
+                return folder;
+            }
             var tree = new TreeView
             {
-                ItemsSource = new[] { root },
+                ItemsSource = roots,
                 ChildrenSelector = item => (item as ContentFolder)?.Children,
                 HasChildrenSelector = item => item is ContentFolder folder && folder.Children.Count > 0,
                 IsExpandedByDefault = _ => true,

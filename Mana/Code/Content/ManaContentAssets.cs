@@ -63,19 +63,21 @@ namespace Mana.Code.Content
         {
             if (reference.AssetPath.Length > 0)
             {
-                var candidate = Path.GetFullPath(Path.Combine(root, reference.AssetPath));
-                if (candidate.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(candidate)
+                var candidate = ManaContentMounts.FullPath(root, reference.AssetPath);
+                if (candidate != null && ManaContentMounts.Contains(root, candidate) && File.Exists(candidate)
                     && (reference.AssetId.Length == 0 || ReadId(candidate) == reference.AssetId))
                 {
                     return candidate;
                 }
             }
 
-            if (reference.AssetId.Length == 0 || !Directory.Exists(root))
+            if (reference.AssetId.Length == 0)
             {
                 return null;
             }
-            return Directory.EnumerateFiles(root, "*" + extension, SearchOption.AllDirectories)
+            // The id is searched for in every mount: the main Content folder and each game's.
+            return ManaContentMounts.For(root).Where(mount => Directory.Exists(mount.Root))
+                .SelectMany(mount => Directory.EnumerateFiles(mount.Root, "*" + extension, SearchOption.AllDirectories))
                 .FirstOrDefault(file => ReadId(file) == reference.AssetId);
         }
 
@@ -127,7 +129,7 @@ namespace Mana.Code.Content
         /// <summary>A reference to the asset at <paramref name="file"/>.</summary>
         public static ManaAssetRef Reference(string file)
         {
-            return new ManaAssetRef(ReadId(file) ?? string.Empty, Path.GetRelativePath(Root, file).Replace('\\', '/'));
+            return new ManaAssetRef(ReadId(file) ?? string.Empty, ManaContentMounts.RelativePath(Root, file).Replace('\\', '/'));
         }
 
         /// <summary>The asset's id, read without deserialising the rest of it.</summary>
