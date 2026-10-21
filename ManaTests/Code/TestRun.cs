@@ -72,6 +72,7 @@ public static class TestRunner
         ("ManaUI", "virtual wrap", VirtualWrapChecks.Run),
         ("ManaUI", "numeric, vector and expander editors", EditorChecks.Run),
         ("ManaUI", "colour conversion and picking", ColorChecks.Run),
+        ("ManaUI", "inventory slots, grids and hotbars", SlotChecks.Run),
         ("ManaUI", "debug overlay", DebugOverlayChecks.Run),
         ("ManaUI", "colour atlas and images", ImageChecks.Run),
         ("ManaUI", "floating windows", WindowChecks.Run),
