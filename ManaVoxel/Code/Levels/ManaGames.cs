@@ -43,6 +43,17 @@ namespace ManaVoxel.Code.Levels
                 }
                 return new Foundry.View.FoundryModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
             };
+            // Building pictures for the Foundry hotbar: the editor's own CPU thumbnail renderer, on a throwaway world.
+            Foundry.View.FoundryIcons.Renderer = asset =>
+            {
+                var world = new Mana.ManaWorld();
+                var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
+                world.Context = context;
+                var path = asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase)
+                    ? Mana.Code.Content.ManaContentMounts.FullPath(ManaContentLibrary.Root, asset) ?? asset
+                    : asset;
+                return MeshThumbnailCache.GenerateViaCpuStandalone(context, path);
+            };
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = FoundryMode.ModeType,
