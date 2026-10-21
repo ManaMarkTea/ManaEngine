@@ -5,7 +5,10 @@
     [x] 3D and depth (2026-10-20): rebuilt in 3D on the Kenney factory kit with a class per building, smooth belts
         with curves and side-loading, splitters/sorting, day/night with solar, coal and batteries, assembler recipes,
         a tech tree with red/green science, guided goals and a Space Beacon finale. Games/Foundry/README.md.
-    Next: inserters/two-lane belts, production graphs, sound, autosave, browser and macOS checks.
+    [x] Factorio concepts (2026-10-20): inserters (filter, fast, long), chests, splitters, mergers, undergrounds,
+        pipette, copy/paste settings, undo, blueprints, area deconstruction, production stats, minimap, alerts,
+        repeatable research, autosave, sounds; HUD rebuilt from ManaUI slot widgets; code split into classes.
+    Next: two-lane belts, fluids, electric poles, browser and macOS checks.
 
 [x] - Code Screensaver: split terminal windows scroll random real repository source, with soft typing.
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
