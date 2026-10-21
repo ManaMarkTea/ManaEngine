@@ -13,7 +13,8 @@ namespace ManaUI
         Flask,
         Box,
         Brick,
-        Dot
+        Dot,
+        Arrow
     }
 
     /// <summary>
@@ -156,6 +157,12 @@ namespace ManaUI
                     d.FillRect(R(0.14f, 0.18f, 0.72f, 0.66f), dark, new CornerRadius(s * 0.05f));
                     d.FillRect(R(0.18f, 0.18f, 0.64f, 0.58f), color, new CornerRadius(s * 0.05f));
                     d.FillRect(R(0.18f, 0.18f, 0.64f, 0.14f), light, new CornerRadius(s * 0.05f));
+                    break;
+                case ItemIconShape.Arrow:
+                    d.FillRect(R(0.14f, 0.42f, 0.46f, 0.16f), dark, new CornerRadius(s * 0.04f));
+                    d.Rotated(R(0.42f, 0.34f, 0.32f, 0.08f), MathF.PI / 4, color, new CornerRadius(s * 0.04f));
+                    d.Rotated(R(0.42f, 0.58f, 0.32f, 0.08f), -MathF.PI / 4, color, new CornerRadius(s * 0.04f));
+                    d.FillRect(R(0.14f, 0.45f, 0.52f, 0.1f), color, new CornerRadius(s * 0.04f));
                     break;
                 case ItemIconShape.Dot:
                     d.FillRect(R(0.25f, 0.25f, 0.5f, 0.5f), color, new CornerRadius(s * 0.25f));
