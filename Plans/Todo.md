@@ -8,7 +8,11 @@
     [x] Factorio concepts (2026-10-20): inserters (filter, fast, long), chests, splitters, mergers, undergrounds,
         pipette, copy/paste settings, undo, blueprints, area deconstruction, production stats, minimap, alerts,
         repeatable research, autosave, sounds; HUD rebuilt from ManaUI slot widgets; code split into classes.
-    Next: two-lane belts, fluids, electric poles, browser and macOS checks.
+    [x] Power poles and more (2026-10-21): pole and substation networks; fluids (pipes, pumps, boilers, steam
+        engines, tanks); oil (pumpjacks, refineries, chemical plants, plastic); blue science and modules; logistic
+        robots (roboports, provider/requester chests); trains (rails, stops, a two-car train, an outpost in the start
+        factory); Alt view, fast-replace, lamps, inserter capacity, an electricity graph. Plans/Foundry.md.
+    Next: two-lane belts, train schedules and signals, browser and macOS checks.
 
 [x] - Code Screensaver: split terminal windows scroll random real repository source, with soft typing.
     Built in Content/Levels/Code Screensaver.manalevel; native-size pixel-snapped text, configurable speed/density/audio.
