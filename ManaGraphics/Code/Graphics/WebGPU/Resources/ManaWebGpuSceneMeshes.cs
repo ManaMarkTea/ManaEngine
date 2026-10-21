@@ -44,8 +44,9 @@ namespace ManaGraphics.Code.Graphics.Resources
         private const ulong SceneMeshDeferredDisposeFrameDelay = 6;
 
         // Ceilings on mesh creation per frame; what does not fit waits a frame, a replaced mesh drawing its old geometry
-        // meanwhile, and at least one always uploads. Count, for the fixed cost of about 4 ms a mesh:
-        private const int MaxSceneMeshCreationsPerFrame = 8;
+        // meanwhile, and at least one always uploads. Time: a small mesh costs well under a tenth of a millisecond, so
+        // a count cap left scenes of many small meshes appearing a handful a frame.
+        private const double MaxSceneMeshUploadMillisecondsPerFrame = 4.0;
 
         // Indexes, for the size-proportional cost of a burst of large terrain patches.
         private const ulong MaxSceneMeshIndexUploadsPerFrame = 4_000_000;
@@ -135,6 +136,7 @@ namespace ManaGraphics.Code.Graphics.Resources
             ulong uploadedIndexes = 0;
             ulong removedIndexes = 0;
             List<string>? changedMeshSummaries = null;
+            var uploadClock = System.Diagnostics.Stopwatch.StartNew();
 
             for (var i = 0; i < renderableMeshes.Count; i++)
             {
@@ -162,7 +164,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                     }
 
                     // Over budget: keep drawing the old mesh; the swap retries next frame.
-                    if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes))
+                    if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes, uploadClock))
                     {
                         deferredCount++;
                         nextSceneMeshes.Add(existing);
@@ -174,7 +176,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                     Defer(existing);
                     _sceneMeshMap.Remove(key);
                 }
-                else if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes))
+                else if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes, uploadClock))
                 {
                     // Nothing to fall back on for a first-time upload, so this mesh simply isn't drawn
                     // until a later frame has room for it.
@@ -221,7 +223,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                 ManaConsole.WriteDiagnostic(
                     $"WebGPU scene mesh delta: uploaded={uploadedCount} (indexes={uploadedIndexes}), " +
                     $"removed={removedCount} (indexes={removedIndexes}), deferred={deferredCount}, " +
-                    $"residentMeshes={_sceneMeshes.Count}, residentIndexes={residentIndexes}.");
+                    $"residentMeshes={_sceneMeshes.Count}, residentIndexes={residentIndexes}, ms={uploadClock.Elapsed.TotalMilliseconds:0.00}.");
 
                 if (changedMeshSummaries is { Count: > 0 })
                 {
@@ -232,14 +234,14 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         // Either ceiling closes the budget. Never true with nothing uploaded yet, so a mesh bigger than the
         // whole per-frame allowance still gets created rather than being deferred forever.
-        private static bool IsUploadBudgetSpent(int uploadedCount, ulong uploadedIndexes)
+        private static bool IsUploadBudgetSpent(int uploadedCount, ulong uploadedIndexes, System.Diagnostics.Stopwatch uploadClock)
         {
             if (uploadedCount == 0)
             {
                 return false;
             }
 
-            return uploadedCount >= MaxSceneMeshCreationsPerFrame
+            return uploadClock.Elapsed.TotalMilliseconds >= MaxSceneMeshUploadMillisecondsPerFrame
                 || uploadedIndexes >= MaxSceneMeshIndexUploadsPerFrame;
         }
 
