@@ -14,7 +14,8 @@ namespace ManaUI
         Box,
         Brick,
         Dot,
-        Arrow
+        Arrow,
+        Warning
     }
 
     /// <summary>
@@ -163,6 +164,11 @@ namespace ManaUI
                     d.Rotated(R(0.42f, 0.34f, 0.32f, 0.08f), MathF.PI / 4, color, new CornerRadius(s * 0.04f));
                     d.Rotated(R(0.42f, 0.58f, 0.32f, 0.08f), -MathF.PI / 4, color, new CornerRadius(s * 0.04f));
                     d.FillRect(R(0.14f, 0.45f, 0.52f, 0.1f), color, new CornerRadius(s * 0.04f));
+                    break;
+                case ItemIconShape.Warning:
+                    d.Rotated(R(0.2f, 0.2f, 0.6f, 0.6f), MathF.PI / 4, color, new CornerRadius(s * 0.06f));
+                    d.FillRect(R(0.45f, 0.26f, 0.1f, 0.32f), dark, new CornerRadius(s * 0.04f));
+                    d.FillRect(R(0.45f, 0.64f, 0.1f, 0.1f), dark, new CornerRadius(s * 0.05f));
                     break;
                 case ItemIconShape.Dot:
                     d.FillRect(R(0.25f, 0.25f, 0.5f, 0.5f), color, new CornerRadius(s * 0.25f));
