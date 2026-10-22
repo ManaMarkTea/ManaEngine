@@ -13,6 +13,12 @@ const renderingOverride = new URLSearchParams(globalThis.location?.search || '')
 const mobileRendering = renderingOverride === 'mobile' || (renderingOverride !== 'desktop' &&
     (globalThis.navigator?.userAgentData?.mobile === true ||
         ((globalThis.navigator?.maxTouchPoints || 0) > 0 && window.matchMedia?.('(pointer: coarse)').matches)));
+// An optional pixel budget for the backbuffer (?resolution=1080|720, the page's Resolution setting): a 4K screen is four
+// times the pixels of 1080p, more than a laptop's built-in graphics can shade, so the frame is drawn smaller and the
+// browser scales it up to fill the canvas. Full resolution unless asked.
+const resolutionOverride = new URLSearchParams(globalThis.location?.search || '').get('resolution');
+const pixelBudgets = { '1080': 1920 * 1080, '720': 1280 * 720 };
+const pixelBudget = pixelBudgets[resolutionOverride] ?? Infinity;
 let particleBudget = 20000;
 let sampleMs = 0;
 let sampleFrames = 0;
@@ -112,8 +118,13 @@ export function getDevicePixelRatio() {
 function applyCanvasSize(cssWidth, cssHeight, deviceWidth, deviceHeight) {
     const logicalWidth = Math.max(1, Math.round(cssWidth));
     const logicalHeight = Math.max(1, Math.round(cssHeight));
-    const width = Math.max(1, deviceWidth);
-    const height = Math.max(1, deviceHeight);
+    let width = Math.max(1, deviceWidth);
+    let height = Math.max(1, deviceHeight);
+    if (width * height > pixelBudget) {
+        const shrink = Math.sqrt(pixelBudget / (width * height));
+        width = Math.max(1, Math.floor(width * shrink));
+        height = Math.max(1, Math.floor(height * shrink));
+    }
     if (canvas.width === width && canvas.height === height &&
         lastLogicalWidth === logicalWidth && lastLogicalHeight === logicalHeight) return;
     if (canvas.width !== width) canvas.width = width;

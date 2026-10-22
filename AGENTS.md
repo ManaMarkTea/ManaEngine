@@ -151,6 +151,12 @@ from the catalog rather than a checkout, and files can be locked by Defender mid
 
 `ManaVoxel.Web` is the combined browser-wasm/WebGPU host: its default page is the play selector, and `?mode=editor` starts the full editor. Publish once with `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1`, serve with `python ManaVoxel.Web/serve.py 8123`, and use the same Chrome driver for both modes. A successful build alone is not enough: Chrome's WebGPU validation catches shader and pipeline issues that the desktop backend can miss.
 
+A slow machine: the console's `[WebGPU] adapter:` line says which GPU the page got (a laptop with two should get the fast
+one -- we ask for `high-performance` -- and "software fallback" means the CPU is drawing). The page's settings go lighter
+for weaker cards: Resolution 1080p/720p (`?resolution=`, a pixel budget the browser scales up; full by default),
+Graphics Phone (`?rendering=mobile`), Sky Simple (`?sky=simple`). `[Hitch]` lines come at most every 30 frames, so a
+steady low frame rate shows as one line every few seconds.
+
 Browser-specific lessons and limits:
 - The WebGPU C shim (`ManaGraphics/Native/mana_webgpu.c`) targets the Emscripten SDK's bundled `webgpu.h`; Silk.NET.WebGPU enum values can differ from that header. Recheck mappings when either version changes, and remap local descriptor copies, never caller-owned memory, because descriptors may be reused.
 - Adapter/device requests use the JS Promise and `[JSExport]` bridge in `ManaBrowserWebGpuCallbackBridge`; routing those callbacks through the legacy Emscripten WebGPU callback path fails in this .NET wasm setup. Await `ManaBrowserInterop.InitializeAsync()` before constructing browser graphics.

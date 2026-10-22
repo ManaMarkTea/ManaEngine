@@ -272,7 +272,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 {
                     Format = _depthFormat ?? TextureFormat.Depth24Plus,
                     DepthWriteEnabled = false,
-                    DepthCompare = CompareFunction.Always,
+                    // At the far plane: drawn after opaque geometry, it shades only the pixels nothing covers.
+                    DepthCompare = CompareFunction.LessEqual,
                     StencilFront = new StencilFaceState
                     {
                         Compare = CompareFunction.Always,

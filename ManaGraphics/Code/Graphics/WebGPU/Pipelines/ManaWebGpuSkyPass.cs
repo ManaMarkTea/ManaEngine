@@ -5,7 +5,10 @@ using ManaGraphics.Code.Graphics.Renderers;
 
 namespace ManaGraphics.Code.Graphics.Pipelines
 {
-    /// <summary>Draws the sky first in the scene pass; skipped until the environment map exists.</summary>
+    /// <summary>
+    /// The sky, drawn by the material pass behind the opaque meshes (<see cref="DrawSky"/>) so covered pixels never run its
+    /// shader; skipped until the environment map exists.
+    /// </summary>
     internal sealed unsafe class ManaWebGpuSkyPass : ManaWebGpuRenderPass
     {
         private ManaWebGpuSkybox? _skybox;
@@ -43,7 +46,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             return scene.HasSun && scene.Sky.Mode != ManaSkyMode.DayNightCycle ? -scene.SunDirection : scene.Sky.TowardSun;
         }
 
-        public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)
+        public void DrawSky(ManaWebGpuFrame frame, RenderPassEncoder* pass)
         {
             if (frame.EnvironmentMap == null)
             {

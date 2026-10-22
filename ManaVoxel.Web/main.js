@@ -106,7 +106,8 @@ function installDownloadProgress() {
 // the page with it, keeping the level. Unset means automatic -- phones get the light path, everything else the full one.
 const settings = [
     { key: 'sky', label: 'Sky', options: [['', 'Automatic'], ['simple', 'Simple'], ['stars', 'Simple + real stars'], ['full', 'Full atmosphere']] },
-    { key: 'rendering', label: 'Graphics', options: [['', 'Automatic'], ['mobile', 'Phone'], ['desktop', 'Desktop']] }
+    { key: 'rendering', label: 'Graphics', options: [['', 'Automatic'], ['mobile', 'Phone'], ['desktop', 'Desktop']] },
+    { key: 'resolution', label: 'Resolution', options: [['', 'Full'], ['1080', '1080p'], ['720', '720p']] }
 ];
 
 function mountSettings() {

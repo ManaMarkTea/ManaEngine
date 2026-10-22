@@ -36,7 +36,15 @@ EM_JS(void, mana_request_adapter_impl, (int requestId), {
         }
         return;
     }
-    navigator.gpu.requestAdapter().then((adapter) => {
+    // The fast GPU on a laptop that has two: without asking, Windows may hand the browser the built-in one.
+    navigator.gpu.requestAdapter({ powerPreference: 'high-performance' }).then((adapter) => {
+        if (adapter) {
+            // Which GPU the page got -- the first thing to know when a machine runs slowly.
+            var info = adapter.info || {};
+            var fallback = info.isFallbackAdapter || adapter.isFallbackAdapter;
+            console.log('[WebGPU] adapter: ' + [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(' / ') +
+                (fallback ? ' (software fallback: drawn on the CPU, very slow)' : ''));
+        }
         var adapterId = adapter ? WebGPU.mgrAdapter.create(adapter) : 0;
         var accepted = globalThis.ManaExports &&
             globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserWebGpuCallbackBridge.OnAdapterResult(requestId, adapterId);

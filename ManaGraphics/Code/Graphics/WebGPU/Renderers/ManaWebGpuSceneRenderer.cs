@@ -48,9 +48,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 // Before the shadows, as before anything samples the reflection cubes.
                 AddPass(new ManaWebGpuEnvironmentCapturePass(gpu, environment, sceneCaptureEnabled));
                 AddPass(new ManaWebGpuShadowPass(gpu, _bindings, shadowMap));
-                // First in the scene pass, so ordinary geometry draws over it: the sky is a background.
-                AddPass(new ManaWebGpuSkyPass(gpu));
-                AddPass(new ManaWebGpuMaterialPass(gpu, _bindings, sceneColor));
+                // The material pass draws the sky between its opaque and transparent meshes, where the depth test skips every
+                // pixel already covered: the full atmosphere is costly per pixel, and a board seen from above hides nearly all of it.
+                var sky = AddPass(new ManaWebGpuSkyPass(gpu));
+                AddPass(new ManaWebGpuMaterialPass(gpu, _bindings, sceneColor, sky));
                 _particles = AddPass(new ManaWebGpuParticlePass(gpu, sceneColor));
                 AddPass(new ManaWebGpuWireframeOverlay(gpu, _bindings, sceneColor));
                 AddPass(new ManaWebGpuNormalLinesOverlay(gpu, _bindings, sceneColor));

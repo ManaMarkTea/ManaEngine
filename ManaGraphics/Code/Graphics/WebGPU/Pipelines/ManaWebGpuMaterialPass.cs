@@ -17,9 +17,10 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private readonly Dictionary<string, nint> _pipelines = new();
         private readonly Dictionary<string, nint> _shaderModules = new();
 
-        public ManaWebGpuMaterialPass(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)
+        public ManaWebGpuMaterialPass(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat, ManaWebGpuSkyPass? sky = null)
             : base(gpu)
         {
+            _sky = sky;
             _bindings = bindings;
             _colorFormat = colorFormat;
             try
@@ -34,23 +35,28 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             }
         }
 
+        private readonly ManaWebGpuSkyPass? _sky;
+
         public override string ProfileName => "GPU: Material Pass";
         public override int PipelineCount => _pipelines.Count;
         public override int ShaderModuleCount => _shaderModules.Count;
 
         public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)
         {
-            if (frame.Meshes.Count == 0)
-            {
-                return;
-            }
-
             foreach (var sceneMesh in frame.Meshes)
             {
                 if (!sceneMesh.Instance.IsTransparent && !sceneMesh.Instance.AlwaysOnTop)
                 {
                     DrawMesh(pass, sceneMesh);
                 }
+            }
+
+            // Behind what is opaque (only uncovered pixels pass its depth test), under what is not: water and glass
+            // write no depth, so they must blend over a sky that is already there.
+            _sky?.DrawSky(frame, pass);
+            if (frame.Meshes.Count == 0)
+            {
+                return;
             }
 
             var cameraPosition = frame.Scene.Camera.Position;
