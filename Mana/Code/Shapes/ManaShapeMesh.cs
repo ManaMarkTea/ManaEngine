@@ -9,6 +9,8 @@ namespace Mana.Code.Shapes
     {
         private readonly Action<ManaShapeMeshBuilder> _build;
 
+        /// <param name="context">The context the mesh draws in.</param>
+        /// <param name="build">Adds the shapes, each time the mesh is (re)generated.</param>
         /// <param name="unlit">Shown as drawn, not lit (markers, glowing parts).</param>
         /// <param name="glow">How much the mesh shines with its own colours (0 none): enough to read at dusk, not to light anything.</param>
         /// <param name="blend">Vertex alpha fades it into what is under it.</param>
