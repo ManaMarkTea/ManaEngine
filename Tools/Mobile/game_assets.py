@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 # Where an "Assets/..." reference can live, as ManaLevelLoader.ResolveAssetPath searches.
-ASSET_ROOTS = [ROOT, ROOT / "Mana"]
+ASSET_ROOTS = [ROOT]
 BOOT = [
     "Assets/Textures/DebugTexture_Grid.png", "Assets/Textures/Sky/moon_lroc_1k.jpg",
     "Assets/Fonts/Roboto/Roboto-Regular.ttf", "Assets/Fonts/Roboto/Roboto-Medium.ttf",
@@ -45,12 +45,15 @@ def main():
         files[asset] = find(asset)
     for shader in sorted((ROOT / "ManaGraphics/Assets/Shaders/WebGpu").rglob("*.wgsl")):
         files["Assets/Shaders/WebGpu/" + shader.relative_to(ROOT / "ManaGraphics/Assets/Shaders/WebGpu").as_posix()] = shader
-    content = [p for p in sorted((ROOT / "Content").rglob("*")) if p.suffix in CONTENT_KINDS and "Tests" not in p.parts]
+    # Content/ and each game's own (Games/<Name>/Content, its content mount), bundled where they sit in the repo.
+    folders = [ROOT / "Content"] + sorted(p for p in (ROOT / "Games").glob("*/Content") if p.is_dir())
+    content = [p for folder in folders for p in sorted(folder.rglob("*")) if p.suffix in CONTENT_KINDS and "Tests" not in p.parts]
     # The start screen's level pictures.
-    for picture in sorted((ROOT / "Content/Levels/Pictures").glob("*.jpg")):
-        files["Content/Levels/Pictures/" + picture.name] = picture
+    for folder in folders:
+        for picture in sorted((folder / "Levels/Pictures").glob("*.jpg")):
+            files[picture.relative_to(ROOT).as_posix()] = picture
     for document in content:
-        files["Content/" + document.relative_to(ROOT / "Content").as_posix()] = document
+        files[document.relative_to(ROOT).as_posix()] = document
         text = document.read_text(encoding="utf-8-sig")
         for pack, path, listed in REFERENCE.findall(text):
             if pack:

@@ -18,159 +18,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Assets\Textures\DebugTexture_Grid.png" />
-    <None Remove="Assets\Textures\Environments\chromatic.jpg" />
-    <None Remove="Assets\Textures\Environments\field.jpg" />
-    <None Remove="Assets\Textures\Environments\newport_loft.hdr" />
-    <None Remove="Assets\Textures\Environments\newport_loft.png" />
-    <None Remove="Assets\Textures\Environments\wasteland_clouds_puresky_4k.png" />
-    <None Remove="Assets\Textures\Icons\paddle.png" />
-    <None Remove="Assets\Textures\Icons\particle.png" />
-    <None Remove="Assets\Textures\Icons\powerup_chaos.png" />
-    <None Remove="Assets\Textures\Icons\powerup_confuse.png" />
-    <None Remove="Assets\Textures\Icons\powerup_increase.png" />
-    <None Remove="Assets\Textures\Icons\powerup_passthrough.png" />
-    <None Remove="Assets\Textures\Icons\powerup_speed.png" />
-    <None Remove="Assets\Textures\Icons\powerup_sticky.png" />
-    <None Remove="Assets\Textures\MaterialTextures\background.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\block.png" />
-    <None Remove="Assets\Textures\MaterialTextures\block_solid.png" />
-    <None Remove="Assets\Textures\MaterialTextures\bricks2.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\bricks2_disp.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\bricks2_normal.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\brickwall.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\brickwall_normal.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\concreteTexture.png" />
-    <None Remove="Assets\Textures\MaterialTextures\container.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\container2.png" />
-    <None Remove="Assets\Textures\MaterialTextures\container2_specular.png" />
-    <None Remove="Assets\Textures\MaterialTextures\container2_specular_colored.png" />
-    <None Remove="Assets\Textures\MaterialTextures\grass.png" />
-    <None Remove="Assets\Textures\MaterialTextures\marble.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\matrix.jpg" />
-    <None Remove="Assets\Textures\MaterialTextures\metal.png" />
-    <None Remove="Assets\Textures\MaterialTextures\toy_box_diffuse.png" />
-    <None Remove="Assets\Textures\MaterialTextures\toy_box_disp.png" />
-    <None Remove="Assets\Textures\MaterialTextures\toy_box_normal.png" />
-    <None Remove="Assets\Textures\MaterialTextures\window.png" />
-    <None Remove="Assets\Textures\MaterialTextures\wood.png" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="Assets\Textures\Sky\moon_lroc_1k.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\DebugTexture_Grid.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Environments\chromatic.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Environments\field.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Environments\newport_loft.hdr">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Environments\newport_loft.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Environments\wasteland_clouds_puresky_4k.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\paddle.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\particle.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_chaos.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_confuse.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_increase.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_passthrough.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_speed.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\Icons\powerup_sticky.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\background.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\block.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\block_solid.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\bricks2.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\bricks2_disp.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\bricks2_normal.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\brickwall.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\brickwall_normal.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\concreteTexture.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\container.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\container2.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\container2_specular.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\container2_specular_colored.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\grass.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\marble.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\matrix.jpg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\metal.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\toy_box_diffuse.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\toy_box_disp.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\toy_box_normal.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\window.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Assets\Textures\MaterialTextures\wood.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="BepuPhysics" Version="2.5.0-beta.29" />
     <PackageReference Include="GeometRi" Version="1.5.0.8" />
     <PackageReference Include="SharpGLTF.Core" Version="1.0.6" />
@@ -189,89 +36,18 @@
     <Using Include="System.Numerics" />
   </ItemGroup>
 
+  <!-- The engine's own assets live in the repo's Assets/ beside the model packs; the app carries these as Assets/...
+       (the rest are found in the checkout, or fetched from the catalog on the web). -->
   <ItemGroup>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet.bin">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet.gltf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_baseColor.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_baseColor1.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_baseColor2.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_baseColor3.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_baseColor4.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_normal.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_normal1.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_normal2.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_normal3.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_normal4.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_occlusionRoughnessMetallic.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_occlusionRoughnessMetallic1.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_occlusionRoughnessMetallic2.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_occlusionRoughnessMetallic3.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\FlightHelmet\glTF\FlightHelmet_occlusionRoughnessMetallic4.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\Vox\Captain.vox">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Models\Vox\Ship_Pirate_01.vox">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif">
-      <CopyToOutputDirectory Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">PreserveNewest</CopyToOutputDirectory>
-      <CopyToOutputDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToOutputDirectory>
-      <CopyToPublishDirectory Condition="'$(RuntimeIdentifier)' == 'browser-wasm'">Never</CopyToPublishDirectory>
-    </None>
-    <None Update="Assets\Textures\Environments\kloofendal_48d_partly_cloudy_puresky_4k.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Assets\Textures\Environments\wasteland_clouds_puresky_4k.exr">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Assets\Models\Kenny\" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Assets\Audio\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-    </None>
-    <None Update="Assets\Fonts\**\*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Content Include="..\Assets\Textures\**\*" Exclude="..\Assets\Textures\**\*.exr" LinkBase="Assets\Textures" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Audio\**\*" LinkBase="Assets\Audio" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Fonts\**\*" LinkBase="Assets\Fonts" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Materials\**\*.zip" LinkBase="Assets\Materials" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Models\FlightHelmet\glTF\*" LinkBase="Assets\Models\FlightHelmet\glTF" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Models\Vox\*.vox" LinkBase="Assets\Models\Vox" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Assets\Models\ShaderBall\ShaderBall.glb" Link="Assets\Models\ShaderBall\ShaderBall.glb" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The planet's height map (466 MB) is the desktop's alone. -->
+    <Content Include="..\Assets\Planet\*.tif" LinkBase="Assets\Planet" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
   </ItemGroup>
 
   <ItemGroup>
@@ -285,10 +61,6 @@
        calls it directly regardless of backend. -->
 
 
-  <ItemGroup>
-    <Content Include="Assets\Materials\**\*.zip" CopyToOutputDirectory="PreserveNewest" />
-    <None Update="Assets\Models\ShaderBall\ShaderBall.glb" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
   <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
     <Compile Include="..\ManaGraphics\Code\Graphics\ManaWindowIcon.cs"
              Link="Code\Graphics\ManaWindowIcon.cs" />

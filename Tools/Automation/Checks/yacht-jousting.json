@@ -1,5 +1,5 @@
 [
-  { "type": "open_level", "path": "Content/Levels/Yacht Jousting.manalevel" },
+  { "type": "open_level", "path": "Games/YachtJousting/Content/Levels/Yacht Jousting.manalevel" },
   { "type": "wait", "frames": 120 },
   { "type": "play" },
   { "type": "wait", "frames": 145 },

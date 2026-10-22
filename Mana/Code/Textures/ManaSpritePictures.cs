@@ -202,7 +202,7 @@ namespace Mana
         private static IEnumerable<string> PackFiles()
         {
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var start in new[] { Environment.CurrentDirectory, Path.Combine(Environment.CurrentDirectory, "Mana"), AppContext.BaseDirectory })
+            foreach (var start in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
             {
                 for (var folder = new DirectoryInfo(start); folder != null; folder = folder.Parent)
                 {

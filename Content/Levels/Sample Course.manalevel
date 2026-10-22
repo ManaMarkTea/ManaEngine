@@ -5077,7 +5077,7 @@
               "position": [86, 0, 64.068],
               "rotation": [0, -3.1415856, 0],
               "scale": [3.4, 3.4, 3.4],
-              "asset": "Mana/Assets/Models/Lighthouse/lighthouse.glb"
+              "asset": "Assets/Models/Lighthouse/lighthouse.glb"
             },
             {
               "name": "Lighthouse Rocks A",

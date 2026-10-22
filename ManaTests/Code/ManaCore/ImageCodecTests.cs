@@ -79,7 +79,7 @@ public static class ImageCodecChecks
         }
         check("data that is not a picture throws InvalidDataException", refused, "");
 
-        var moon = FindUp("Mana/Assets/Textures/Sky/moon_lroc_1k.jpg");
+        var moon = FindUp("Assets/Textures/Sky/moon_lroc_1k.jpg");
         if (moon != null)
         {
             var decoded = ManaImageCodec.Load(moon);

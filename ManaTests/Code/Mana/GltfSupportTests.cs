@@ -79,14 +79,14 @@ public static class GltfSupportChecks
         // FindSupportedAlternative finds the plain glTF copy and LoadFile succeeds transparently rather
         // than refusing outright -- the refusal path above is what fires for a pack with no such sibling.
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
-        while (repository != null && !Directory.Exists(Path.Combine(repository.FullName, "Mana", "Assets")))
+        while (repository != null && !File.Exists(Path.Combine(repository.FullName, "Mana", "Mana.sln")))
         {
             repository = repository.Parent;
         }
 
         if (repository != null)
         {
-            var dracoModel = Path.Combine(repository.FullName, "Mana", "Assets", "Models", "Lantern", "glTF-Draco", "Lantern.gltf");
+            var dracoModel = Path.Combine(repository.FullName, "Assets", "Models", "Lantern", "glTF-Draco", "Lantern.gltf");
 
             Check("the shipped Draco Lantern has a plain sibling to fall back to",
                 ManaGltfSupport.FindSupportedAlternative(dracoModel) != null,

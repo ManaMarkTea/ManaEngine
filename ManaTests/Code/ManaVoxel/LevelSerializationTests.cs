@@ -608,8 +608,8 @@ public static class LevelSerializationChecks
             pondNodes.Count(node => node.Name?.StartsWith("Lily Pad", StringComparison.Ordinal) == true
                 && node.Shape == "Disk") == 2);
 
-        var allBundledLevels = Directory
-            .EnumerateFiles(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!, "*.manalevel", SearchOption.AllDirectories)
+        // Games' own levels (Games/<Name>/Content/Levels) are bundled too.
+        var allBundledLevels = ManaLevelLibrary.List(Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!)
             .Select(ManaLevel.Load)
             .ToList();
         Check("bundled level cameras stay clear of the zero-axis grid walls",

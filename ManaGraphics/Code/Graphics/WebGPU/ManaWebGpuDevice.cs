@@ -54,11 +54,9 @@ namespace ManaGraphics.Code.Graphics
             string[] candidates =
             {
                 Path.Combine(Environment.CurrentDirectory, relativePath),
-                Path.Combine(Environment.CurrentDirectory, "Mana", relativePath),
-                Path.Combine(Environment.CurrentDirectory, "..", "Mana", relativePath),
+                Path.Combine(Environment.CurrentDirectory, "..", relativePath),
                 Path.Combine(AppContext.BaseDirectory, relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", relativePath)
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", relativePath)
             };
 
             foreach (var candidate in candidates)

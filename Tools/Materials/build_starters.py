@@ -35,7 +35,7 @@ def build(download=False):
             if not zipfile.is_zipfile(partial):
                 raise ValueError(f"Invalid source ZIP for {pack['name']}")
             partial.replace(source)
-        output = root / 'Mana' / 'Assets' / 'Materials' / pack['category'] / (pack['name'] + '.zip')
+        output = root / 'Assets' / 'Materials' / pack['category'] / (pack['name'] + '.zip')
         compact(source, output, pack['source'], pack['size'], pack['creator'],
                 pack.get('metallic'), pack.get('roughness'))
 

@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "Assets" / "Catalog.md"
 SHEETS = ROOT / "Library" / "AssetPreviews"
-LOOSE = ROOT / "Mana" / "Assets" / "Models"
+LOOSE = ROOT / "Assets" / "Models"
 CONTENT = ROOT / "Content"
 
 
@@ -186,7 +186,7 @@ def write_sheet(z, names, stem):
 
 
 def loose_section():
-    lines = ["## Loose models", "", "In `Mana/Assets/Models`, copied to the app: placed as `Assets/Models/<path>`.", ""] + MODEL_TABLE
+    lines = ["## Loose models", "", "In `Assets/Models`, beside the packs: placed as `Assets/Models/<path>`.", ""] + MODEL_TABLE
     for path in sorted(LOOSE.rglob("*")):
         if path.suffix.lower() not in (".glb", ".gltf"):
             continue
@@ -205,13 +205,16 @@ def loose_section():
 
 
 def content_section():
-    lines = ["## The project's own assets", "", "In `Content/`, referenced by their path under it.", "",
+    lines = ["## The project's own assets", "",
+             "In `Content/`, referenced by their path under it, and each game's `Games/<Name>/Content/`, as `@<Name>/...`.", "",
              "| Kind | Asset |", "|---|---|"]
     kinds = (("Prefab", "*.manaprefab"), ("Sprite sheet", "*.manasheet"), ("9-slice", "*.manaslice"),
              ("Grid map preset", "*.managridpreset"), ("Generator rules", "*.manawfc"), ("Level", "*.manalevel"))
+    mounts = [("", CONTENT)] + [("@" + p.parent.name + "/", p) for p in sorted((ROOT / "Games").glob("*/Content")) if p.is_dir()]
     for title, pattern in kinds:
-        for f in sorted(CONTENT.rglob(pattern)):
-            lines.append(f"| {title} | `{f.relative_to(CONTENT).as_posix()}` |")
+        for prefix, folder in mounts:
+            for f in sorted(folder.rglob(pattern)):
+                lines.append(f"| {title} | `{prefix}{f.relative_to(folder).as_posix()}` |")
     lines.append("")
     return lines
 

@@ -35,5 +35,28 @@ public static class LevelLibraryChecks
         {
             Directory.Delete(folder, true);
         }
+
+        // A project laid out as the repo: Content/Levels, and a game's own Games/<Name>/Content/Levels beside it.
+        var project = Path.Combine(Path.GetTempPath(), "ManaProject-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var main = Path.Combine(project, "Content", "Levels");
+            var game = Path.Combine(project, "Games", "Demo", "Content", "Levels");
+            Directory.CreateDirectory(main);
+            Directory.CreateDirectory(game);
+            var own = Path.Combine(main, "Course.manalevel");
+            var games = Path.Combine(game, "Arena.manalevel");
+            File.WriteAllText(own, "{}");
+            File.WriteAllText(games, "{}");
+            var listed = ManaLevelLibrary.List(main);
+            check("a game's own levels are listed with the main folder's", listed.Count == 2 && listed.Contains(games), string.Join(", ", listed));
+            var tree = ManaLevelFolder.Build(listed, main);
+            check("and come in under Games/<Name>", tree.Find(Path.Combine("Games", "Demo"))?.Levels.SequenceEqual(new[] { games }) == true
+                && tree.Levels.SequenceEqual(new[] { own }), "");
+        }
+        finally
+        {
+            Directory.Delete(project, true);
+        }
     }
 }

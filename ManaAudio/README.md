@@ -9,7 +9,7 @@ In the desktop or web editor, choose **Play → Test Audio** for a short, quiet 
 
 ## Play a clip
 
-Put WAV files under `Mana/Assets/Audio/`. They copy to desktop output as `Assets/Audio/...`;
+Put WAV files under `Assets/Audio/`. They copy to desktop output as `Assets/Audio/...`;
 the existing web asset publisher includes them in the downloadable catalog, outside the boot bundle.
 
 ```csharp

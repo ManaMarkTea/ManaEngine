@@ -105,7 +105,7 @@
           "position": [5.5, 3.44, 12],
           "rotation": [0, 0.5, 0],
           "scale": [5, 5, 5],
-          "asset": "Mana/Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf"
+          "asset": "Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf"
         },
         {
           "name": "Lantern - Emissive Detail",
@@ -113,7 +113,7 @@
           "position": [20.8, 3.6, 12],
           "rotation": [0, 0.35, 0],
           "scale": [0.14, 0.14, 0.14],
-          "asset": "Mana/Assets/Models/Lantern/glTF/Lantern.gltf"
+          "asset": "Assets/Models/Lantern/glTF/Lantern.gltf"
         },
         {
           "name": "Water Bottle - Mixed Materials",
@@ -121,7 +121,7 @@
           "position": [28.5, 3.62, 12],
           "rotation": [0, -0.35, 0],
           "scale": [14, 14, 14],
-          "asset": "Mana/Assets/Models/WaterBottle/glTF/WaterBottle.gltf"
+          "asset": "Assets/Models/WaterBottle/glTF/WaterBottle.gltf"
         }
       ]
     },
@@ -211,7 +211,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:gold.zip/material_albedo.png",
@@ -244,7 +244,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:silver-brushed-steel.zip/material_albedo.png",
@@ -277,7 +277,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:aluminum.zip/material_occlusion.png",
@@ -311,7 +311,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:copper.zip/material_albedo.png",
@@ -344,7 +344,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:rusted-corrugated-steel.zip/material_occlusion.png",
@@ -378,7 +378,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:black-plastic.zip/material_albedo.png",
@@ -410,7 +410,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:scratched-blue-plastic.zip/material_albedo.png",
@@ -442,7 +442,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:oak.zip/material_occlusion.png",
@@ -476,7 +476,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:pine.zip/material_occlusion.png",
@@ -509,7 +509,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:dark-wood-parquet.zip/material_occlusion.png",
@@ -543,7 +543,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:white-marble.zip/material_occlusion.png",
@@ -576,7 +576,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:granite.zip/material_albedo.png",
@@ -608,7 +608,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:denim.zip/material_occlusion.png",
@@ -641,7 +641,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "albedoMap": "zip:brown-leather.zip/material_albedo.png",
@@ -674,7 +674,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:sand.zip/material_occlusion.png",
@@ -707,7 +707,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:grass.zip/material_occlusion.png",
@@ -740,7 +740,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:soil.zip/material_occlusion.png",
@@ -773,7 +773,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:concrete.zip/material_occlusion.png",
@@ -805,7 +805,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:plaster.zip/material_occlusion.png",
@@ -838,7 +838,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:black-brick-wall.zip/material_occlusion.png",
@@ -871,7 +871,7 @@
             2.1,
             2.1
           ],
-          "asset": "Mana/Assets/Models/ShaderBall/ShaderBall.glb",
+          "asset": "Assets/Models/ShaderBall/ShaderBall.glb",
           "meshMaterials": {
             "0": {
               "occlusionMap": "zip:ceramic-tile.zip/material_occlusion.png",

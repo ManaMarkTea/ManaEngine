@@ -1,5 +1,5 @@
-"""Writes the endless runner's track sections (Content/Prefabs/Runner/<Biome>/*.manaprefab) and its level
-(Content/Levels/Endless Run.manalevel). Run from anywhere: python Tools/Runner/make_sections.py
+"""Writes the endless runner's track sections (Games/Runner/Content/Prefabs/Sections/<Biome>/*.manaprefab) and its level
+(Games/Runner/Content/Levels/Endless Run.manalevel). Run from anywhere: python Tools/Runner/make_sections.py
 
 A section is 30 m of track along -Z from its origin, lanes at x = -2.2, 0, 2.2 (Games/Runner/Code/RunnerMode.cs). The
 runner reads pieces by name:
@@ -21,8 +21,8 @@ import uuid
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PREFABS = ROOT / "Content" / "Prefabs" / "Runner"
-LEVEL = ROOT / "Content" / "Levels" / "Endless Run.manalevel"
+PREFABS = ROOT / "Games" / "Runner" / "Content" / "Prefabs" / "Sections"
+LEVEL = ROOT / "Games" / "Runner" / "Content" / "Levels" / "Endless Run.manalevel"
 LANES = (-2.2, 0.0, 2.2)
 LENGTH = 30.0
 DUNGEON_DEPTH = 5.0

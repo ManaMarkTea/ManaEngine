@@ -859,15 +859,11 @@ namespace ManaVoxel.Code.Assets
         public static IEnumerable<string> Roots()
         {
             yield return Path.Combine(Environment.CurrentDirectory, "Assets");
-            yield return Path.Combine(Environment.CurrentDirectory, "Mana", "Assets");
 
             yield return Path.Combine(AppContext.BaseDirectory, "Assets");
-            yield return Path.Combine(AppContext.BaseDirectory, "Mana", "Assets");
 
             yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Assets");
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", "Assets");
             yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Assets");
-            yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "Mana", "Assets");
         }
 
         private static MeshScanResult Scan()

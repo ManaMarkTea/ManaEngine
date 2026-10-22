@@ -68,7 +68,7 @@ namespace Mana.Code.UI.ManaUi
             // Both roots, because they are not the same thing and either can be the right one: the editor
             // runs with its output folder as the working directory, while a tool or a test run can have
             // the repository root. Searching only one of them finds nothing in the other.
-            var roots = new[] { Directory.GetCurrentDirectory(), Path.Combine(Directory.GetCurrentDirectory(), "Mana"), AppContext.BaseDirectory }
+            var roots = new[] { Directory.GetCurrentDirectory(), AppContext.BaseDirectory }
                 .Where(r => !string.IsNullOrEmpty(r))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();

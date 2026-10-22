@@ -15,8 +15,8 @@ public sealed class ManaLevelFolder
         var root = new ManaLevelFolder("All Scenes", "");
         foreach (var path in paths)
         {
-            var relative = Path.GetRelativePath(rootFolder, path);
-            if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar))
+            // Games' own levels come in under Games/<Name>.
+            if (ManaLevelLibrary.RelativePath(path, rootFolder) is not { } relative)
             {
                 continue;
             }

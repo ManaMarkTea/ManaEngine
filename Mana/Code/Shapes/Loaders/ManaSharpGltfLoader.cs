@@ -17,7 +17,7 @@ namespace Mana.Code.Shapes.Loaders
     // skeleton/animation) so callers -- ManaWorld.LoadFromGltf(Memory), CharacterSpawnService,
     // VoxelFileImportService -- don't need to know which backend loaded a file.
     //
-    // Verified against Mana/Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf for the static
+    // Verified against Assets/Models/FlightHelmet/glTF/FlightHelmet.gltf for the static
     // mesh + material path. The skinning/animation path below is implemented against SharpGLTF's
     // documented Skin/Animation API but has not been exercised against a live rigged asset --
     // worth a dedicated check before relying on it for a real character.

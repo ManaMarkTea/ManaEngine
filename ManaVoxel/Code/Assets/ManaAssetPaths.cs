@@ -19,11 +19,10 @@ namespace ManaVoxel.Code.Assets
                 return Path.GetFullPath(assetReference);
             }
 
-            var normalized = assetReference.Replace('/', Path.DirectorySeparatorChar);
+            var normalized = LegacyFree(assetReference).Replace('/', Path.DirectorySeparatorChar);
             string[] roots =
             {
                 workingDirectory,
-                Path.Combine(workingDirectory, "Mana"),
                 AppContext.BaseDirectory
             };
 
@@ -45,13 +44,10 @@ namespace ManaVoxel.Code.Assets
                     continue;
                 }
 
-                foreach (var root in new[] { directory.FullName, Path.Combine(directory.FullName, "Mana") })
+                var candidate = Path.GetFullPath(Path.Combine(directory.FullName, normalized));
+                if (File.Exists(candidate))
                 {
-                    var candidate = Path.GetFullPath(Path.Combine(root, normalized));
-                    if (File.Exists(candidate))
-                    {
-                        return candidate;
-                    }
+                    return candidate;
                 }
 
                 break;
@@ -60,5 +56,10 @@ namespace ManaVoxel.Code.Assets
             return Path.GetFullPath(Path.Combine(workingDirectory, normalized));
         }
 
+        // The engine's assets were once kept in Mana/Assets; levels saved then still name them that way.
+        private static string LegacyFree(string reference) =>
+            reference.StartsWith("Mana/Assets/", StringComparison.Ordinal) || reference.StartsWith(@"Mana\Assets\", StringComparison.Ordinal)
+                ? reference[5..]
+                : reference;
     }
 }

@@ -18,7 +18,7 @@ The 21 bundled presets use maps up to 512px and total about 15.7 MiB. Search by 
 
 Also included: dark wood parquet, black brick wall and concrete. Sources and CC0 notes are included inside each ZIP; the complete download manifest is `Tools/Materials/starter-packs.json`. Silver is silver-colored brushed steel. Aluminum uses constant metalness 1 and roughness 0.28 because its original pack used specular shading. White marble uses roughness 0.2. Normal maps are renormalized after resizing; height and specular maps are omitted.
 
-Add licensed material ZIPs to `Mana/Assets/Materials/` (bundled with builds), or
+Add licensed material ZIPs to `Assets/Materials/` (bundled with builds), or
 `Assets/Materials/` (local project packs). Open the picker again to discover new packs.
 Use distinct ZIP filenames. Images may be nested in folders; map filenames should
 contain `albedo`, `basecolor`, `diffuse`, `normal`, `roughness`, `metallic`,
@@ -29,7 +29,7 @@ To make another compact pack after checking its source license:
 
 ```powershell
 python -m pip install Pillow numpy
-python Tools/Materials/compact.py input.zip Mana/Assets/Materials/new-pack.zip --source https://cc0-textures.com/t/source-page --size 512
+python Tools/Materials/compact.py input.zip Assets/Materials/new-pack.zip --source https://cc0-textures.com/t/source-page --size 512
 ```
 
 Rebuild the categorized starter set (originals stay in ignored Artifacts):

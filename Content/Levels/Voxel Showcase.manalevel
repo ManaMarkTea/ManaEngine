@@ -27,7 +27,7 @@
       "position": [32, 0, 32],
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1],
-      "asset": "Mana/Assets/Models/Vox/Captain.vox"
+      "asset": "Assets/Models/Vox/Captain.vox"
     },
     {
       "name": "Player Start",

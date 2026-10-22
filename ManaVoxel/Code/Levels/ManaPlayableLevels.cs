@@ -7,7 +7,7 @@ namespace ManaVoxel.Code.Levels
 
     /// <summary>
     /// The levels a player can pick from: those whose <c>web</c> block says publish (scene Inspector > Publishing),
-    /// in their order, each with its picture from Content/Levels/Pictures when there is one -- the list
+    /// in their order, each with its picture from the Pictures folder beside it when there is one -- the list
     /// Tools/WebAssets/publish_assets.py writes for the web, read here for the apps that carry their levels.
     /// </summary>
     public static class ManaPlayableLevels
@@ -19,8 +19,10 @@ namespace ManaVoxel.Code.Levels
                 return Array.Empty<ManaPlayableLevel>();
             }
 
+            // The main folder's and each game's own (Games/<Name>/Content/Levels).
             var levels = new List<ManaPlayableLevel>();
-            foreach (var path in Directory.EnumerateFiles(levelsFolder, "*.manalevel", SearchOption.TopDirectoryOnly))
+            foreach (var path in ManaLevelLibrary.Folders(levelsFolder).Where(folder => Directory.Exists(folder.Folder))
+                .SelectMany(folder => Directory.EnumerateFiles(folder.Folder, "*.manalevel", SearchOption.TopDirectoryOnly)))
             {
                 if (Read(path) is { } level)
                 {

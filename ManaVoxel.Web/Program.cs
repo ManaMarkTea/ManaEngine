@@ -57,11 +57,14 @@ try
     else
     {
         var levelPath = "Content/Levels/Sample Course.manalevel";
-        if (args.Length > 0 && args[0].StartsWith("Content/Levels/", StringComparison.Ordinal)
-            && !args[0].Contains("..") && args[0].EndsWith(".manalevel", StringComparison.Ordinal)
-            && File.Exists(args[0]))
+        if (args.Length > 0 && (args[0].StartsWith("Content/Levels/", StringComparison.Ordinal) || args[0].StartsWith("Games/", StringComparison.Ordinal))
+            && !args[0].Contains("..") && args[0].EndsWith(".manalevel", StringComparison.Ordinal))
         {
-            levelPath = args[0];
+            // A game's level moved into Games/<Name>/Content/Levels; a link from before that still finds it by name.
+            var moved = Directory.Exists("Games")
+                ? Directory.EnumerateDirectories("Games").Select(game => $"{game.Replace('\\', '/')}/Content/Levels/{Path.GetFileName(args[0])}").FirstOrDefault(File.Exists)
+                : null;
+            levelPath = File.Exists(args[0]) ? args[0] : moved ?? levelPath;
         }
         Console.WriteLine($"[BrowserPlay] Level: {levelPath}");
         await ManaVoxel.Code.Assets.ManaLevelAssetPreloader.EnsureAsync(ManaLevel.Load(levelPath));

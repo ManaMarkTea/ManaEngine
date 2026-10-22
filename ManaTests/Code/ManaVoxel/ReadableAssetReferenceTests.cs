@@ -107,7 +107,7 @@ public static class ReadableAssetReferenceChecks
         }
 
         // ---------------------------------------------------------------- a model that is a plain file, not in a zip
-        var lighthousePath = MeshAssetLibrary.IsSupported(".glb") ? ManaAssetPaths.Resolve("Mana/Assets/Models/Lighthouse/lighthouse.glb") : string.Empty;
+        var lighthousePath = MeshAssetLibrary.IsSupported(".glb") ? ManaAssetPaths.Resolve("Assets/Models/Lighthouse/lighthouse.glb") : string.Empty;
         if (File.Exists(lighthousePath))
         {
             var lighthouseWorld = new ManaWorld();
@@ -115,7 +115,7 @@ public static class ReadableAssetReferenceChecks
             lighthouseWorld.Context = lighthouseContext;
             lighthouseWorld.DefaultScene = new ManaScene(lighthouseContext) { Name = "Default Scene" };
             lighthouseWorld.Scenes.Add(lighthouseWorld.DefaultScene);
-            var lighthouse = ManaMeshAssetLoader.For(lighthouseWorld).Load("Mana/Assets/Models/Lighthouse/lighthouse.glb", lighthouseWorld.DefaultScene);
+            var lighthouse = ManaMeshAssetLoader.For(lighthouseWorld).Load("Assets/Models/Lighthouse/lighthouse.glb", lighthouseWorld.DefaultScene);
             lighthouse.UpdateTransform();
             var lighthouseMeshes = new List<ManaRenderMeshInstance>();
             lighthouse.CollectRenderMeshInstances(lighthouseMeshes);
@@ -146,10 +146,11 @@ public static class ReadableAssetReferenceChecks
         Check("and each scene has its own", otherComputed == 1);
 
         // ---------------------------------------------------------------- every bundled level
+        // Content/Levels and each game's own (Games/<Name>/Content/Levels).
         var levelsDirectory = Path.GetDirectoryName(ManaLevelLibrary.ResolvePath("Little Pond"))!;
         var missing = new List<string>();
         var checkedModels = 0;
-        foreach (var file in Directory.EnumerateFiles(levelsDirectory, "*.manalevel"))
+        foreach (var file in ManaLevelLibrary.Folders(levelsDirectory).SelectMany(folder => Directory.EnumerateFiles(folder.Folder, "*.manalevel")))
         {
             var level = ManaLevel.Load(file);
             foreach (var node in Walk(level.Nodes))

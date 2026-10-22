@@ -12,7 +12,7 @@ from urllib.parse import unquote, urlsplit
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
 # Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
 EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
-ROOTS = ("Assets", "Mana/Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
+ROOTS = ("Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
 
@@ -144,29 +144,36 @@ def attach_thumbnails(root, library, files, models):
     print(f"Thumbnails: {attached} pre-built, {stale} without one (run Tools/WebAssets/bake_thumbnails.py).")
 
 
+def level_folders(root):
+    """Content/Levels, then each game's own (Games/<Name>/Content/Levels, its content mount)."""
+    yield root / "Content" / "Levels"
+    yield from sorted(path for path in (root / "Games").glob("*/Content/Levels") if path.is_dir())
+
+
 def publish_levels(root, output):
     """levels.json: what the page's level selector lists -- each bundled level's name, file, picture and size.
     A level is listed when its own "web" block says publish (the scene's Publishing in the editor's Inspector), with
-    that block's description and order. Its picture is Content/Levels/Pictures/<name>.jpg, copied beside the list."""
+    that block's description and order. Its picture is Pictures/<name>.jpg beside it, copied beside the list."""
     levels = []
     pictures = output / "level-pictures"
     pictures.mkdir(exist_ok=True)
-    for source in sorted((root / "Content" / "Levels").rglob("*.manalevel")):
-        document = json.loads(source.read_text(encoding="utf-8-sig"))
-        name = document.get("name") or source.stem
-        web = document.get("web") or {}
-        if not web.get("publish"):
-            continue
-        def count(nodes):
-            return sum(1 + count(node.get("children") or []) for node in nodes or [])
-        entry = dict(name=name, file="Content/Levels/" + source.relative_to(root / "Content" / "Levels").as_posix(),
-                     description=web.get("description") or "", nodes=count(document.get("nodes")),
-                     order=web.get("order", 100))
-        picture = root / "Content" / "Levels" / "Pictures" / f"{name}.jpg"
-        if picture.exists():
-            shutil.copyfile(picture, pictures / picture.name)
-            entry["picture"] = "level-pictures/" + picture.name
-        levels.append(entry)
+    for folder in level_folders(root):
+        for source in sorted(folder.rglob("*.manalevel")):
+            document = json.loads(source.read_text(encoding="utf-8-sig"))
+            name = document.get("name") or source.stem
+            web = document.get("web") or {}
+            if not web.get("publish"):
+                continue
+            def count(nodes):
+                return sum(1 + count(node.get("children") or []) for node in nodes or [])
+            entry = dict(name=name, file=source.relative_to(root).as_posix(),
+                         description=web.get("description") or "", nodes=count(document.get("nodes")),
+                         order=web.get("order", 100))
+            picture = folder / "Pictures" / f"{name}.jpg"
+            if picture.exists():
+                shutil.copyfile(picture, pictures / picture.name)
+                entry["picture"] = "level-pictures/" + picture.name
+            levels.append(entry)
     levels.sort(key=lambda level: (level["order"], level["name"]))
     temporary = output / "levels.json.tmp"
     temporary.write_text(json.dumps(dict(levels=levels), indent=1), encoding="utf-8")

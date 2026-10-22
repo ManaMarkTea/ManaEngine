@@ -106,15 +106,15 @@ namespace ManaVoxel.Code.Levels
                 Prefab = new ManaPrefabReference
                 {
                     AssetPath = path,
-                    AssetId = ManaPrefab.ReadId(Path.Combine(Mana.Code.Content.ManaContentAssets.Root, path))
+                    AssetId = ManaPrefab.ReadId(Mana.Code.Content.ManaContentMounts.FullPath(Mana.Code.Content.ManaContentAssets.Root, path) ?? path)
                 }
             });
             RunnerContent.Destroy = ManaPrefabRuntime.Destroy;
             RunnerContent.Sections = () =>
             {
-                var folder = Path.Combine(Mana.Code.Content.ManaContentAssets.Root, RunnerContent.SectionFolder);
+                var folder = Mana.Code.Content.ManaContentMounts.FullPath(Mana.Code.Content.ManaContentAssets.Root, RunnerContent.SectionFolder) ?? string.Empty;
                 // Biomes are the folders under it (City, Sky, ...).
-                return Directory.Exists(folder)
+                return folder.Length > 0 && Directory.Exists(folder)
                     ? Directory.EnumerateFiles(folder, "*.manaprefab", SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase)
                         .Select(file => $"{RunnerContent.SectionFolder}/{Path.GetRelativePath(folder, file).Replace('\\', '/')}").ToList()
                     : [];

@@ -1,8 +1,0 @@
-{
-  "format": "mana-level",
-  "version": 2,
-  "name": "Foundry",
-  "camera": { "position": [64, 70, 120], "rotation": [-0.9, 0, 0] },
-  "gameModes": [{ "id": "fe704e0616ac47129a703182c9881201", "type": "Foundry", "properties": {} }],
-  "nodes": []
-}

@@ -104,10 +104,9 @@ namespace Mana
             string[] candidates =
             {
                 Path.Combine(Environment.CurrentDirectory, texturePath),
-                Path.Combine(Environment.CurrentDirectory, "Mana", texturePath),
-                Path.Combine(Environment.CurrentDirectory, "..", "Mana", texturePath),
+                Path.Combine(Environment.CurrentDirectory, "..", texturePath),
                 Path.Combine(AppContext.BaseDirectory, texturePath),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", texturePath)
+                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", texturePath)
             };
 
             foreach (var candidate in candidates)

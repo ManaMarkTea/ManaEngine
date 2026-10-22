@@ -9,7 +9,7 @@ import wave
 
 from generate_starter_pack import RATE, ROOT, TAU, chime, impact, mix, noise, tone, write_preview, write_wav
 
-OUTPUT = ROOT / "Mana/Assets/Audio/SampleCourse"
+OUTPUT = ROOT / "Assets/Audio/SampleCourse"
 LEVEL = ROOT / "Content/Levels/Sample Course.manalevel"
 
 

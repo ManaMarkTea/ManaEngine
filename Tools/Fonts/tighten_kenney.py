@@ -1,4 +1,4 @@
-"""Writes Mana/Assets/Fonts/Kenney/KenneyFuture.ttf and KenneyFutureNarrow.ttf from Kenney's UI Pack (CC0).
+"""Writes Assets/Fonts/Kenney/KenneyFuture.ttf and KenneyFutureNarrow.ttf from Kenney's UI Pack (CC0).
 
 The pack's fonts have no kerning table and set every advance well past the ink (the narrow cut's A is 512 units wide
 in an 844 advance), so letters sit far apart. This keeps the outlines and sets each advance to the glyph's own width
@@ -12,7 +12,7 @@ from fontTools.pens.boundsPen import BoundsPen
 from fontTools.ttLib import TTFont
 
 PACK = Path("Assets/kenney_ui-pack.zip")
-OUT = Path("Mana/Assets/Fonts/Kenney")
+OUT = Path("Assets/Fonts/Kenney")
 
 # Units are 1/1024 em; the fonts' stems are 128 wide. The wide cut keeps more air than the narrow one.
 FONTS = {"Kenney Future.ttf": ("KenneyFuture.ttf", 170), "Kenney Future Narrow.ttf": ("KenneyFutureNarrow.ttf", 130)}

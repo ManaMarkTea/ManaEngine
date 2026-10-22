@@ -102,7 +102,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 var captured = path;
                 stack.Children.Add(new Button()
-                    .Label(Path.ChangeExtension(Path.GetRelativePath(ManaLevelLibrary.ResolveFolder(), captured), null))
+                    .Label(Path.ChangeExtension(ManaLevelLibrary.RelativePath(captured, ManaLevelLibrary.ResolveFolder()) ?? Path.GetFileName(captured), null))
                     .WithTooltip(captured)
                     .OnClick(() => levels.Open(captured)));
             }

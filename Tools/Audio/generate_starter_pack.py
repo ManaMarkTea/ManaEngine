@@ -15,7 +15,7 @@ import wave
 
 RATE = 48000
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "Mana/Assets/Audio/Starter"
+OUTPUT = ROOT / "Assets/Audio/Starter"
 TAU = math.tau
 
 

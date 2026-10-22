@@ -496,12 +496,9 @@ namespace ManaCore.Graphics
             {
                 Path.Combine(Environment.CurrentDirectory, "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(Environment.CurrentDirectory, "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
-                Path.Combine(Environment.CurrentDirectory, "Mana", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(Environment.CurrentDirectory, "..", "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
-                Path.Combine(Environment.CurrentDirectory, "..", "Mana", "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(AppContext.BaseDirectory, "Assets", "Shaders", "WebGpu", shaderFileName),
                 Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "ManaGraphics", "Assets", "Shaders", "WebGpu", shaderFileName),
-                Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Mana", "Assets", "Shaders", "WebGpu", shaderFileName)
             };
 
             foreach (var candidate in candidates)

@@ -1770,7 +1770,7 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 
 ## Loose models
 
-In `Mana/Assets/Models`, copied to the app: placed as `Assets/Models/<path>`.
+In `Assets/Models`, beside the packs: placed as `Assets/Models/<path>`.
 
 | Model | W | H | D | Sits at (when off centre) | Clips |
 |---|---:|---:|---:|---|---|
@@ -1871,7 +1871,7 @@ In `Mana/Assets/Models`, copied to the app: placed as `Assets/Models/<path>`.
 
 ## The project's own assets
 
-In `Content/`, referenced by their path under it.
+In `Content/`, referenced by their path under it, and each game's `Games/<Name>/Content/`, as `@<Name>/...`.
 
 | Kind | Asset |
 |---|---|
@@ -1886,38 +1886,46 @@ In `Content/`, referenced by their path under it.
 | Prefab | `Prefabs/Glowing Coin.manaprefab` |
 | Prefab | `Prefabs/Lamp.manaprefab` |
 | Prefab | `Prefabs/New Prefab.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Crabs.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Enter.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Gaps.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Leave.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Pier.manaprefab` |
-| Prefab | `Prefabs/Runner/Beach/Beach Shallows.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Barriers.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Cones.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Crates.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Duck.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Mixed.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Orcs.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Start.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Train Yard.manaprefab` |
-| Prefab | `Prefabs/Runner/City/Runner Trains.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Crypt Gates.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Crypt Pits.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Crypt Spikes.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Crypt Tombs.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Crypt Undead.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Dungeon Enter.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Dungeon Leave.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Mine Carts.manaprefab` |
-| Prefab | `Prefabs/Runner/Dungeon/Mine Junction.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Bees.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Clouds.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Enter.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Hops.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Islands.manaprefab` |
-| Prefab | `Prefabs/Runner/Sky/Sky Leave.manaprefab` |
 | Prefab | `Prefabs/Spikes 2D.manaprefab` |
 | Prefab | `Prefabs/Spring 2D.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Conveyor Turn Left.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Conveyor Turn Right.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Conveyor.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Left.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Right.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Fast Conveyor.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Merger.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Splitter.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Crabs.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Enter.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Gaps.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Leave.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Pier.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Shallows.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Barriers.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Cones.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Crates.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Duck.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Mixed.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Orcs.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Start.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Train Yard.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/City/Runner Trains.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Gates.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Pits.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Spikes.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Tombs.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Undead.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Dungeon Enter.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Dungeon Leave.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Mine Carts.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Dungeon/Mine Junction.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Bees.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Clouds.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Enter.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Hops.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Islands.manaprefab` |
+| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Leave.manaprefab` |
 | Sprite sheet | `Sprites/Blob.manasheet` |
 | Sprite sheet | `Sprites/Characters/Beige Alien.manasheet` |
 | Sprite sheet | `Sprites/Characters/Green Alien.manasheet` |
@@ -1981,7 +1989,6 @@ In `Content/`, referenced by their path under it.
 | Generator rules | `Generators/Dungeon.manawfc` |
 | Generator rules | `Generators/Table Clutter.manawfc` |
 | Level | `Levels/2D Sample.manalevel` |
-| Level | `Levels/Endless Run.manalevel` |
 | Level | `Levels/GPU Particle Bounce.manalevel` |
 | Level | `Levels/GPU Particles.manalevel` |
 | Level | `Levels/Little Pond.manalevel` |
@@ -1998,8 +2005,11 @@ In `Content/`, referenced by their path under it.
 | Level | `Levels/Tests/Reflections.manalevel` |
 | Level | `Levels/Tests/Shadow Contact.manalevel` |
 | Level | `Levels/Tests/Sprite Normals.manalevel` |
-| Level | `Levels/Train Yard Wars Couch.manalevel` |
-| Level | `Levels/Train Yard Wars Duel.manalevel` |
-| Level | `Levels/Train Yard Wars.manalevel` |
 | Level | `Levels/Voxel Showcase.manalevel` |
-| Level | `Levels/Yacht Jousting.manalevel` |
+| Level | `@CodeScreensaver/Levels/Code Screensaver.manalevel` |
+| Level | `@Foundry/Levels/Foundry.manalevel` |
+| Level | `@Runner/Levels/Endless Run.manalevel` |
+| Level | `@TrainYardWars/Levels/Train Yard Wars Couch.manalevel` |
+| Level | `@TrainYardWars/Levels/Train Yard Wars Duel.manalevel` |
+| Level | `@TrainYardWars/Levels/Train Yard Wars.manalevel` |
+| Level | `@YachtJousting/Levels/Yacht Jousting.manalevel` |

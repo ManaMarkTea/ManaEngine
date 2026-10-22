@@ -110,7 +110,7 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
         private static List<string> MaterialFiles()
         {
             var found = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var root in new[] { Environment.CurrentDirectory, Path.Combine(Environment.CurrentDirectory, "Mana"), AppContext.BaseDirectory })
+            foreach (var root in new[] { Environment.CurrentDirectory, AppContext.BaseDirectory })
             {
                 var folder = Path.Combine(root, "Assets", "Materials");
                 if (!Directory.Exists(folder))

@@ -6,12 +6,12 @@ the default page is the play level selector.
 
 ## Levels and the menu
 
-The page opens on a level selector: every level in `Content/Levels` whose own `web` block says
+The page opens on a level selector: every level in `Content/Levels` and each game's `Games/<Name>/Content/Levels` whose own `web` block says
 `"publish": true` (the scene's Publishing section in the editor's Inspector), with its `description`, in its
-`order`, and a picture from `Content/Levels/Pictures/<name>.jpg`. `Tools/WebAssets/publish_assets.py` writes the
+`order`, and a picture from `Pictures/<name>.jpg` beside it. `Tools/WebAssets/publish_assets.py` writes the
 list (`levels.json`) at publish time. A level's game modes run here as on desktop; one that builds its world in
 code names what to fetch ahead in `ManaLevelGameMode.Assets`, and one that handles Escape keeps the page's menu shut. Picking one reloads the page with
-`?level=Content/Levels/<file>`; only then does the engine download, and the level is the program's argument.
+`?level=<its path>` (`Content/Levels/<file>`, or `Games/<Name>/Content/Levels/<file>`; an older link to a game level under `Content/Levels/` is found by name); only then does the engine download, and the level is the program's argument.
 
 Escape while playing opens the pause menu (Resume, Restart level, Choose another level); the game stops
 while it is open and the page keeps its keys and clicks. The menu talks to the game through
@@ -111,11 +111,11 @@ or backgrounding the page releases held controls. FPS appears at the upper left 
 Change the path passed to `BrowserPlayGameMode` in `Program.cs` to a level under `Content/Levels/`.
 
 Both browser projects import `WebAssets.props`, which embeds shaders, two Roboto fonts,
-default textures, the mini-character pack, and all `.manalevel` files under `Content/Levels/`.
-`Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`, `Mana/Assets/`,
+default textures, the mini-character pack, and all `.manalevel` files under `Content/Levels/` and the games' `Games/*/Content/`.
+`Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`,
 `ManaGraphics/Assets/`, `ManaUI/Assets/`, and `ManaVoxel/Assets/` as separate hashed files,
 plus a small catalog. The only exclusion is the oversized desktop planet source
-`Mana/Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`.
+`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`.
 
 The initial level's models/packs and glTF sidecars download before its synchronous loader
 runs. Subsequent uses reuse staged files or the persistent browser cache. New assets are

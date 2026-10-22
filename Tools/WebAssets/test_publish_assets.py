@@ -10,17 +10,17 @@ class PublishAssetsTests(unittest.TestCase):
     def test_complete_catalog_dependencies_and_immutable_outputs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            models = root / 'Mana/Assets/Models'
+            models = root / 'Assets/Models'
             models.mkdir(parents=True)
             (models / 'test.gltf').write_text(json.dumps({
                 'buffers': [{'uri': 'test.bin'}], 'images': [{'uri': 'paint%20red.png'}]}))
             (models / 'test.bin').write_bytes(b'buffer')
             (models / 'paint red.png').write_bytes(b'texture')
-            excluded = root / 'Mana' / EXCLUDED
+            excluded = root / EXCLUDED
             excluded.parent.mkdir(parents=True)
             excluded.write_bytes(b'oversized')
             assets = root / 'Assets'
-            assets.mkdir()
+            assets.mkdir(exist_ok=True)
             geodata = assets / 'GeoData'
             geodata.mkdir()
             with zipfile.ZipFile(geodata / 'ne_10m_lakes.zip', 'w') as archive:
