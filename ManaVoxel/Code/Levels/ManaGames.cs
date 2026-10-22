@@ -19,11 +19,11 @@ namespace ManaVoxel.Code.Levels
     internal static class ManaGames
     {
         // A prefab built once in a holding scene: the template every placement of it copies.
-        private static ManaSceneNode PrefabTemplate(string asset, Mana.Code.ManaContext context)
+        private static ManaSceneNode PrefabTemplate(string asset, Mana.Code.ManaContext context, ManaScene? into = null)
         {
             var root = ManaContentLibrary.RootFor(context.World);
             var file = Mana.Code.Content.ManaContentMounts.FullPath(root, asset) ?? throw new FileNotFoundException($"No content folder for '{asset}'.");
-            var node = ManaPrefabRuntime.Instantiate(context, new Mana.ManaScene(context) { Name = "Prefab Prototypes" }, new ManaLevelNode
+            var node = ManaPrefabRuntime.Instantiate(context, into ?? new Mana.ManaScene(context) { Name = "Prefab Prototypes" }, new ManaLevelNode
             {
                 Kind = Mana.Code.Levels.ManaLevelSourceKind.Prefab,
                 Name = Path.GetFileNameWithoutExtension(asset),
@@ -158,7 +158,15 @@ namespace ManaVoxel.Code.Levels
                     return new YachtModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
                 })
             });
-            TywModel.Loader = (asset, world, into) => ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), world, into);
+            // Train Yard Wars reads models and its own prefabs (@TrainYardWars/Prefabs/...) the same way: for their meshes.
+            TywModel.Loader = (asset, world, into) =>
+            {
+                if (asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase))
+                {
+                    return PrefabTemplate(asset, world.Context, into);
+                }
+                return ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), world, into);
+            };
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = TrainYardWarsMode.ModeType,

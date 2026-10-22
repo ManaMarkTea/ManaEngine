@@ -1967,6 +1967,14 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Prefab | `@Runner/Prefabs/Sections/Sky/Sky Hops.manaprefab` |
 | Prefab | `@Runner/Prefabs/Sections/Sky/Sky Islands.manaprefab` |
 | Prefab | `@Runner/Prefabs/Sections/Sky/Sky Leave.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Barracks.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Depot.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Headlamp.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Station.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Torch.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Tower.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Yard Dock.manaprefab` |
+| Prefab | `@TrainYardWars/Prefabs/Yard Site.manaprefab` |
 | Sprite sheet | `Sprites/Blob.manasheet` |
 | Sprite sheet | `Sprites/Characters/Beige Alien.manasheet` |
 | Sprite sheet | `Sprites/Characters/Green Alien.manasheet` |

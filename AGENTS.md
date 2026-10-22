@@ -331,7 +331,9 @@ A prefab is plain JSON, so one can be authored without the editor -- write the f
   its content folder, editable in the editor; code places it and moves its parts by name. Foundry is the example: each
   building is `Games/Foundry/Content/Prefabs/<Name>.manaprefab`, its view calls `UsePrefab` (a `Body` group turns with
   the building's facing) and `Find("Pivot")` for the parts it animates, taking each part's authored place as its home.
-  Copies keep the prefab's tree and share its meshes (`ManaGames.PrefabModel`). Only what is drawn from live state stays
+  Copies keep the prefab's tree and share its meshes (`ManaGames.PrefabModel`). Train Yard Wars reads its prefabs
+  (`Games/TrainYardWars/Content/Prefabs`) through `TywModel`; a part named "Owner ..." is authored white and drawn in its
+  player's colour (`TywModel.IsOwnerPart`), even when batched into the ground. Only what is drawn from live state stays
   in code: indicators recoloured or sized as the game runs (alerts, health bars, gauges' fill), wires between two points, items.
 - Nullable reference types enabled; avoid `!` suppression where possible.
 - `AllowUnsafeBlocks` is on in ManaGraphics and Mana (needed for WebGPU raw pointer interop).
