@@ -326,5 +326,6 @@ A prefab is plain JSON, so one can be authored without the editor -- write the f
 ## Code Style
 
 - Always use curly braces `{}` on all control flow blocks — no single-line braceless if/for/foreach/while bodies.
+- Avoid the ternary operator (`a ? b : c`): it is hard to read. Write an if/else (or a switch) instead.
 - Nullable reference types enabled; avoid `!` suppression where possible.
 - `AllowUnsafeBlocks` is on in ManaGraphics and Mana (needed for WebGPU raw pointer interop).
