@@ -336,5 +336,7 @@ A prefab is plain JSON, so one can be authored without the editor -- write the f
   its meshes. A part named "Owner ..." is authored white and drawn in its player's colour (`ManaModelLibrary.Paint`, or a
   tint as it is batched -- Train Yard Wars' ground). Only what is drawn from live state stays
   in code: indicators recoloured or sized as the game runs (alerts, health bars, gauges' fill), wires between two points, items.
+  Geometry that follows the board (ground, track, hexes, ore) is built with the engine's `ManaShapeMesh`
+  (`Mana/Code/Shapes/`): many coloured boxes, rocks and hex pieces as one mesh, so a whole stretch is one draw.
 - Nullable reference types enabled; avoid `!` suppression where possible.
 - `AllowUnsafeBlocks` is on in ManaGraphics and Mana (needed for WebGPU raw pointer interop).
