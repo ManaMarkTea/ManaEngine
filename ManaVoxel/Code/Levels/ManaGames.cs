@@ -33,87 +33,17 @@ namespace ManaVoxel.Code.Levels
             return node;
         }
 
-        // A prefab for a game to place again and again: each copy keeps the prefab's tree, so a game can move a part
-        // (a turret's head) by its name, and shares the template's meshes and materials, so a copy costs no GPU buffers.
-        private static Foundry.View.FoundryModel PrefabModel(string asset, Mana.Code.ManaContext context)
-        {
-            var template = PrefabTemplate(asset, context);
-            var prototype = GridMapPrototype.FromNode(Path.GetFileNameWithoutExtension(asset), template);
-            if (!prototype.HasGeometry)
-            {
-                throw new InvalidOperationException($"Foundry asset '{asset}': {prototype.Error}");
-            }
-            // The placed instance holds the prefab's one root node; a copy is of that root, placed where it is asked for.
-            var source = template;
-            if (template.Children.Count == 1)
-            {
-                source = template.Children[0];
-            }
-            return new Foundry.View.FoundryModel(prototype.BoundsMin, prototype.BoundsMax, (into, name, model) =>
-            {
-                var copy = Copy(into, source);
-                copy.Name = name;
-                SetTransform(copy, source.LocalTransform * model);
-                return copy;
-            });
-        }
-
-        private static ManaSceneNode Copy(Mana.Code.ManaContext context, ManaSceneNode node)
-        {
-            ManaSceneNode copy;
-            if (node.Components.OfType<MeshRendererComponent>().FirstOrDefault(r => r.Mesh != null) is { } renderer)
-            {
-                var mesh = new ManaMeshSceneNode(context, renderer.Mesh);
-                mesh.MeshRenderer.Material = renderer.Material;
-                copy = mesh;
-            }
-            else
-            {
-                copy = new ManaSceneNode(context, Matrix4x4.Identity);
-            }
-            copy.Name = node.Name;
-            copy.IsEditorTransient = true;
-            SetTransform(copy, node.LocalTransform);
-            foreach (var light in node.Components.OfType<ManaLightSourceComponent>())
-            {
-                copy.Components.Add(new ManaLightSourceComponent(copy)
-                {
-                    Color = light.Color, Intensity = light.Intensity, Range = light.Range, LightType = light.LightType, Direction = light.Direction,
-                    Enabled = light.Enabled, CastsShadows = light.CastsShadows, FlickerAmount = light.FlickerAmount, FlickerSpeed = light.FlickerSpeed
-                });
-            }
-            foreach (var child in node.Children)
-            {
-                copy.AddChild(Copy(context, child));
-            }
-            return copy;
-        }
-
-        // Position, rotation and scale rather than a fixed matrix, so the game can still move the part from there.
-        private static void SetTransform(ManaSceneNode node, Matrix4x4 transform)
-        {
-            Matrix4x4.Decompose(transform, out var scale, out var rotation, out var position);
-            node.Position = position;
-            node.Rotation = rotation.ToEuler();
-            node.Scale = scale;
-            node.UpdateTransform();
-        }
-
         [System.Runtime.CompilerServices.ModuleInitializer]
         internal static void Register()
         {
-            Foundry.View.ModelLibrary.Loader = (asset, context) =>
+            // Every game reads models and its own prefabs (@Name/Prefabs/...) through one loader, for their meshes.
+            Mana.Code.Models.ManaModel.Loader = (asset, context, into) =>
             {
                 if (asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase))
                 {
-                    return PrefabModel(asset, context);
+                    return PrefabTemplate(asset, context, into);
                 }
-                var prototype = GridMapPrototype.Load(asset, context);
-                if (!prototype.HasGeometry)
-                {
-                    throw new InvalidOperationException($"Foundry asset '{asset}': {prototype.Error}");
-                }
-                return new Foundry.View.FoundryModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
+                return ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), context.World, into);
             };
             // Building pictures for the Foundry hotbar: the editor's own CPU thumbnail renderer, on a throwaway world.
             Foundry.View.FoundryIcons.Renderer = asset =>
@@ -148,25 +78,8 @@ namespace ManaVoxel.Code.Levels
                 DisplayName = YachtJoustingMode.DisplayName,
                 Description = YachtJoustingMode.Description,
                 ModeType = typeof(YachtJoustingMode),
-                Create = () => new YachtJoustingMode((asset, context) =>
-                {
-                    var prototype = GridMapPrototype.Load(asset, context);
-                    if (!prototype.HasGeometry)
-                    {
-                        throw new InvalidOperationException($"Yacht Jousting asset '{asset}': {prototype.Error}");
-                    }
-                    return new YachtModel(prototype.BoundsMin, prototype.BoundsMax, prototype.Instantiate);
-                })
+                Create = () => new YachtJoustingMode()
             });
-            // Train Yard Wars reads models and its own prefabs (@TrainYardWars/Prefabs/...) the same way: for their meshes.
-            TywModel.Loader = (asset, world, into) =>
-            {
-                if (asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase))
-                {
-                    return PrefabTemplate(asset, world.Context, into);
-                }
-                return ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), world, into);
-            };
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = TrainYardWarsMode.ModeType,
