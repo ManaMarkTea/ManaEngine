@@ -25,7 +25,7 @@ const chromePath = process.env.CHROME_PATH ?? (process.platform === 'darwin'
     : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
 const chrome = running ? null : spawn(chromePath, [
     '--headless=new', `--remote-debugging-port=${port}`, '--enable-unsafe-webgpu', '--enable-features=Vulkan',
-    '--window-size=1280,720', `--user-data-dir=${resolve(out, 'chrome-profile')}`, '--no-first-run', '--autoplay-policy=no-user-gesture-required', 'about:blank'
+    '--window-size=1280,720', `--user-data-dir=${resolve(out, 'chrome-profile')}`, '--no-first-run', '--autoplay-policy=no-user-gesture-required', '--mute-audio', 'about:blank'
 ], { stdio: 'ignore' });
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));

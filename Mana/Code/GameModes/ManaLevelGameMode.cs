@@ -60,8 +60,8 @@ namespace Mana.Code.GameModes
         public virtual bool HandlesExitKeys => false;
 
         /// <summary>
-        /// Assets the mode loads by itself rather than through the level's nodes (models, pictures, sounds), by
-        /// reference. Hosts that must fetch ahead -- the web build -- download these before play.
+        /// Assets the mode loads by itself rather than through the level's nodes (models, pictures, sounds, and prefabs,
+        /// whose own models come with them), by reference. Hosts that must fetch ahead -- the web build -- download these before play.
         /// </summary>
         public virtual IEnumerable<string> Assets => Array.Empty<string>();
 

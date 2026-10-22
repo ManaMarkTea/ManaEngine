@@ -15,6 +15,30 @@ namespace ManaVoxel.Code.Assets
                 return;
             }
             var nodes = new Queue<ManaLevelNode>(level.Nodes);
+            // What the level's game modes build at play time, which no node names. A prefab among them (the runner's
+            // track sections) is walked like a placed one, for the models it uses.
+            var modeAssets = new List<(string Asset, string Mode)>();
+            foreach (var entry in level.GameModes ?? new())
+            {
+                foreach (var asset in ManaLevelGameModes.Create(entry.Type)?.Assets ?? [])
+                {
+                    if (!asset.EndsWith(ManaPrefab.Extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        modeAssets.Add((asset, entry.Type));
+                        continue;
+                    }
+                    try
+                    {
+                        var file = Mana.Code.Content.ManaContentMounts.FullPath(contentRoot ?? ManaContentLibrary.Root, asset)
+                            ?? throw new FileNotFoundException($"No content folder for '{asset}'.");
+                        nodes.Enqueue(ManaPrefab.Load(file, contentRoot).Root);
+                    }
+                    catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException or InvalidDataException)
+                    {
+                        ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload prefab '{asset}' for game mode {entry.Type}: {exception.Message}");
+                    }
+                }
+            }
             while (nodes.TryDequeue(out var node))
             {
                 if (node.Prefab is { } reference)
@@ -84,14 +108,10 @@ namespace ManaVoxel.Code.Assets
                 }
             }
 
-            // What the level's game modes build at play time, which no node names.
-            foreach (var entry in level.GameModes ?? new())
+            foreach (var (asset, mode) in modeAssets)
             {
-                foreach (var asset in ManaLevelGameModes.Create(entry.Type)?.Assets ?? [])
-                {
-                    try { await catalog.EnsureAsync(asset); }
-                    catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload '{asset}' for game mode {entry.Type}: {ex.Message}"); }
-                }
+                try { await catalog.EnsureAsync(asset); }
+                catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload '{asset}' for game mode {mode}: {ex.Message}"); }
             }
         }
 
