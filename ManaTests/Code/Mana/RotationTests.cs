@@ -21,6 +21,20 @@ public static class RotationChecks
         Check("and a small negative angle stays negative rather than becoming 354",
             MathF.Abs(node.RotationDegrees.X + 6.0f) < 0.01f, $"{node.RotationDegrees.X:F1} degrees");
 
+        // ---------------------------------------------------------------- moving a node to another parent
+        // Each node counts its own transform versions, so two parents can be at the same count; a moved child once
+        // kept its old world transform then (Foundry's prefab parts drew at the map origin).
+        var first = new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity) { Position = new Vector3(1, 0, 0) };
+        var second = new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity) { Position = new Vector3(0, 0, 5) };
+        var moved = new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity);
+        first.AddChild(moved);
+        first.UpdateTransform();
+        second.UpdateTransform();
+        second.AddChild(moved);
+        second.UpdateTransform();
+        Check("a node moved to another parent takes up that parent's place",
+            Vector3.Distance(moved.WorldTransform.Translation, new Vector3(0, 0, 5)) < 1e-5f, moved.WorldTransform.Translation.ToString());
+
         CheckAxisRoundTrip("X pitch", new Vector3(45.0f.ToRadians(), 0.0f, 0.0f), check);
         CheckAxisRoundTrip("Y yaw", new Vector3(0.0f, 45.0f.ToRadians(), 0.0f), check);
         CheckAxisRoundTrip("Z roll", new Vector3(0.0f, 0.0f, 45.0f.ToRadians()), check);

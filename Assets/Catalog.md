@@ -1888,14 +1888,55 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Prefab | `Prefabs/New Prefab.manaprefab` |
 | Prefab | `Prefabs/Spikes 2D.manaprefab` |
 | Prefab | `Prefabs/Spring 2D.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Arc Furnace.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Assembler.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Battery.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Biter.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Boiler.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Chemical Plant.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Chest.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Coal Generator.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Conveyor Turn Left.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Conveyor Turn Right.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Conveyor.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Depot.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Drill.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Left.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Right.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Fast Conveyor.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Fast Inserter.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Furnace.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Gun Turret.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Inserter.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Lab.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Lamp.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Laser Turret.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Long Inserter.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Merger.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Nest.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Offshore Pump.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Oil Refinery.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Pipe To Ground.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Pipe.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Power Pole.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Provider Chest.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Pumpjack.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Rail Signal.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Rail.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Requester Chest.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Roboport.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Robot.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Rocket Silo.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Solar Panel.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Space Beacon.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Splitter.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Status Light.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Steam Engine.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Stone Wall.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Storage Tank.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Substation.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Train Stop.manaprefab` |
+| Prefab | `@Foundry/Prefabs/Underground Belt.manaprefab` |
 | Prefab | `@Runner/Prefabs/Sections/Beach/Beach Crabs.manaprefab` |
 | Prefab | `@Runner/Prefabs/Sections/Beach/Beach Enter.manaprefab` |
 | Prefab | `@Runner/Prefabs/Sections/Beach/Beach Gaps.manaprefab` |

@@ -204,6 +204,8 @@ namespace Mana.Code.Nodes
             }
             Children.Add(child);
             child.Parent = this;
+            // Versions count per node: the new parent's can equal the old one's, which would keep the old world transform.
+            child._worldComputedForParentVersion = -1;
         }
 
         public void RemoveChild(ManaSceneNode child)

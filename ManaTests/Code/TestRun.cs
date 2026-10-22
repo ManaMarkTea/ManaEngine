@@ -57,6 +57,7 @@ public static class TestRunner
     private static readonly (string System, string Section, Action<ManaFontManager, Action<string, bool, string>> Run)[] Suites =
     {
         ("Foundry", "factory logistics, crafting, power and persistence", FoundryChecks.Run),
+        ("Foundry", "buildings drawn from prefabs", FoundryPrefabChecks.Run),
         ("Audio", "WAV decoding and voice lifetime", AudioChecks.Run),
         ("Audio", "course cues, persistence and cleanup", CourseAudioChecks.Run),
         ("ManaUI", "glyph coverage", GlyphChecks.Run),
