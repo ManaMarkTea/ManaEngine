@@ -57,6 +57,10 @@ namespace ManaGraphics.Code.Graphics.Browser
         [JSImport("gamepadName", ModuleName)]
         internal static partial string GamepadName(int slot);
 
+        /// <summary>The GPU the page got, as the browser describes it (mana_webgpu.c records it when the adapter arrives).</summary>
+        [JSImport("gpuAdapter", ModuleName)]
+        internal static partial string GpuAdapter();
+
         [JSImport("isMobileRendering", ModuleName)]
         internal static partial bool IsMobileRendering();
 

@@ -734,7 +734,18 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .FontSize(theme.FontSizeSmall)
                 .Foreground(theme.TextMuted)
                 .CenterV()
-                .WithTooltip("This build. View > About for more.");
+                // The GPU too: the first thing to know when a machine runs slowly. Polled, as it can be found after the bar is built.
+                .BindPolled(text => text.Tooltip, VersionTooltip);
+        }
+
+        private static string VersionTooltip()
+        {
+            var gpu = ManaCore.Diagnostics.ManaGpuInfo.Description;
+            if (gpu.Length == 0)
+            {
+                return "This build. View > About for more.";
+            }
+            return $"This build, drawing with {gpu}. View > About for more.";
         }
 
         /// <summary>

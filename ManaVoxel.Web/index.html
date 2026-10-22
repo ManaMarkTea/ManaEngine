@@ -230,6 +230,8 @@
       pointer-events: none;
     }
     #manaBuildInfo > :not([hidden]) { display: block; font-size: inherit; }
+    /* The rest of the corner lets clicks through to the game; the GPU mark takes the pointer, for its tooltip. */
+    #manaGpuInfo { pointer-events: auto; cursor: help; }
     #manaFps:not([hidden]) {
       position: fixed;
       top: max(58px, env(safe-area-inset-top));
@@ -383,6 +385,7 @@
   <div id="manaBuildInfo">
     <span id="manaFps" hidden></span>
     <small id="manaEngineVersion" title="Engine version and build time in your local time zone" hidden></small>
+    <small id="manaGpuInfo" tabindex="0" hidden>&#9432; GPU</small>
   </div>
   <div id="manaTouch" hidden aria-label="Touch game controls">
     <button id="manaMove" aria-label="Move: drag in the direction you want to walk"><span id="manaMoveKnob"></span></button>
@@ -541,6 +544,12 @@
         label.hidden = false;
       })
       .catch(() => {});
+    // The GPU the page draws with, from mana_webgpu.c once the adapter arrives.
+    window.addEventListener('mana-gpu', event => {
+      const mark = document.getElementById('manaGpuInfo');
+      mark.title = `Drawing with: ${event.detail}`;
+      mark.hidden = false;
+    });
     await import(new URL('main.js', document.baseURI).href);
   </script>
 </body>

@@ -67,6 +67,7 @@ namespace ManaGraphics.Code.Graphics
                 RequestDevice();
                 ManaConsole.WriteDiagnosticElapsed("Device granted.");
                 CompleteDevice();
+                DescribeAdapter();
 #endif
             }
             catch
@@ -180,6 +181,24 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to request WebGPU device. {_requestFailure}");
             }
         }
+
+#if !MANA_BROWSER
+        // The GPU in words, for the editor's status bar: its name, the API it is driven through, and what kind it is.
+        private unsafe void DescribeAdapter()
+        {
+            var properties = new AdapterProperties();
+            _api.AdapterGetProperties(Adapter, &properties);
+            var name = Marshal.PtrToStringUTF8((nint)properties.Name) ?? "unknown GPU";
+            var kind = properties.AdapterType switch
+            {
+                AdapterType.DiscreteGpu => "discrete",
+                AdapterType.IntegratedGpu => "integrated",
+                AdapterType.Cpu => "software, drawn on the CPU",
+                _ => "unknown kind"
+            };
+            ManaCore.Diagnostics.ManaGpuInfo.Description = $"{name.Trim()} ({properties.BackendType}, {kind})";
+        }
+#endif
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(CallConvCdecl) })]
         private static unsafe void OnRequestAdapter(RequestAdapterStatus status, Adapter* adapter, byte* message, void* userdata)
@@ -327,6 +346,7 @@ namespace ManaGraphics.Code.Graphics
             }
 
             Adapter = (Adapter*)(nint)adapterId;
+            ManaCore.Diagnostics.ManaGpuInfo.Description = Browser.ManaBrowserInterop.GpuAdapter();
             _adapterRequest?.TrySetResult(true);
             return true;
         }

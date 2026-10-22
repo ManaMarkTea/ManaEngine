@@ -42,8 +42,12 @@ EM_JS(void, mana_request_adapter_impl, (int requestId), {
             // Which GPU the page got -- the first thing to know when a machine runs slowly.
             var info = adapter.info || {};
             var fallback = info.isFallbackAdapter || adapter.isFallbackAdapter;
-            console.log('[WebGPU] adapter: ' + [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(' / ') +
-                (fallback ? ' (software fallback: drawn on the CPU, very slow)' : ''));
+            var described = [info.vendor, info.architecture, info.device, info.description].filter(Boolean).join(' / ') || 'unknown GPU';
+            if (fallback) described += ' (software fallback: drawn on the CPU, very slow)';
+            console.log('[WebGPU] adapter: ' + described);
+            // Kept for the engine (gpuAdapter in mana_interop.js) and the page's info mark.
+            globalThis.ManaGpuAdapter = described;
+            window.dispatchEvent(new CustomEvent('mana-gpu', { detail: described }));
         }
         var adapterId = adapter ? WebGPU.mgrAdapter.create(adapter) : 0;
         var accepted = globalThis.ManaExports &&

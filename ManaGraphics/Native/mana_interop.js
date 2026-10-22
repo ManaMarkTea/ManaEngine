@@ -26,6 +26,7 @@ let fastWindows = 0;
 let warmupMs = 0;
 
 export function isMobileRendering() { return Boolean(mobileRendering); }
+export function gpuAdapter() { return globalThis.ManaGpuAdapter || ''; }
 // The sky shader: 0 simple gradients, 1 those plus the real star catalogue, 2 the full atmosphere. Phones start
 // simple; ?sky=simple|stars|full (or the page's Sky setting) picks one anywhere.
 const skyModes = { simple: 0, stars: 1, full: 2 };
