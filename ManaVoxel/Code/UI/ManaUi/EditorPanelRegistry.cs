@@ -67,6 +67,8 @@ internal static class EditorPanelRegistry
                     .Empty(AboutManaView.Build(context.Theme, null, ManaUiDiagnostics.BackendName, context.World?.Context.Audio))),
         new("worldperf", "World Perf", "Debugging", 0, false,
             context => context.World != null ? WorldPerfManaView.Build(context.Theme, context.World).Scrollable().Configure(viewer => viewer.Padding = new Thickness(0.0f, 4.0f, 0.0f, 4.0f)) : null),
+        new(RenderTargetsManaView.PanelId, "Render Targets", "Debugging", 5, false,
+            context => RenderTargetsManaView.Build(context.Theme)),
         new("debug", "Debug", "Debugging", 1, false,
             context => context.Editor != null ? DebugManaView.Build(context.Theme, context.Editor) : null),
         new("preferences", "Preferences", "Settings", 0, false,

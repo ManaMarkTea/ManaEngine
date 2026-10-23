@@ -22,6 +22,34 @@ namespace ManaCore.Graphics
         public Vector4 DebugAlbedo { get; set; } = Vector4.One;
         public float DebugSceneScale { get; set; } = 1.0f;
         public float WebGpuDebugMode { get; set; } = 0.0f;
+
+        /// <summary>
+        /// The PBR shader's debug views, in the order it numbers them (<see cref="WebGpuDebugMode"/>): the index is what
+        /// reaches the GPU, so the order is not cosmetic.
+        /// </summary>
+        public static readonly string[] DebugModeNames =
+        {
+            "Off",
+            "View Vector (V)",
+            "World Normal (N)",
+            "Reflection (R)",
+            "Cubemap Dir",
+            "Reflection Radiance",
+            "BRDF Scale",
+            "Linear Albedo",
+            "F0",
+            "Fresnel",
+            "BRDF LUT",
+            "Diffuse IBL",
+            "Specular IBL",
+            "Direct Lighting",
+            "Final Linear",
+            "Light Count",
+            "Light Cells",
+            "Shadow Cascades",
+            "View Depth"
+        };
+
         public bool WireframeEnabled { get; set; }
         public bool VertexNormalsEnabled { get; set; }
 

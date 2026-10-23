@@ -121,7 +121,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
         {
             _shadowMap.UpdateCascades(scene);
             // The scene draws at the framebuffer's size, so that is what a pixel's cell is worked out against.
-            _lights!.Update(scene, new System.Numerics.Vector2(_size.X, _size.Y));
+            using (ManaFrameProfiler.Measure("GPU: Light Clusters"))
+            {
+                _lights!.Update(scene, new System.Numerics.Vector2(_size.X, _size.Y));
+            }
             _bindings!.WriteFrame(Queue, ManaWebGpuFrameUniform.For(scene, _shadowMap, _lights.Clusters, seconds));
         }
 
@@ -141,6 +144,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
             if (!suspended)
             {
+                // The lights' cells first: every pass after reads them.
+                _lights!.Encode(encoder);
                 foreach (var pass in _passes)
                 {
                     using (ManaFrameProfiler.Measure(pass.ProfileName))
@@ -212,6 +217,29 @@ namespace ManaGraphics.Code.Graphics.Renderers
             return !useHdr;
         }
 
+        private ManaWebGpuTargetPreview? _preview;
+
+        /// <summary>
+        /// Draws this frame's targets small into the Render Targets picture (<see cref="ManaWebGpuTargetPreview"/>) and
+        /// returns it; null without an HDR target to show. Call after <see cref="Encode"/>.
+        /// </summary>
+        public TextureView* EncodePreview(CommandEncoder* encoder, ManaRenderScene scene, ManaWebGpuWindowSurface surface)
+        {
+            var sceneColor = _hdr.SceneTextureView;
+            if (sceneColor == null || surface.Depth == null || _lights == null)
+            {
+                return null;
+            }
+
+            _preview ??= new ManaWebGpuTargetPreview(Gpu);
+            using (ManaFrameProfiler.Measure("GPU: Render Target Preview"))
+            {
+                _preview.Encode(encoder, scene, sceneColor, surface.Depth, _shadowMap.ArrayView,
+                    _lights.CellBuffer, _lights.CellBufferSize, _lights.Clusters.LightCount);
+            }
+            return _preview.View;
+        }
+
         /// <summary>Tone-maps the HDR scene into the surface pass the UI then draws over.</summary>
         public void DrawToneMap(RenderPassEncoder* pass)
         {
@@ -247,6 +275,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 _passes[i].Dispose();
             }
             _passes.Clear();
+            _preview?.Dispose();
+            _preview = null;
             _hdr?.Dispose();
             _bindings?.Dispose();
             _bindings = null;

@@ -119,8 +119,26 @@ namespace ManaGraphics.Code.Graphics.Renderers
             Api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindGroup, 0, null);
             Api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _instanceBuffer, 0, _instanceBufferSize);
 
+            var bound = 0;
             foreach (var batch in drawList.Batches)
             {
+                // A batch drawn from a registered texture (ManaUiDrawList.SetTexture) has it in the image slot.
+                var textureId = 0;
+                if (batch.TextureId != 0 && _textureGroups.ContainsKey(batch.TextureId))
+                {
+                    textureId = batch.TextureId;
+                }
+                if (textureId != bound)
+                {
+                    var group = _bindGroup;
+                    if (textureId != 0)
+                    {
+                        group = (BindGroup*)_textureGroups[textureId];
+                    }
+                    Api.RenderPassEncoderSetBindGroup(renderPass, 0, group, 0, null);
+                    bound = textureId;
+                }
+
                 // Four vertices as a triangle strip; the quad corners come from the vertex index.
                 Api.RenderPassEncoderDraw(
                     renderPass,
@@ -729,6 +747,32 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
         private int _backdropGeneration = -1;
 
+        // Textures a batch can draw from by id (ManaUiDrawList.SetTexture), each with a bind group of its own.
+        private readonly Dictionary<int, nint> _textures = new();
+        private readonly Dictionary<int, nint> _textureGroups = new();
+
+        /// <summary>
+        /// Lets batches with <paramref name="id"/> draw from <paramref name="view"/> in place of the image atlas, or forgets
+        /// the id when null. The view must stay alive until it is replaced or forgotten.
+        /// </summary>
+        public void SetTexture(int id, TextureView* view)
+        {
+            if (_textures.TryGetValue(id, out var current) && current == (nint)view)
+            {
+                return;
+            }
+
+            if (view == null)
+            {
+                _textures.Remove(id);
+            }
+            else
+            {
+                _textures[id] = (nint)view;
+            }
+            CreateBindGroup();
+        }
+
         private void CreateBindGroup()
         {
             if (_bindGroup != null)
@@ -736,17 +780,41 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 Api.BindGroupRelease(_bindGroup);
                 _bindGroup = null;
             }
+            ReleaseTextureGroups();
 
             if (_glyphTextureView == null || _imageTextureView == null)
             {
                 return;
             }
 
+            _bindGroup = CreateBindGroup(_imageTextureView, "ManaUI atlas and backdrop");
+            foreach (var (id, view) in _textures)
+            {
+                var group = CreateBindGroup((TextureView*)view, "ManaUI texture " + id);
+                if (group != null)
+                {
+                    _textureGroups[id] = (nint)group;
+                }
+            }
+        }
+
+        private void ReleaseTextureGroups()
+        {
+            foreach (var group in _textureGroups.Values)
+            {
+                Api.BindGroupRelease((BindGroup*)group);
+            }
+            _textureGroups.Clear();
+        }
+
+        private BindGroup* CreateBindGroup(TextureView* image, string name)
+        {
+
             var entries = stackalloc BindGroupEntry[6];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _uniformBuffer, Offset = 0, Size = 16 };
             entries[1] = new BindGroupEntry { Binding = 1, Sampler = _sampler };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = _glyphTextureView };
-            entries[3] = new BindGroupEntry { Binding = 3, TextureView = _imageTextureView };
+            entries[3] = new BindGroupEntry { Binding = 3, TextureView = image };
 
             // Falls back to the image atlas when no backdrop has been captured. Nothing samples it in that
             // case -- no instance carries the flag -- but the binding still has to be filled.
@@ -765,11 +833,11 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 Entries = entries
             };
 
-            var label = Marshal.StringToCoTaskMemUTF8("ManaUI atlas and backdrop");
+            var label = Marshal.StringToCoTaskMemUTF8(name);
             try
             {
                 descriptor.Label = (byte*)label;
-                _bindGroup = Api.DeviceCreateBindGroup(Device, &descriptor);
+                return Api.DeviceCreateBindGroup(Device, &descriptor);
             }
             finally
             {
@@ -806,6 +874,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             {
                 Api.BindGroupRelease(_bindGroup);
             }
+            ReleaseTextureGroups();
 
             ReleaseGlyphTexture();
 

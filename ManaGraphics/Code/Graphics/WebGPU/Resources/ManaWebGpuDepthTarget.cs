@@ -17,9 +17,9 @@ namespace ManaGraphics.Code.Graphics.Resources
 
             var textureDescriptor = new TextureDescriptor
             {
-                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop.
-                // Nothing copies it unless a panel asks for blur; the usage flag alone costs nothing.
-                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
+                // CopySrc as well, so the composited frame can be snapshotted for the UI's blurred backdrop, and
+                // TextureBinding for the Render Targets viewer. Nothing reads it otherwise; the flags alone cost nothing.
+                Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc | TextureUsage.TextureBinding,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
                 Format = format,

@@ -81,6 +81,7 @@ namespace ManaGraphics.Code.Graphics.Resources
             uniform.Wind = new Vector4(wind.Direction.X, wind.Direction.Y, wind.Speed, wind.Gustiness);
             uniform.WindMotion = new Vector4(wind.Drift.X, wind.Drift.Y, wind.Distance, wind.Gust);
 
+            // w = light count; with none the shaders skip the cells, which the binning left as an older frame's.
             if (lights.Viewport.X >= 1.0f && lights.Viewport.Y >= 1.0f)
             {
                 uniform.ClusterGrid = new Vector4(ManaLightClusters.TilesX, ManaLightClusters.TilesY, ManaLightClusters.Slices, lights.LightCount);

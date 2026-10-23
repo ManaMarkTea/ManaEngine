@@ -40,6 +40,15 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _renderer?.SetBackdrop(_backdrop.View, _backdrop.Generation);
         }
 
+        private readonly Dictionary<int, nint> _textures = new();
+
+        /// <summary>A texture batches can draw from by id (ManaUiDrawList.SetTexture); kept until the renderer exists.</summary>
+        public void SetTexture(int id, TextureView* view)
+        {
+            _textures[id] = (nint)view;
+            _renderer?.SetTexture(id, view);
+        }
+
         /// <summary>Draws <paramref name="root"/>'s list. False when the UI renderer could not be built: drop the root.</summary>
         public bool Draw(RenderPassEncoder* pass, UiRoot root, Vector2D<int> size)
         {
@@ -51,6 +60,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
                     // first loading frame -- a candidate for the gap before the loading screen shows.
                     ManaConsole.WriteDiagnosticElapsed("Creating the ManaUI renderer (first draw request).");
                     _renderer = new ManaWebGpuUiRenderer(Gpu, Gpu.SurfaceFormat);
+                    foreach (var (id, view) in _textures)
+                    {
+                        _renderer.SetTexture(id, (TextureView*)view);
+                    }
                     ManaConsole.WriteDiagnosticElapsed("ManaUI renderer ready; submitting its first draw list.");
                 }
                 catch (Exception ex)

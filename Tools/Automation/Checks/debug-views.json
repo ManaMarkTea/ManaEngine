@@ -1,0 +1,21 @@
+[
+  {"type": "open_level", "path": "Content/Levels/Tests/Terrain.manalevel"},
+  {"type": "wait", "frames": 200},
+  {"type": "gizmos", "visible": false},
+  {"type": "move_camera", "position": [38, 3, 86], "target": [60, 1, 60]},
+  {"type": "wait", "frames": 10},
+  {"type": "debug_view", "name": "Shadow Cascades"}, {"type": "wait", "frames": 3},
+  {"type": "screenshot", "path": "@@OUT@@.cascades.png", "clean": true},
+  {"type": "open_level", "path": "Content/Levels/Tests/Many Lights.manalevel"},
+  {"type": "wait", "frames": 200},
+  {"type": "move_camera", "position": [62, 6, 70], "target": [72, 0, 60]},
+  {"type": "wait", "frames": 10},
+  {"type": "debug_view", "name": "Light Count"}, {"type": "wait", "frames": 3},
+  {"type": "screenshot", "path": "@@OUT@@.light-count.png", "clean": true},
+  {"type": "debug_view", "name": "Light Cells"}, {"type": "wait", "frames": 3},
+  {"type": "screenshot", "path": "@@OUT@@.light-cells.png", "clean": true},
+  {"type": "debug_view", "name": "View Depth"}, {"type": "wait", "frames": 3},
+  {"type": "screenshot", "path": "@@OUT@@.depth.png", "clean": true},
+  {"type": "debug_view", "name": "Off"},
+  {"type": "quit"}
+]

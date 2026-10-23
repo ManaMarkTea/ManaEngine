@@ -130,6 +130,7 @@ public static class TestRunner
         ("ManaVoxel", "prefab assets, overrides and grid presets", PrefabChecks.Run),
         ("ManaVoxel", "grid map", GridMapChecks.Run),
         ("ManaVoxel", "terrain", TerrainChecks.Run),
+        ("ManaVoxel", "render targets panel", RenderTargetsChecks.Run),
         ("ManaVoxel", "grid map generator", GridMapWfcChecks.Run),
         ("ManaVoxel", "ui designer", UiDesignerChecks.Run),
         ("ManaVoxel", "asset multi-select", AssetMultiSelectChecks.Run),

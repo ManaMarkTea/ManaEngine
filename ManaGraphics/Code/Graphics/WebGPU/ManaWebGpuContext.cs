@@ -423,6 +423,17 @@ namespace ManaGraphics.Code.Graphics
                 var drewScene = _scene != null && _activeRenderScene != null;
                 LastDrawMs = _scene?.LastDrawMs ?? 0;
 
+                // The Render Targets viewer: only on frames whose UI draws from its picture.
+                if (drewScene && !SuspendSceneWork && UiRoot is { } previewRoot
+                    && previewRoot.DrawList.DrawsTexture(ManaRenderTargetPreview.TextureId))
+                {
+                    var preview = _scene!.EncodePreview(encoder, _activeRenderScene!, surface);
+                    if (preview != null)
+                    {
+                        _ui!.SetTexture(ManaRenderTargetPreview.TextureId, preview);
+                    }
+                }
+
                 var surfaceAttachment = new RenderPassColorAttachment
                 {
                     View = surfaceView,

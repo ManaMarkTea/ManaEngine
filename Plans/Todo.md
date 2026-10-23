@@ -133,5 +133,12 @@
     lights in its cell. Content/Levels/Tests/Many Lights.manalevel has 1,024 lamps (114 fps in Chrome here); old scenes
     look the same. Follow-ups: shadows from point lights; binning costs ~2 ms for 1,000 lights seen up close (fine
     for a normal level, worth a look before 4,000-light scenes).
+    Claude (2026-10-23): the binning now runs on the GPU (light_clusters.wgsl, one workgroup a cell; the CPU's
+    ManaLightClusters.Build is the same algorithm, kept for the tests): 0.04 ms of CPU a frame for Many Lights, was ~2 ms,
+    picture unchanged. Debugging: Scene > PBR debug gains Light Count (lights per cell, over the tile grid), Light Cells,
+    Shadow Cascades and View Depth (`debug_view` script command, Tools/Automation/Checks/debug-views.json), and
+    Panels > Debugging > Render Targets shows the HDR scene, depth, the three shadow cascades and lights per tile live.
+    Seen with them: the nearest shadow cascade covers only a few metres in front of the camera. Still open: shadows from
+    point lights; no depth pre-pass (overdraw pays full lighting); a cell lists at most 256 lights.
 
 [] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags, etc)

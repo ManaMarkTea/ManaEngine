@@ -11,6 +11,18 @@
 // Cascade picked by Euclidean distance from the camera rather than strict view-space Z (the frame uniform
 // does not carry a separate View matrix, only the combined view_projection) -- close enough at the FOVs
 // this engine uses, and simpler than threading another matrix through just for this.
+// Which cascade a point is shadowed from: 0 nearest, 2 farthest (the debug view's colours).
+fn mana_sun_cascade(world_position : vec3<f32>) -> u32 {
+    let camera_distance = length(frame.camera_position.xyz - world_position);
+    if (camera_distance < frame.cascade_split_far.x) {
+        return 0u;
+    }
+    if (camera_distance < frame.cascade_split_far.y) {
+        return 1u;
+    }
+    return 2u;
+}
+
 fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
     if (ndotl <= 0.0) {
         return 0.0;

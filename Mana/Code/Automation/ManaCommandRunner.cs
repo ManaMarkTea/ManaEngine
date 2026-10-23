@@ -284,6 +284,22 @@ namespace Mana.Code.Automation
                 }
             });
 
+            Register("debug_view", command =>
+            {
+                // A PBR debug view by name ("Light Count") or number; "Off" or no name goes back to the shaded picture.
+                var names = ManaCore.Graphics.ManaIrradianceSettings.DebugModeNames;
+                var mode = 0;
+                if (!string.IsNullOrWhiteSpace(command.Name) && !int.TryParse(command.Name, out mode))
+                {
+                    mode = Array.FindIndex(names, name => string.Equals(name, command.Name, StringComparison.OrdinalIgnoreCase));
+                }
+                if (mode < 0 || mode >= names.Length)
+                {
+                    throw new InvalidDataException($"debug_view: '{command.Name}' is not one of {string.Join(", ", names)}.");
+                }
+                Context.World.IrradianceSettings.WebGpuDebugMode = mode;
+            });
+
             Register("wind", command =>
             {
                 // position: [speed m/s, direction in degrees clockwise from -Z, gustiness 0..1]; any can be left off.

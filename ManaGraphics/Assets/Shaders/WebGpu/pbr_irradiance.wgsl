@@ -380,6 +380,33 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     } else if (debug_mode == 14u) {
         // Mode 14: Final Linear
         color = color * exposure;
+    } else if (debug_mode == 15u) {
+        // Mode 15: Light Count -- how many placed lights this pixel's cell lists, over the tile grid.
+        color = mix(mana_light_count_heat(cell.y), vec3<f32>(0.0), mana_light_tile_edge(input.clip_position) * 0.6);
+    } else if (debug_mode == 16u) {
+        // Mode 16: Light Cells -- each depth slice its own colour, tiles in a checker.
+        let slice = mana_light_slice(input.world_position);
+        let hue = fract(slice * 0.618034);
+        let rgb = clamp(abs(fract(vec3<f32>(hue) + vec3<f32>(0.0, 0.6667, 0.3333)) * 6.0 - vec3<f32>(3.0)) - vec3<f32>(1.0), vec3<f32>(0.0), vec3<f32>(1.0));
+        let grid = max(frame.cluster_grid.xy, vec2<f32>(1.0));
+        let tile = floor(input.clip_position.xy / (frame.cluster_depth.zw / grid));
+        let checker = select(0.75, 1.0, (u32(tile.x) + u32(tile.y)) % 2u == 0u);
+        color = rgb * checker;
+    } else if (debug_mode == 17u) {
+        // Mode 17: Shadow Cascades -- red nearest, green, blue farthest, over the lit picture.
+        var tint = vec3<f32>(0.2, 0.3, 1.0);
+        let cascade = mana_sun_cascade(input.world_position);
+        if (cascade == 0u) {
+            tint = vec3<f32>(1.0, 0.25, 0.2);
+        } else if (cascade == 1u) {
+            tint = vec3<f32>(0.25, 1.0, 0.3);
+        }
+        let lit = clamp(color * exposure, vec3<f32>(0.0), vec3<f32>(1.0));
+        color = tint * (0.35 + 0.65 * dot(lit, vec3<f32>(0.299, 0.587, 0.114)));
+    } else if (debug_mode == 18u) {
+        // Mode 18: View Depth -- white at the camera to black at 1 km, log scaled so the near metres read.
+        let depth = max(dot(input.world_position - frame.camera_position.xyz, frame.camera_forward.xyz), 0.0);
+        color = vec3<f32>(1.0 - clamp(log2(1.0 + depth) / log2(1001.0), 0.0, 1.0));
     } else {
         // Mode 0: Normal shading
         color = color * exposure;

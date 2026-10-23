@@ -104,6 +104,19 @@ namespace ManaUI
             _currentTextureId = textureId;
         }
 
+        /// <summary>Whether any batch this frame draws from <paramref name="textureId"/> -- the backend fills such a texture only then.</summary>
+        public bool DrawsTexture(int textureId)
+        {
+            foreach (var batch in _batches)
+            {
+                if (batch.TextureId == textureId)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         // ----- primitives ----------------------------------------------------------------------------
 
         public void FillRect(UiRect rect, Vector4 color)

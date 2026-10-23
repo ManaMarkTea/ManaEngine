@@ -16,28 +16,7 @@ namespace ManaVoxel.Code.UI.ManaUi
     /// </summary>
     public static class IrradianceSettingsManaView
     {
-        /// <summary>
-        /// The shader's debug outputs, in the order the shader numbers them. The index is what reaches the
-        /// GPU, so the order here is not cosmetic.
-        /// </summary>
-        private static readonly string[] DebugModes =
-        {
-            "Off",
-            "View Vector (V)",
-            "World Normal (N)",
-            "Reflection (R)",
-            "Cubemap Dir",
-            "Reflection Radiance",
-            "BRDF Scale",
-            "Linear Albedo",
-            "F0",
-            "Fresnel",
-            "BRDF LUT",
-            "Diffuse IBL",
-            "Specular IBL",
-            "Direct Lighting",
-            "Final Linear"
-        };
+        private static readonly string[] DebugModes = ManaIrradianceSettings.DebugModeNames;
 
         public static UiElement Build(UiTheme theme, ManaIrradianceSettings settings)
         {

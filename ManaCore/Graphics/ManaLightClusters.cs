@@ -5,9 +5,12 @@ namespace ManaCore.Graphics
     /// <summary>
     /// Clustered lighting: the view cut into cells -- tiles across the screen, slices in depth -- and for each the placed
     /// lights whose range reaches into it. A pixel then shades only the few lights near it rather than every light in
-    /// the scene, so a level can hold thousands of lamps and torches. Built on the CPU each frame from the lights'
-    /// spheres (cheap: each light touches only the cells its sphere covers); the shader finds its cell the same way
-    /// (<c>include/point_lights.wgsl</c>, <see cref="CellOf"/>).
+    /// the scene, so a level can hold thousands of lamps and torches.
+    /// <para>
+    /// The binning runs on the GPU (<c>light_clusters.wgsl</c>, one workgroup a cell); <see cref="Prepare"/> works out what
+    /// it needs each frame. <see cref="Build"/> is the same binning on the CPU, step for step, for the tests -- keep the
+    /// two alike. The shaders find a pixel's cell as <see cref="CellOf"/> does (<c>include/point_lights.wgsl</c>).
+    /// </para>
     /// </summary>
     public sealed class ManaLightClusters
     {
@@ -16,20 +19,19 @@ namespace ManaCore.Graphics
         public const int Slices = 24;
         public const int CellCount = TilesX * TilesY * Slices;
 
-        /// <summary>Light indices across all cells; past it, a crowded frame drops what does not fit (and says so).</summary>
+        /// <summary>Light indices across all cells; a frame with more pairs than this leaves the last cells short.</summary>
         public const int MaxIndices = 1 << 19;
+
+        /// <summary>The most lights one cell lists; more than this reaching one spot is far past what looks distinct.</summary>
+        public const int MaxLightsPerCell = 256;
 
         // Depth slices are spaced exponentially, so near cells are thin and far ones deep; beyond this all share the last.
         private const float FarthestSlice = 1000.0f;
 
-        private readonly int[] _counts = new int[CellCount];
-        private readonly int[] _cursors = new int[CellCount];
-        private readonly List<(int X0, int X1, int Y0, int Y1, int Z0, int Z1)> _ranges = new();
-
         /// <summary>Two per light: xyz position, w range; rgb colour (times intensity).</summary>
         public Vector4[] Lights { get; } = new Vector4[ManaRenderScene.MaxLocalLights * 2];
 
-        /// <summary>Two per cell: where its lights start in <see cref="Indices"/>, and how many there are.</summary>
+        /// <summary>Two per cell: where its lights start in <see cref="Indices"/>, and how many there are (CPU build only).</summary>
         public uint[] Cells { get; } = new uint[CellCount * 2];
 
         public uint[] Indices { get; } = new uint[MaxIndices];
@@ -37,9 +39,6 @@ namespace ManaCore.Graphics
         public int LightCount { get; private set; }
 
         public int IndexCount { get; private set; }
-
-        /// <summary>Whether this frame had more light-in-cell pairs than <see cref="MaxIndices"/>; the rest were dropped.</summary>
-        public bool Overflowed { get; private set; }
 
         /// <summary>The camera's look direction, the first depth slice's start, and slices per log-unit of depth.</summary>
         public Vector3 Forward { get; private set; } = -Vector3.UnitZ;
@@ -50,73 +49,110 @@ namespace ManaCore.Graphics
 
         public Vector2 Viewport { get; private set; }
 
-        public void Build(IReadOnlyList<(Vector4 Position, Vector4 Color)> lights, ManaCameraData camera, Vector2 viewport)
+        /// <summary>World to view space, and clip back to view space -- what the GPU binning reads.</summary>
+        public Matrix4x4 View { get; private set; } = Matrix4x4.Identity;
+
+        public Matrix4x4 InverseProjection { get; private set; } = Matrix4x4.Identity;
+
+        /// <summary>The frame's slicing and lights, without binning them: the GPU does that.</summary>
+        public void Prepare(IReadOnlyList<(Vector4 Position, Vector4 Color)> lights, ManaCameraData camera, Vector2 viewport)
         {
             Viewport = viewport;
+            View = camera.View;
+            Matrix4x4.Invert(camera.Projection, out var inverse);
+            InverseProjection = inverse;
             Forward = Vector3.Normalize(new Vector3(-camera.View.M13, -camera.View.M23, -camera.View.M33));
             Near = MathF.Max(camera.NearClipPlane, 0.05f);
             var far = Math.Clamp(camera.FarClipPlane, Near * 2.0f, FarthestSlice);
             SliceScale = Slices / MathF.Log(far / Near);
-            var viewProjection = camera.View * camera.Projection;
 
-            Array.Clear(_counts);
-            _ranges.Clear();
             LightCount = Math.Min(lights.Count, ManaRenderScene.MaxLocalLights);
             for (var i = 0; i < LightCount; i++)
             {
                 var (position, color) = lights[i];
                 Lights[i * 2] = position;
                 Lights[i * 2 + 1] = color;
-                var range = Range(new Vector3(position.X, position.Y, position.Z), position.W, camera.Position, viewProjection);
-                _ranges.Add(range);
-                for (var z = range.Z0; z <= range.Z1; z++)
-                {
-                    for (var y = range.Y0; y <= range.Y1; y++)
-                    {
-                        for (var x = range.X0; x <= range.X1; x++)
-                        {
-                            _counts[Cell(x, y, z)]++;
-                        }
-                    }
-                }
+            }
+        }
+
+        /// <summary><see cref="Prepare"/>, then the GPU's binning on the CPU: each cell's box against each light's sphere.</summary>
+        public void Build(IReadOnlyList<(Vector4 Position, Vector4 Color)> lights, ManaCameraData camera, Vector2 viewport)
+        {
+            Prepare(lights, camera, viewport);
+            var centres = new Vector3[LightCount];
+            for (var i = 0; i < LightCount; i++)
+            {
+                var p = Lights[i * 2];
+                centres[i] = Vector3.Transform(new Vector3(p.X, p.Y, p.Z), View);
             }
 
-            // Each cell's lights sit together; a frame with more pairs than there is room for keeps what fits.
             var offset = 0;
-            Overflowed = false;
             for (var cell = 0; cell < CellCount; cell++)
             {
-                var count = Math.Min(_counts[cell], MaxIndices - offset);
-                if (count < _counts[cell])
+                var (min, max) = CellBounds(cell % TilesX, cell / TilesX % TilesY, cell / (TilesX * TilesY));
+                var count = 0;
+                for (var i = 0; i < LightCount && count < MaxLightsPerCell && offset + count < MaxIndices; i++)
                 {
-                    Overflowed = true;
+                    var radius = Lights[i * 2].W;
+                    if (radius > 0.0f && Vector3.DistanceSquared(Vector3.Clamp(centres[i], min, max), centres[i]) <= radius * radius)
+                    {
+                        Indices[offset + count] = (uint)i;
+                        count++;
+                    }
                 }
                 Cells[cell * 2] = (uint)offset;
                 Cells[cell * 2 + 1] = (uint)count;
-                _cursors[cell] = 0;
                 offset += count;
             }
             IndexCount = offset;
+        }
 
-            for (var i = 0; i < _ranges.Count; i++)
+        /// <summary>
+        /// A cell's box in view space (the camera looking down -z): its tile's four corner rays cut at the slice's near and
+        /// far depths. Through the inverse projection, so orthographic views work too.
+        /// </summary>
+        public (Vector3 Min, Vector3 Max) CellBounds(int x, int y, int z)
+        {
+            var depth0 = 0.0f;
+            if (z > 0)
             {
-                var range = _ranges[i];
-                for (var z = range.Z0; z <= range.Z1; z++)
+                depth0 = Near * MathF.Exp(z / SliceScale);
+            }
+            // The last slice holds everything beyond it.
+            var depth1 = 1e7f;
+            if (z < Slices - 1)
+            {
+                depth1 = Near * MathF.Exp((z + 1) / SliceScale);
+            }
+
+            // Tiles run left to right and top to bottom; NDC y is up.
+            var left = -1.0f + 2.0f * x / TilesX;
+            var right = -1.0f + 2.0f * (x + 1) / TilesX;
+            var top = 1.0f - 2.0f * y / TilesY;
+            var bottom = 1.0f - 2.0f * (y + 1) / TilesY;
+            var min = new Vector3(float.MaxValue);
+            var max = new Vector3(float.MinValue);
+            foreach (var ndc in new[] { new Vector2(left, top), new Vector2(right, top), new Vector2(left, bottom), new Vector2(right, bottom) })
+            {
+                foreach (var depth in new[] { depth0, depth1 })
                 {
-                    for (var y = range.Y0; y <= range.Y1; y++)
-                    {
-                        for (var x = range.X0; x <= range.X1; x++)
-                        {
-                            var cell = Cell(x, y, z);
-                            if (_cursors[cell] < Cells[cell * 2 + 1])
-                            {
-                                Indices[Cells[cell * 2] + _cursors[cell]] = (uint)i;
-                                _cursors[cell]++;
-                            }
-                        }
-                    }
+                    var point = ViewPoint(ndc, depth);
+                    min = Vector3.Min(min, point);
+                    max = Vector3.Max(max, point);
                 }
             }
+            return (min, max);
+        }
+
+        // The view-space point at a depth along a pixel's ray: the line through two points the ray passes, cut at z = -depth.
+        private Vector3 ViewPoint(Vector2 ndc, float depth)
+        {
+            var a4 = Vector4.Transform(new Vector4(ndc, 0.25f, 1.0f), InverseProjection);
+            var b4 = Vector4.Transform(new Vector4(ndc, 0.75f, 1.0f), InverseProjection);
+            var a = new Vector3(a4.X, a4.Y, a4.Z) / a4.W;
+            var b = new Vector3(b4.X, b4.Y, b4.Z) / b4.W;
+            var t = (-depth - a.Z) / (b.Z - a.Z);
+            return a + (b - a) * t;
         }
 
         /// <summary>The cell a pixel (from the top left, in framebuffer pixels) at a view depth falls in -- as the shader works it out.</summary>
@@ -124,59 +160,13 @@ namespace ManaCore.Graphics
         {
             var x = Math.Clamp((int)MathF.Floor(pixel.X / Viewport.X * TilesX), 0, TilesX - 1);
             var y = Math.Clamp((int)MathF.Floor(pixel.Y / Viewport.Y * TilesY), 0, TilesY - 1);
-            return Cell(x, y, Slice(depth));
+            return x + y * TilesX + Slice(depth) * TilesX * TilesY;
         }
 
         /// <summary>The lights of a cell, as indices into <see cref="Lights"/> (two entries each).</summary>
         public ReadOnlySpan<uint> LightsOf(int cell) => Indices.AsSpan((int)Cells[cell * 2], (int)Cells[cell * 2 + 1]);
 
-        private static int Cell(int x, int y, int z) => x + y * TilesX + z * TilesX * TilesY;
-
         private int Slice(float depth) =>
             Math.Clamp((int)MathF.Floor(MathF.Log(MathF.Max(depth, Near) / Near) * SliceScale), 0, Slices - 1);
-
-        // The cells a light's sphere can touch: the depth slices it spans, and the tiles its box covers on screen. An empty
-        // range (X0 > X1) for a light wholly behind the camera or off screen.
-        private (int X0, int X1, int Y0, int Y1, int Z0, int Z1) Range(Vector3 center, float radius, Vector3 eye, Matrix4x4 viewProjection)
-        {
-            var depth = Vector3.Dot(center - eye, Forward);
-            if (radius <= 0.0f || depth + radius < Near)
-            {
-                return (1, 0, 1, 0, 1, 0);
-            }
-
-            var min = new Vector2(float.MaxValue);
-            var max = new Vector2(float.MinValue);
-            var whole = false;
-            for (var corner = 0; corner < 8; corner++)
-            {
-                var offset = new Vector3((corner & 1) == 0 ? -radius : radius, (corner & 2) == 0 ? -radius : radius, (corner & 4) == 0 ? -radius : radius);
-                var clip = Vector4.Transform(new Vector4(center + offset, 1.0f), viewProjection);
-                // A corner at or behind the eye has no place on screen: the light may reach any tile.
-                if (clip.W <= 1e-4f)
-                {
-                    whole = true;
-                    break;
-                }
-                var ndc = new Vector2(clip.X, clip.Y) / clip.W;
-                min = Vector2.Min(min, ndc);
-                max = Vector2.Max(max, ndc);
-            }
-
-            int x0 = 0, x1 = TilesX - 1, y0 = 0, y1 = TilesY - 1;
-            if (!whole)
-            {
-                if (min.X > 1.0f || max.X < -1.0f || min.Y > 1.0f || max.Y < -1.0f)
-                {
-                    return (1, 0, 1, 0, 1, 0);
-                }
-                // Tiles run left to right and top to bottom; screen y is up.
-                x0 = Math.Clamp((int)MathF.Floor((min.X * 0.5f + 0.5f) * TilesX), 0, TilesX - 1);
-                x1 = Math.Clamp((int)MathF.Floor((max.X * 0.5f + 0.5f) * TilesX), 0, TilesX - 1);
-                y0 = Math.Clamp((int)MathF.Floor((0.5f - max.Y * 0.5f) * TilesY), 0, TilesY - 1);
-                y1 = Math.Clamp((int)MathF.Floor((0.5f - min.Y * 0.5f) * TilesY), 0, TilesY - 1);
-            }
-            return (x0, x1, y0, y1, Slice(depth - radius), Slice(depth + radius));
-        }
     }
 }
