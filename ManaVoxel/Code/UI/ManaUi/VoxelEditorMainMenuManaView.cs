@@ -93,11 +93,13 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 new MenuItem("New Level", levels.New),
 
-                // Saves under whatever name the toolbar's box holds, which is also how Save As works.
-                // There is no file dialog to open here, and inventing a modal one for a name that is
-                // already on screen and editable would be a second way to say the same thing.
+                // Saves under whatever name the toolbar's box holds.
                 new MenuItem("Save Level", levels.Save)
                     .WithShortcut("Ctrl+S"),
+
+                // A copy under a new name, in a folder of your choosing; editing carries on in the copy.
+                new MenuItem("Save Level As...", levels.RequestSaveAs)
+                    .WithShortcut("Ctrl+Shift+S"),
 
                 new MenuItem("Reload Level", levels.Reload)
                     .EnabledWhen(() => levels.CurrentPath != null),

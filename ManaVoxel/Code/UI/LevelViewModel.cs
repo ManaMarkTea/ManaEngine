@@ -19,6 +19,9 @@ namespace ManaVoxel.Code.UI
         void NewLevel();
         void OpenLevel(string path);
         void SaveLevel(string path);
+
+        /// <summary>Saves the open level to a new file and carries on in that one, renamed to match.</summary>
+        void SaveLevelAs(string path);
         void SaveScene(ManaScene scene);
         bool SceneHasChanges(ManaScene scene);
 
@@ -118,6 +121,70 @@ namespace ManaVoxel.Code.UI
         /// <summary>Saves to <see cref="LevelName"/>, which is also how Save As works -- rename, then save.</summary>
         public void Save() => Host?.SaveLevel(CurrentPath != null && LevelName == ManaLevelLibrary.DisplayName(CurrentPath)
             ? CurrentPath : ManaLevelLibrary.ResolvePath(LevelName));
+
+        /// <summary>Saves the open level to <paramref name="path"/> (a new file) and carries on editing that copy.</summary>
+        public void SaveAs(string path) => Host?.SaveLevelAs(path);
+
+        /// <summary>Shows the Save As box; set by the toolbar, which owns the button it drops down from.</summary>
+        public Action? ShowSaveAs { get; set; }
+
+        /// <summary>Save As from anywhere -- the File menu, Ctrl+Shift+S -- drops the toolbar's box down.</summary>
+        public void RequestSaveAs()
+        {
+            if (ShowSaveAs == null)
+            {
+                SetStatus("Save As needs the toolbar on screen.");
+                return;
+            }
+            ShowSaveAs();
+        }
+
+        /// <summary>A name for a copy that is not taken yet: "Name copy", then "Name copy 2" and on.</summary>
+        public string SuggestCopyName(string folder)
+        {
+            var name = $"{LevelName} copy";
+            var number = 2;
+            while (File.Exists(Path.Combine(folder, name + ManaLevel.FileExtension)))
+            {
+                name = $"{LevelName} copy {number}";
+                number++;
+            }
+            return name;
+        }
+
+        /// <summary>
+        /// Where Save As can put a level: the open level's own folder first (a test level stays among the tests), then
+        /// the main levels folder and each game's own -- labelled as paths from the project root.
+        /// </summary>
+        public static IReadOnlyList<(string Label, string Folder)> SaveFolders(string? currentPath)
+        {
+            var main = ManaLevelLibrary.ResolveFolder();
+            var root = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(main))) ?? main;
+            var folders = new List<string>();
+            if (currentPath != null && Path.GetDirectoryName(Path.GetFullPath(currentPath)) is { } own)
+            {
+                folders.Add(own);
+            }
+            foreach (var (_, folder) in ManaLevelLibrary.Folders())
+            {
+                if (!folders.Any(known => string.Equals(Path.GetFullPath(known), Path.GetFullPath(folder), StringComparison.OrdinalIgnoreCase)))
+                {
+                    folders.Add(folder);
+                }
+            }
+            return folders.Select(folder => (Path.GetRelativePath(root, folder).Replace('\\', '/'), folder)).ToList();
+        }
+
+        /// <summary>The file a Save As name lands at in a folder, or null when the name has nothing usable in it.</summary>
+        public static string? SaveAsPath(string name, string folder)
+        {
+            var safe = string.Concat((name ?? string.Empty).Split(Path.GetInvalidFileNameChars())).Trim();
+            if (safe.Length == 0)
+            {
+                return null;
+            }
+            return Path.Combine(folder, safe + ManaLevel.FileExtension);
+        }
 
         public void SaveScene(ManaScene scene) => Host?.SaveScene(scene);
 

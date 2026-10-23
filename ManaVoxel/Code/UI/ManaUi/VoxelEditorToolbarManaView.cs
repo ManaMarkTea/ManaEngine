@@ -73,6 +73,13 @@ namespace ManaVoxel.Code.UI.ManaUi
                 .OnClick(levels.Save);
             save.BindPolled(button => button.Text, () => CurrentSceneHasChanges(levels, world) ? "Save *" : "Save");
 
+            var saveAs = new Button()
+                .Label("Save As...")
+                .WithTooltip("Save a copy under a new name, in the folder you choose, and carry on in the copy." + NewLine + "Ctrl+Shift+S.");
+            saveAs.OnClick(() => ShowSaveAs(theme, levels, saveAs));
+            // The File menu and Ctrl+Shift+S drop the same box down from here.
+            levels.ShowSaveAs = () => ShowSaveAs(theme, levels, saveAs);
+
             var open = FlyoutButton("Level", "New, open and reload -- and which one is open.", button =>
             {
                 levels.Refresh();
@@ -85,7 +92,102 @@ namespace ManaVoxel.Code.UI.ManaUi
             // pixel spent here is one the voxel tools further along the same strip do not get.
             return new StackPanel()
                 .Horizontal(theme.Spacing)
-                .Children(open, name, save);
+                .Children(open, name, save, saveAs);
+        }
+
+        /// <summary>The Save As box: a name (a free copy name to start with), the folder, and where that lands.</summary>
+        public static UiPopup? ShowSaveAs(UiTheme theme, LevelViewModel levels, UiElement anchor)
+        {
+            if (anchor.Root is not { } root)
+            {
+                return null;
+            }
+
+            var folders = LevelViewModel.SaveFolders(levels.CurrentPath);
+            var folder = 0;
+            UiPopup? popup = null;
+
+            var name = new TextBox { Text = levels.SuggestCopyName(folders[0].Folder), Width = 280.0f };
+            var where = new ComboBox().Options(folders.Select(f => f.Label).ToArray()).Selected(0);
+            where.SelectionChanged += (_, index) =>
+            {
+                if (!where.IsApplyingBinding && index >= 0)
+                {
+                    folder = index;
+                }
+            };
+
+            string? Target() => LevelViewModel.SaveAsPath(name.Text, folders[folder].Folder);
+            var landing = new TextBlock().FontSize(theme.FontSizeSmall).Wrap();
+            landing.BindTextPolled(() =>
+            {
+                if (Target() is not { } path)
+                {
+                    return "Give it a name.";
+                }
+                var shown = folders[folder].Label + "/" + Path.GetFileName(path);
+                if (File.Exists(path))
+                {
+                    return shown + " -- already there; saving replaces it.";
+                }
+                return shown;
+            });
+            landing.BindPolled(t => t.Foreground, () =>
+            {
+                if (Target() is { } path && File.Exists(path))
+                {
+                    return (Vector4?)theme.Warning;
+                }
+                return (Vector4?)theme.TextMuted;
+            });
+
+            void Commit()
+            {
+                if (Target() is not { } path)
+                {
+                    return;
+                }
+                popup?.Close();
+                levels.SaveAs(path);
+            }
+
+            var save = new Button().Label("Save").Variant(ButtonVariant.Primary).OnClick(Commit);
+            save.BindPolled(b => b.IsEnabled, () => Target() != null);
+            var cancel = new Button().Label("Cancel").OnClick(() => popup?.Close());
+            // Enter saves and Escape lets go, from the name box where the typing happens.
+            name.PreviewKeyDown += (_, e) =>
+            {
+                if (e.Key == UiKey.Enter)
+                {
+                    Commit();
+                    e.Handled = true;
+                }
+                else if (e.Key == UiKey.Escape)
+                {
+                    popup?.Close();
+                    e.Handled = true;
+                }
+            };
+
+            var body = new StackPanel().Vertical(theme.Spacing).Padding(10.0f).Children(
+                new TextBlock().Text("Save Level As").FontFamily(theme.FontFamilyMedium),
+                new Grid().Columns("56, *", theme.Spacing).Rows("Auto, Auto", theme.Spacing).Children(
+                    new TextBlock().Text("Name").Foreground(theme.TextMuted).CenterV().GridColumn(0).GridRow(0),
+                    name.GridColumn(1).GridRow(0),
+                    new TextBlock().Text("Folder").Foreground(theme.TextMuted).CenterV().GridColumn(0).GridRow(1),
+                    where.GridColumn(1).GridRow(1)),
+                landing,
+                new StackPanel().Horizontal(theme.Spacing).Children(save, cancel).Right());
+            popup = new UiPopup
+            {
+                Placement = PopupPlacement.Bottom,
+                Child = new Border().Fill(theme.SurfaceRaised).Outline(theme.BorderStrong, 1.0f).Rounded(theme.CornerRadius).Shadow(16.0f)
+                    .Width(380.0f).Content(body)
+            };
+            root.Popups.Show(popup, anchor);
+            root.FocusManager.Focus(name);
+            name.SelectAll();
+            return popup;
         }
 
         private static UiElement BuildPlayGroup(UiTheme theme, LevelViewModel levels)

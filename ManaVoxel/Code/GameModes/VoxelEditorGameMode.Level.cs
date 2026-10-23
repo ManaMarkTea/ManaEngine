@@ -191,10 +191,18 @@ namespace Mana.Code.GameModes
                 _viewModel.History.Redo();
             }
 
+            // Ctrl+S saves; Ctrl+Shift+S drops the Save As box down.
             var saveKeyDown = control && keyboard.IsKeyPressed(Key.S);
             if (canEdit && saveKeyDown && !_saveKeyWasDown && !IsLoading)
             {
-                _viewModel.Levels.Save();
+                if (shift)
+                {
+                    _viewModel.Levels.RequestSaveAs();
+                }
+                else
+                {
+                    _viewModel.Levels.Save();
+                }
             }
 
             _undoKeyWasDown = undoKeyDown;
@@ -431,6 +439,28 @@ namespace Mana.Code.GameModes
                 _viewModel.Levels.SetStatus($"Could not save scene '{scene.Name}': {exception.Message}");
                 Trace.TraceWarning($"Failed to save scene '{scene.Name}' to '{path}': {exception}");
             }
+        }
+
+        public void SaveLevelAs(string path)
+        {
+            if (ProjectAssets.IsEditing)
+            {
+                _viewModel.Levels.SetStatus("Save As saves levels: finish editing the prefab first.");
+                return;
+            }
+            if (IsLoading)
+            {
+                return;
+            }
+
+            // The copy is named for its file, inside and out, and from here on Save writes to it.
+            if (CurrentLevelScene() is { } scene)
+            {
+                scene.Name = ManaLevelLibrary.DisplayName(path);
+            }
+            SaveLevel(path);
+            // The Outliner names scenes from its own copy of the tree; tell it the scene's name moved.
+            Context.World.Selection.NotifySceneGraphChanged();
         }
 
         public bool SceneHasChanges(ManaScene scene)
@@ -763,6 +793,17 @@ namespace Mana.Code.GameModes
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
                 _commandRunner.Register("measure", command => MeasureInput.RunMeasureCommand(command.Name, command.Position));
+                // With a path, saves the open level there as Save As does; without one, drops the Save As box down.
+                _commandRunner.Register("save_as", command =>
+                {
+                    if (string.IsNullOrWhiteSpace(command.Path))
+                    {
+                        _viewModel.Levels.RequestSaveAs();
+                        return;
+                    }
+                    SaveLevelAs(Path.GetFullPath(command.Path));
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: saved as {_viewModel.Levels.CurrentPath} ({_viewModel.Levels.LevelName})");
+                });
                 _commandRunner.Register("terrain", command => TerrainInput.RunTerrainCommand(command.Name, command.Position, command.Target, command.Count));
                 _commandRunner.Register("gizmo_mode", command =>
                     _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));

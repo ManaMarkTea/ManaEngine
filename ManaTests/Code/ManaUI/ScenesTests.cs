@@ -106,6 +106,7 @@ public static class ScenesChecks
         public bool HasPlayerStart => false;
         public void OpenLevel(string path) => Opened = path;
         public void SaveLevel(string path) => Saved = path;
+        public void SaveLevelAs(string path) => Saved = path;
         public void NewLevel() { }
         public void SaveScene(Mana.ManaScene scene) { }
         public bool SceneHasChanges(Mana.ManaScene scene) => false;
