@@ -128,21 +128,29 @@ public static class ReadableAssetReferenceChecks
         }
 
         // ---------------------------------------------------------------- the unsaved-changes check is not run every frame
+        // Times passed in: the last activity at 900, so the check is in its active window until 1900.
         var dirtyScene = new object();
         var computed = 0;
         bool Compute() { computed++; return computed > 1; }
 
-        var first = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000);
-        var again = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1100);
-        var later = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000 + SceneDirtyCache.LifetimeMilliseconds + 10);
+        var first = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000, 900);
+        var again = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1100, 900);
+        var later = SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000 + SceneDirtyCache.LifetimeMilliseconds + 10, 900);
         Check("asking again straight away reuses the answer instead of capturing the scene again", computed == 2 && first == again, $"{computed} captures");
-        Check("and asking after a moment works it out afresh", later && computed == 2, $"{computed} captures");
+        Check("and asking after a moment while the editor is in use works it out afresh", later && computed == 2, $"{computed} captures");
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 2500, 900);
+        var settled = computed;
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 9000, 900);
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 60000, 900);
+        Check("a second after the last activity the answer stands, however long nothing happens", computed == settled, $"{computed - settled} more captures");
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 60010, 60000);
+        Check("until something happens again", computed == settled + 1, $"{computed - settled} more captures");
         SceneDirtyCache.Invalidate(dirtyScene);
-        SceneDirtyCache.IsDirty(dirtyScene, Compute, 1000 + SceneDirtyCache.LifetimeMilliseconds + 20);
-        Check("saving forgets the answer at once", computed == 3, $"{computed} captures");
+        SceneDirtyCache.IsDirty(dirtyScene, Compute, 60020, 60000);
+        Check("saving forgets the answer at once", computed == settled + 2, $"{computed - settled} more captures");
         var otherScene = new object();
         var otherComputed = 0;
-        SceneDirtyCache.IsDirty(otherScene, () => { otherComputed++; return false; }, 1005);
+        SceneDirtyCache.IsDirty(otherScene, () => { otherComputed++; return false; }, 1005, 900);
         Check("and each scene has its own", otherComputed == 1);
 
         // ---------------------------------------------------------------- every bundled level

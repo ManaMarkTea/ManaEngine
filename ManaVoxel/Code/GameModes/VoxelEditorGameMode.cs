@@ -985,11 +985,43 @@ namespace Mana.Code.GameModes
         /// mesh-picker drag-and-drop, voxel pointer interaction, pawn driving input, and place-search
         /// fly-to. All of it has to run every non-loading frame regardless of which UI is on screen.
         /// </summary>
+        private bool _activityHooked;
+
+        // Input is what changes a scene in the editor: the unsaved-changes check rechecks around it and rests otherwise.
+        // A held button covers drags (sliders, the gizmo) that send no events while they move.
+        private void NoteEditorActivity()
+        {
+            if (!_activityHooked)
+            {
+                _activityHooked = true;
+                foreach (var keyboard in Context.Input.Keyboards)
+                {
+                    keyboard.KeyDown += (_, _, _) => ManaVoxel.Code.Levels.SceneDirtyCache.Touch();
+                    keyboard.KeyChar += (_, _) => ManaVoxel.Code.Levels.SceneDirtyCache.Touch();
+                }
+                foreach (var mouse in Context.Input.Mice)
+                {
+                    mouse.MouseUp += (_, _) => ManaVoxel.Code.Levels.SceneDirtyCache.Touch();
+                    mouse.Scroll += (_, _) => ManaVoxel.Code.Levels.SceneDirtyCache.Touch();
+                }
+            }
+
+            foreach (var mouse in Context.Input.Mice)
+            {
+                if (mouse.IsButtonPressed(Silk.NET.Input.MouseButton.Left) || mouse.IsButtonPressed(Silk.NET.Input.MouseButton.Right)
+                    || mouse.IsButtonPressed(Silk.NET.Input.MouseButton.Middle))
+                {
+                    ManaVoxel.Code.Levels.SceneDirtyCache.Touch();
+                }
+            }
+        }
+
         private void UpdateEditorPerFrameState()
         {
             PushWebGpuFrameStats();
             LogMemoryStatsPeriodically();
             ManaMemoryStats.Sample();
+            NoteEditorActivity();
 
             // Here rather than in OnLoadingComplete, which the loading coordinator calls one line before it
             // marks loading finished -- so IsLoading is still true there, and every level operation guards

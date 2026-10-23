@@ -72,6 +72,7 @@ namespace ManaVoxel.Code.UI
 
         public void Record(string description, Action undo, Action redo)
         {
+            Levels.SceneDirtyCache.Touch();
             ArgumentNullException.ThrowIfNull(undo);
             ArgumentNullException.ThrowIfNull(redo);
 
@@ -142,7 +143,11 @@ namespace ManaVoxel.Code.UI
                 });
         }
 
-        public bool Undo() => Apply(_undo, _redo, undo: true);
+        public bool Undo()
+        {
+            Levels.SceneDirtyCache.Touch();
+            return Apply(_undo, _redo, undo: true);
+        }
 
         /// <summary>Removes an inspector component while retaining its instance and settings for undo.
         /// Authored box colliders recreate their physics registration when restored.</summary>
@@ -219,7 +224,11 @@ namespace ManaVoxel.Code.UI
                 });
         }
 
-        public bool Redo() => Apply(_redo, _undo, undo: false);
+        public bool Redo()
+        {
+            Levels.SceneDirtyCache.Touch();
+            return Apply(_redo, _undo, undo: false);
+        }
 
         public void Clear()
         {
