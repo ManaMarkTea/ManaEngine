@@ -545,11 +545,17 @@
       })
       .catch(() => {});
     // The GPU the page draws with, from mana_webgpu.c once the adapter arrives.
-    window.addEventListener('mana-gpu', event => {
+    // The GPU the page draws with, and the resolution it has fallen back to when frames ran slow.
+    let gpuName = '';
+    let renderScale = 1;
+    const showGpu = () => {
       const mark = document.getElementById('manaGpuInfo');
-      mark.title = `Drawing with: ${event.detail}`;
+      mark.title = `Drawing with: ${gpuName}` + (renderScale < 1 ? `
+At ${Math.round(renderScale * 100)}% resolution: frames were slow.` : '');
       mark.hidden = false;
-    });
+    };
+    window.addEventListener('mana-gpu', event => { gpuName = event.detail; showGpu(); });
+    window.addEventListener('mana-render-scale', event => { renderScale = event.detail; showGpu(); });
     await import(new URL('main.js', document.baseURI).href);
   </script>
 </body>

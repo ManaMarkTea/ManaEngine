@@ -19,6 +19,53 @@ const mobileRendering = renderingOverride === 'mobile' || (renderingOverride !==
 const resolutionOverride = new URLSearchParams(globalThis.location?.search || '').get('resolution');
 const pixelBudgets = { '1080': 1920 * 1080, '720': 1280 * 720 };
 const pixelBudget = pixelBudgets[resolutionOverride] ?? Infinity;
+
+// Automatic resolution, unless the Resolution setting says otherwise: when frames stay slow the frame is drawn
+// smaller (the browser scales it up), and it climbs back after a long run of quick ones. ?resolution=full keeps it full.
+const autoResolution = !resolutionOverride;
+const renderScales = [1, 0.75, 0.55, 0.4];
+let renderScaleStep = 0;
+let scaleSampleMs = 0;
+let scaleSampleFrames = 0;
+let scaleWarmupMs = 0;
+let quickWindows = 0;
+let lastCanvasSize = null;
+
+// RAF frame times, as the particle budget takes them: sustained slowness steps down, sustained headroom steps up.
+function updateRenderScale(milliseconds) {
+    if (!autoResolution || document.hidden || globalThis.ManaMenuOpen || milliseconds <= 0 || milliseconds > 5000) {
+        scaleSampleMs = scaleSampleFrames = 0;
+        return;
+    }
+    // Loading and the first frames are always slow.
+    if (scaleWarmupMs < 4000) { scaleWarmupMs += milliseconds; return; }
+    scaleSampleMs += milliseconds;
+    scaleSampleFrames++;
+    if (scaleSampleMs < 2000 || scaleSampleFrames < 3) return;
+    const average = scaleSampleMs / scaleSampleFrames;
+    scaleSampleMs = scaleSampleFrames = 0;
+    if (average > 45 && renderScaleStep < renderScales.length - 1) {
+        setRenderScaleStep(renderScaleStep + 1, average);
+        quickWindows = 0;
+    } else if (average < 20 && renderScaleStep > 0) {
+        // Ten quick windows (20 s) before climbing, so it does not seesaw at the edge.
+        if (++quickWindows >= 10) {
+            setRenderScaleStep(renderScaleStep - 1, average);
+            quickWindows = 0;
+        }
+    } else {
+        quickWindows = 0;
+    }
+}
+
+function setRenderScaleStep(step, averageMs) {
+    renderScaleStep = step;
+    console.log(`[Quality] Drawing at ${Math.round(renderScales[step] * 100)}% resolution (frames averaged ${averageMs.toFixed(0)} ms).`);
+    window.dispatchEvent(new CustomEvent('mana-render-scale', { detail: renderScales[step] }));
+    if (lastCanvasSize) {
+        applyCanvasSize(...lastCanvasSize);
+    }
+}
 let particleBudget = 20000;
 let sampleMs = 0;
 let sampleFrames = 0;
@@ -119,8 +166,10 @@ export function getDevicePixelRatio() {
 function applyCanvasSize(cssWidth, cssHeight, deviceWidth, deviceHeight) {
     const logicalWidth = Math.max(1, Math.round(cssWidth));
     const logicalHeight = Math.max(1, Math.round(cssHeight));
-    let width = Math.max(1, deviceWidth);
-    let height = Math.max(1, deviceHeight);
+    lastCanvasSize = [cssWidth, cssHeight, deviceWidth, deviceHeight];
+    const scale = renderScales[renderScaleStep];
+    let width = Math.max(1, Math.floor(deviceWidth * scale));
+    let height = Math.max(1, Math.floor(deviceHeight * scale));
     if (width * height > pixelBudget) {
         const shrink = Math.sqrt(pixelBudget / (width * height));
         width = Math.max(1, Math.floor(width * shrink));
@@ -392,6 +441,7 @@ export function startRenderLoop() {
         const dt = (now - last) / 1000.0;
         last = now;
         updateParticleBudget(dt * 1000);
+        updateRenderScale(dt * 1000);
         if (globalThis.ManaExports) {
             globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop.OnFrame(dt);
             if (fpsLabel) {

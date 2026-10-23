@@ -153,7 +153,9 @@ from the catalog rather than a checkout, and files can be locked by Defender mid
 
 A slow machine: the console's `[WebGPU] adapter:` line says which GPU the page got (a laptop with two should get the fast
 one -- we ask for `high-performance` -- and "software fallback" means the CPU is drawing). The page's settings go lighter
-for weaker cards: Resolution 1080p/720p (`?resolution=`, a pixel budget the browser scales up; full by default),
+for weaker cards: Resolution 1080p/720p (`?resolution=`, a pixel budget the browser scales up). Full by default, and
+it lowers itself when frames stay slow (over 45 ms for 2 s: 75%, 55%, 40%; back up after 20 s of quick ones; logged as
+`[Quality]`, shown on the page's GPU mark; `?resolution=full` keeps it full),
 Graphics Phone (`?rendering=mobile`), Sky Simple (`?sky=simple`). `[Hitch]` lines come at most every 30 frames, so a
 steady low frame rate shows as one line every few seconds.
 

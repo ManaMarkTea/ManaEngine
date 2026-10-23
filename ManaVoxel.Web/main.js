@@ -107,7 +107,7 @@ function installDownloadProgress() {
 const settings = [
     { key: 'sky', label: 'Sky', options: [['', 'Automatic'], ['simple', 'Simple'], ['stars', 'Simple + real stars'], ['full', 'Full atmosphere']] },
     { key: 'rendering', label: 'Graphics', options: [['', 'Automatic'], ['mobile', 'Phone'], ['desktop', 'Desktop']] },
-    { key: 'resolution', label: 'Resolution', options: [['', 'Full'], ['1080', '1080p'], ['720', '720p']] }
+    { key: 'resolution', label: 'Resolution', options: [['', 'Full (lowers itself when slow)'], ['full', 'Full (never lower)'], ['1080', '1080p'], ['720', '720p']] }
 ];
 
 function mountSettings() {
