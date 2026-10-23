@@ -248,6 +248,11 @@ are baked from; the live editor draws new ones with the GPU instead.
   let go with `DetachRig(rig)`. The character's `ManaSpringArmComponent` is one (`IManaCameraLookRig`: it takes mouse look);
   a game mode that frames the shot itself uses `ManaComputedCameraRig` (Train Yard Wars, Yacht Jousting) or its own rig
   (`RunnerCamera`), and detaches it on `Suspend` (F8) -- never by borrowing `ShouldCapture*Input`.
+- **Engine pieces for games** (use these before writing a game's own): `ManaModelLibrary`/`ManaModel` (models and
+  prefabs, read once, placed as shared copies, "Owner" parts painted), `ManaShapeMesh` (many coloured shapes as one mesh),
+  `ManaMeshBatch` (static scenery merged into one mesh per texture), `ManaStrategyCamera` (top-down view: zoom to the
+  pointer, drag, quarter turns, bounds; its own rig), `ManaFixedStepClock` (fixed ticks, speed, pause, alpha),
+  `ManaSoundBank` and `ManaMusicPlayer` (sounds by path, music crossfades).
 - **Render loop:** `BaseGameMode` drives update + render. `ManaGameModeGraphicsBridge` finalizes material texture data for WebGPU. `ManaWorld.CreateRenderScene()` collects mesh instances each frame.
 - **WebGPU frame:** `ManaWebGpuContext` owns the frame skeleton and shutdown order; `ManaWebGpuNativeDevice` the native
   handles and their (desktop or browser) bring-up, `ManaWebGpuWindowSurface` the swap chain
