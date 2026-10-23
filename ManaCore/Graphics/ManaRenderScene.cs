@@ -12,12 +12,12 @@ namespace ManaCore.Graphics
         public Vector4[] LightPositions { get; init; } = new Vector4[4];
         public Vector4[] LightColors { get; init; } = new Vector4[4];
 
-        public const int MaxLocalLights = 64;
+        /// <summary>Placed lights a frame can draw; clustered lighting (<see cref="ManaLightClusters"/>) gives each pixel only those near it.</summary>
+        public const int MaxLocalLights = 4096;
 
-        // Lights placed in the scene -- lamps, torches -- apart from the grid above: xyz position, w range.
-        // Colours are pre-multiplied by intensity; an unused slot is black.
-        public Vector4[] LocalLightPositions { get; init; } = new Vector4[MaxLocalLights];
-        public Vector4[] LocalLightColors { get; init; } = new Vector4[MaxLocalLights];
+        // Lights placed in the scene -- lamps, torches, glows -- apart from the grid above: xyz position, w range;
+        // colour pre-multiplied by intensity.
+        public IReadOnlyList<(Vector4 Position, Vector4 Color)> LocalLights { get; init; } = [];
 
         // A single directional "sun" light, separate from the 4-slot point light grid above. At most
         // one is honored per frame -- see ManaWorld.CollectLightsFromNode.

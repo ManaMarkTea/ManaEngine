@@ -467,25 +467,12 @@ namespace Mana
                 EnvironmentReflectionSource = EnvironmentReflectionSource.Clone(),
                 LightPositions = lightPositions,
                 LightColors = lightColors,
-                LocalLightPositions = PadLocal(localLights.Select(l => l.Position)),
-                LocalLightColors = PadLocal(localLights.Select(l => l.Color)),
+                LocalLights = localLights,
                 HasSun = sun.Found,
                 SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
                 SunColor = sun.Found ? sun.Color : Vector4.One,
                 SunCastsShadows = sun.Found && sun.CastsShadows
             };
-        }
-
-        private static Vector4[] PadLocal(IEnumerable<Vector4> values)
-        {
-            var slots = new Vector4[ManaRenderScene.MaxLocalLights];
-            var i = 0;
-            foreach (var value in values)
-            {
-                slots[i++] = value;
-            }
-
-            return slots;
         }
 
     }

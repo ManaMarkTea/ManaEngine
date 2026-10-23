@@ -249,14 +249,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     // Placed point lights -- lamps, torches. Inverse square, windowed to reach zero at the light's range so a
     // lamp lights its surroundings and not the whole level.
-    for (var i = 0u; i < 64u; i = i + 1u) {
-        let light_color = frame.local_light_colors[i].rgb;
-        let range = frame.local_light_positions[i].w;
-        if (range <= 0.0) {
-            break;
-        }
+    let cell = mana_light_cell(input.clip_position, input.world_position);
+    for (var i = 0u; i < cell.y; i = i + 1u) {
+        let lamp = mana_cell_light(cell, i);
+        let light_color = lamp.color.rgb;
+        let range = lamp.position_range.w;
 
-        let to_light = frame.local_light_positions[i].xyz - input.world_position;
+        let to_light = lamp.position_range.xyz - input.world_position;
         let distance = max(length(to_light), 0.05);
         let radiance = light_color * mana_point_light_attenuation(distance, range);
 

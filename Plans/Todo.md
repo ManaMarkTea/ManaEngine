@@ -111,6 +111,11 @@
 [] - Big step!!  Rename ManaVoxel, its no longer just a voxel editor
 
 
-[] - Lights:  I dont like the limits, games like minecraft seem to have unlimited light sources. Unreal has MegaLights, etc.  How can we increase the light amounts?  Forward+ rendering?  Fake lights? etc
+[x] - Lights:  I dont like the limits, games like minecraft seem to have unlimited light sources. Unreal has MegaLights, etc.  How can we increase the light amounts?  Forward+ rendering?  Fake lights? etc
+    Claude (2026-10-22): clustered (Forward+) lighting. Up to 4096 placed lights (was 64): ManaLightClusters bins them
+    into a 16x9x24 grid over the view each frame, and the PBR, grid and water shaders light each pixel with only the
+    lights in its cell. Content/Levels/Tests/Many Lights.manalevel has 1,024 lamps (114 fps in Chrome here); old scenes
+    look the same. Follow-ups: shadows from point lights; binning costs ~2 ms for 1,000 lights seen up close (fine
+    for a normal level, worth a look before 4,000-light scenes).
 
 [] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags, etc)

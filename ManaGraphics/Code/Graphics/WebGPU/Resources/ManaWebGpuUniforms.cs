@@ -29,14 +29,17 @@ namespace ManaGraphics.Code.Graphics.Resources
         public Vector4 CascadeSplitFar;
         public Vector4 SunDirection;
         public Vector4 SunColor;
-        public ManaWebGpuLocalLightArray LocalLightPositions;
-        public ManaWebGpuLocalLightArray LocalLightColors;
+        // Clustered placed lights (ManaLightClusters): grid xyz = tiles across, tiles down, depth slices (x 0 = none);
+        // depth x = first slice's start, y = slices per log-unit, zw = viewport pixels; forward xyz = the camera's look.
+        public Vector4 ClusterGrid;
+        public Vector4 ClusterDepth;
+        public Vector4 CameraForward;
         public Vector4 Wind;
         public Vector4 WindMotion;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.
-        public static ManaWebGpuFrameUniform For(ManaRenderScene scene, ManaWebGpuShadowMap shadows, float seconds)
+        public static ManaWebGpuFrameUniform For(ManaRenderScene scene, ManaWebGpuShadowMap shadows, ManaLightClusters lights, float seconds)
         {
             var camera = scene.Camera;
             var irradianceSettings = scene.IrradianceSettings;
@@ -78,21 +81,17 @@ namespace ManaGraphics.Code.Graphics.Resources
             uniform.Wind = new Vector4(wind.Direction.X, wind.Direction.Y, wind.Speed, wind.Gustiness);
             uniform.WindMotion = new Vector4(wind.Drift.X, wind.Drift.Y, wind.Distance, wind.Gust);
 
-            for (var i = 0; i < ManaRenderScene.MaxLocalLights; i++)
+            if (lights.Viewport.X >= 1.0f && lights.Viewport.Y >= 1.0f)
             {
-                uniform.LocalLightPositions[i] = scene.LocalLightPositions[i];
-                uniform.LocalLightColors[i] = scene.LocalLightColors[i];
+                uniform.ClusterGrid = new Vector4(ManaLightClusters.TilesX, ManaLightClusters.TilesY, ManaLightClusters.Slices, lights.LightCount);
             }
+            uniform.ClusterDepth = new Vector4(lights.Near, lights.SliceScale, lights.Viewport.X, lights.Viewport.Y);
+            uniform.CameraForward = new Vector4(lights.Forward, 0.0f);
 
             return uniform;
         }
     }
 
-    [System.Runtime.CompilerServices.InlineArray(ManaRenderScene.MaxLocalLights)]
-    internal struct ManaWebGpuLocalLightArray
-    {
-        private Vector4 _element;
-    }
 
     // Written per mesh, only when the mesh's transform/material actually changed since last
     // frame (see ManaWebGpuSceneMesh.TryUpdateObjectUniform) -- group 1, binding 0.

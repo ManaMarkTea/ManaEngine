@@ -19,6 +19,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly ManaWebGpuEnvironment _environment;
         private readonly ManaWebGpuSceneMeshes _meshes;
         private readonly ManaWebGpuShadowMap _shadowMap;
+        private ManaWebGpuLightClusters? _lights;
+        private Vector2D<int> _size;
         private readonly ManaWebGpuHdrPostProcessor _hdr;
         private readonly ManaWebGpuParticlePass _particles;
         // In frame order; each owns its pipelines (see ManaWebGpuRenderPass).
@@ -39,7 +41,9 @@ namespace ManaGraphics.Code.Graphics.Renderers
             {
                 // The frame group binds the shadow map, so the map comes first.
                 shadowMap = new ManaWebGpuShadowMap(gpu);
-                _bindings = new ManaWebGpuSceneBindings(gpu, shadowMap.ArrayView, shadowMap.Sampler);
+                _lights = new ManaWebGpuLightClusters(gpu);
+                _bindings = new ManaWebGpuSceneBindings(gpu, shadowMap.ArrayView, shadowMap.Sampler, _lights);
+                _size = size;
                 hdr = new ManaWebGpuHdrPostProcessor(gpu, gpu.SurfaceFormat,
                     ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl")));
                 hdr.Resize(size);
@@ -108,6 +112,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
         public void Resize(Vector2D<int> size)
         {
+            _size = size;
             _hdr.Resize(size);
         }
 
@@ -115,7 +120,9 @@ namespace ManaGraphics.Code.Graphics.Renderers
         public void UpdateFrame(ManaRenderScene scene, float seconds)
         {
             _shadowMap.UpdateCascades(scene);
-            _bindings!.WriteFrame(Queue, ManaWebGpuFrameUniform.For(scene, _shadowMap, seconds));
+            // The scene draws at the framebuffer's size, so that is what a pixel's cell is worked out against.
+            _lights!.Update(scene, new System.Numerics.Vector2(_size.X, _size.Y));
+            _bindings!.WriteFrame(Queue, ManaWebGpuFrameUniform.For(scene, _shadowMap, _lights.Clusters, seconds));
         }
 
         /// <summary>
@@ -243,6 +250,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _hdr?.Dispose();
             _bindings?.Dispose();
             _bindings = null;
+            _lights?.Dispose();
+            _lights = null;
             _shadowMap?.Dispose();
         }
     }

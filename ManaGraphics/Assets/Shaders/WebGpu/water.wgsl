@@ -385,16 +385,15 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         glint = glint + sun_light * pow(max(dot(n, normalize(to_sun + v)), 0.0), 180.0) * 2.5;
     }
     var lamps = vec3<f32>(0.0);
-    for (var i = 0u; i < 64u; i = i + 1u) {
-        let range = frame.local_light_positions[i].w;
-        if (range <= 0.0) {
-            break;
-        }
-        let to_light = frame.local_light_positions[i].xyz - input.world_position;
+    let cell = mana_light_cell(input.position, input.world_position);
+    for (var i = 0u; i < cell.y; i = i + 1u) {
+        let lamp = mana_cell_light(cell, i);
+        let range = lamp.position_range.w;
+        let to_light = lamp.position_range.xyz - input.world_position;
         let distance = length(to_light);
         let ndotl = max(dot(n, to_light / max(distance, 0.001)), 0.0);
         let to_lamp = to_light / max(distance, 0.001);
-        let reach = frame.local_light_colors[i].rgb * mana_point_light_attenuation(distance, range);
+        let reach = lamp.color.rgb * mana_point_light_attenuation(distance, range);
         lamps = lamps + reach * ndotl;
         glint = glint + reach * pow(max(dot(n, normalize(to_lamp + v)), 0.0), 400.0) * 1.2;
     }

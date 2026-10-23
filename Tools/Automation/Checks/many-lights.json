@@ -1,0 +1,13 @@
+[
+  {"type": "open_level", "path": "Content/Levels/Tests/Many Lights.manalevel"},
+  {"type": "wait", "frames": 240},
+  {"type": "gizmos", "visible": false},
+  {"type": "screenshot", "path": "@@OUT@@", "clean": true},
+  {"type": "move_camera", "position": [62, 6, 70], "target": [72, 0, 60]},
+  {"type": "wait", "frames": 30},
+  {"type": "screenshot", "path": "@@OUT@@.close.png", "clean": true},
+  {"type": "profile_reset"},
+  {"type": "wait", "frames": 240},
+  {"type": "profile_dump", "path": "@@OUT@@.profile.txt"},
+  {"type": "quit"}
+]

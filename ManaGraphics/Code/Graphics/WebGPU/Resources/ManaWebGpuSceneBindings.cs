@@ -39,14 +39,15 @@ namespace ManaGraphics.Code.Graphics.Resources
         public PipelineLayout* SceneCaptureLayout { get; private set; }
 
         /// <param name="shadowMapArrayView">Bound into group 0; the shadow pass keeps it alive for as long as these bindings.</param>
-        public ManaWebGpuSceneBindings(ManaWebGpuDevice gpu, TextureView* shadowMapArrayView, Sampler* shadowSampler)
+        /// <param name="lights">The light cluster buffers, bound into group 0; the scene renderer keeps them as long.</param>
+        public ManaWebGpuSceneBindings(ManaWebGpuDevice gpu, TextureView* shadowMapArrayView, Sampler* shadowSampler, ManaWebGpuLightClusters lights)
             : base(gpu)
         {
             var api = gpu.Api;
             var device = gpu.Device;
             try
             {
-                Create(api, device, shadowMapArrayView, shadowSampler);
+                Create(api, device, shadowMapArrayView, shadowSampler, lights);
             }
             catch
             {
@@ -55,7 +56,7 @@ namespace ManaGraphics.Code.Graphics.Resources
             }
         }
 
-        private void Create(WebGPU api, Device* device, TextureView* shadowMapArrayView, Sampler* shadowSampler)
+        private void Create(WebGPU api, Device* device, TextureView* shadowMapArrayView, Sampler* shadowSampler, ManaWebGpuLightClusters lights)
         {
                 var samplerDescriptor = new SamplerDescriptor
                 {
@@ -140,14 +141,24 @@ namespace ManaGraphics.Code.Graphics.Resources
                     }
                 };
 
-                var frameBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[3];
+                // The placed lights, the clustered view's cells and each cell's light indices (ManaWebGpuLightClusters).
+                var frameBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[6];
                 frameBindGroupLayoutEntries[0] = frameBindGroupLayoutEntry;
                 frameBindGroupLayoutEntries[1] = shadowMapBindGroupLayoutEntry;
                 frameBindGroupLayoutEntries[2] = shadowSamplerBindGroupLayoutEntry;
+                for (var binding = 3; binding < 6; binding++)
+                {
+                    frameBindGroupLayoutEntries[binding] = new BindGroupLayoutEntry
+                    {
+                        Binding = (uint)binding,
+                        Visibility = ShaderStage.Fragment,
+                        Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage, HasDynamicOffset = false }
+                    };
+                }
 
                 var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
                 {
-                    EntryCount = 3,
+                    EntryCount = 6,
                     Entries = frameBindGroupLayoutEntries
                 };
                 FrameLayout = api.DeviceCreateBindGroupLayout(device, &frameBindGroupLayoutDescriptor);
@@ -186,15 +197,18 @@ namespace ManaGraphics.Code.Graphics.Resources
                     Binding = 2,
                     Sampler = shadowSampler
                 };
-                var frameBindGroupEntries = stackalloc BindGroupEntry[3];
+                var frameBindGroupEntries = stackalloc BindGroupEntry[6];
                 frameBindGroupEntries[0] = frameBindGroupEntry;
                 frameBindGroupEntries[1] = shadowMapBindGroupEntry;
                 frameBindGroupEntries[2] = shadowSamplerBindGroupEntry;
+                frameBindGroupEntries[3] = new BindGroupEntry { Binding = 3, Buffer = lights.LightBuffer, Offset = 0, Size = lights.LightBufferSize };
+                frameBindGroupEntries[4] = new BindGroupEntry { Binding = 4, Buffer = lights.CellBuffer, Offset = 0, Size = lights.CellBufferSize };
+                frameBindGroupEntries[5] = new BindGroupEntry { Binding = 5, Buffer = lights.IndexBuffer, Offset = 0, Size = lights.IndexBufferSize };
 
                 var frameBindGroupDescriptor = new BindGroupDescriptor
                 {
                     Layout = FrameLayout,
-                    EntryCount = 3,
+                    EntryCount = 6,
                     Entries = frameBindGroupEntries
                 };
                 var frameLabel = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");

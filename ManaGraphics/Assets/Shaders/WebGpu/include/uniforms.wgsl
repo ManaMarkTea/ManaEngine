@@ -26,10 +26,13 @@ struct FrameUniform {
     sun_direction : vec4<f32>,
     // rgb = color, a = intensity.
     sun_color : vec4<f32>,
-    // Placed point lights (ManaRenderScene.LocalLight*): xyz position, w range; rgb colour x intensity.
-    // Packed from the front: the first slot with no range ends the list. 64 = ManaRenderScene.MaxLocalLights.
-    local_light_positions : array<vec4<f32>, 64>,
-    local_light_colors : array<vec4<f32>, 64>,
+    // Clustered placed lights (ManaLightClusters; the lights themselves are storage buffers, include/point_lights.wgsl):
+    // grid xyz = tiles across, tiles down, depth slices (x 0 = no lights), w = light count;
+    // depth x = the first slice's start, y = slices per log-unit of depth, zw = viewport in pixels;
+    // forward xyz = the camera's look direction.
+    cluster_grid : vec4<f32>,
+    cluster_depth : vec4<f32>,
+    camera_forward : vec4<f32>,
     // ManaWind: xy = unit direction it blows toward (world XZ), z = speed now in m/s, w = gustiness 0..1.
     wind : vec4<f32>,
     // xy = how far the air has carried things (world XZ metres), z = that path's length, w = gust now 0..1.
