@@ -39,7 +39,7 @@ namespace Mana.Code.UI.ManaUi
             status.BindTextPolled(() =>
             {
                 var time = ManaTime.GlobalTime.GameTime.TotalSeconds;
-                var dots = new string('.', (int)(time * 2.0) % 4);
+                var dots = new string('.', (int)(Math.Max(time, 0.0) * 2.0) % 4);
                 return loading.Status + dots;
             });
 

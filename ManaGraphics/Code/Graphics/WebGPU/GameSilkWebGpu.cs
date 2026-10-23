@@ -186,6 +186,12 @@ namespace ManaGraphics.Code.Graphics
             {
                 RenderFrame(deltaTime);
             }
+            catch (Exception ex)
+            {
+                // Said in full before it leaves: past here the browser reports only the message, and the loop stops.
+                Console.WriteLine($"[Render] Frame failed: {ex}");
+                throw;
+            }
             finally
             {
                 _rendering = false;

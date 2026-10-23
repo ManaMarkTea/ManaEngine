@@ -52,7 +52,9 @@
         {
             DateTime now = DateTime.Now;
 
-            DeltaTime = TimeSpan.FromSeconds(deltaTime);
+            // Never backwards: the browser's first frame can be stamped before the loop's start, and a negative step
+            // ran the game clock below zero (the loading screen's dots then asked for -1 of them and stopped the loop).
+            DeltaTime = TimeSpan.FromSeconds(Math.Max(deltaTime, 0.0));
 
             if (!TimePaused)
             {
