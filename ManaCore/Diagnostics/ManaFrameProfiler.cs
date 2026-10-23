@@ -89,6 +89,11 @@ namespace ManaCore.Diagnostics
         /// <summary>Frames measured since the last <see cref="Reset"/>.</summary>
         public static long FrameCount { get; private set; }
 
+        /// <summary>The last frame's wall-clock time, and a smoothed average of it (a few seconds' worth), in ms.</summary>
+        public static double LastFrameMs { get; private set; }
+
+        public static double AverageFrameMs { get; private set; }
+
         /// <summary>Last frame's GC collection counts, as deltas -- what collected DURING that frame, not since process start.</summary>
         public static (int Gen0, int Gen1, int Gen2) LastGcDelta { get; private set; }
 
@@ -192,6 +197,16 @@ namespace ManaCore.Diagnostics
 
                 _frameIndex++;
                 FrameCount++;
+                LastFrameMs = frameMs;
+                // Smoothed rather than windowed: steady enough to read, and a hitch shows in Worst instead.
+                if (AverageFrameMs <= 0.0)
+                {
+                    AverageFrameMs = frameMs;
+                }
+                else
+                {
+                    AverageFrameMs += (Math.Min(frameMs, 250.0) - AverageFrameMs) * 0.02;
+                }
                 if (frameMs > WorstFrameMs)
                 {
                     WorstFrameMs = frameMs;

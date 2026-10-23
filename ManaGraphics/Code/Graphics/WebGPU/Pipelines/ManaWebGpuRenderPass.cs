@@ -45,6 +45,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
     /// <summary>What a pass may read while it encodes one frame. Filled by the context; valid only during that frame.</summary>
     internal sealed unsafe class ManaWebGpuFrame
     {
+        /// <summary>Counts frames: what lets per-mesh work done by the first pass to need it be skipped by the rest.</summary>
+        public long Number;
         public CommandEncoder* Encoder;
         public ManaRenderScene Scene = null!;
         public IReadOnlyList<ManaWebGpuSceneMesh> Meshes = [];

@@ -14,7 +14,11 @@ namespace ManaGraphics.Code.Graphics.Pipelines
     {
         private readonly ManaWebGpuSceneBindings _bindings;
         private readonly TextureFormat _colorFormat;
-        private readonly Dictionary<string, nint> _pipelines = new();
+        // Keyed by shader and state flags: a string key was built (and thrown away) for every mesh every frame.
+        private readonly Dictionary<(string Shader, int Flags), nint> _pipelines = new();
+        private readonly List<(nint Pipeline, float Distance, ManaWebGpuSceneMesh Mesh)> _opaque = new();
+        private RenderPipeline* _boundPipeline;
+        private long _frameNumber;
         private readonly Dictionary<string, nint> _shaderModules = new();
 
         public ManaWebGpuMaterialPass(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat, ManaWebGpuSkyPass? sky = null)
@@ -43,12 +47,32 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
         public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)
         {
+            _frameNumber = frame.Number;
+            _boundPipeline = null;
+
+            // Opaque meshes grouped by pipeline (fewer state changes) and nearest first within each, so the depth test
+            // turns away hidden pixels before their lighting runs rather than after.
+            var eye = frame.Scene.Camera.Position;
+            _opaque.Clear();
             foreach (var sceneMesh in frame.Meshes)
             {
                 if (!sceneMesh.Instance.IsTransparent && !sceneMesh.Instance.AlwaysOnTop)
                 {
-                    DrawMesh(pass, sceneMesh);
+                    _opaque.Add(((nint)PipelineFor(sceneMesh.Instance), Vector3.DistanceSquared(sceneMesh.Instance.WorldTransform.Translation, eye), sceneMesh));
                 }
+            }
+            _opaque.Sort(static (a, b) =>
+            {
+                var byPipeline = a.Pipeline.CompareTo(b.Pipeline);
+                if (byPipeline != 0)
+                {
+                    return byPipeline;
+                }
+                return a.Distance.CompareTo(b.Distance);
+            });
+            foreach (var (_, _, sceneMesh) in _opaque)
+            {
+                DrawMesh(pass, sceneMesh);
             }
 
             // Behind what is opaque (only uncovered pixels pass its depth test), under what is not: water and glass
@@ -59,8 +83,10 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 // Back on a material layout before the next draw: after the sky's pipeline (its own group 0), wgpu-native
                 // checked a later water draw's group 2 against a stale binding ("bound with size 16 where the shader
                 // expects 304") and threw away the whole pass.
-                Api.RenderPassEncoderSetPipeline(pass, GetOrCreatePipeline("ManaPbrShader"));
+                var pbr = GetOrCreatePipeline("ManaPbrShader");
+                Api.RenderPassEncoderSetPipeline(pass, pbr);
                 Api.RenderPassEncoderSetBindGroup(pass, 0, _bindings.FrameGroup, 0, null);
+                _boundPipeline = pbr;
             }
             if (frame.Meshes.Count == 0)
             {
@@ -110,6 +136,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             };
 
             var pass = Api.CommandEncoderBeginRenderPass(frame.Encoder, &descriptor);
+            _boundPipeline = null;
             try
             {
                 foreach (var sceneMesh in frame.Meshes)
@@ -130,7 +157,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private void DrawMesh(RenderPassEncoder* pass, ManaWebGpuSceneMesh sceneMesh)
         {
             // Only reaches the GPU when the mesh's transform or material changed since last frame.
-            sceneMesh.TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(sceneMesh.Instance));
+            sceneMesh.PrepareObjectUniform(_frameNumber);
 
             if (sceneMesh.CustomUniformBuffer != null)
             {
@@ -138,20 +165,15 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 sceneMesh.TryUpdateCustomUniform(sceneMesh.CustomUniformData);
             }
 
-            var instance = sceneMesh.Instance;
-            var pipeline = GetOrCreatePipeline(
-                instance.ShaderName,
-                instance.IsTransparent,
-                instance.DisableDepthWrite,
-                // Only blended materials cull; water, liquid and lightning want both faces.
-                cullBackFaces: instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
-                alwaysOnTop: instance.AlwaysOnTop,
-                additiveBlend: instance.OpacityMode == ManaOpacityMode.Additive);
-            Api.RenderPassEncoderSetPipeline(pass, pipeline);
-
-            // Group 0 is bound after every SetPipeline, not once per pass: switching to a pipeline whose layout is
-            // incompatible with the bound one (the skybox's group 0 is {uniform, sampler, cube}) unsets it.
-            Api.RenderPassEncoderSetBindGroup(pass, 0, _bindings.FrameGroup, 0, null);
+            var pipeline = PipelineFor(sceneMesh.Instance);
+            if (pipeline != _boundPipeline)
+            {
+                Api.RenderPassEncoderSetPipeline(pass, pipeline);
+                // Group 0 is bound after every pipeline change, not once per pass: switching to a pipeline whose layout
+                // is incompatible with the bound one (the skybox's group 0 is {uniform, sampler, cube}) unsets it.
+                Api.RenderPassEncoderSetBindGroup(pass, 0, _bindings.FrameGroup, 0, null);
+                _boundPipeline = pipeline;
+            }
 
             if (sceneMesh.ObjectBindGroup != null)
             {
@@ -165,14 +187,29 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             sceneMesh.Mesh.Draw(pass);
         }
 
+        private RenderPipeline* PipelineFor(ManaRenderMeshInstance instance) =>
+            GetOrCreatePipeline(
+                instance.ShaderName,
+                instance.IsTransparent,
+                instance.DisableDepthWrite,
+                // Only blended materials cull; water, liquid and lightning want both faces.
+                cullBackFaces: instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
+                alwaysOnTop: instance.AlwaysOnTop,
+                additiveBlend: instance.OpacityMode == ManaOpacityMode.Additive);
+
         private RenderPipeline* GetOrCreatePipeline(
             string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false,
             bool alwaysOnTop = false, bool additiveBlend = false)
         {
             shaderName ??= "ManaPbrShader";
 
-            var pipelineKey =
-                $"{shaderName}_T{(isTransparent ? 1 : 0)}_D{(disableDepthWrite ? 1 : 0)}_C{(cullBackFaces ? 1 : 0)}_A{(alwaysOnTop ? 1 : 0)}_B{(additiveBlend ? 1 : 0)}";
+            var flags = 0;
+            if (isTransparent) { flags |= 1; }
+            if (disableDepthWrite) { flags |= 2; }
+            if (cullBackFaces) { flags |= 4; }
+            if (alwaysOnTop) { flags |= 8; }
+            if (additiveBlend) { flags |= 16; }
+            var pipelineKey = (shaderName, flags);
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
                 return (RenderPipeline*)cachedPipeline;

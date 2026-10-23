@@ -270,7 +270,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
                         // This pass runs before the scene pass uploads the frame's object uniforms; a dirty-check
                         // against the same value, so the scene pass then finds nothing left to write.
-                        sceneMesh.TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(sceneMesh.Instance));
+                        sceneMesh.PrepareObjectUniform(frame.Number);
 
                         if (sceneMesh.ObjectBindGroup != null)
                         {

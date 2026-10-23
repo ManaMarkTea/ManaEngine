@@ -250,6 +250,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             CommandEncoder* encoder, ManaRenderScene scene, ManaWebGpuWindowSurface surface, TextureView* sceneTarget,
             bool useHdr, bool suspended, float seconds)
         {
+            _frame.Number++;
             _frame.Encoder = encoder;
             _frame.Scene = scene;
             _frame.Meshes = _meshes.Meshes;

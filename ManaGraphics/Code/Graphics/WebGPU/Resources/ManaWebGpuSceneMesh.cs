@@ -485,6 +485,19 @@ namespace ManaGraphics.Code.Graphics.Resources
             edges.Add(a < b ? (a, b) : (b, a));
         }
 
+        private long _objectUniformFrame = -1;
+
+        /// <summary>Builds and uploads (if changed) this frame's object uniform, once however many passes draw the mesh.</summary>
+        public void PrepareObjectUniform(long frame)
+        {
+            if (_objectUniformFrame == frame)
+            {
+                return;
+            }
+            _objectUniformFrame = frame;
+            TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(Instance));
+        }
+
         public bool TryUpdateObjectUniform(in ManaWebGpuObjectUniform next)
         {
             if (_lastUploadedObjectUniform is { } last)
