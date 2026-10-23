@@ -88,6 +88,8 @@ public static class TestRunner
         ("Mana", "pawn landing", PawnLandingChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
+        ("Mana", "fixed-step clock", FixedStepClockChecks.Run),
+        ("Mana", "sound bank and music", SoundBankChecks.Run),
         ("Mana", "pickup motion", PickupMotionChecks.Run),
         ("Mana", "material render instances", MaterialRenderInstanceChecks.Run),
         ("Mana", "texture library", TextureLibraryChecks.Run),
