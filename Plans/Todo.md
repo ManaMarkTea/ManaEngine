@@ -118,6 +118,13 @@
     the shadow cascades get coarser?
 
 [] - Big step!!  Rename ManaVoxel, its no longer just a voxel editor
+    Claude (2026-10-23, not started -- needs a name from you): the rename touches 4 projects (ManaVoxel, ManaVoxel.Web,
+    ManaVoxel.Editor.Web, ManaVoxel.iOS), ~850 mentions in ~330 files (283 .cs, mostly `ManaVoxel.Code.*` namespaces),
+    the sln, build-web.yml, .vscode launch/tasks, run-commands.ps1 and the other Tools scripts, the iOS deploy scripts
+    and AGENTS.md. Plan: `git mv` the folders and csproj files, rewrite namespaces and paths in one scripted pass, build
+    everything plus the web publish and an iOS compile, run the suite and a check script, one commit -- on a day no
+    other agent has work in flight. Name ideas: ManaEditor (the app is the editor plus `--play`), ManaStudio, or just
+    Mana (with the engine layer becoming Mana.Engine). Watch: the Pages URLs and the web host's file names are user-visible.
 
 
 [x] - Lights:  I dont like the limits, games like minecraft seem to have unlimited light sources. Unreal has MegaLights, etc.  How can we increase the light amounts?  Forward+ rendering?  Fake lights? etc
