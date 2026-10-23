@@ -283,7 +283,10 @@ namespace ManaGraphics.Code.Graphics.Resources
                     customUniformBuffer,
                     customBindGroup,
                     customUniformLayout,
-                    customUniformData);
+                    customUniformData)
+                {
+                    ObjectEntries = bindGroupEntries
+                };
                 transferred = true;
                 return sceneMesh;
             }
@@ -486,16 +489,87 @@ namespace ManaGraphics.Code.Graphics.Resources
         }
 
         private long _objectUniformFrame = -1;
+        private long _objectUploadFrame = -1;
+        private ManaWebGpuObjectUniform _objectUniform;
 
-        /// <summary>Builds and uploads (if changed) this frame's object uniform, once however many passes draw the mesh.</summary>
+        /// <summary>This frame's object uniform, worked out once however many passes ask (an instanced draw copies it).</summary>
+        public ref readonly ManaWebGpuObjectUniform ObjectUniform(long frame)
+        {
+            if (_objectUniformFrame != frame)
+            {
+                _objectUniformFrame = frame;
+                _objectUniform = ManaWebGpuObjectUniform.For(Instance);
+            }
+            return ref _objectUniform;
+        }
+
+        /// <summary>Uploads (if changed) this frame's object uniform to the mesh's own buffer, for a draw of it alone.</summary>
         public void PrepareObjectUniform(long frame)
         {
-            if (_objectUniformFrame == frame)
+            if (_objectUploadFrame == frame)
             {
                 return;
             }
-            _objectUniformFrame = frame;
-            TryUpdateObjectUniform(ManaWebGpuObjectUniform.For(Instance));
+            _objectUploadFrame = frame;
+            TryUpdateObjectUniform(ObjectUniform(frame));
+        }
+
+        /// <summary>The object group's entries, kept so an instanced twin of it can be made with the same textures.</summary>
+        public BindGroupEntry[] ObjectEntries { get; init; } = [];
+
+        private BindGroup* _instancedGroup;
+        private nint _instancedBuffer;
+
+        /// <summary>Whether this mesh's shader declares custom material uniforms (group 2) that need filling.</summary>
+        public bool HasCustomUniforms => CustomUniformLayout.Fields.Count > 0;
+
+        /// <summary>
+        /// This mesh's group 1 for an instanced draw: its own textures, with binding 0 the frame's instance array
+        /// (<paramref name="instances"/>, reached by dynamic offset). Remade only when that buffer is.
+        /// </summary>
+        public BindGroup* InstancedBindGroup(BindGroupLayout* layout, WebGpuBuffer* instances)
+        {
+            if (_instancedGroup != null && _instancedBuffer == (nint)instances)
+            {
+                return _instancedGroup;
+            }
+
+            if (_instancedGroup != null)
+            {
+                Api.BindGroupRelease(_instancedGroup);
+                _instancedGroup = null;
+            }
+
+            var entries = (BindGroupEntry[])ObjectEntries.Clone();
+            entries[0] = new BindGroupEntry
+            {
+                Binding = 0,
+                Buffer = instances,
+                Offset = 0,
+                Size = (ulong)(sizeof(ManaWebGpuObjectUniform) * ManaWebGpuSceneBindings.InstancesPerDraw)
+            };
+            fixed (BindGroupEntry* pointer = entries)
+            {
+                var descriptor = new BindGroupDescriptor { Layout = layout, EntryCount = (nuint)entries.Length, Entries = pointer };
+                _instancedGroup = Api.DeviceCreateBindGroup(Device, &descriptor);
+            }
+            _instancedBuffer = (nint)instances;
+            return _instancedGroup;
+        }
+
+        /// <summary>The textures and sampler this mesh draws with, as one number: meshes batch only when it matches.</summary>
+        public ulong TextureKey
+        {
+            get
+            {
+                var key = 14695981039346656037UL;
+                for (var i = 1; i < ObjectEntries.Length; i++)
+                {
+                    key = (key ^ (ulong)(nint)ObjectEntries[i].TextureView) * 1099511628211UL;
+                    key = (key ^ (ulong)(nint)ObjectEntries[i].Sampler) * 1099511628211UL;
+                }
+                return key;
+            }
         }
 
         public bool TryUpdateObjectUniform(in ManaWebGpuObjectUniform next)
@@ -544,6 +618,12 @@ namespace ManaGraphics.Code.Graphics.Resources
         public override void Dispose()
         {
             Mesh.Dispose();
+
+            if (_instancedGroup != null)
+            {
+                Api.BindGroupRelease(_instancedGroup);
+                _instancedGroup = null;
+            }
 
             if (_wireframeIndexBuffer != null)
             {

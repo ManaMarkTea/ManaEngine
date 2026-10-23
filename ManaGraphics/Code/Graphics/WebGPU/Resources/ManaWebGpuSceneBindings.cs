@@ -26,6 +26,18 @@ namespace ManaGraphics.Code.Graphics.Resources
         public WebGpuBuffer* FrameBuffer { get; private set; }
         public BindGroup* FrameGroup { get; private set; }
         public BindGroupLayout* ObjectLayout { get; private set; }
+
+        /// <summary>
+        /// Group 1 for an instanced draw: as <see cref="ObjectLayout"/>, but binding 0 is a storage array of object
+        /// uniforms reached through a dynamic offset (pbr_irradiance.wgsl built with MANA_INSTANCED).
+        /// </summary>
+        public BindGroupLayout* InstancedObjectLayout { get; private set; }
+
+        /// <summary>Frame group and <see cref="InstancedObjectLayout"/>, for the instanced material pipelines.</summary>
+        public PipelineLayout* InstancedMaterialLayout { get; private set; }
+
+        /// <summary>Instances one draw reaches from its dynamic offset; a longer run is split into several draws.</summary>
+        public const int InstancesPerDraw = 256;
         public BindGroupLayout* CustomUniformGroupLayout { get; private set; }
         public BindGroupLayout* SceneCaptureGroupLayout { get; private set; }
 
@@ -331,6 +343,33 @@ namespace ManaGraphics.Code.Graphics.Resources
                     throw new InvalidOperationException("Failed to create WebGPU object bind group layout.");
                 }
 
+                bindGroupLayoutEntries[0] = new BindGroupLayoutEntry
+                {
+                    Binding = 0,
+                    Visibility = ShaderStage.Vertex | ShaderStage.Fragment,
+                    Buffer = new BufferBindingLayout
+                    {
+                        Type = BufferBindingType.ReadOnlyStorage,
+                        HasDynamicOffset = true,
+                        MinBindingSize = (ulong)(sizeof(ManaWebGpuObjectUniform) * InstancesPerDraw)
+                    }
+                };
+                InstancedObjectLayout = api.DeviceCreateBindGroupLayout(device, &bindGroupLayoutDescriptor);
+                if (InstancedObjectLayout == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU instanced object bind group layout.");
+                }
+
+                var instancedGroupLayouts = stackalloc BindGroupLayout*[2];
+                instancedGroupLayouts[0] = FrameLayout;
+                instancedGroupLayouts[1] = InstancedObjectLayout;
+                var instancedPipelineLayoutDescriptor = new PipelineLayoutDescriptor { BindGroupLayoutCount = 2, BindGroupLayouts = instancedGroupLayouts };
+                InstancedMaterialLayout = api.DeviceCreatePipelineLayout(device, &instancedPipelineLayoutDescriptor);
+                if (InstancedMaterialLayout == null)
+                {
+                    throw new InvalidOperationException("Failed to create WebGPU instanced material pipeline layout.");
+                }
+
                 // Scene capture keeps its own unsplit uniform layout (ManaWebGpuSceneCaptureUniform).
                 var sceneCaptureBindGroupLayoutEntry = new BindGroupLayoutEntry
                 {
@@ -446,6 +485,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             if (LinearSampler != null) { Api.SamplerRelease(LinearSampler); LinearSampler = null; }
             if (NearestSampler != null) { Api.SamplerRelease(NearestSampler); NearestSampler = null; }
             if (ClampSampler != null) { Api.SamplerRelease(ClampSampler); ClampSampler = null; }
+            if (InstancedMaterialLayout != null) { Api.PipelineLayoutRelease(InstancedMaterialLayout); InstancedMaterialLayout = null; }
+            if (InstancedObjectLayout != null) { Api.BindGroupLayoutRelease(InstancedObjectLayout); InstancedObjectLayout = null; }
             if (ObjectLayout != null) { Api.BindGroupLayoutRelease(ObjectLayout); ObjectLayout = null; }
             if (FrameGroup != null) { Api.BindGroupRelease(FrameGroup); FrameGroup = null; }
             if (FrameBuffer != null) { Api.BufferRelease(FrameBuffer); FrameBuffer = null; }

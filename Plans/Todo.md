@@ -140,5 +140,8 @@
     Panels > Debugging > Render Targets shows the HDR scene, depth, the three shadow cascades and lights per tile live.
     Seen with them: the nearest shadow cascade covers only a few metres in front of the camera. Still open: shadows from
     point lights; no depth pre-pass (overdraw pays full lighting); a cell lists at most 256 lights.
+    Claude (2026-10-23): Many Lights runs at 120 fps (was 60-70). It was CPU-bound on draw calls -- 1,024 lamps drawn once
+    and three times more for the shadow cascades. Meshes alike now go out as one instanced draw, in the material pass and
+    the shadow pass; shadow cascades are cut to the casters and cull what is outside them. Frame CPU 12.8 ms -> 4.7 ms.
 
 [] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags, etc)

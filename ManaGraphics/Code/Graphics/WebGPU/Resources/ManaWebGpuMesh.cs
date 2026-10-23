@@ -133,6 +133,19 @@ namespace ManaGraphics.Code.Graphics.Resources
             Api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, 1, 0, 0, 0);
         }
 
+        /// <summary>Draws <paramref name="instances"/> copies at once; the shader tells them apart by instance_index.</summary>
+        public void DrawInstanced(RenderPassEncoder* renderPass, uint instances)
+        {
+            if (_vertexBuffer == null || _indexBuffer == null || IndexCount == 0 || instances == 0)
+            {
+                return;
+            }
+
+            Api.RenderPassEncoderSetVertexBuffer(renderPass, 0, _vertexBuffer, 0, ulong.MaxValue);
+            Api.RenderPassEncoderSetIndexBuffer(renderPass, _indexBuffer, IndexFormat.Uint32, 0, ulong.MaxValue);
+            Api.RenderPassEncoderDrawIndexed(renderPass, IndexCount, instances, 0, 0, 0);
+        }
+
         // Draws this mesh's vertices through another index buffer: the wireframe overlay's edge list.
         public void DrawWithIndexBuffer(RenderPassEncoder* renderPass, WebGpuBuffer* indexBuffer, uint indexCount)
         {

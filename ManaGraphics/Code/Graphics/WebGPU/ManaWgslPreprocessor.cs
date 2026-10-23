@@ -4,31 +4,31 @@ using System.Text.RegularExpressions;
 namespace ManaGraphics.Code.Graphics
 {
     /// <summary>
-    /// Resolves `#include "other.wgsl"` (relative to the including file, each once per module) and a single
-    /// unnested <c>#if MANA_BROWSER</c> / <c>#else</c> / <c>#endif</c> before source reaches wgpu.
+    /// Resolves `#include "other.wgsl"` (relative to the including file, each once per module) and unnested
+    /// <c>#if NAME</c> / <c>#else</c> / <c>#endif</c> blocks before source reaches wgpu. MANA_BROWSER is defined in the
+    /// browser build; a caller adds its own names (MANA_INSTANCED) to build a variant of a shader.
     /// </summary>
     internal static partial class ManaWgslPreprocessor
     {
         [GeneratedRegex("^[ \\t]*#include[ \\t]+\"([^\"]+)\"[ \\t]*\\r?$", RegexOptions.Multiline)]
         private static partial Regex IncludeDirective();
 
-        public static string LoadResolved(string absolutePath)
+        public static string LoadResolved(string absolutePath, params string[] defines)
         {
             var builder = new StringBuilder();
             var included = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             Append(builder, absolutePath, included);
-            return ApplyConditionals(builder.ToString());
+            var names = new HashSet<string>(defines, StringComparer.Ordinal);
+#if MANA_BROWSER
+            names.Add("MANA_BROWSER");
+#endif
+            return ApplyConditionals(builder.ToString(), names);
         }
 
-        /// <summary>Keeps the matching branch of each MANA_BROWSER block; runs after includes.</summary>
-        private static string ApplyConditionals(string source)
+        /// <summary>Keeps the matching branch of each #if block; runs after includes.</summary>
+        private static string ApplyConditionals(string source, HashSet<string> defined)
         {
-#if MANA_BROWSER
-            const bool browser = true;
-#else
-            const bool browser = false;
-#endif
-            if (!source.Contains("#if MANA_BROWSER", StringComparison.Ordinal))
+            if (!source.Contains("#if ", StringComparison.Ordinal))
             {
                 return source;
             }
@@ -36,20 +36,22 @@ namespace ManaGraphics.Code.Graphics
             var output = new StringBuilder(source.Length);
             var keeping = true;
             var inConditional = false;
+            var condition = false;
 
             foreach (var line in source.Split('\n'))
             {
                 var trimmed = line.TrimStart();
-                if (trimmed.StartsWith("#if MANA_BROWSER", StringComparison.Ordinal))
+                if (trimmed.StartsWith("#if ", StringComparison.Ordinal))
                 {
                     inConditional = true;
-                    keeping = browser;
+                    condition = defined.Contains(trimmed[4..].Trim());
+                    keeping = condition;
                     continue;
                 }
 
                 if (inConditional && trimmed.StartsWith("#else", StringComparison.Ordinal))
                 {
-                    keeping = !browser;
+                    keeping = !condition;
                     continue;
                 }
 

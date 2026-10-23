@@ -4,6 +4,9 @@ struct VertexOutput {
     @location(1) uv0 : vec2<f32>,
     @location(2) world_position : vec3<f32>,
     @location(3) world_normal : vec3<f32>,
+#if MANA_INSTANCED
+    @location(4) @interpolate(flat) instance : u32,
+#endif
 };
 
 #include "include/uniforms.wgsl"
@@ -11,7 +14,14 @@ struct VertexOutput {
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/shadows.wgsl"
+#if MANA_INSTANCED
+// Instanced (ManaWebGpuMaterialPass batches meshes alike): each instance's object uniform from an array, copied into
+// `object` at the top of each stage so the rest of the shader reads it as the single-mesh build does.
+@group(1) @binding(0) var<storage, read> mana_objects : array<ObjectUniform>;
+var<private> object : ObjectUniform;
+#else
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
+#endif
 @group(1) @binding(1) var color_sampler : sampler;
 @group(1) @binding(2) var color_texture : texture_2d<f32>;
 @group(1) @binding(3) var environment_map : texture_cube<f32>;
@@ -39,9 +49,14 @@ fn vs_main(
     @location(0) position : vec3<f32>,
     @location(1) normal : vec3<f32>,
     @location(2) color : vec4<f32>,
-    @location(3) uv0 : vec2<f32>
+    @location(3) uv0 : vec2<f32>,
+    @builtin(instance_index) instance_index : u32
 ) -> VertexOutput {
     var output : VertexOutput;
+#if MANA_INSTANCED
+    object = mana_objects[instance_index];
+    output.instance = instance_index;
+#endif
     let world = object.model * vec4<f32>(position, 1.0);
     output.clip_position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
     output.color = color;
@@ -168,6 +183,9 @@ fn mana_unlit(colour : vec3<f32>) -> vec3<f32> {
 
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
+#if MANA_INSTANCED
+    object = mana_objects[input.instance];
+#endif
     // One transform for every map, so a tiled brick stays registered across albedo, normal and roughness.
     let uv = input.uv0 * object.uv_transform.xy + object.uv_transform.zw;
 

@@ -72,10 +72,11 @@ namespace ManaGraphics.Code.Graphics
         }
 
         /// <summary>Compiles a WGSL file under Assets/Shaders/WebGpu (includes resolved). The caller owns the module.</summary>
-        public ShaderModule* CreateShaderModule(string fileName)
+        /// <param name="defines">Names #if blocks in the shader test for, to build a variant of it (MANA_INSTANCED).</param>
+        public ShaderModule* CreateShaderModule(string fileName, params string[] defines)
         {
             var path = ResolveAssetPath(ShaderPath(fileName));
-            var source = ManaWgslPreprocessor.LoadResolved(path);
+            var source = ManaWgslPreprocessor.LoadResolved(path, defines);
             nint sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
 
             try

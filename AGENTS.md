@@ -265,7 +265,11 @@ are baked from; the live editor draws new ones with the GPU instead.
   environment capture, shadows, sky, materials, particles, the debug overlays, outline. A new effect is a new pass
   class, not more context code. Passes read the frame through `ManaWebGpuFrame`; shared layouts, samplers and the frame
   uniform are `ManaWebGpuSceneBindings`, resident meshes `ManaWebGpuSceneMeshes`, reflection cubes
-  `ManaWebGpuEnvironment`; thumbnails, captures and the ManaUI compositor are services of their own. Every owner of GPU objects derives from
+  `ManaWebGpuEnvironment`; thumbnails, captures and the ManaUI compositor are services of their own. Meshes alike are
+  instanced: the material pass draws opaque PBR meshes with the same geometry (`ManaMeshCpuData.GeometryHash`) and
+  textures as one draw (`pbr_irradiance.wgsl` built with `MANA_INSTANCED` reads each one's object uniform from an
+  array), and the shadow pass does the same for opaque casters (`shadow_depth_instanced.wgsl`); per-frame instance data
+  goes through `ManaWebGpuInstanceBuffer`. `ManaWgslPreprocessor` takes `#if NAME` blocks for such variants. Every owner of GPU objects derives from
   `ManaWebGpuDeviceObject` (borrowed `Api`/`Device`/`Queue`, `Dispose`); handles their owner releases do not. Folders are
   namespaces: frame stages in `WebGPU/Pipelines/` (`.Pipelines`, overlays `.Pipelines.Overlays`), GPU data in `Resources/`
   (`.Resources`), things that draw or compute on request in `Renderers/` (`.Renderers`); browser interop is in
