@@ -53,7 +53,15 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
             // Behind what is opaque (only uncovered pixels pass its depth test), under what is not: water and glass
             // write no depth, so they must blend over a sky that is already there.
-            _sky?.DrawSky(frame, pass);
+            if (_sky != null)
+            {
+                _sky.DrawSky(frame, pass);
+                // Back on a material layout before the next draw: after the sky's pipeline (its own group 0), wgpu-native
+                // checked a later water draw's group 2 against a stale binding ("bound with size 16 where the shader
+                // expects 304") and threw away the whole pass.
+                Api.RenderPassEncoderSetPipeline(pass, GetOrCreatePipeline("ManaPbrShader"));
+                Api.RenderPassEncoderSetBindGroup(pass, 0, _bindings.FrameGroup, 0, null);
+            }
             if (frame.Meshes.Count == 0)
             {
                 return;
@@ -154,7 +162,6 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             {
                 Api.RenderPassEncoderSetBindGroup(pass, 2, sceneMesh.CustomBindGroup, 0, null);
             }
-
             sceneMesh.Mesh.Draw(pass);
         }
 
