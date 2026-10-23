@@ -28,7 +28,10 @@ namespace Mana.Code.Levels
         GridMap,
 
         /// <summary>A linked instance of a project prefab.</summary>
-        Prefab
+        Prefab,
+
+        /// <summary>A <see cref="Nodes.ManaTerrainNode"/> heightfield, whose heights and paint are written into the level.</summary>
+        Terrain
     }
 
     /// <summary>
@@ -78,6 +81,8 @@ namespace Mana.Code.Levels
         public static ManaLevelSource PlayerStart { get; } = new() { Kind = ManaLevelSourceKind.PlayerStart };
 
         public static ManaLevelSource GridMap { get; } = new() { Kind = ManaLevelSourceKind.GridMap };
+
+        public static ManaLevelSource Terrain { get; } = new() { Kind = ManaLevelSourceKind.Terrain };
 
         public static ManaLevelSource ForPlanet(string? baselineAsset = null) =>
             new() { Kind = ManaLevelSourceKind.Planet, Asset = baselineAsset };

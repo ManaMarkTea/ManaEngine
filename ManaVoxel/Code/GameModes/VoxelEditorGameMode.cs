@@ -43,6 +43,8 @@ namespace Mana.Code.GameModes
         private ViewportMenuController ViewportMenu => viewportMenu ??= new(Context, _viewModel, _pickingExclusions, () => ManaUi?.Root);
         private MeasureInputController? measureInput;
         private MeasureInputController MeasureInput => measureInput ??= new(Context, _viewModel, _pickingExclusions);
+        private TerrainInputController? terrainInput;
+        private TerrainInputController TerrainInput => terrainInput ??= new(Context, _viewModel);
         private PolygonEditingController? polygonEditing;
         private PolygonEditingController PolygonEditing => polygonEditing ??= new(Context, _viewModel, _pickingExclusions);
         public static int NearestPolygonPoint(float[] points, Vector2 at, float radius)
@@ -668,6 +670,16 @@ namespace Mana.Code.GameModes
             // Measuring owns the pointer while it is on: a click places a point rather than selecting.
             MeasureInput.UpdateMeasureShortcut(IsPlaying, UiWantsKeyboard);
             if (MeasureInput.UpdateMeasuring(inputCaptured, MouseState, IsPlaying, UiWantsKeyboard))
+            {
+                _toolController.Cancel();
+                _viewModel.ClearToolPreview();
+                _transformGizmo?.Hide();
+                PolygonEditing.HidePolygonOverlay();
+                return;
+            }
+
+            // Sculpting a terrain owns the pointer too: a drag is a brush stroke.
+            if (TerrainInput.UpdateSculpting(inputCaptured, MouseState, IsPlaying, UiWantsKeyboard))
             {
                 _toolController.Cancel();
                 _viewModel.ClearToolPreview();

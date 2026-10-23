@@ -1,6 +1,7 @@
 # Terrain
 
-Goal: rolling hills, dirt paths, sculpting -- and later caves and cliffs. Written 2026-10-08; nothing is built yet.
+Goal: rolling hills, dirt paths, sculpting -- and later caves and cliffs. Written 2026-10-08. Layer 1 is built
+(2026-10-23, `ManaTerrainNode`) apart from the path spline tool, the layer shader and scatter; layer 2 is not started.
 
 ## Two layers, built in this order
 
@@ -15,7 +16,7 @@ A `Terrain` node kind, like `GridMap` and `Voxels`:
   material. Normals from the height gradient. A skirt is not needed.
 - **Material:** blends the layers by the splat weights. First version: vertex colours per layer (no shader change, works
   today). Later: a terrain shader with tiling albedo/normal per layer and triplanar on steep slopes.
-- **Collision:** a heightfield collider in BepuPhysics v2 (a `Mesh` shape built from the patches is the fallback). The
+- **Collision:** a Bepu `Mesh` per patch (kinematic, via `AddTriangleMeshBody`), rebuilt with the patch. The
   player must stand on it -- `teleport_player` + `log_player` checks, as for any level.
 - **Tool window:** floats while a terrain node is selected, like the Grid Map and Voxel Tools windows (`EditorWorkspace.SyncToolWindow`).
   Brushes: raise, lower, smooth, flatten-to-height, noise; paint layer; brush size, strength, falloff. Undo per stroke.

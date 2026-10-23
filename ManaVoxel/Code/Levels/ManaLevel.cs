@@ -242,6 +242,8 @@ namespace ManaVoxel.Code.Levels
 
         public ManaLevelGridMap? GridMap { get; set; }
 
+        public ManaLevelTerrain? Terrain { get; set; }
+
         /// <summary>On a Player Start: which character the player is, when the level cares.</summary>
         public ManaLevelCharacter? Character { get; set; }
 
@@ -414,6 +416,26 @@ namespace ManaVoxel.Code.Levels
 
         /// <summary>The model's shift within its tile, in cells; see GridMapItemSettings.Offset. Absent when none.</summary>
         public float[]? Offset { get; set; }
+    }
+
+    /// <summary>
+    /// A heightfield terrain (ManaTerrainNode): its grid, and its heights and paint as deflated base64 blobs --
+    /// heights as float32s, paint as four weight bytes a sample -- so a level stays small and diffs quiet.
+    /// </summary>
+    public sealed class ManaLevelTerrain
+    {
+        /// <summary>Samples across x and z.</summary>
+        public int[] Samples { get; set; } = { 129, 129 };
+
+        /// <summary>Metres between samples.</summary>
+        public float Spacing { get; set; } = 1.0f;
+
+        public string Heights { get; set; } = string.Empty;
+
+        public string Splat { get; set; } = string.Empty;
+
+        /// <summary>The four paint layers' colours.</summary>
+        public List<float[]>? Layers { get; set; }
     }
 
     /// <summary>

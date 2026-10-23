@@ -41,6 +41,8 @@ internal static class EditorPanelRegistry
                         history: context.Editor?.History) : null),
         new(GridMapToolManaView.PanelId, "Grid Map", null, 0, false,
             context => context.World != null ? GridMapToolManaView.Build(context.Theme, context.World, context.Editor?.History) : null),
+        new(TerrainToolManaView.PanelId, "Terrain", null, 0, false,
+            context => context.World != null ? TerrainToolManaView.Build(context.Theme, context.World) : null),
         new(MeasureToolManaView.PanelId, "Measure", null, 0, false,
             context => context.Editor != null ? MeasureToolManaView.Build(context.Theme, context.Editor) : null),
         new(EditorWorkspace.VoxelToolsPanelId, "Voxel Tools", null, 0, false,

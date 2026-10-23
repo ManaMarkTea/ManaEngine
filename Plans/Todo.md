@@ -67,6 +67,15 @@
     path painted the same way, and a heightfield collider -- covers hills and paths cheaply, and the existing Grid Map and
     Voxel tools show how a floating tool window plus a brush works. (2) Caves and cliffs: a marching-cubes mesh over a density
     grid, reusing the voxel node's chunking, as a second node kind. Say if you want (1) first.
+    Claude (2026-10-23): layer (1) is built. Add > Terrain makes a `ManaTerrainNode` (Mana/Code/Nodes): heights centred on the
+    node, four paint layers (grass, dirt, rock, sand) blended in the vertex colours, drawn and collided as 32-cell patches
+    so a brush rebuilds only what it touches. Selecting it brings up the Terrain window (Sculpt; Raise, Lower, Smooth,
+    Flatten, Noise, Paint; size, strength, falloff; Ctrl swaps raise/lower, Shift smooths; one undo per stroke) with a
+    ring on the ground under the pointer. Saved as deflated base64 blobs (`ManaLevelTerrain`). Reference level
+    `Content/Levels/Tests/Terrain.manalevel` (hills, a dirt path, a pond), check `Tools/Automation/Checks/terrain.json`,
+    tests in `ManaTests/Code/ManaVoxel/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
+    Open: the path spline tool (flatten + paint along a draggable curve); a terrain shader with tiling textures per
+    layer and triplanar rock; scatter (grass, trees, rocks); layer (2), caves and cliffs. Not yet tried on the web build.
 
 [] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
     Plan: Plans/Couch-Coop.md. Claude (2026-10-07, ideas only): what exists is a side-on platformer pawn, bows and arrows, enemies, coins, checkpoints and

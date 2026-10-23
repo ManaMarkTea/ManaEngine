@@ -279,6 +279,15 @@ namespace ManaVoxel.Code.Levels
                     entry.GridMap = ManaLevelGridMapCodec.Encode(gridMap);
                     break;
 
+                case ManaLevelSourceKind.Terrain:
+                    if (node is not ManaTerrainNode terrain)
+                    {
+                        return null;
+                    }
+
+                    entry.Terrain = ManaLevelTerrainCodec.Encode(terrain);
+                    break;
+
                 default:
                     return null;
             }

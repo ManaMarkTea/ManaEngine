@@ -101,6 +101,24 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                     }
 
                     break;
+
+                case ManaLevelSourceKind.Terrain:
+                    if (node is ManaTerrainNode terrain)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Samples", InspectorControls.Vector2(
+                            () => new Vector2(terrain.SamplesX, terrain.SamplesZ),
+                            value => terrain.Resize((int)MathF.Round(value.X), (int)MathF.Round(value.Y), terrain.Spacing),
+                            step: 1.0f,
+                            places: 0)));
+                        rows.Add(InspectorControls.Row(context, "Spacing", InspectorControls.Scalar(
+                            () => terrain.Spacing,
+                            value => terrain.Resize(terrain.SamplesX, terrain.SamplesZ, value),
+                            0.1f,
+                            8.0f)));
+                        rows.Add(InspectorControls.Row(context, "Size", ReadOnly(theme, () => $"{terrain.Width:0.#} x {terrain.Depth:0.#} m")));
+                    }
+
+                    break;
             }
 
             return new Expander()

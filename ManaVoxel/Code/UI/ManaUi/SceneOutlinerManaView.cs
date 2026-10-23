@@ -287,6 +287,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ManaLevelSourceKind.Mesh => MeshRendererIconColor,
                 ManaLevelSourceKind.Voxels => new Vector4(0.66f, 0.50f, 0.95f, 1.0f),
                 ManaLevelSourceKind.PlayerStart => new Vector4(0.95f, 0.42f, 0.34f, 1.0f),
+                ManaLevelSourceKind.Terrain => new Vector4(0.45f, 0.75f, 0.35f, 1.0f),
                 _ => NodeIconColor
             };
         }
@@ -301,6 +302,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 ManaLevelSourceKind.Mesh => OutlinerIconKind.Mesh,
                 ManaLevelSourceKind.Voxels => OutlinerIconKind.Voxels,
                 ManaLevelSourceKind.PlayerStart => OutlinerIconKind.PlayerStart,
+                ManaLevelSourceKind.Terrain => OutlinerIconKind.Mesh,
                 _ => OutlinerIconKind.Node
             };
         }

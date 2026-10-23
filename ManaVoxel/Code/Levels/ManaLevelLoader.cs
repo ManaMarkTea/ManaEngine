@@ -448,6 +448,12 @@ namespace ManaVoxel.Code.Levels
                     AddScriptsIfPresent(entry, gridMap);
                     return gridMap;
 
+                case ManaLevelSourceKind.Terrain:
+                    var terrain = LoadTerrain(entry, state.Context, state.Scene);
+                    AttachToParent(state.Context, parent, terrain);
+                    AddScriptsIfPresent(entry, terrain);
+                    return terrain;
+
                 default:
                     return null;
             }
@@ -608,6 +614,25 @@ namespace ManaVoxel.Code.Levels
             }
 
             return gridMap;
+        }
+
+        private static ManaTerrainNode LoadTerrain(ManaLevelNode entry, ManaContext context, ManaScene scene)
+        {
+            var terrain = new ManaTerrainNode(context, 2, 2)
+            {
+                Name = string.IsNullOrWhiteSpace(entry.Name) ? "Terrain" : entry.Name
+            };
+
+            ApplyTransform(terrain, entry);
+            lock (context.World.SceneLock)
+            {
+                scene.Children.Add(terrain);
+            }
+
+            // Patch colliders take their poses from the terrain's world transform, so it has to be settled first.
+            terrain.UpdateTransform();
+            ManaLevelTerrainCodec.Decode(entry.Terrain ?? new ManaLevelTerrain(), terrain);
+            return terrain;
         }
 
         private static ManaWaterNode LoadWater(ManaLevelNode entry, ManaContext context, ManaScene scene)

@@ -69,6 +69,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Add(new VoxelPlacementDepthOverlay(editor, camera), ViewportSlot.Fill);
                 Add(new SelectionTransformOverlay(editor, camera), ViewportSlot.Fill);
                 Add(new MeasureOverlay(editor, camera), ViewportSlot.Fill);
+                Add(new TerrainBrushOverlay(camera), ViewportSlot.Fill);
 #if !MANA_BROWSER
                 Add(new LiveScanOverlay(camera), ViewportSlot.Fill);
 #endif

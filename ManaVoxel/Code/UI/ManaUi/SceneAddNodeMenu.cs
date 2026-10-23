@@ -73,6 +73,14 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Add(selection, scene(), parent, water);
             }).WithTooltip("A rippling water surface. Add a Hazard component to make it deadly, and set its size to match."));
 
+            items.Add(new MenuItem("Terrain", () =>
+            {
+                // 64 x 64 metres in half-metre steps: room for a hill and a path, quick to sculpt.
+                var terrain = new ManaTerrainNode(scene().Context, 129, 129, 0.5f) { Position = position };
+                terrain.UpdateTransform();
+                Add(selection, scene(), parent, terrain);
+            }).WithTooltip("A heightfield of ground to sculpt into hills and paint with grass, dirt, rock and sand. Select it to sculpt."));
+
             items.Add(new MenuItem("Grid Map", () =>
             {
                 var gridMap = new ManaGridMapNode(scene().Context) { Position = position };

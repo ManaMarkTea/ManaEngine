@@ -763,6 +763,7 @@ namespace Mana.Code.GameModes
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
                 _commandRunner.Register("measure", command => MeasureInput.RunMeasureCommand(command.Name, command.Position));
+                _commandRunner.Register("terrain", command => TerrainInput.RunTerrainCommand(command.Name, command.Position, command.Target, command.Count));
                 _commandRunner.Register("gizmo_mode", command =>
                     _viewModel.TransformGizmoMode = Enum.Parse<SceneTransformGizmoMode>(command.Name ?? nameof(SceneTransformGizmoMode.Translate), true));
                 // The View menu's wireframe and vertex-normal overlays: name "normals" for the second.

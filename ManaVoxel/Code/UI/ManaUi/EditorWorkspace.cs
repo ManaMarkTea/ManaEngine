@@ -149,6 +149,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         {
             [GridMapToolManaView.PanelId] = (null, new Vector2(300.0f, 520.0f)),
             [MeasureToolManaView.PanelId] = (null, new Vector2(300.0f, 460.0f)),
+            [TerrainToolManaView.PanelId] = (null, new Vector2(300.0f, 360.0f)),
             [VoxelToolsPanelId] = (null, new Vector2(300.0f, 460.0f)),
             [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
             [SpriteAssetManaView.PanelId] = (null, new Vector2(400.0f, 640.0f)),
@@ -585,6 +586,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                 // Editing windows are put away while playing, and come back as they were when play stops.
                 var editing = editor?.Levels.IsPlaying != true;
                 SyncToolWindow(GridMapToolManaView.PanelId, editing && selected is ManaVoxel.Code.GridMaps.ManaGridMapNode);
+                SyncToolWindow(TerrainToolManaView.PanelId, editing && selected is global::Mana.Code.Nodes.ManaTerrainNode);
                 // Up while measuring.
                 SyncToolWindow(MeasureToolManaView.PanelId, editing && editor?.Measure.Active == true);
                 // Up until closed, whatever is selected: it works on the last grid map when another thing is.
