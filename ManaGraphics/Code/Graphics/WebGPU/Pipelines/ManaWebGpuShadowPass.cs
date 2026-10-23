@@ -257,9 +257,13 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                     foreach (var sceneMesh in frame.Meshes)
                     {
                         // The editor room and helpers cast nothing: the room's floor would only shadow itself.
-                        if (sceneMesh.Instance.IsTransparent || sceneMesh.Instance.AlwaysOnTop
-                            || !sceneMesh.Instance.IncludeInEnvironmentCapture
-                            || sceneMesh.Instance.ShaderName == "ManaGridShader")
+                        if (!ManaWebGpuShadowMap.IsCaster(sceneMesh.Instance))
+                        {
+                            continue;
+                        }
+
+                        // Outside this cascade's box it draws nothing, but costs a draw call all the same.
+                        if (!InsideBox(sceneMesh.Instance.MeshData.WorldBounds(sceneMesh.Instance.WorldTransform), lightViewProjection))
                         {
                             continue;
                         }
@@ -283,6 +287,34 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                     Api.RenderPassEncoderRelease(pass);
                 }
             }
+        }
+
+        // Whether any of a box can land in a cascade's light box: false only when all eight corners are past one face.
+        private static bool InsideBox((Vector3 Min, Vector3 Max) bounds, Matrix4x4 viewProjection)
+        {
+            Span<int> outside = stackalloc int[6];
+            for (var corner = 0; corner < 8; corner++)
+            {
+                var point = new Vector3(
+                    (corner & 1) == 0 ? bounds.Min.X : bounds.Max.X,
+                    (corner & 2) == 0 ? bounds.Min.Y : bounds.Max.Y,
+                    (corner & 4) == 0 ? bounds.Min.Z : bounds.Max.Z);
+                var clip = Vector4.Transform(new Vector4(point, 1.0f), viewProjection);
+                if (clip.X < -clip.W) { outside[0]++; }
+                if (clip.X > clip.W) { outside[1]++; }
+                if (clip.Y < -clip.W) { outside[2]++; }
+                if (clip.Y > clip.W) { outside[3]++; }
+                if (clip.Z < 0.0f) { outside[4]++; }
+                if (clip.Z > clip.W) { outside[5]++; }
+            }
+            foreach (var count in outside)
+            {
+                if (count == 8)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         public override void Dispose()

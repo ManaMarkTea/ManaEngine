@@ -5,8 +5,8 @@ using Silk.NET.WebGPU;
 namespace ManaGraphics.Code.Graphics.Resources
 {
     // Cascaded shadow maps for the scene's directional sun: three cascades in one texture array, fit to the camera's
-    // frustum every frame. Apart from ManaWebGpuShadowPass because the frame bind group needs the map before any
-    // pipeline exists. No texel snapping yet, so cascades can shimmer as the camera moves.
+    // frustum every frame, sized in steps and snapped to whole texels so they hold still. Apart from ManaWebGpuShadowPass
+    // because the frame bind group needs the map before any pipeline exists.
     internal sealed unsafe class ManaWebGpuShadowMap : ManaWebGpuDeviceObject
     {
         public const int CascadeCount = 3;
@@ -49,6 +49,14 @@ namespace ManaGraphics.Code.Graphics.Resources
         public TextureView* CascadeView(int cascade) => _cascadeViews[cascade];
 
         public static bool IsCasting(ManaRenderScene? scene) => scene is { HasSun: true, SunCastsShadows: true };
+
+        /// <summary>Whether a mesh casts a sun shadow: the editor room and helpers do not, nor anything see-through.</summary>
+        public static bool IsCaster(ManaRenderMeshInstance instance) =>
+            !instance.IsTransparent && !instance.AlwaysOnTop && instance.IncludeInEnvironmentCapture
+            && instance.ShaderName != "ManaGridShader";
+
+        /// <summary>How far from the camera shadows reach this frame: <see cref="MaxShadowDistance"/>, or less in a small scene.</summary>
+        public float ShadowDistance { get; private set; } = MaxShadowDistance;
 
         private void Create(Device* device)
         {
@@ -149,7 +157,40 @@ namespace ManaGraphics.Code.Graphics.Resources
             var tanHalfFovX = MathF.Abs(1.0f / projection.M11);
 
             var near = MathF.Max(camera.NearClipPlane, 0.05f);
-            var far = MathF.Min(camera.FarClipPlane, MaxShadowDistance);
+            var sunDirection = Vector3.Normalize(scene.SunDirection);
+            var up = MathF.Abs(Vector3.Dot(sunDirection, Vector3.UnitY)) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
+            // The sun's view, turning only: x and y across the light, the same axes every cascade's box uses.
+            var sunView = Matrix4x4.CreateLookAt(Vector3.Zero, sunDirection, up);
+            Matrix4x4.Invert(sunView, out var sunToWorld);
+
+            // Two things from the casters. How far the farthest is from the camera: past it (and the shadow it throws)
+            // there is nothing to shadow, so a small scene spreads its cascades over what is there. And their footprint
+            // seen from the sun: a shadow falls straight behind its caster, so nothing outside it is ever in shadow.
+            var reach = 0.0f;
+            var footprintMin = new Vector2(float.MaxValue);
+            var footprintMax = new Vector2(float.MinValue);
+            foreach (var mesh in scene.Meshes)
+            {
+                if (!IsCaster(mesh))
+                {
+                    continue;
+                }
+                var (min, max) = mesh.MeshData.WorldBounds(mesh.WorldTransform);
+                var farthest = Vector3.Max(Vector3.Abs(min - camera.Position), Vector3.Abs(max - camera.Position));
+                reach = MathF.Max(reach, farthest.Length());
+                for (var corner = 0; corner < 8; corner++)
+                {
+                    var point = new Vector3((corner & 1) == 0 ? min.X : max.X, (corner & 2) == 0 ? min.Y : max.Y, (corner & 4) == 0 ? min.Z : max.Z);
+                    var inSun = Vector3.Transform(point, sunView);
+                    footprintMin = Vector2.Min(footprintMin, new Vector2(inSun.X, inSun.Y));
+                    footprintMax = Vector2.Max(footprintMax, new Vector2(inSun.X, inSun.Y));
+                }
+            }
+            var hasFootprint = footprintMin.X <= footprintMax.X;
+
+            // Rounded up to whole steps of 8 m, so the cascades do not breathe as the camera moves.
+            ShadowDistance = Math.Clamp(MathF.Ceiling((reach * 1.3f + 4.0f) / 8.0f) * 8.0f, 16.0f, MaxShadowDistance);
+            var far = MathF.Min(camera.FarClipPlane, ShadowDistance);
             if (far <= near)
             {
                 far = near + 1.0f;
@@ -166,9 +207,6 @@ namespace ManaGraphics.Code.Graphics.Resources
                 var uniformSplit = near + (far - near) * p;
                 splits[i] = splitLambda * logSplit + (1.0f - splitLambda) * uniformSplit;
             }
-
-            var sunDirection = Vector3.Normalize(scene.SunDirection);
-            var up = MathF.Abs(Vector3.Dot(sunDirection, Vector3.UnitY)) > 0.99f ? Vector3.UnitZ : Vector3.UnitY;
 
             Span<Vector3> corners = stackalloc Vector3[8];
             var cascadeNear = near;
@@ -190,9 +228,35 @@ namespace ManaGraphics.Code.Graphics.Resources
                     radius = MathF.Max(radius, Vector3.Distance(center, corners[c]));
                 }
 
+                // The sphere round the slice, seen from the sun, cut down to the casters' footprint: a wide slice of
+                // the view is mostly sky and empty ground, and its texels were spread over all of it.
+                var middle = Vector3.Transform(center, sunView);
+                var low = new Vector2(middle.X - radius, middle.Y - radius);
+                var high = new Vector2(middle.X + radius, middle.Y + radius);
+                if (hasFootprint)
+                {
+                    var cutLow = Vector2.Max(low, footprintMin);
+                    var cutHigh = Vector2.Min(high, footprintMax);
+                    if (cutLow.X < cutHigh.X && cutLow.Y < cutHigh.Y)
+                    {
+                        low = cutLow;
+                        high = cutHigh;
+                    }
+                }
+
+                // Stable cascades: each side in whole steps and the centre on a whole texel, so a moving camera does
+                // not slide the texels under still shadows (they crawled and shimmered).
+                var step = MathF.Pow(2.0f, MathF.Floor(MathF.Log2(radius))) / 8.0f;
+                var width = MathF.Max(step, MathF.Ceiling((high.X - low.X) / step) * step);
+                var height = MathF.Max(step, MathF.Ceiling((high.Y - low.Y) / step) * step);
+                var texel = new Vector2(width, height) / Resolution;
+                var boxCentre = (low + high) * 0.5f;
+                boxCentre = new Vector2(MathF.Round(boxCentre.X / texel.X) * texel.X, MathF.Round(boxCentre.Y / texel.Y) * texel.Y);
+                center = Vector3.Transform(new Vector3(boxCentre, middle.Z), sunToWorld);
+
                 var lightEye = center - sunDirection * (radius + CasterReach);
                 var lightView = Matrix4x4.CreateLookAt(lightEye, center, up);
-                var lightProjection = Matrix4x4.CreateOrthographic(radius * 2.0f, radius * 2.0f, 0.01f, radius * 2.0f + CasterReach);
+                var lightProjection = Matrix4x4.CreateOrthographic(width, height, 0.01f, radius * 2.0f + CasterReach);
 
                 CascadeViewProjections[i] = lightView * lightProjection;
                 CascadeSplitFar[i] = cascadeFar;

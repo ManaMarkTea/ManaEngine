@@ -1,0 +1,14 @@
+[
+  {"type": "open_level", "path": "Content/Levels/PBR Gallery.manalevel"},
+  {"type": "wait", "frames": 240},
+  {"type": "gizmos", "visible": false},
+  {"type": "move_camera", "position": [40, 3, 66], "target": [52, 0, 48]},
+  {"type": "wait", "frames": 20},
+  {"type": "screenshot", "path": "@@OUT@@", "clean": true},
+  {"type": "debug_view", "name": "Shadow Cascades"}, {"type": "wait", "frames": 3},
+  {"type": "screenshot", "path": "@@OUT@@.cascades.png", "clean": true},
+  {"type": "debug_view", "name": "Off"},
+  {"type": "open_panel", "name": "rendertargets"}, {"type": "wait", "frames": 10},
+  {"type": "screenshot", "path": "@@OUT@@.panel.png"},
+  {"type": "quit"}
+]
