@@ -52,6 +52,7 @@ public static class DesktopWindowChecks
 
         RunDockingChecks(fonts, Check);
         RunPromoteChecks(fonts, check);
+        RunDropInsideChecks(fonts, check);
 
         var atlas = new ManaImageAtlas(32, 32);
         var revision = atlas.Revision;
@@ -289,6 +290,36 @@ public static class DesktopWindowChecks
         root.Input.InjectPointerPressed(press, PointerButton.Left, 210.1);
         root.Input.InjectPointerReleased(press, PointerButton.Left);
         check("and a double-click on it detaches it", native != null && lastPress.Child == null, "");
+    }
+
+    // A float dropped inside the editor over nothing it docks into (the viewport, say) stays a float: only a drag out
+    // past the edge or a double-click on its title makes it a window.
+    private static void RunDropInsideChecks(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        var root = new UiRoot(fonts);
+        var home = new DockHost();
+        root.Content = new Grid().Columns("*, *").Rows("*").Children(home.GridColumn(0), new Border().GridColumn(1));
+        var item = new DockItem("Measure", new TextBlock().Text("ruler")) { Id = "measure" };
+        home.Dock(item, DockSide.Center);
+        var size = new Vector2(800, 600);
+        root.UpdateLayout(size);
+        var controller = new DockDragController(root, home);
+        FakeWindow? native = null;
+        root.CreateDesktopWindow = _ => native = new FakeWindow(fonts);
+
+        var floating = controller.FloatInEditor(item, new Vector2(500, 200), new Vector2(240, 180));
+        root.UpdateLayout(size);
+        var title = new Vector2(floating.Bounds.X + floating.Bounds.Width * 0.5f, floating.Bounds.Y + 12.0f);
+        var dropAt = new Vector2(700, 450);
+        root.Input.InjectPointerMoved(title);
+        root.Input.InjectPointerPressed(title, PointerButton.Left, 300.0);
+        root.Input.InjectPointerMoved(title + new Vector2(20, 20));
+        root.Input.InjectPointerMoved(dropAt);
+        var overNothing = !controller.CurrentTarget.IsValid;
+        root.Input.InjectPointerReleased(dropAt, PointerButton.Left);
+        root.UpdateLayout(size);
+        check("dropped over the viewport (nothing to dock into) it stays a float, not a window", overNothing && native == null
+            && controller.FloatingWindows.Contains(floating) && floating.Child != null, $"over nothing {overNothing}, window {native != null}");
     }
 
     private sealed class FakeWindow : IUiDesktopWindow

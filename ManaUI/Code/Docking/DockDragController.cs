@@ -623,14 +623,8 @@ namespace ManaUI
 
             if (!target.IsValid)
             {
-                // Dropped away from every dock host: where the OS can host it, it becomes a window of its
-                // own where the float was, so a panel that is not docked is never trapped inside the editor.
-                if (TryPopOutFloat(window, item))
-                {
-                    return;
-                }
-
-                // Otherwise it stays floating -- and stays registered, so it can be dragged back in later.
+                // Dropped inside the editor over nothing it docks into: it stays a float where it was let go. Only a drag
+                // out past the editor's edge, or a double-click on its title, makes it a window of its own.
                 // Reported anyway: it has moved, and where a floating panel sits is part of the layout.
                 FloatingChanged?.Invoke(this, EventArgs.Empty);
                 return;
