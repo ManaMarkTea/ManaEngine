@@ -24,6 +24,16 @@ namespace Mana.Code.UI.ManaUi
             _iconPath = iconPath;
             root.CreateDesktopWindow = Create;
             main.Closing += Dispose;
+            main.FocusChanged += OnMainFocusChanged;
+        }
+
+        // Clicking the main window must not bury the torn-off panels (see ManaWindowOwnership).
+        private void OnMainFocusChanged(bool focused)
+        {
+            if (focused)
+            {
+                ManaWindowOwnership.RaiseAbove(_windows.Where(window => !window.IsDisposed).Select(window => window.Native), _main);
+            }
         }
 
         private IUiDesktopWindow Create(string title)
@@ -52,6 +62,7 @@ namespace Mana.Code.UI.ManaUi
             if (_disposed) return;
             _disposed = true;
             _main.Closing -= Dispose;
+            _main.FocusChanged -= OnMainFocusChanged;
             _root.CreateDesktopWindow = null;
             foreach (var window in _windows.ToArray()) { window.Dispose(); window.Destroy(); }
             _windows.Clear();
@@ -90,6 +101,7 @@ namespace Mana.Code.UI.ManaUi
                 {
                     _window.Initialize();
                     ManaGraphics.Code.Graphics.ManaWindowIcon.Apply(_window, owner._iconPath);
+                    ManaWindowOwnership.Own(_window, owner._main);
                     _input = _window.CreateInput();
                     _host = new ManaUiHost(_window, _input, owner._root.Theme, owner._root.Images);
                     _frame.ScreenOrigin = () => new Vector2(_window.Position.X, _window.Position.Y);
@@ -106,6 +118,7 @@ namespace Mana.Code.UI.ManaUi
             }
 
             public UiRoot Root => _host!.Root;
+            public IWindow Native => _window;
             public DesktopWindowFrame Frame => _frame;
 
             private void OnLayoutChanged()
