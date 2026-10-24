@@ -46,6 +46,7 @@ public static class DesktopWindowChecks
         Check("rebuild closes windows without docking stale content", native!.Disposed && controller.DesktopWindows.Count == 0 && item.Owner == null);
 
         RunDockingChecks(fonts, Check);
+        RunPromoteChecks(fonts, check);
 
         var atlas = new ManaImageAtlas(32, 32);
         var revision = atlas.Revision;
@@ -219,6 +220,51 @@ public static class DesktopWindowChecks
         root.Input.InjectPointerReleased(point, PointerButton.Left);
         root.Input.InjectPointerPressed(point, PointerButton.Left, time + 0.1);
         root.Input.InjectPointerReleased(point, PointerButton.Left);
+    }
+
+    // A float dragged past the editor window's edge becomes a native window there and then, and the drag carries on
+    // moving that window; let go away from every dock target, it stays a window.
+    private static void RunPromoteChecks(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        var root = new UiRoot(fonts);
+        var home = new DockHost();
+        root.Content = home;
+        var item = new DockItem("Terrain", new TextBlock().Text("brushes")) { Id = "terrain" };
+        home.Dock(item, DockSide.Center);
+        var size = new Vector2(800, 600);
+        root.UpdateLayout(size);
+        var controller = new DockDragController(root, home);
+        FakeWindow? native = null;
+        root.CreateDesktopWindow = _ => native = new FakeWindow(fonts);
+
+        var floating = controller.BeginFloat(item, new Vector2(400, 300));
+        root.UpdateLayout(size);
+        var title = new Vector2(floating.Bounds.X + floating.Bounds.Width * 0.5f, floating.Bounds.Y + 12.0f);
+        root.Input.InjectPointerMoved(title);
+        root.Input.InjectPointerPressed(title, PointerButton.Left, 100.0);
+        var inside = title + new Vector2(-150, 0);
+        root.Input.InjectPointerMoved(inside);
+        root.UpdateLayout(size);
+        check("dragged about inside the window, it is still a float", native == null && controller.FloatingWindows.Count == 1, "");
+
+        var grab = inside - floating.Position;
+        var outside = new Vector2(-40, inside.Y);
+        root.Input.InjectPointerMoved(outside);
+        root.UpdateLayout(size);
+        check("past the window's edge it becomes a window of its own", native != null && native.Frame.Dock.AllItems().Contains(item)
+            && controller.FloatingWindows.Count == 0, $"{native != null}, {controller.FloatingWindows.Count} floats");
+        check("held where it was grabbed", native != null && Vector2.Distance(native.Position, outside - grab) < 1.0f,
+            $"{native?.Position} vs {outside - grab}");
+
+        var further = outside + new Vector2(-200, 80);
+        root.Input.InjectPointerMoved(further);
+        check("and the same drag carries on moving it", native != null && Vector2.Distance(native.Position, further - grab) < 1.0f,
+            $"{native?.Position} vs {further - grab}");
+
+        root.Input.InjectPointerReleased(further, PointerButton.Left);
+        root.UpdateLayout(size);
+        check("let go out there, it stays a window", native is { Disposed: false } && controller.FindDesktop("terrain") == native, "");
+        check("and the editor's pointer is free again", root.Input.PointerCaptureTarget == null, $"{root.Input.PointerCaptureTarget}");
     }
 
     private sealed class FakeWindow : IUiDesktopWindow

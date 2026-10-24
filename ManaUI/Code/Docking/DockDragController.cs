@@ -571,6 +571,16 @@ namespace ManaUI
             // The host is resolved again on drop rather than remembered: the pointer can leave one column
             // and enter another between the last move and the release.
             var resolved = ResolveAtScreen(MainOrigin + pointer * _root.ScreenScale, null);
+
+            // Dragged out past the edge of the editor's window, over nothing it could dock into (a torn-off window there
+            // still takes it): it becomes a window of its own there and then, and the rest of the drag moves that,
+            // rather than it being clipped at the edge until let go.
+            if (CanPopOut && !resolved.Target.IsValid && _floating.TryGetValue(window, out var leaving) && IsOutside(pointer))
+            {
+                PromoteMidDrag(window, leaving, pointer);
+                return;
+            }
+
             ShowTarget(resolved.Root, resolved.Target);
         }
 
@@ -607,6 +617,60 @@ namespace ManaUI
             window.Close();
 
             DockInto(host!, item, target);
+        }
+
+        /// <summary>How far past the window's edge (logical pixels) the pointer goes before a float is promoted.</summary>
+        public const float PromoteMargin = 4.0f;
+
+        private bool IsOutside(Vector2 pointer) =>
+            pointer.X < -PromoteMargin || pointer.Y < -PromoteMargin
+            || pointer.X > _root.Size.X + PromoteMargin || pointer.Y > _root.Size.Y + PromoteMargin;
+
+        private DockDragCarrier? _carrier;
+
+        /// <summary>
+        /// Turns a float being dragged into a native window where it is, held at the same point, and carries the drag on
+        /// as that window's: back over a dock target it docks, anywhere else it stays a window.
+        /// </summary>
+        private void PromoteMidDrag(UiWindow floating, DockItem item, Vector2 pointer)
+        {
+            var scale = _root.ScreenScale;
+            var screen = MainOrigin + pointer * scale;
+            var grab = (pointer - floating.Position) * scale;
+            var size = floating.Bounds.Size * scale;
+            ClearActiveDrag();
+
+            IUiDesktopWindow? native;
+            try
+            {
+                native = PopOut(item);
+            }
+            catch (Exception ex)
+            {
+                // The panel is still a float if the platform refused, so nothing is lost.
+                System.Diagnostics.Trace.WriteLine($"Could not pop out {item.Title}: {ex}");
+                return;
+            }
+            if (native == null)
+            {
+                return;
+            }
+
+            if (size.X > 0.0f && size.Y > 0.0f)
+            {
+                native.Size = size;
+            }
+            native.MoveTo(screen - grab);
+            _windowDrag = new WindowDrag(native, grab, screen) { Moved = true };
+
+            if (_carrier == null)
+            {
+                _carrier = new DockDragCarrier();
+                _root.OverlayLayer.Children.Add(_carrier);
+            }
+            _carrier.Begin(
+                moved => UpdateWindowDrag(MainOrigin + moved * _root.ScreenScale),
+                released => EndWindowDrag(MainOrigin + released * _root.ScreenScale));
         }
 
         private bool TryPopOutFloat(UiWindow floating, DockItem item)
