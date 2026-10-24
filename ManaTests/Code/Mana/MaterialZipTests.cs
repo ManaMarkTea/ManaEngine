@@ -41,6 +41,7 @@ public static class MaterialZipChecks
             Check("ZIP ignores text and loads lazily", material.Albedo.TextureValue?.OriginalFilename == "zip:test.zip/maps/wood_BaseColor.PNG");
             Check("normal map enabled", material.Normal.TextureValue != null && material.NormalSelector == 0);
             Check("specular does not make concrete metal", material.Metallic.TextureValue == null && material.Metallic.Value == 0);
+            material.InsetDepth = 0.075f;
             var snapshot = ManaLevelMaterial.Capture(material, context, Vector4.One);
             Check("ZIP selection captured", snapshot?.SourceZip == path && snapshot.NormalMap != null);
             var json = JsonSerializer.Serialize(snapshot);
@@ -50,6 +51,7 @@ public static class MaterialZipChecks
             loaded.Metallic.Value = 1.0f;
             loaded.Albedo.Value = new Vector4(0.2f, 0.3f, 0.4f, 1.0f);
             restored?.ApplyTo(loaded);
+            Check("inset depth survives JSON round trip", loaded.InsetDepth == 0.075f);
             Check("maps survive JSON round trip", loaded.Albedo.TextureValue?.OriginalFilename == material.Albedo.TextureValue?.OriginalFilename
                 && loaded.Normal.TextureValue?.OriginalFilename == material.Normal.TextureValue?.OriginalFilename);
             Check("missing ZIP channels clear imported maps", loaded.Roughness.TextureValue == null);

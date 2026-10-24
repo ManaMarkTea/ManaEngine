@@ -100,6 +100,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 null,
                 "Shifts every map across the surface."));
 
+            rows.Children.Add(InspectorControls.Row(context, "Inset depth",
+                InspectorControls.Scalar(() => material.InsetDepth, value => material.InsetDepth = value, 0.0f, 1.0f),
+                null, "Apparent recess in metres. Try 0.02 to 0.1. Zero disables parallax. "
+                    + "Moves all maps together; geometry, silhouettes and shadows stay at the surface. Best on opaque panels."));
+
             rows.Children.Add(new CheckBox().Label("Flat shading")
                 .Checked(material.FlatShaded)
                 .OnChanged(value => material.FlatShaded = value));

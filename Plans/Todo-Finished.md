@@ -1,5 +1,7 @@
 # Finished
 
+[x] - Add inset material parallax (2026-10-23): existing PBR materials expose Inset depth in metres, saved with levels and applied to every map in the WebGPU shader. Reference: Content/Levels/Tests/Parallax.manalevel and Tools/Automation/Checks/parallax.json. Flat recess effect; height-map relief remains a possible extension.
+
 [x] - Add audio routing to Diagnostics (2026-10-16): renamed Graphics Diagnostics in the panel menu/tab and About button, preserving its saved dock id. A live Audio section shows the output device, availability, playback unlock and app master volume through IManaAudio. Desktop build, 1796 ManaUI checks and 61 Audio checks pass; in-app capture: DevPhotos/2026-10-16 diagnostics-audio.png.
 
 [x] - Make pawn audio a node component and log desktop audio routing (2026-10-16): CharacterSpawnService attaches ManaPawnAudioComponent; it ticks with the node and subscribes/unsubscribes to jump/landing events through BeginPlay/EndPlay. Added audio_test/audio_status automation and startup logging of the actual OpenAL output endpoint and explicit --mute state. All 3460 headless checks and the browser build pass; a sound-enabled Sample Course run reports an available device, an active voice and no loading errors.

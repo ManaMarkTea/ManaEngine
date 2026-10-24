@@ -113,6 +113,7 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         /// <summary>Texture coordinate scale in XY, offset in ZW. Applies to every map.</summary>
         public Vector4 UvTransform;
+        public Vector4 Parallax;
 
         // Pure, so callers can dirty-check before uploading.
         public static ManaWebGpuObjectUniform For(ManaRenderMeshInstance meshInstance)
@@ -141,6 +142,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                     // w carries the cutout threshold, which is only read in that mode.
                     Math.Clamp(meshInstance.AlphaCutoff, 0.0f, 1.0f)),
                 UvTransform = meshInstance.UvTransform,
+                Parallax = new Vector4(float.IsFinite(meshInstance.InsetDepth) ? Math.Max(0, meshInstance.InsetDepth) : 0, 0, 0, 0),
                 OpacityMode = (float)meshInstance.OpacityMode,
                 NormalStrength = Math.Clamp(meshInstance.NormalStrength, 0.0f, 1.0f),
                 MaterialEmission = new Vector4(

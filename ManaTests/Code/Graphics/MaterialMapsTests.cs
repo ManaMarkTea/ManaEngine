@@ -207,7 +207,8 @@ public static class MaterialMapChecks
             ("flat_shading", 4, 4),
             ("normal_strength", 4, 4),
             ("opacity_mode", 4, 4),
-            ("uv_transform", 16, 16)
+            ("uv_transform", 16, 16),
+            ("parallax", 16, 16)
         };
 
         var body = Regex.Match(uniforms, @"struct\s+ObjectUniform\s*\{(?<body>[^}]*)\}", RegexOptions.Singleline);
@@ -228,7 +229,7 @@ public static class MaterialMapChecks
             string.Join(", ", fields));
 
         // Offsets computed the way WGSL does, so this catches a field of the wrong size as well as one in
-        // the wrong place. 240 bytes is what ManaWebGpuObjectUniform measures.
+        // the wrong place. 256 bytes is what ManaWebGpuObjectUniform measures.
         var offset = 0;
         var misaligned = new List<string>();
 
@@ -243,7 +244,7 @@ public static class MaterialMapChecks
         }
 
         Check("no field lands on a bad offset", misaligned.Count == 0, string.Join(", ", misaligned));
-        Check("and the struct is the size the buffer is allocated for", offset == 240, $"{offset} bytes");
+        Check("and the struct is the size the buffer is allocated for", offset == 256, $"{offset} bytes");
         Check("which is a multiple of 16, as a uniform buffer must be", offset % 16 == 0, $"{offset} bytes");
 
         // ---------------------------------------------------------------- normal mapping

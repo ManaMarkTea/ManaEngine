@@ -1,0 +1,341 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Parallax",
+  "camera": {
+    "position": [
+      57,
+      5,
+      57
+    ],
+    "rotation": [
+      -0.15,
+      0.5,
+      0
+    ]
+  },
+  "nodes": [
+    {
+      "name": "Surface",
+      "kind": "Shape",
+      "position": [
+        48,
+        2,
+        46
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "size": [
+        4,
+        4,
+        0.2
+      ],
+      "material": {
+        "sourceZip": "Assets/Materials/Wood/oak.zip",
+        "albedoMap": "zip:oak.zip/material_albedo.png",
+        "insetDepth": 0,
+        "roughness": 0.8
+      }
+    },
+    {
+      "name": "Surface Frame 1",
+      "kind": "Shape",
+      "position": [
+        45.9,
+        2,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        0.2,
+        4.4,
+        0.4
+      ]
+    },
+    {
+      "name": "Surface Frame 2",
+      "kind": "Shape",
+      "position": [
+        50.1,
+        2,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        0.2,
+        4.4,
+        0.4
+      ]
+    },
+    {
+      "name": "Surface Frame 3",
+      "kind": "Shape",
+      "position": [
+        48,
+        -0.10000000000000009,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        4,
+        0.2,
+        0.4
+      ]
+    },
+    {
+      "name": "Surface Frame 4",
+      "kind": "Shape",
+      "position": [
+        48,
+        4.1,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        4,
+        0.2,
+        0.4
+      ]
+    },
+    {
+      "name": "Recessed",
+      "kind": "Shape",
+      "position": [
+        53,
+        2,
+        46
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "size": [
+        4,
+        4,
+        0.2
+      ],
+      "material": {
+        "sourceZip": "Assets/Materials/Wood/oak.zip",
+        "albedoMap": "zip:oak.zip/material_albedo.png",
+        "insetDepth": 0.3,
+        "roughness": 0.8
+      }
+    },
+    {
+      "name": "Recessed Frame 6",
+      "kind": "Shape",
+      "position": [
+        50.9,
+        2,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        0.2,
+        4.4,
+        0.4
+      ]
+    },
+    {
+      "name": "Recessed Frame 7",
+      "kind": "Shape",
+      "position": [
+        55.1,
+        2,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        0.2,
+        4.4,
+        0.4
+      ]
+    },
+    {
+      "name": "Recessed Frame 8",
+      "kind": "Shape",
+      "position": [
+        53,
+        -0.10000000000000009,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        4,
+        0.2,
+        0.4
+      ]
+    },
+    {
+      "name": "Recessed Frame 9",
+      "kind": "Shape",
+      "position": [
+        53,
+        4.1,
+        46.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.15,
+        0.2,
+        0.25,
+        1
+      ],
+      "size": [
+        4,
+        0.2,
+        0.4
+      ]
+    }
+  ]
+}

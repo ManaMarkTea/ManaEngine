@@ -350,6 +350,7 @@ namespace Mana.Code.Nodes
                         OutlineEnabled = renderer.RenderOutlineEnabled,
                         OutlineColor = renderer.RenderOutlineColor,
                         OutlineWidth = renderer.RenderOutlineWidth,
+                        InsetDepth = renderer.Material.InsetDepth,
                         UvTransform = new Vector4(
                             renderer.Material.UvScale.X,
                             renderer.Material.UvScale.Y,

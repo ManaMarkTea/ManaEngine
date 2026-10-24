@@ -53,6 +53,7 @@ namespace ManaVoxel.Code.Levels
         public float? AlphaCutoff { get; set; }
         public Vector2? UvScale { get; set; }
         public Vector2? UvOffset { get; set; }
+        public float? InsetDepth { get; set; }
         public bool? FlatShaded { get; set; }
         public bool? Unlit { get; set; }
 
@@ -87,6 +88,7 @@ namespace ManaVoxel.Code.Levels
                 AlphaCutoff = Differs((float)material.AlphaCutoff, (float)fresh.AlphaCutoff),
                 UvScale = material.UvScale == fresh.UvScale ? null : material.UvScale,
                 UvOffset = material.UvOffset == fresh.UvOffset ? null : material.UvOffset,
+                InsetDepth = Differs(material.InsetDepth, fresh.InsetDepth),
                 FlatShaded = material.FlatShaded == fresh.FlatShaded ? null : material.FlatShaded,
                 Unlit = material.Unlit == fresh.Unlit ? null : material.Unlit
             };
@@ -114,6 +116,7 @@ namespace ManaVoxel.Code.Levels
                 material.AlphaCutoff = defaults.AlphaCutoff;
                 material.UvScale = defaults.UvScale;
                 material.UvOffset = defaults.UvOffset;
+                material.InsetDepth = defaults.InsetDepth;
                 material.FlatShaded = defaults.FlatShaded;
                 material.Unlit = defaults.Unlit;
                 material.Albedo.TextureValue = null;
@@ -212,6 +215,8 @@ namespace ManaVoxel.Code.Levels
                 material.UvOffset = uvOffset;
             }
 
+            if (InsetDepth is { } insetDepth) material.InsetDepth = insetDepth;
+
             if (FlatShaded is { } flatShaded)
             {
                 material.FlatShaded = flatShaded;
@@ -228,7 +233,7 @@ namespace ManaVoxel.Code.Levels
             AlbedoMap == null && NormalMap == null && RoughnessMap == null && MetallicMap == null && OcclusionMap == null && EmissionMap == null && OpacityMap == null
             && Albedo == null && Emission == null && EmissionStrength == null && Metallic == null && Roughness == null
             && Occlusion == null && NormalStrength == null && Opacity == null && OpacityMode == null && AlphaCutoff == null
-            && UvScale == null && UvOffset == null && FlatShaded == null && Unlit == null;
+            && InsetDepth == null && UvScale == null && UvOffset == null && FlatShaded == null && Unlit == null;
 
         // A float that came through a slider or a JSON round trip is never bit-identical; a thousandth is "the same".
         private static float? Differs(float value, float baseline) => MathF.Abs(value - baseline) < 0.0005f ? null : value;

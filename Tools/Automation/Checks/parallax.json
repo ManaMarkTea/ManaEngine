@@ -1,0 +1,61 @@
+[
+  {
+    "type": "open_level",
+    "path": "Content/Levels/Tests/Parallax.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 120
+  },
+  {
+    "type": "gizmos",
+    "visible": false
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      57,
+      5,
+      57
+    ],
+    "target": [
+      50.5,
+      2,
+      46
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 30
+  },
+  {
+    "type": "screenshot",
+    "path": "@@PHOTO@@ parallax-inset.png",
+    "clean": true
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      44,
+      5,
+      57
+    ],
+    "target": [
+      50.5,
+      2,
+      46
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 30
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@",
+    "clean": true
+  },
+  {
+    "type": "quit"
+  }
+]

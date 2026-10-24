@@ -41,6 +41,9 @@ namespace ManaCore.Graphics
         /// </summary>
         public Vector4 UvTransform { get; init; } = new(1.0f, 1.0f, 0.0f, 0.0f);
 
+        /// <summary>Apparent recess in world metres; zero disables parallax.</summary>
+        public float InsetDepth { get; init; }
+
         /// <summary>How strongly the normal map perturbs the surface. 0 ignores it entirely.</summary>
         public float NormalStrength { get; init; } = 1.0f;
 

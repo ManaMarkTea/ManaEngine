@@ -66,6 +66,22 @@ fn vs_main(
     return output;
 }
 
+// Project the view ray onto a plane behind the surface. Dual UV gradients preserve scale and mirroring.
+fn mana_inset_uv(uv : vec2<f32>, position : vec3<f32>, normal : vec3<f32>) -> vec2<f32> {
+    let dx = dpdx(position);
+    let dy = dpdy(position);
+    let ux = dpdx(uv);
+    let uy = dpdy(uv);
+    let area = cross(dx, dy);
+    let area_squared = dot(area, area);
+    let n = normalize(normal);
+    let view = normalize(frame.camera_position.xyz - position);
+    let offset = -view * object.parallax.x / max(abs(dot(n, view)), 0.15);
+    let dual_x = cross(dy, area) / max(area_squared, 1e-20);
+    let dual_y = cross(area, dx) / max(area_squared, 1e-20);
+    return uv + ux * dot(offset, dual_x) + uy * dot(offset, dual_y);
+}
+
 fn saturate(value : f32) -> f32 {
     return clamp(value, 0.0, 1.0);
 }
@@ -187,7 +203,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     object = mana_objects[input.instance];
 #endif
     // One transform for every map, so a tiled brick stays registered across albedo, normal and roughness.
-    let uv = input.uv0 * object.uv_transform.xy + object.uv_transform.zw;
+    let base_uv = input.uv0 * object.uv_transform.xy + object.uv_transform.zw;
+    let uv = mana_inset_uv(base_uv, input.world_position, input.world_normal);
 
     let sampled = textureSample(color_texture, color_sampler, uv);
     let vertex_color_linear = pow(max(input.color.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
@@ -207,7 +224,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let geometric_n = select(smooth_n, facet_n, object.flat_shading > 0.5);
 
     let normal_sample = textureSample(normal_texture, color_sampler, uv).rgb;
-    let n = mana_perturb_normal(geometric_n, input.world_position, uv, normal_sample, object.normal_strength);
+    let n = mana_perturb_normal(geometric_n, input.world_position, base_uv, normal_sample, object.normal_strength);
 
     let v = normalize(frame.camera_position.xyz - input.world_position);
 

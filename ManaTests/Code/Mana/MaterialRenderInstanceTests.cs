@@ -168,10 +168,12 @@ public static class MaterialRenderInstanceChecks
             // same brick wants a different repeat on a wall than on a doorframe.
             material.UvScale = new Vector2(4.0f, 2.0f);
             material.UvOffset = new Vector2(0.25f, 0.5f);
+            material.InsetDepth = 0.1f;
 
             var tiled = new List<ManaCore.Graphics.ManaRenderMeshInstance>();
             meshNode.CollectRenderMeshInstances(tiled);
 
+            Check("inset depth reaches the render instance", tiled.FirstOrDefault()?.InsetDepth == 0.1f, "");
             Check("uv tiling reaches the render instance",
                 tiled.FirstOrDefault()?.UvTransform == new Vector4(4.0f, 2.0f, 0.25f, 0.5f),
                 tiled.FirstOrDefault()?.UvTransform.ToString() ?? "none");

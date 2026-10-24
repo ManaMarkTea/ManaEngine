@@ -66,6 +66,9 @@ namespace Mana.Code.Materials
         /// <summary>Shifts the texture across the surface. Useful for lining up a trim or a decal.</summary>
         public Vector2 UvOffset = Vector2.Zero;
 
+        /// <summary>Apparent recess in world metres; zero disables parallax. Geometry stays in place.</summary>
+        public float InsetDepth = 0.0f;
+
         /// <summary>What the renderer should do with this material's alpha.</summary>
         public ManaOpacityMode OpacityMode = ManaOpacityMode.Auto;
 
