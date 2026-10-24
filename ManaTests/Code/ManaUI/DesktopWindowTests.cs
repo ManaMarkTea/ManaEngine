@@ -320,6 +320,22 @@ public static class DesktopWindowChecks
         root.UpdateLayout(size);
         check("dropped over the viewport (nothing to dock into) it stays a float, not a window", overNothing && native == null
             && controller.FloatingWindows.Contains(floating) && floating.Child != null, $"over nothing {overNothing}, window {native != null}");
+
+        // Likewise a native window let go over nothing stays a native window; a double-click on its tab brings it in.
+        var window = controller.PopOut(item)!;
+        window.Root.UpdateLayout(window.Size);
+        var tab = ((DockTabGroup)window.Frame.Dock.RootNode!).TabRect(0).Center;
+        window.Root.Input.InjectPointerMoved(tab);
+        window.Root.Input.InjectPointerPressed(tab, PointerButton.Left, 400.0);
+        window.Root.Input.InjectPointerMoved(tab + new Vector2(30, 30));
+        window.Root.Input.InjectPointerMoved(dropAt - window.Position);
+        window.Root.Input.InjectPointerReleased(dropAt - window.Position, PointerButton.Left);
+        check("a native window let go over the viewport stays a native window", !native!.Disposed
+            && controller.FindDesktop("measure") == native && controller.FloatingWindows.Count == 0, $"disposed {native.Disposed}");
+        window.Root.UpdateLayout(window.Size);
+        DoubleClick(window.Root, ((DockTabGroup)window.Frame.Dock.RootNode!).TabRect(0).Center, 410.0);
+        check("and a double-click on its tab brings it back in as a float", native.Disposed && controller.FloatingWindows.Count == 1
+            && item.Owner == null, $"disposed {native.Disposed}, floats {controller.FloatingWindows.Count}");
     }
 
     private sealed class FakeWindow : IUiDesktopWindow
