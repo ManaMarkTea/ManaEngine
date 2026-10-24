@@ -223,6 +223,12 @@ namespace ManaVoxel.Code.Automation
                         desktop.Size = new Vector2(size[0], size[1]);
                     }
                 }
+                // Moved there as a drop would, unchecked -- to test that a window put out of reach comes back.
+                if (command.Target is { Length: >= 2 } target)
+                {
+                    desktop.MoveTo(new Vector2(target[0], target[1]));
+                }
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: panel '{id}' window at {desktop.Position}, {desktop.Size}");
             });
 
             runner.Register("grid_autotile", command => ApplyGridAutoTile(runner, command));

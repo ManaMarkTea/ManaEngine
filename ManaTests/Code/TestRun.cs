@@ -90,6 +90,7 @@ public static class TestRunner
         ("Mana", "rotation conversion", RotationChecks.Run),
         ("Mana", "fixed-step clock", FixedStepClockChecks.Run),
         ("Mana", "sound bank and music", SoundBankChecks.Run),
+        ("Mana", "panel window placement", WindowPlacementChecks.Run),
         ("Mana", "pickup motion", PickupMotionChecks.Run),
         ("Mana", "material render instances", MaterialRenderInstanceChecks.Run),
         ("Mana", "texture library", TextureLibraryChecks.Run),

@@ -33,6 +33,10 @@ namespace Mana.Code.UI.ManaUi
             if (focused)
             {
                 ManaWindowOwnership.RaiseAbove(_windows.Where(window => !window.IsDisposed).Select(window => window.Native), _main);
+                foreach (var window in _windows)
+                {
+                    window.KeepReachable();
+                }
             }
         }
 
@@ -81,6 +85,7 @@ namespace Mana.Code.UI.ManaUi
             private bool _closeRequested;
             private bool _boundsDirty;
             private double _saveDelay;
+            private double _reachCheck;
             public bool IsDisposed { get; private set; }
 
             public DesktopWindow(ManaUiDesktopWindows owner, string title)
@@ -182,7 +187,15 @@ namespace Mana.Code.UI.ManaUi
                 if (_boundsDirty && (_saveDelay -= delta) <= 0)
                 {
                     _boundsDirty = false;
+                    // Once it has come to rest: a drop half off a screen is put back where it can be grabbed.
+                    KeepReachable();
                     BoundsChanged?.Invoke();
+                }
+                // And now and then regardless, for the monitor that was unplugged under it.
+                if ((_reachCheck -= delta) <= 0)
+                {
+                    _reachCheck = 2.0;
+                    KeepReachable();
                 }
                 DrawFrame(delta);
             }
@@ -206,6 +219,43 @@ namespace Mana.Code.UI.ManaUi
                 }
                 finally { _rendering = false; }
             }
+
+            /// <summary>Brings the window back onto a monitor if its tab strip is off every one (ManaWindowPlacement).</summary>
+            public void KeepReachable()
+            {
+                if (IsDisposed || !_window.IsVisible || _window.WindowState == WindowState.Minimized || MouseButtonHeld())
+                {
+                    return;
+                }
+
+                var monitors = Silk.NET.Windowing.Monitor.GetMonitors(_window)
+                    .Select(m => (m.Bounds.Origin.X, m.Bounds.Origin.Y, m.Bounds.Size.X, m.Bounds.Size.Y)).ToList();
+                if (ManaWindowPlacement.Reachable((_window.Position.X, _window.Position.Y), (_window.Size.X, _window.Size.Y), monitors) is { } fixedPosition)
+                {
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic(
+                        $"[Windows] Panel window at {_window.Position} was out of reach; moved to {fixedPosition}.");
+                    _window.Position = new Vector2D<int>(fixedPosition.X, fixedPosition.Y);
+                }
+            }
+
+            // A drag in progress is never fought: wait until every button is up.
+            private bool MouseButtonHeld()
+            {
+                if (_input != null)
+                {
+                    foreach (var mouse in _input.Mice)
+                    {
+                        if (mouse.IsButtonPressed(MouseButton.Left) || mouse.IsButtonPressed(MouseButton.Right))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return OperatingSystem.IsWindows() && (GetAsyncKeyState(0x01) & 0x8000) != 0;
+            }
+
+            [System.Runtime.InteropServices.DllImport("user32.dll")]
+            private static extern short GetAsyncKeyState(int key);
 
             public void Dispose()
             {
