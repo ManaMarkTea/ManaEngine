@@ -106,6 +106,18 @@ public static class TerrainChecks
         var colour = terrain.PatchNodes.ElementAt(10).Mesh.CpuData!.Colors[0];
         check("and the vertex colours follow", Vector4.Distance(colour, ManaTerrainNode.DefaultLayerColors[2]) < 0.05f, $"{colour}");
 
+        // A second of smoothing at the editor's rate (strength 0.5 over 60 frames) visibly flattens a round hill.
+        terrain.SetHeights((x, z) => 4.0f * MathF.Exp(-(x * x + z * z) / 18.0f));
+        var peak = terrain.HeightAt(0.0f, 0.0f);
+        for (var frame = 0; frame < 60; frame++)
+        {
+            terrain.Apply(new ManaTerrainDab(ManaTerrainBrush.Smooth, 0.0f, 0.0f, 6.0f, 0.5f / 60.0f * 6.0f, 0.6f));
+        }
+        var smoothed = terrain.HeightAt(0.0f, 0.0f);
+        check("a second of smoothing brings a round hill well down", smoothed < peak * 0.75f, $"{peak:0.00} -> {smoothed:0.00}");
+        check("and leaves the flat ground away from it alone", terrain.HeightAt(40.0f, 40.0f) < 1e-3f, $"{terrain.HeightAt(40.0f, 40.0f)}");
+        terrain.SetHeights((x, z) => 0.0f);
+
         terrain.RestoreState(state);
         check("restoring the state puts the ground back", terrain.HeightAt(-48.0f, -48.0f) == 0.0f && terrain.Splat[centre * 4] == 255, "");
 

@@ -342,11 +342,12 @@ namespace Mana.Code.Nodes
                 return 0;
             }
 
-            // Smoothing reads the neighbours as they were before this dab, so it does not smear in one direction.
-            float[]? before = null;
+            // Smoothing pulls each sample toward the average around it, as the ground was before this dab (so it does not
+            // smear one way) and over a reach that grows with the brush: a 3 x 3 average left a rounded hill as it was.
+            float[]? blurred = null;
             if (dab.Brush == ManaTerrainBrush.Smooth)
             {
-                before = (float[])_heights.Clone();
+                blurred = Blurred(minX, maxX, minZ, maxZ, Math.Clamp((int)MathF.Round(radius * 0.35f / Spacing), 1, 24));
             }
 
             var dirty = new bool[_patches.Length];
@@ -376,7 +377,7 @@ namespace Mana.Code.Nodes
                             _heights[i] += (dab.FlattenHeight - _heights[i]) * weight;
                             break;
                         case ManaTerrainBrush.Smooth:
-                            _heights[i] += (Average(before!, x, z) - _heights[i]) * weight;
+                            _heights[i] += (blurred![(z - minZ) * (maxX - minX + 1) + (x - minX)] - _heights[i]) * Math.Min(1.0f, weight * 2.0f);
                             break;
                         case ManaTerrainBrush.Noise:
                             _heights[i] += (Hash(x, z) - 0.5f) * weight * radius * 0.1f;
@@ -650,20 +651,41 @@ namespace Mana.Code.Nodes
             }
         }
 
-        private float Average(float[] heights, int x, int z)
+        // The box average of the heights within `reach` samples of each one in the rectangle, edges clamped, from a
+        // summed-area table over the rectangle and its margin: the same cost however wide the reach.
+        private float[] Blurred(int minX, int maxX, int minZ, int maxZ, int reach)
         {
-            var sum = 0.0f;
-            for (var dz = -1; dz <= 1; dz++)
+            var x0 = Math.Max(0, minX - reach);
+            var x1 = Math.Min(SamplesX - 1, maxX + reach);
+            var z0 = Math.Max(0, minZ - reach);
+            var z1 = Math.Min(SamplesZ - 1, maxZ + reach);
+            var width = x1 - x0 + 2;
+            var table = new double[width * (z1 - z0 + 2)];
+            for (var z = z0; z <= z1; z++)
             {
-                for (var dx = -1; dx <= 1; dx++)
+                var row = 0.0;
+                for (var x = x0; x <= x1; x++)
                 {
-                    var sx = Math.Clamp(x + dx, 0, SamplesX - 1);
-                    var sz = Math.Clamp(z + dz, 0, SamplesZ - 1);
-                    sum += heights[sz * SamplesX + sx];
+                    row += _heights[z * SamplesX + x];
+                    table[(z - z0 + 1) * width + (x - x0 + 1)] = table[(z - z0) * width + (x - x0 + 1)] + row;
                 }
             }
 
-            return sum / 9.0f;
+            var columns = maxX - minX + 1;
+            var result = new float[columns * (maxZ - minZ + 1)];
+            for (var z = minZ; z <= maxZ; z++)
+            {
+                for (var x = minX; x <= maxX; x++)
+                {
+                    var left = Math.Max(x0, x - reach) - x0;
+                    var right = Math.Min(x1, x + reach) - x0 + 1;
+                    var top = Math.Max(z0, z - reach) - z0;
+                    var bottom = Math.Min(z1, z + reach) - z0 + 1;
+                    var sum = table[bottom * width + right] - table[top * width + right] - table[bottom * width + left] + table[top * width + left];
+                    result[(z - minZ) * columns + (x - minX)] = (float)(sum / ((right - left) * (bottom - top)));
+                }
+            }
+            return result;
         }
 
         // 1 at the centre to 0 at the rim; falloff 0 keeps it 1 all the way out, 1 fades from the middle (smoothstep).
