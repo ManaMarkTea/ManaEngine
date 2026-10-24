@@ -9,11 +9,14 @@ namespace Mana.Code.UI.ManaUi
     /// Windows a panel window is owned by the main one -- the OS then keeps it above its owner, brings it back whenever
     /// the owner is activated, and minimises and restores it along with it. macOS has no ownership that leaves a window
     /// free to move on its own, so there the panel windows are put just above the main one each time it gains focus.
+    /// On Windows 11 they get the system's rounded corners too.
     /// </summary>
     internal static class ManaWindowOwnership
     {
         private const int GwlpHwndParent = -8;
         private const uint GwOwner = 4;
+        private const int DwmwaWindowCornerPreference = 33;
+        private const int DwmwcpRound = 2;
 
         /// <summary>Ties <paramref name="panel"/> to <paramref name="main"/> as far as the platform allows.</summary>
         public static void Own(IWindow panel, IWindow main)
@@ -23,6 +26,9 @@ namespace Mana.Code.UI.ManaUi
                 if (OperatingSystem.IsWindows() && panel.Native?.Win32 is { } child && main.Native?.Win32 is { } parent)
                 {
                     SetWindowLongPtrW(child.Hwnd, GwlpHwndParent, parent.Hwnd);
+                    // Rounded corners, as Windows 11 draws its own windows; Windows 10 ignores the request.
+                    var round = DwmwcpRound;
+                    DwmSetWindowAttribute(child.Hwnd, DwmwaWindowCornerPreference, ref round, sizeof(int));
                     // Read back from the OS, so a log shows whether the tie took.
                     var owned = GetWindow(child.Hwnd, GwOwner) == parent.Hwnd;
                     ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"[Windows] Panel window owned by the main window: {owned}.");
@@ -68,6 +74,9 @@ namespace Mana.Code.UI.ManaUi
 
         [DllImport("user32.dll")]
         private static extern nint GetWindow(nint hwnd, uint command);
+
+        [DllImport("dwmapi.dll")]
+        private static extern int DwmSetWindowAttribute(nint hwnd, int attribute, ref int value, int size);
 
         [DllImport("/usr/lib/libobjc.dylib")]
         private static extern nint sel_registerName(string name);

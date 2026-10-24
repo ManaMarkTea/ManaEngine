@@ -37,10 +37,15 @@ public static class DesktopWindowChecks
         Check("repeated pop-out focuses existing window", controller.PopOut(item) == native && native.FocusCount == 1);
         native.Root.UpdateLayout(new Vector2(800, 600));
         DoubleClick(native.Root, ((DockTabGroup)native.Frame.Dock.RootNode!).TabRect(0).Center, 2);
-        Check("dock back preserves edits and ownership", content.Text == "keep this edit" && content.Root == root && item.Owner != null);
-        Check("dock back disposes native window", native.Disposed && controller.DesktopWindows.Count == 0);
-        var floating = controller.BeginFloat(item, new Vector2(300, 150));
-        controller.PopOut(item);
+        Check("double-clicking a native window's tab floats it in the editor, edits kept", content.Text == "keep this edit"
+            && content.Root == root && controller.FloatingWindows.Count == 1 && item.Owner == null);
+        Check("and closes the window it left", native.Disposed && controller.DesktopWindows.Count == 0);
+        var floating = controller.FloatingWindows.Single();
+        root.UpdateLayout(new Vector2(800, 600));
+        DoubleClick(root, new Vector2(floating.Bounds.X + floating.Bounds.Width * 0.5f, floating.Bounds.Y + 12.0f), 3);
+        check("double-clicking the float's title detaches it again", floating.Child == null && controller.FloatingWindows.Count == 0
+            && native!.Frame.Dock.AllItems().Contains(item) && !native.Disposed,
+            $"float child {floating.Child?.GetType().Name}, floats {controller.FloatingWindows.Count}, in native {native?.Frame.Dock.AllItems().Contains(item)}, disposed {native?.Disposed}, owner {item.Owner?.GetType().Name}, float at {floating.Bounds}");
         Check("in-app float can become native", floating.Child == null && controller.FloatingWindows.Count == 0 && native!.Frame.Dock.AllItems().Contains(item));
         controller.CloseDesktopWindows();
         Check("rebuild closes windows without docking stale content", native!.Disposed && controller.DesktopWindows.Count == 0 && item.Owner == null);
@@ -265,6 +270,25 @@ public static class DesktopWindowChecks
         root.UpdateLayout(size);
         check("let go out there, it stays a window", native is { Disposed: false } && controller.FindDesktop("terrain") == native, "");
         check("and the editor's pointer is free again", root.Input.PointerCaptureTarget == null, $"{root.Input.PointerCaptureTarget}");
+        root.UpdateLayout(size);
+
+        // A click on a float's title that never moves it leaves it floating, even over a dock target.
+        var again = controller.FloatInEditor(item, new Vector2(100, 100), new Vector2(360, 280));
+        root.UpdateLayout(size);
+        var press = new Vector2(again.Bounds.X + again.Bounds.Width * 0.5f, again.Bounds.Y + 12.0f);
+        root.Input.InjectPointerMoved(press);
+        root.Input.InjectPointerPressed(press, PointerButton.Left, 200.0);
+        root.Input.InjectPointerReleased(press, PointerButton.Left);
+        check("a click on a float's title, without moving it, does not dock it", controller.FloatingWindows.Contains(again) && item.Owner == null,
+            $"owner {item.Owner?.GetType().Name}");
+        native = null;
+        root.CreateDesktopWindow = _ => native = new FakeWindow(fonts);
+        var lastPress = controller.FloatingWindows.Single();
+        root.Input.InjectPointerPressed(press, PointerButton.Left, 210.0);
+        root.Input.InjectPointerReleased(press, PointerButton.Left);
+        root.Input.InjectPointerPressed(press, PointerButton.Left, 210.1);
+        root.Input.InjectPointerReleased(press, PointerButton.Left);
+        check("and a double-click on it detaches it", native != null && lastPress.Child == null, "");
     }
 
     private sealed class FakeWindow : IUiDesktopWindow

@@ -70,6 +70,12 @@ namespace ManaUI
         /// <summary>Raised when the title bar drag starts, carrying the pointer position. Docking hooks this.</summary>
         public event EventHandler<Vector2>? DragStarted;
 
+        /// <summary>
+        /// The title bar was double-clicked. Taken only while something listens -- the docking controller pops a
+        /// floating panel out to a window of its own with it; any other window drags as before.
+        /// </summary>
+        public event EventHandler? TitleDoubleClicked;
+
         public event EventHandler<Vector2>? Dragging;
         public event EventHandler<Vector2>? DragEnded;
 
@@ -689,6 +695,13 @@ namespace ManaUI
                 _dragOriginStart = Position;
                 _dragSizeStart = Bounds.Size;
                 CapturePointer();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.ClickCount == 2 && TitleDoubleClicked != null && TitleBarRect().Contains(e.Position))
+            {
+                TitleDoubleClicked.Invoke(this, EventArgs.Empty);
                 e.Handled = true;
                 return;
             }

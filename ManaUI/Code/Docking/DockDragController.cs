@@ -416,10 +416,12 @@ namespace ManaUI
 
         private void OnTabDoubleClicked(object? sender, DockItem item)
         {
-            // Inside a native window a double-click sends the panel home; in the editor it pops it out.
-            if (WindowOf(item) != null)
+            // Inside a native window a double-click brings the panel back into the editor as a float -- where the window
+            // was, not docked into some column; a double-click on the float's title (or dragging it out) detaches it
+            // again. In the editor's own layout a double-click pops a tab out.
+            if (WindowOf(item) is { } window)
             {
-                DockItemHome(item);
+                FloatInEditor(item, window.Position, window.Size);
                 _root.InvalidateAll();
                 return;
             }
@@ -530,6 +532,7 @@ namespace ManaUI
             window.Dragging += OnWindowDragging;
             window.DragEnded += OnWindowDragEnded;
             window.Closed += OnWindowClosed;
+            window.TitleDoubleClicked += OnFloatTitleDoubleClicked;
         }
 
         private void Unregister(UiWindow window)
@@ -543,6 +546,7 @@ namespace ManaUI
             window.Dragging -= OnWindowDragging;
             window.DragEnded -= OnWindowDragEnded;
             window.Closed -= OnWindowClosed;
+            window.TitleDoubleClicked -= OnFloatTitleDoubleClicked;
             FloatingChanged?.Invoke(this, EventArgs.Empty);
 
             if (ReferenceEquals(_activeWindow, window))
@@ -551,11 +555,18 @@ namespace ManaUI
             }
         }
 
+        // Where a float's title was grabbed, and whether it has really moved since: a click that never moved the float
+        // must not dock it, however much it happens to sit over a dock target (that read as docking itself at random).
+        private Vector2 _floatGrab;
+        private bool _floatMoved;
+
         private void OnWindowDragStarted(object? sender, Vector2 pointer)
         {
             if (sender is UiWindow window && _floating.ContainsKey(window))
             {
                 _activeWindow = window;
+                _floatGrab = pointer;
+                _floatMoved = false;
             }
         }
 
@@ -567,6 +578,14 @@ namespace ManaUI
             }
 
             _activeWindow = window;
+            if (!_floatMoved && Vector2.Distance(pointer, _floatGrab) >= DragThreshold)
+            {
+                _floatMoved = true;
+            }
+            if (!_floatMoved)
+            {
+                return;
+            }
 
             // The host is resolved again on drop rather than remembered: the pointer can leave one column
             // and enter another between the last move and the release.
@@ -591,8 +610,16 @@ namespace ManaUI
                 return;
             }
 
+            var moved = _floatMoved;
+            _floatMoved = false;
             var (host, target, _) = ResolveAtScreen(MainOrigin + pointer * _root.ScreenScale, null);
             ClearActiveDrag();
+
+            // Clicked, not dragged: it stays a float where it is.
+            if (!moved)
+            {
+                return;
+            }
 
             if (!target.IsValid)
             {
@@ -671,6 +698,42 @@ namespace ManaUI
             _carrier.Begin(
                 moved => UpdateWindowDrag(MainOrigin + moved * _root.ScreenScale),
                 released => EndWindowDrag(MainOrigin + released * _root.ScreenScale));
+        }
+
+        /// <summary>
+        /// Takes an item out of a native window into a floating window inside the editor, placed where the native window
+        /// was (kept within the editor's window) and about its size. The window it left closes once empty.
+        /// </summary>
+        public UiWindow FloatInEditor(DockItem item, Vector2 screenOrigin, Vector2 screenSize)
+        {
+            ArgumentNullException.ThrowIfNull(item);
+            var scale = _root.ScreenScale;
+            _itemHomes[item] = HomeFor(item, 0);
+            DetachFromCurrentPlace(item);
+
+            var available = _root.Size;
+            var size = Vector2.Clamp(screenSize / scale, new Vector2(200.0f, 120.0f), Vector2.Max(available * 0.9f, new Vector2(200.0f, 120.0f)));
+            var position = (screenOrigin - MainOrigin) / scale;
+            position = Vector2.Clamp(position, Vector2.Zero, Vector2.Max(Vector2.Zero, available - size));
+
+            var window = new UiWindow(item.Title)
+            {
+                Width = size.X,
+                Height = size.Y,
+                Child = item.Content
+            };
+            _root.ShowWindow(window, position);
+            RegisterFloating(window, item);
+            return window;
+        }
+
+        // A double-click on a float's title detaches it, as a drag out past the editor's edge does.
+        private void OnFloatTitleDoubleClicked(object? sender, EventArgs e)
+        {
+            if (sender is UiWindow window && _floating.TryGetValue(window, out var item))
+            {
+                TryPopOutFloat(window, item);
+            }
         }
 
         private bool TryPopOutFloat(UiWindow floating, DockItem item)
