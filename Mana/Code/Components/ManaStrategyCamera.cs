@@ -13,6 +13,8 @@ namespace Mana
         private Vector3? _grabbed;
         private (Vector3 Ground, Vector2 Pointer)? _zoomAnchor;
 
+        /// <param name="context">The engine context whose main camera this drives.</param>
+        /// <param name="fieldOfViewDegrees">The lens, vertical, in degrees.</param>
         /// <param name="pitch">How far it looks down, in radians below the horizon (negative).</param>
         public ManaStrategyCamera(ManaContext context, float fieldOfViewDegrees, float pitch)
         {

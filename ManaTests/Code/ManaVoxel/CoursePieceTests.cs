@@ -627,15 +627,15 @@ public static class CoursePieceChecks
         animated.World.BeginPlay();
 
         animated.Step(Far, 20);
-        Check("an animated enemy walks with its walk clip", actor.Animation.ActiveClip?.Name == "walk", actor.Animation.ActiveClip?.Name);
+        Check("an animated enemy walks with its walk clip", actor.Animation.ActiveClip?.Name == "walk", actor.Animation.ActiveClip?.Name ?? "");
 
         animated.Step(new Vector3(actor.Position.X + 3.0f, 0.0f, 0.0f), 20);
-        Check("sprints when it chases", orcy.IsChasing && actor.Animation.ActiveClip?.Name == "sprint", actor.Animation.ActiveClip?.Name);
+        Check("sprints when it chases", orcy.IsChasing && actor.Animation.ActiveClip?.Name == "sprint", actor.Animation.ActiveClip?.Name ?? "");
 
         animated.Player.GroundHeight = 1.4f;
         animated.Step(new Vector3(actor.Position.X, 1.4f, 0.0f));
         Check("stomping it plays its die clip", orcy.IsDefeated && actor.Animation.ActiveClip?.Name == "die" && !actor.Animation.Looping,
-            actor.Animation.ActiveClip?.Name);
+            actor.Animation.ActiveClip?.Name ?? "");
         Check("and leaves it in view while it falls", actor.Components.OfType<MeshRendererComponent>().All(mesh => mesh.IsVisible));
 
         animated.Step(Far, 60);
@@ -970,12 +970,12 @@ public static class CoursePieceChecks
 
         ManaComponentReference.Rename(secondVolume, "Back");
         Check("naming that volume moves the piece's pointer to the name", follower.TriggerSource.Key == "@Back" && ReferenceEquals(follower.Trigger, secondVolume),
-            follower.TriggerSource.Key);
+            follower.TriggerSource.Key ?? "");
         ManaComponentReference.Rename(secondVolume, "Rear");
         Check("and so does renaming it again", follower.TriggerSource.Key == "@Rear" && ReferenceEquals(follower.Trigger, secondVolume));
         ManaComponentReference.Rename(secondVolume, "  ");
         Check("clearing the name goes back to pointing by position", follower.TriggerSource.Key == "TriggerVolumeComponent#1" && secondVolume.Label == null
-            && ReferenceEquals(follower.Trigger, secondVolume), follower.TriggerSource.Key);
+            && ReferenceEquals(follower.Trigger, secondVolume), follower.TriggerSource.Key ?? "");
         ManaComponentReference.Rename(firstVolume, "Front");
         Check("renaming a volume nothing points at leaves the others alone", follower.TriggerSource.Key == "TriggerVolumeComponent#1" && firstVolume.Label == "Front");
 

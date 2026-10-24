@@ -14,6 +14,8 @@ namespace Mana.Code.Audio
         private readonly Dictionary<string, Task<ManaAudioClip>> _clips = new(StringComparer.OrdinalIgnoreCase);
         private readonly Dictionary<string, double> _lastPlayed = new(StringComparer.OrdinalIgnoreCase);
 
+        /// <param name="audio">The audio system the sounds load into and play through.</param>
+        /// <param name="paths">Every sound the game plays, loaded now; a path listed twice loads once.</param>
         /// <param name="owner">Names the game in the log when a sound will not load.</param>
         public ManaSoundBank(IManaAudio audio, IEnumerable<string> paths, string owner)
         {

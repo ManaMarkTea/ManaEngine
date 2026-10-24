@@ -76,11 +76,11 @@ public static class ImageChecks
         Console.WriteLine("  -- image control --");
 
         var root = new UiRoot(fonts);
-        Check("the root owns a colour atlas", root.Images != null, $"{root.Images.Width}x{root.Images.Height}");
+        Check("the root owns a colour atlas", root.Images != null, $"{root.Images?.Width}x{root.Images?.Height}");
 
         var pixels = new byte[16 * 8 * 4];
         Array.Fill(pixels, (byte)200);
-        var placed = root.Images.Add(pixels, 16, 8);
+        var placed = root.Images?.Add(pixels, 16, 8);
         Check("an image packs into the root's atlas", placed != null);
 
         var image = new UiImage().SetSource(placed!.Value, new Vector2(16.0f, 8.0f));

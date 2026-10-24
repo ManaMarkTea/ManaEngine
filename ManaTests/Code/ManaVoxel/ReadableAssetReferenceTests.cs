@@ -84,7 +84,7 @@ public static class ReadableAssetReferenceChecks
             ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.Name == "tree.glb");
         Check("preferring the GLB format copy when there are several",
             ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName == "Models/GLB format/tree.glb",
-            ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName);
+            ZipAssetReferences.FindZipEntry(pack, "Old Folder/tree.glb")?.FullName ?? "");
         Check("regardless of case", ZipAssetReferences.FindZipEntry(pack, "elsewhere/CONE.GLB")?.FullName == "Other/Cone.glb");
         Check("and a model that is not there is not there", ZipAssetReferences.FindZipEntry(pack, "Models/GLB format/nothing.glb") == null);
 
@@ -103,7 +103,7 @@ public static class ReadableAssetReferenceChecks
         var saved = ManaLevelCapture.CaptureScene(world, world.DefaultScene, "Saved").Nodes.Single();
         if (hasPack)
         {
-            Check("saving writes a model the readable way, whichever way it was placed", saved.Asset == readable, saved.Asset);
+            Check("saving writes a model the readable way, whichever way it was placed", saved.Asset == readable, saved.Asset ?? "");
         }
 
         // ---------------------------------------------------------------- a model that is a plain file, not in a zip

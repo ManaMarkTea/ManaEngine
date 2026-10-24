@@ -32,6 +32,8 @@ namespace Mana.Code.Models
         public bool IsEmpty => _groups.Values.All(group => group.Indexes.Count == 0);
 
         /// <summary>Adds every part of a loaded model, placed by <paramref name="world"/>.</summary>
+        /// <param name="model">The model whose parts are merged in.</param>
+        /// <param name="world">Where the copy stands: its parts' own transforms are applied first.</param>
         /// <param name="tint">Multiplies the model's colours: a shade per copy keeps a field of the same tile from reading as wallpaper.</param>
         public void Add(ManaModel model, Matrix4x4 world, Vector4? tint = null)
         {
