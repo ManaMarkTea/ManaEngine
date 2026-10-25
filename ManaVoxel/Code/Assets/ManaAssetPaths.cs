@@ -39,7 +39,7 @@ namespace ManaVoxel.Code.Assets
             // depending on the depth of bin/, Artifacts/Bin/, or runtime-specific outputs.
             for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
             {
-                if (!File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
+                if (!File.Exists(Path.Combine(directory.FullName, "ManaRenderer.sln")))
                 {
                     continue;
                 }

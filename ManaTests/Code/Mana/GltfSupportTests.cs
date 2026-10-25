@@ -79,7 +79,7 @@ public static class GltfSupportChecks
         // FindSupportedAlternative finds the plain glTF copy and LoadFile succeeds transparently rather
         // than refusing outright -- the refusal path above is what fires for a pack with no such sibling.
         var repository = new DirectoryInfo(AppContext.BaseDirectory);
-        while (repository != null && !File.Exists(Path.Combine(repository.FullName, "Mana", "Mana.sln")))
+        while (repository != null && !File.Exists(Path.Combine(repository.FullName, "ManaRenderer.sln")))
         {
             repository = repository.Parent;
         }

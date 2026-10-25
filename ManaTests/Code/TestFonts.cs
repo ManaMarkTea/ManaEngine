@@ -12,7 +12,7 @@ public static class TestFonts
         {
             // The checkout itself, not an output folder's copy of Assets/ (which lacks ManaUI's fonts).
             var bundled = Path.Combine(directory.FullName, "Assets", "Fonts");
-            if (Directory.Exists(bundled) && File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
+            if (Directory.Exists(bundled) && File.Exists(Path.Combine(directory.FullName, "ManaRenderer.sln")))
             {
                 yield return bundled;
 

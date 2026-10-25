@@ -3,43 +3,45 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33403.182
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mana", "Mana.csproj", "{12813B90-4533-42C9-AC39-499DBDF25D23}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Mana", "Mana\Mana.csproj", "{12813B90-4533-42C9-AC39-499DBDF25D23}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7C73D585-B758-46CF-AC1D-D32D1CF80C41} = {7C73D585-B758-46CF-AC1D-D32D1CF80C41}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaCore", "..\ManaCore\ManaCore.csproj", "{7C73D585-B758-46CF-AC1D-D32D1CF80C41}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaCore", "ManaCore\ManaCore.csproj", "{7C73D585-B758-46CF-AC1D-D32D1CF80C41}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaVoxel", "..\ManaVoxel\ManaVoxel.csproj", "{C92481EB-795F-4DEC-BBF4-7F219F9A724F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaVoxel", "ManaVoxel\ManaVoxel.csproj", "{C92481EB-795F-4DEC-BBF4-7F219F9A724F}"
 	ProjectSection(ProjectDependencies) = postProject
 		{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0} = {6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}
 		{12813B90-4533-42C9-AC39-499DBDF25D23} = {12813B90-4533-42C9-AC39-499DBDF25D23}
 	EndProjectSection
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaGraphics", "..\ManaGraphics\ManaGraphics.csproj", "{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ManaGraphics", "ManaGraphics\ManaGraphics.csproj", "{6BD6A4B0-6EF6-4A53-94A0-4DBEF841B6F0}"
 	ProjectSection(ProjectDependencies) = postProject
 		{7C73D585-B758-46CF-AC1D-D32D1CF80C41} = {7C73D585-B758-46CF-AC1D-D32D1CF80C41}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaUI", "..\ManaUI\ManaUI.csproj", "{F26A63AF-F081-4534-B804-B09ED14BA10A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaUI", "ManaUI\ManaUI.csproj", "{F26A63AF-F081-4534-B804-B09ED14BA10A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaTests", "..\ManaTests\ManaTests.csproj", "{8550C76D-2D93-4236-B1DA-AE0E1E23F53A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaTests", "ManaTests\ManaTests.csproj", "{8550C76D-2D93-4236-B1DA-AE0E1E23F53A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaAudio", "..\ManaAudio\ManaAudio.csproj", "{1B8D3319-C739-4186-802C-0F64A80F50A6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaAudio", "ManaAudio\ManaAudio.csproj", "{1B8D3319-C739-4186-802C-0F64A80F50A6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaGeoTools", "..\ManaGeoTools\ManaGeoTools.csproj", "{27CC8D15-7E43-463B-91B5-F9CC75863C93}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaGeoTools", "ManaGeoTools\ManaGeoTools.csproj", "{27CC8D15-7E43-463B-91B5-F9CC75863C93}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrainYardWars", "..\Games\TrainYardWars\TrainYardWars.csproj", "{635C5838-F405-4855-B199-E6B8C271491E}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TrainYardWars", "Games\TrainYardWars\TrainYardWars.csproj", "{635C5838-F405-4855-B199-E6B8C271491E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Games", "Games", "{04252BA6-B404-FD3B-81B5-D989EEE58EED}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runner", "..\Games\Runner\Runner.csproj", "{F9B15822-972A-438E-BF31-DABB5116FBD8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Runner", "Games\Runner\Runner.csproj", "{F9B15822-972A-438E-BF31-DABB5116FBD8}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaLidar.Core", "..\ManaLidar.Core\ManaLidar.Core.csproj", "{4AEE3651-0E3C-4A1B-A22B-264392CD5DC2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaLidar.Core", "ManaLidar.Core\ManaLidar.Core.csproj", "{4AEE3651-0E3C-4A1B-A22B-264392CD5DC2}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeScreensaver", "..\Games\CodeScreensaver\CodeScreensaver.csproj", "{028B4637-A1E0-4679-91A4-7518AD9EF970}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeScreensaver", "Games\CodeScreensaver\CodeScreensaver.csproj", "{028B4637-A1E0-4679-91A4-7518AD9EF970}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YachtJousting", "..\Games\YachtJousting\YachtJousting.csproj", "{569C1E95-21D9-40D6-ABB4-36E3D2472E15}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YachtJousting", "Games\YachtJousting\YachtJousting.csproj", "{569C1E95-21D9-40D6-ABB4-36E3D2472E15}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foundry", "Games\Foundry\Foundry.csproj", "{C7A3D671-A9DA-4258-99F5-FEB158F29742}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -207,6 +209,18 @@ Global
 		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x64.Build.0 = Release|Any CPU
 		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x86.ActiveCfg = Release|Any CPU
 		{569C1E95-21D9-40D6-ABB4-36E3D2472E15}.Release|x86.Build.0 = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|x64.Build.0 = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Debug|x86.Build.0 = Debug|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|x64.ActiveCfg = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|x64.Build.0 = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|x86.ActiveCfg = Release|Any CPU
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -214,6 +228,9 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{F9B15822-972A-438E-BF31-DABB5116FBD8} = {04252BA6-B404-FD3B-81B5-D989EEE58EED}
 		{028B4637-A1E0-4679-91A4-7518AD9EF970} = {04252BA6-B404-FD3B-81B5-D989EEE58EED}
+		{C7A3D671-A9DA-4258-99F5-FEB158F29742} = {04252BA6-B404-FD3B-81B5-D989EEE58EED}
+		{635C5838-F405-4855-B199-E6B8C271491E} = {04252BA6-B404-FD3B-81B5-D989EEE58EED}
+		{569C1E95-21D9-40D6-ABB4-36E3D2472E15} = {04252BA6-B404-FD3B-81B5-D989EEE58EED}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FC14B720-B669-414D-92DF-793CB59376E6}

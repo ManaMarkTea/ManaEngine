@@ -31,7 +31,7 @@ namespace ManaCore.Diagnostics
                 for (var directory = new DirectoryInfo(start); directory != null; directory = directory.Parent)
                 {
                     if (File.Exists(Path.Combine(directory.FullName, "Directory.Build.props")) &&
-                        File.Exists(Path.Combine(directory.FullName, "Mana", "Mana.sln")))
+                        File.Exists(Path.Combine(directory.FullName, "ManaRenderer.sln")))
                     {
                         return directory.FullName;
                     }

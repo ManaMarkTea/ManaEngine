@@ -367,7 +367,7 @@
       "options": [
         {
           "label": "Desktop solution",
-          "value": "Mana/Mana.sln"
+          "value": "ManaRenderer.sln"
         },
         {
           "label": "ManaVoxel",
