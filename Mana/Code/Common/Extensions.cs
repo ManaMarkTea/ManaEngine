@@ -121,8 +121,17 @@ namespace Mana
 
         public static Vector3 ToEuler(this Quaternion r)
         {
+            var sinPitch = 2.0f * (r.X * r.W - r.Y * r.Z);
+            if (MathF.Abs(sinPitch) > 0.999999f)
+            {
+                // Gimbal lock: pitched straight up or down, yaw and roll turn about one axis and the general split below
+                // rebuilds a different rotation (Bistro's café doors came out twisted). Put it all in yaw: with no roll,
+                // local X stays level and yaw is where it points.
+                var right = Vector3.Transform(Vector3.UnitX, Quaternion.Normalize(r));
+                return new Vector3(MathF.CopySign(MathF.PI * 0.5f, sinPitch), MathF.Atan2(-right.Z, right.X), 0.0f);
+            }
             float yaw = MathF.Atan2(2.0f * (r.Y * r.W + r.X * r.Z), 1.0f - 2.0f * (r.X * r.X + r.Y * r.Y));
-            float pitch = MathF.Asin(Math.Clamp(2.0f * (r.X * r.W - r.Y * r.Z), -1.0f, 1.0f));
+            float pitch = MathF.Asin(Math.Clamp(sinPitch, -1.0f, 1.0f));
             float roll = MathF.Atan2(2.0f * (r.X * r.Y + r.Z * r.W), 1.0f - 2.0f * (r.X * r.X + r.Z * r.Z));
             return new Vector3(pitch, yaw, roll);
         }

@@ -21,6 +21,36 @@ public static class RotationChecks
         Check("and a small negative angle stays negative rather than becoming 354",
             MathF.Abs(node.RotationDegrees.X + 6.0f) < 0.01f, $"{node.RotationDegrees.X:F1} degrees");
 
+        // ---------------------------------------------------------------- Euler round trip at gimbal lock
+        // Pitched straight up or down, yaw and roll share an axis and the general split rebuilt another rotation:
+        // Bistro's café doors (this quaternion) loaded twisted out of their frame.
+        static float RoundTripError(Quaternion q)
+        {
+            var back = q.ToEuler().ToQuaternionFromEuler();
+            var error = 0.0f;
+            foreach (var axis in new[] { Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ })
+            {
+                error = MathF.Max(error, Vector3.Distance(Vector3.Transform(axis, q), Vector3.Transform(axis, back)));
+            }
+            return error;
+        }
+        var door = Quaternion.Normalize(new Quaternion(-0.381f, 0.596f, 0.596f, 0.381f));
+        Check("a rotation pitched straight down survives the Euler round trip",
+            RoundTripError(door) < 1e-3f, $"axis error {RoundTripError(door):0.####}");
+        var worst = 0.0f;
+        foreach (var pitch in new[] { -90.0f, -89.99f, 89.99f, 90.0f })
+        {
+            for (var yaw = -170.0f; yaw <= 180.0f; yaw += 37.0f)
+            {
+                for (var roll = -170.0f; roll <= 180.0f; roll += 53.0f)
+                {
+                    var q = Quaternion.CreateFromYawPitchRoll(yaw.ToRadians(), pitch.ToRadians(), roll.ToRadians());
+                    worst = MathF.Max(worst, RoundTripError(q));
+                }
+            }
+        }
+        Check("and so does every yaw and roll at and beside straight up and down", worst < 2e-3f, $"worst axis error {worst:0.####}");
+
         // ---------------------------------------------------------------- moving a node to another parent
         // Each node counts its own transform versions, so two parents can be at the same count; a moved child once
         // kept its old world transform then (Foundry's prefab parts drew at the map origin).
