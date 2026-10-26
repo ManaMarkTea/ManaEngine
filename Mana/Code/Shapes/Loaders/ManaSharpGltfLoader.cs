@@ -103,6 +103,7 @@ namespace Mana.Code.Shapes.Loaders
             _nodeMap.Clear();
             _meshesByNode.Clear();
             _skinnedMeshPlacements.Clear();
+            _materialParts.Clear();
 
             var manaScene = new ManaScene(Context) { Name = sceneName };
 
@@ -114,6 +115,11 @@ namespace Mana.Code.Shapes.Loaders
             foreach (var mesh in _model.LogicalMeshes)
             {
                 Meshes.Add(LoadMesh(mesh));
+            }
+            // After the loop, so Meshes[i] is still glTF mesh i.
+            foreach (var parts in _materialParts.Values)
+            {
+                Meshes.AddRange(parts);
             }
 
             LoadAnimationClips();
@@ -168,6 +174,16 @@ namespace Mana.Code.Shapes.Loaders
                 var meshIndex = node.Mesh.LogicalIndex;
                 var foundMesh = Meshes[meshIndex];
                 metaSceneNode.Components.Add(new MeshRendererComponent(metaSceneNode, foundMesh));
+                if (_materialParts.TryGetValue(node.Mesh, out var parts))
+                {
+                    foreach (var part in parts)
+                    {
+                        var partNode = new ManaSceneNode(Context, Matrix4x4.Identity);
+                        partNode.Name = $"{metaSceneNode.Name} ({part.Materials.FirstOrDefault()?.Name})";
+                        partNode.Components.Add(new MeshRendererComponent(partNode, part));
+                        metaSceneNode.AddChild(partNode);
+                    }
+                }
 
                 if (node.Skin != null)
                 {
@@ -183,13 +199,32 @@ namespace Mana.Code.Shapes.Loaders
             return metaSceneNode;
         }
 
+        /// <summary>Extra meshes of a glTF mesh whose textured parts wear different materials, one per material.</summary>
+        private readonly Dictionary<SharpGLTF.Schema2.Mesh, ManaMesh[]> _materialParts = new();
+
         private ManaMesh LoadMesh(SharpGLTF.Schema2.Mesh mesh)
+        {
+            // A ManaMesh draws with one material. Untextured parts merge with their colours baked into the
+            // vertices; textured ones with different materials split, or every part would wear the first's.
+            var primitives = mesh.Primitives.ToList();
+            var groups = primitives.GroupBy(primitive => primitive.Material?.LogicalIndex ?? -1)
+                .Select(group => (IReadOnlyList<MeshPrimitive>)group.ToList()).ToList();
+            var textured = primitives.Any(primitive => primitive.Material?.FindChannel("BaseColor")?.Texture != null);
+            var skinned = primitives.Any(primitive => primitive.VertexAccessors.ContainsKey("JOINTS_0"));
+            if (groups.Count > 1 && textured && !skinned)
+            {
+                _materialParts[mesh] = groups.Skip(1).Select(group => BuildMesh(mesh, group)).ToArray();
+                return BuildMesh(mesh, groups[0]);
+            }
+            return BuildMesh(mesh, primitives);
+        }
+
+        private ManaMesh BuildMesh(SharpGLTF.Schema2.Mesh mesh, IReadOnlyList<MeshPrimitive> primitives)
         {
             var output = new ManaMesh(Context) { Name = mesh.Name ?? string.Empty };
 
-            // A glTF mesh may have multiple primitives (one per material); the engine's ManaMesh is
-            // one draw with one material list, so primitives are concatenated the same way
-            // ManaGltfLoader's CPU-only preview path concatenates Assimp's per-part meshes.
+            // Several primitives become one draw, concatenated the way ManaGltfLoader's CPU-only preview
+            // path concatenates Assimp's per-part meshes.
             var indexes = new List<uint>();
             var positions = new List<Vector3>();
             var normals = new List<Vector3>();
@@ -203,14 +238,14 @@ namespace Mana.Code.Shapes.Loaders
             var maxSize = Vector3.One * float.MinValue;
             uint vertexOffset = 0;
             ManaMaterial? firstMaterial = null;
-            var hasMultipleMaterials = mesh.Primitives
+            var hasMultipleMaterials = primitives
                 .Select(primitive => primitive.Material?.LogicalIndex)
                 .Distinct()
                 .Count() > 1;
-            var bakeMaterialColors = hasMultipleMaterials && mesh.Primitives.All(primitive =>
+            var bakeMaterialColors = hasMultipleMaterials && primitives.All(primitive =>
                 primitive.Material?.FindChannel("BaseColor")?.Texture == null);
 
-            foreach (var primitive in mesh.Primitives)
+            foreach (var primitive in primitives)
             {
                 var posAccessor = primitive.VertexAccessors.GetValueOrDefault("POSITION");
                 if (posAccessor == null)

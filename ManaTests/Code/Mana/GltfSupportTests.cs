@@ -112,6 +112,19 @@ public static class GltfSupportChecks
                 caught?.Message ?? "loaded");
         }
 
+        // ---------------------------------------------------------------- one mesh, two textured materials
+        // A ManaMesh draws with one material, and merging the parts used to paint them all in the first one --
+        // Bistro's string lights came out in the wire's black.
+        {
+            var parts = LoadTwoMaterialMesh();
+            var names = parts.Select(part => part.Mesh.Materials.FirstOrDefault()?.Name ?? "none").ToArray();
+            Check("a mesh whose textured parts wear different materials draws each in its own",
+                names.Length == 2 && names.Contains("Wire") && names.Contains("Bulb"), string.Join(", ", names));
+            Check("and each part keeps only its own triangles",
+                parts.All(part => part.Mesh.CpuData?.Indexes.Length == 3),
+                string.Join(", ", parts.Select(part => part.Mesh.CpuData?.Indexes.Length ?? -1)));
+        }
+
         // ---------------------------------------------------------------- the view preset's range
         // A camera parked further from its pivot than the far plane renders nothing, and the presets were
         // happy to put it there: the orbit distance came from a field the fly camera never updates, so after
@@ -139,6 +152,60 @@ public static class GltfSupportChecks
         Check("and a non-finite one cannot strand the camera",
             float.IsFinite(CameraComponent.ClampViewPresetDistance(float.NaN, near, far)),
             $"{CameraComponent.ClampViewPresetDistance(float.NaN, near, far)}");
+    }
+
+    /// <summary>Loads a glTF of one mesh with two triangles, each textured in a material of its own; returns every renderer.</summary>
+    private static List<MeshRendererComponent> LoadTwoMaterialMesh()
+    {
+        var picture = Convert.ToBase64String(ManaCore.Imaging.ManaImageCodec.EncodePng(new ManaCore.Imaging.ManaImage(1, 1)));
+        var buffer = new MemoryStream();
+        var writer = new BinaryWriter(buffer);
+        foreach (var value in new float[] { 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1 })
+        {
+            writer.Write(value);
+        }
+        foreach (var value in new float[] { 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1 })
+        {
+            writer.Write(value);
+        }
+        foreach (var index in new ushort[] { 0, 1, 2, 0, 1, 2 })
+        {
+            writer.Write(index);
+        }
+        writer.Flush();
+        var data = Convert.ToBase64String(buffer.ToArray());
+        var json = "{\"asset\":{\"version\":\"2.0\"},\"scene\":0,\"scenes\":[{\"nodes\":[0]}],\"nodes\":[{\"mesh\":0,\"name\":\"Lights\"}],"
+            + $"\"buffers\":[{{\"byteLength\":{buffer.Length},\"uri\":\"data:application/octet-stream;base64,{data}\"}}],"
+            + "\"bufferViews\":[{\"buffer\":0,\"byteOffset\":0,\"byteLength\":72},{\"buffer\":0,\"byteOffset\":72,\"byteLength\":48},{\"buffer\":0,\"byteOffset\":120,\"byteLength\":12}],"
+            + "\"accessors\":["
+            + "{\"bufferView\":0,\"byteOffset\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\",\"min\":[0,0,0],\"max\":[1,1,0]},"
+            + "{\"bufferView\":0,\"byteOffset\":36,\"componentType\":5126,\"count\":3,\"type\":\"VEC3\",\"min\":[0,0,1],\"max\":[1,1,1]},"
+            + "{\"bufferView\":1,\"byteOffset\":0,\"componentType\":5126,\"count\":3,\"type\":\"VEC2\"},"
+            + "{\"bufferView\":1,\"byteOffset\":24,\"componentType\":5126,\"count\":3,\"type\":\"VEC2\"},"
+            + "{\"bufferView\":2,\"byteOffset\":0,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"},"
+            + "{\"bufferView\":2,\"byteOffset\":6,\"componentType\":5123,\"count\":3,\"type\":\"SCALAR\"}],"
+            + $"\"images\":[{{\"uri\":\"data:image/png;base64,{picture}\"}}],\"textures\":[{{\"source\":0}}],"
+            + "\"materials\":[{\"name\":\"Wire\",\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0}}},"
+            + "{\"name\":\"Bulb\",\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0}}}],"
+            + "\"meshes\":[{\"primitives\":["
+            + "{\"attributes\":{\"POSITION\":0,\"TEXCOORD_0\":2},\"indices\":4,\"material\":0},"
+            + "{\"attributes\":{\"POSITION\":1,\"TEXCOORD_0\":3},\"indices\":5,\"material\":1}]}]}";
+        var path = Header(json);
+
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        var root = new ManaSharpGltfLoader(context).LoadFile(path);
+        var renderers = new List<MeshRendererComponent>();
+        void Collect(ManaSceneNode node)
+        {
+            renderers.AddRange(node.Components.OfType<MeshRendererComponent>());
+            foreach (var child in node.Children)
+            {
+                Collect(child);
+            }
+        }
+        Collect(root);
+        return renderers;
     }
 
     /// <summary>A scratch .gltf holding just the given JSON, deleted once the check has read it.</summary>
