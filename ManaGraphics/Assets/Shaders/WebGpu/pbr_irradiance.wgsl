@@ -14,6 +14,7 @@ struct VertexOutput {
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/shadows.wgsl"
+#include "include/probe_volume.wgsl"
 #if MANA_INSTANCED
 // Instanced (ManaWebGpuMaterialPass batches meshes alike): each instance's object uniform from an array, copied into
 // `object` at the top of each stage so the rest of the shader reads it as the single-mesh build does.
@@ -330,10 +331,17 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         direct = direct + (kd * vertex_albedo / PI + specular) * radiance * ndotl * sun_shadow;
     }
 
-    let irradiance = mana_irradiance(n);
+    // Inside a baked probe volume the ambient is what actually reaches this spot (include/probe_volume.wgsl): walled-off
+    // sky and bounced sun included. Reflections dim by the same share of the open sky, and the sun's shadow no longer
+    // has to stand in for the sky being blocked.
+    let probe = mana_probe_irradiance(input.world_position, n);
+    let sky_irradiance = mana_irradiance(n) * ibl_intensity;
+    let luma = vec3<f32>(0.2126, 0.7152, 0.0722);
+    let reflection_share = mix(1.0, saturate(dot(probe.rgb, luma) / max(dot(sky_irradiance, luma), 0.0001)), probe.w);
+    let ambient_shade = mix(shade, 1.0, probe.w);
     let F = fresnel_schlick_roughness(max(dot(n, v), 0.0), f0, roughness);
     let kd_ambient = (vec3<f32>(1.0) - F) * (1.0 - metallic);
-    let diffuse_ibl = irradiance * vertex_albedo * ibl_intensity;
+    let diffuse_ibl = mix(sky_irradiance, probe.rgb, probe.w) * vertex_albedo;
 
     let reflection = reflect(-v, n);
     let reflection_radiance = mana_environment_reflection(mana_radiance_direction(n, reflection, raw_roughness), raw_roughness);
@@ -341,8 +349,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let brdf = textureSample(brdf_lut, clamp_sampler, vec2<f32>(ndotv, roughness)).rg;
     // f0, not F: the LUT already integrates Fresnel (Karis split-sum is F0 * A + B). Using F here
     // applies it twice and blows out grazing angles.
-    let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity;
-    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao * shade;
+    let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity * reflection_share;
+    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao * ambient_shade;
     // With an emission map, it says what glows (glTF's rule). Without one, emission shows the surface's own
     // colour -- texture and all -- as if in full daylight, tinted by the emission colour: a glowing coin still
     // looks like the coin, where a white stand-in map painted it over in one flat colour.

@@ -153,6 +153,7 @@ there is no frustum culling, so nothing is lost) -- 52 fps to 340 at the vespa c
 `Bistro Exterior Night.manalevel` (`-Night`) drops the sun for a still night sky and puts a point light at each glowing
 thing -- the pack lights its night with emissive surfaces only, which a rasteriser cannot (`emissive_lights` in bistro.py).
 The pack's ORM maps leave occlusion (red) black despite its README, so the converter wires no occlusion map.
+Both Bistro levels carry a `ProbeVolume` over the whole scene (below); the day level is exposed at 1.6 (`sky.exposure`).
 
 DDS (`ManaDds`, `ManaCore/Imaging/`): BC1-5 and 32-bit RGBA, read with every mip. Where the device has
 `TextureCompressionBC` the texture cache uploads the blocks as they are (flipped in place, as decoded pictures are);
@@ -330,6 +331,15 @@ are baked from; the live editor draws new ones with the GPU instead.
   frame's targets live: `ManaWebGpuTargetPreview` draws them small into one texture (`target_preview.wgsl`, layout in
   `ManaRenderTargetPreview`) only on frames whose UI draws from it -- a ManaUI batch can draw from a backend texture by id
   (`ManaUiDrawList.SetTexture`, registered with the UI renderer's `SetTexture`).
+- **Light probes:** a `ProbeVolume` script (`ManaProbeVolumeComponent`: box `size`, `probeSpacing`, `voxelSize`, `bounces`)
+  gives the scenery in its box baked ambient light -- sky that walls hide, sunlight and lamplight bounced. The renderer
+  voxelizes the meshes in the box on a background thread (`ManaProbeVoxelizer`, `ManaCore/Graphics/`; a voxel is solid
+  once half a face of surface crosses it, so wires and leaves let light by) whenever the scenery changes, then bakes on
+  the GPU whenever the sun, the placed lights or the sky do (`ManaWebGpuProbeVolume`: per bounce `probe_volume_light`,
+  `probe_volume_gather` -- 96 rays a probe marched through the voxels -- and `probe_volume_pack`, which fills probes
+  buried in walls from their neighbours). The PBR shader reads L1 harmonics from three 3D textures in group 0
+  (`include/probe_volume.wgsl`) in place of the irradiance cube, dims reflections by the same share, and no longer
+  darkens ambient in sun shadow there. Without a volume nothing changes. Reference: the Bistro levels.
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

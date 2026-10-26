@@ -165,6 +165,9 @@ namespace ManaVoxel.Code.Levels
         /// <summary>The picture the Photo sky shows and reflects (an equirectangular PNG or JPEG); the default when absent.</summary>
         public string? Photo { get; set; }
 
+        /// <summary>The camera's exposure, for a level lit brighter or dimmer than the default sky (a strong sun).</summary>
+        public float? Exposure { get; set; }
+
         public void ApplyTo(ManaCore.Graphics.ManaIrradianceSettings sky)
         {
             if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(Mode, true, out var mode))
@@ -187,6 +190,10 @@ namespace ManaVoxel.Code.Levels
             if (ConstellationLines is { } lines)
             {
                 sky.ConstellationLines = lines;
+            }
+            if (Exposure is { } exposure)
+            {
+                sky.Exposure = exposure;
             }
         }
     }

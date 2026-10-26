@@ -37,6 +37,10 @@ struct FrameUniform {
     wind : vec4<f32>,
     // xy = how far the air has carried things (world XZ metres), z = that path's length, w = gust now 0..1.
     wind_motion : vec4<f32>,
+    // The probe volume (ManaWebGpuProbeVolume, include/probe_volume.wgsl): xyz its low corner, w 1 when baked;
+    // xyz the probes' extent (count times spacing), w the spacing.
+    probe_volume_min : vec4<f32>,
+    probe_volume_extent : vec4<f32>,
 };
 
 struct ObjectUniform {

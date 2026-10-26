@@ -36,6 +36,10 @@ namespace ManaGraphics.Code.Graphics.Resources
         public Vector4 CameraForward;
         public Vector4 Wind;
         public Vector4 WindMotion;
+        // The probe volume (ManaWebGpuProbeVolume): xyz its low corner, w 1 when baked; xyz the probes' extent
+        // (count times spacing, which the harmonics textures span), w the spacing.
+        public Vector4 ProbeVolumeMin;
+        public Vector4 ProbeVolumeExtent;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.

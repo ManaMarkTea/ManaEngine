@@ -28,6 +28,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly ManaWebGpuFrame _frame = new();
         private ManaWebGpuSceneBindings? _bindings;
 
+        private readonly ManaWebGpuProbeVolumePass _probes = null!;
+
         public ManaWebGpuSceneRenderer(
             ManaWebGpuDevice gpu, ManaWebGpuEnvironment environment, ManaWebGpuSceneMeshes meshes, Vector2D<int> size,
             Func<bool> sceneCaptureEnabled)
@@ -51,6 +53,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
                 // Before the shadows, as before anything samples the reflection cubes.
                 AddPass(new ManaWebGpuEnvironmentCapturePass(gpu, environment, sceneCaptureEnabled));
+                // After the capture, whose sky the probes see; before anything shades with them.
+                _probes = AddPass(new ManaWebGpuProbeVolumePass(gpu, _bindings));
                 AddPass(new ManaWebGpuShadowPass(gpu, _bindings, shadowMap));
                 // The material pass draws the sky between its opaque and transparent meshes, where the depth test skips every
                 // pixel already covered: the full atmosphere is costly per pixel, and a board seen from above hides nearly all of it.
@@ -125,7 +129,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
             {
                 _lights!.Update(scene, new System.Numerics.Vector2(_size.X, _size.Y));
             }
-            _bindings!.WriteFrame(Queue, ManaWebGpuFrameUniform.For(scene, _shadowMap, _lights.Clusters, seconds));
+            var uniform = ManaWebGpuFrameUniform.For(scene, _shadowMap, _lights.Clusters, seconds);
+            uniform.ProbeVolumeMin = _probes.Volume.FrameMin;
+            uniform.ProbeVolumeExtent = _probes.Volume.FrameExtent;
+            _bindings!.WriteFrame(Queue, uniform);
         }
 
         /// <summary>

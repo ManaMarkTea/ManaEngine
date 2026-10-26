@@ -26,6 +26,9 @@ namespace ManaCore.Graphics
         public Vector4 SunColor { get; init; } = Vector4.One;
         public bool SunCastsShadows { get; init; }
 
+        /// <summary>The level's baked light probes, when it has a ProbeVolume; null otherwise.</summary>
+        public ManaProbeVolumeSettings? ProbeVolume { get; init; }
+
         /// <summary>The sky this frame -- see <see cref="ManaSky.Evaluate"/>.</summary>
         public ManaSky.State Sky { get; init; } = new(ManaSkyMode.Day, Vector3.UnitY, 1.0f, Vector3.One);
 

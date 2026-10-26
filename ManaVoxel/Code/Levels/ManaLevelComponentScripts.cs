@@ -115,6 +115,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "ProbeVolume",
+                    ComponentType = typeof(Mana.Code.Components.ManaProbeVolumeComponent),
+                    Create = node => new Mana.Code.Components.ManaProbeVolumeComponent(node)
+                },
+                new()
+                {
                     Type = "Light",
                     ComponentType = typeof(ManaLightSourceComponent),
                     Create = node => new ManaLightSourceComponent(node),

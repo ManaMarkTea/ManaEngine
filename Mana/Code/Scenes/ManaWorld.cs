@@ -315,7 +315,9 @@ namespace Mana
                         var direction = light.Direction.LengthSquared() > 1e-6f
                             ? Vector3.Normalize(light.Direction)
                             : -Vector3.UnitY;
-                        sun = (true, direction, light.Color, light.CastsShadows);
+                        // Intensity rides in w, as the sky's own sun carries it (the shaders take rgb * a).
+                        var colour = light.CurrentColor();
+                        sun = (true, direction, new Vector4(colour.X, colour.Y, colour.Z, light.Intensity), light.CastsShadows);
                     }
 
                     continue;
@@ -338,6 +340,41 @@ namespace Mana
             {
                 CollectLightsFromNode(child, output, local, ref sun);
             }
+        }
+
+        // The first enabled probe volume in any scene: one bakes per world.
+        private ManaProbeVolumeSettings? FindProbeVolume()
+        {
+            ManaProbeVolumeSettings? Find(ManaSceneNode node)
+            {
+                foreach (var component in node.Components)
+                {
+                    if (component is Mana.Code.Components.ManaProbeVolumeComponent { Enabled: true } volume)
+                    {
+                        return volume.Settings();
+                    }
+                }
+                foreach (var child in node.Children)
+                {
+                    if (Find(child) is { } found)
+                    {
+                        return found;
+                    }
+                }
+                return null;
+            }
+
+            foreach (var scene in Scenes)
+            {
+                foreach (var node in scene.Children)
+                {
+                    if (Find(node) is { } found)
+                    {
+                        return found;
+                    }
+                }
+            }
+            return null;
         }
 
         /// <summary>The placed point lights -- lamps, glows -- as a render scene gets them: xyz position, w range; colour.</summary>
@@ -473,7 +510,8 @@ namespace Mana
                 HasSun = sun.Found,
                 SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
                 SunColor = sun.Found ? sun.Color : Vector4.One,
-                SunCastsShadows = sun.Found && sun.CastsShadows
+                SunCastsShadows = sun.Found && sun.CastsShadows,
+                ProbeVolume = FindProbeVolume()
             };
         }
 

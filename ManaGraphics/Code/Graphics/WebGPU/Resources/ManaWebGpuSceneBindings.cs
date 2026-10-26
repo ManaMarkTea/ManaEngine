@@ -18,6 +18,15 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         public const int ObjectBindingCount = FirstMaterialMapBinding + MaterialMapCount;
 
+        /// <summary>Group 0: frame uniform, shadow map and sampler, three light buffers, probe harmonics and sampler.</summary>
+        public const int FrameBindingCount = 10;
+
+        private TextureView* _shadowMapArrayView;
+        private Sampler* _shadowSampler;
+        private ManaWebGpuLightClusters? _lights;
+        private Texture* _emptyProbeTexture;
+        private TextureView* _emptyProbeView;
+
 
         public Sampler* LinearSampler { get; private set; }
         public Sampler* NearestSampler { get; private set; }
@@ -154,7 +163,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                 };
 
                 // The placed lights, the clustered view's cells and each cell's light indices (ManaWebGpuLightClusters).
-                var frameBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[6];
+                var frameBindGroupLayoutEntries = stackalloc BindGroupLayoutEntry[FrameBindingCount];
                 frameBindGroupLayoutEntries[0] = frameBindGroupLayoutEntry;
                 frameBindGroupLayoutEntries[1] = shadowMapBindGroupLayoutEntry;
                 frameBindGroupLayoutEntries[2] = shadowSamplerBindGroupLayoutEntry;
@@ -167,10 +176,31 @@ namespace ManaGraphics.Code.Graphics.Resources
                         Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage, HasDynamicOffset = false }
                     };
                 }
+                // The probe volume's light: three textures of L1 harmonics (red, green, blue) and their sampler.
+                for (var binding = 6; binding < 9; binding++)
+                {
+                    frameBindGroupLayoutEntries[binding] = new BindGroupLayoutEntry
+                    {
+                        Binding = (uint)binding,
+                        Visibility = ShaderStage.Fragment,
+                        Texture = new TextureBindingLayout
+                        {
+                            SampleType = TextureSampleType.Float,
+                            ViewDimension = TextureViewDimension.Dimension3D,
+                            Multisampled = false
+                        }
+                    };
+                }
+                frameBindGroupLayoutEntries[9] = new BindGroupLayoutEntry
+                {
+                    Binding = 9,
+                    Visibility = ShaderStage.Fragment,
+                    Sampler = new SamplerBindingLayout { Type = SamplerBindingType.Filtering }
+                };
 
                 var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
                 {
-                    EntryCount = 6,
+                    EntryCount = FrameBindingCount,
                     Entries = frameBindGroupLayoutEntries
                 };
                 FrameLayout = api.DeviceCreateBindGroupLayout(device, &frameBindGroupLayoutDescriptor);
@@ -192,51 +222,11 @@ namespace ManaGraphics.Code.Graphics.Resources
                     throw new InvalidOperationException("Failed to create WebGPU frame uniform buffer.");
                 }
 
-                var frameBindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 0,
-                    Buffer = FrameBuffer,
-                    Offset = 0,
-                    Size = (ulong)sizeof(ManaWebGpuFrameUniform)
-                };
-                var shadowMapBindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 1,
-                    TextureView = shadowMapArrayView
-                };
-                var shadowSamplerBindGroupEntry = new BindGroupEntry
-                {
-                    Binding = 2,
-                    Sampler = shadowSampler
-                };
-                var frameBindGroupEntries = stackalloc BindGroupEntry[6];
-                frameBindGroupEntries[0] = frameBindGroupEntry;
-                frameBindGroupEntries[1] = shadowMapBindGroupEntry;
-                frameBindGroupEntries[2] = shadowSamplerBindGroupEntry;
-                frameBindGroupEntries[3] = new BindGroupEntry { Binding = 3, Buffer = lights.LightBuffer, Offset = 0, Size = lights.LightBufferSize };
-                frameBindGroupEntries[4] = new BindGroupEntry { Binding = 4, Buffer = lights.CellBuffer, Offset = 0, Size = lights.CellBufferSize };
-                frameBindGroupEntries[5] = new BindGroupEntry { Binding = 5, Buffer = lights.IndexBuffer, Offset = 0, Size = lights.IndexBufferSize };
-
-                var frameBindGroupDescriptor = new BindGroupDescriptor
-                {
-                    Layout = FrameLayout,
-                    EntryCount = 6,
-                    Entries = frameBindGroupEntries
-                };
-                var frameLabel = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");
-                try
-                {
-                    frameBindGroupDescriptor.Label = (byte*)frameLabel;
-                    FrameGroup = api.DeviceCreateBindGroup(device, &frameBindGroupDescriptor);
-                }
-                finally
-                {
-                    Marshal.FreeCoTaskMem(frameLabel);
-                }
-                if (FrameGroup == null)
-                {
-                    throw new InvalidOperationException("Failed to create WebGPU frame bind group.");
-                }
+                _shadowMapArrayView = shadowMapArrayView;
+                _shadowSampler = shadowSampler;
+                _lights = lights;
+                CreateEmptyProbeTexture(api, device);
+                BuildFrameGroup(null, null, null);
 
                 // Group 1: per-object data (model/material) -- sized for the much smaller per-object
                 // struct now that per-frame globals live separately above.
@@ -467,6 +457,88 @@ namespace ManaGraphics.Code.Graphics.Resources
                 }
         }
 
+        /// <summary>
+        /// Binds the probe volume's harmonics (ManaWebGpuProbeVolume) into group 0, or the black placeholder for null.
+        /// Rebuilds the frame group, so it is called when the volume's textures change, not every frame.
+        /// </summary>
+        public void SetProbeVolume(TextureView* red, TextureView* green, TextureView* blue)
+        {
+            BuildFrameGroup(red, green, blue);
+        }
+
+        private void BuildFrameGroup(TextureView* red, TextureView* green, TextureView* blue)
+        {
+            if (red == null || green == null || blue == null)
+            {
+                red = _emptyProbeView;
+                green = _emptyProbeView;
+                blue = _emptyProbeView;
+            }
+
+            var entries = stackalloc BindGroupEntry[FrameBindingCount];
+            entries[0] = new BindGroupEntry { Binding = 0, Buffer = FrameBuffer, Offset = 0, Size = (ulong)sizeof(ManaWebGpuFrameUniform) };
+            entries[1] = new BindGroupEntry { Binding = 1, TextureView = _shadowMapArrayView };
+            entries[2] = new BindGroupEntry { Binding = 2, Sampler = _shadowSampler };
+            entries[3] = new BindGroupEntry { Binding = 3, Buffer = _lights!.LightBuffer, Offset = 0, Size = _lights.LightBufferSize };
+            entries[4] = new BindGroupEntry { Binding = 4, Buffer = _lights.CellBuffer, Offset = 0, Size = _lights.CellBufferSize };
+            entries[5] = new BindGroupEntry { Binding = 5, Buffer = _lights.IndexBuffer, Offset = 0, Size = _lights.IndexBufferSize };
+            entries[6] = new BindGroupEntry { Binding = 6, TextureView = red };
+            entries[7] = new BindGroupEntry { Binding = 7, TextureView = green };
+            entries[8] = new BindGroupEntry { Binding = 8, TextureView = blue };
+            entries[9] = new BindGroupEntry { Binding = 9, Sampler = ClampSampler };
+
+            var descriptor = new BindGroupDescriptor { Layout = FrameLayout, EntryCount = FrameBindingCount, Entries = entries };
+            var label = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");
+            BindGroup* group;
+            try
+            {
+                descriptor.Label = (byte*)label;
+                group = Api.DeviceCreateBindGroup(Device, &descriptor);
+            }
+            finally
+            {
+                Marshal.FreeCoTaskMem(label);
+            }
+            if (group == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU frame bind group.");
+            }
+            // A frame already encoded holds its own reference; releasing ours only drops this owner's.
+            if (FrameGroup != null)
+            {
+                Api.BindGroupRelease(FrameGroup);
+            }
+            FrameGroup = group;
+        }
+
+        // Black harmonics: what group 0 binds until a level has a probe volume (the shader skips it then anyway).
+        private void CreateEmptyProbeTexture(WebGPU api, Device* device)
+        {
+            var descriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension3D,
+                Size = new Extent3D { Width = 1, Height = 1, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba16float,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+            _emptyProbeTexture = api.DeviceCreateTexture(device, &descriptor);
+            if (_emptyProbeTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create the empty probe texture.");
+            }
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba16float,
+                Dimension = TextureViewDimension.Dimension3D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            _emptyProbeView = api.TextureCreateView(_emptyProbeTexture, &viewDescriptor);
+        }
+
         public void WriteFrame(Queue* queue, in ManaWebGpuFrameUniform uniform)
         {
             fixed (ManaWebGpuFrameUniform* data = &uniform)
@@ -489,6 +561,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             if (InstancedObjectLayout != null) { Api.BindGroupLayoutRelease(InstancedObjectLayout); InstancedObjectLayout = null; }
             if (ObjectLayout != null) { Api.BindGroupLayoutRelease(ObjectLayout); ObjectLayout = null; }
             if (FrameGroup != null) { Api.BindGroupRelease(FrameGroup); FrameGroup = null; }
+            if (_emptyProbeView != null) { Api.TextureViewRelease(_emptyProbeView); _emptyProbeView = null; }
+            if (_emptyProbeTexture != null) { Api.TextureRelease(_emptyProbeTexture); _emptyProbeTexture = null; }
             if (FrameBuffer != null) { Api.BufferRelease(FrameBuffer); FrameBuffer = null; }
             if (FrameLayout != null) { Api.BindGroupLayoutRelease(FrameLayout); FrameLayout = null; }
         }

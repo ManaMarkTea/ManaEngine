@@ -496,6 +496,36 @@ def authored_camera(raw):
     return [float(v) for v in eye], [float(v) for v in eye + 10 * forward]
 
 
+def scene_bounds(gltf_path):
+    """The scene's world box (glTF space), from each mesh's accessor bounds through its node's transforms."""
+    import numpy as np
+    gltf = json.load(open(gltf_path, encoding="utf-8"))
+    low, high = np.full(3, np.inf), np.full(3, -np.inf)
+
+    def walk(index, parent):
+        nonlocal low, high
+        node = gltf["nodes"][index]
+        x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+        local = np.eye(4)
+        local[:3, :3] = np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]) * np.array(node.get("scale", [1, 1, 1]))
+        local[:3, 3] = node.get("translation", [0, 0, 0])
+        world = parent @ local
+        for primitive in gltf["meshes"][node["mesh"]]["primitives"] if "mesh" in node else []:
+            item = gltf["accessors"][primitive["attributes"]["POSITION"]]
+            for corner in np.array(np.meshgrid(*zip(item["min"], item["max"]))).T.reshape(-1, 3):
+                point = world[:3, :3] @ corner + world[:3, 3]
+                low, high = np.minimum(low, point), np.maximum(high, point)
+        for child in node.get("children", []):
+            walk(child, world)
+
+    for root in gltf["scenes"][0]["nodes"]:
+        walk(root, np.eye(4))
+    return low, high
+
+
 def write_level(scene, gltf_path, raw):
     path = os.path.join(ROOT, f"Bistro {scene}.manalevel")
     asset = os.path.relpath(gltf_path, REPO).replace("\\", "/")
@@ -524,11 +554,30 @@ def write_level(scene, gltf_path, raw):
             "mergeParts": True,
         }],
     }
+    # Baked light probes over the whole scene, a metre past its edges: what the sky and sun actually reach, bounced.
+    low, high = scene_bounds(gltf_path)
+    centre = (low + high) / 2.0
+    level["nodes"].append({
+        "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-probes").hex,
+        "name": "Light Probes",
+        "kind": "Group",
+        "position": [round(float(centre[i]) + OFFSET[i], 2) for i in range(3)],
+        "rotation": [0, 0, 0],
+        "scale": [1, 1, 1],
+        "scripts": [{
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-probes-script").hex,
+            "type": "ProbeVolume",
+            "properties": {"size": [round(float(high[i] - low[i]) + 2.0, 1) for i in range(3)],
+                           "probeSpacing": 2.0, "voxelSize": 1.0, "bounces": 3},
+        }],
+    })
     sun = authored_sun(raw)
     if sun:
         color, direction = sun
         # Falcor's own lighting: the pack's HDR as the sky, and its sun as the only light, as bright as Mana's own.
-        level["sky"] = {"mode": "Photo", "photo": os.path.relpath(write_sky_photo(direction), REPO).replace("\\", "/")}
+        # Exposed up for the probes: with sky light walled off as it really is, a street in shade needs a brighter camera.
+        level["sky"] = {"mode": "Photo", "photo": os.path.relpath(write_sky_photo(direction), REPO).replace("\\", "/"),
+                        "exposure": 1.6}
         level["nodes"].append({
             "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-sun").hex,
             "name": "Sun",
