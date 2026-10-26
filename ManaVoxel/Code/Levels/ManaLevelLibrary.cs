@@ -39,8 +39,46 @@ namespace ManaVoxel.Code.Levels
             return folders;
         }
 
-        /// <summary>Every level file beneath the folders, newest first -- the one you were just working on is on top.</summary>
-        public static IReadOnlyList<string> List() => List(ResolveFolder());
+        /// <summary>The checkout's third-party benchmark scenes (gitignored, made by Tools/Benchmarks): listed in the editor only.</summary>
+        public const string BenchmarksName = "Benchmarks";
+
+        /// <summary>
+        /// What the editor offers: <see cref="Folders(string)"/>, then <c>Library/Benchmarks</c> when a benchmark script
+        /// has filled it. Kept apart so the content checks, the web selector and the phone never see those scenes.
+        /// </summary>
+        public static IReadOnlyList<(string Game, string Folder)> EditorFolders(string mainFolder)
+        {
+            var folders = Folders(mainFolder).ToList();
+            if (BenchmarksFolder(mainFolder) is { } benchmarks)
+            {
+                folders.Add((BenchmarksName, benchmarks));
+            }
+            return folders;
+        }
+
+        // <checkout>/Library/Benchmarks beside <checkout>/Content/Levels, when it exists.
+        private static string? BenchmarksFolder(string mainFolder)
+        {
+            var content = Path.GetDirectoryName(Path.GetFullPath(mainFolder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            if (Path.GetDirectoryName(content) is not { } checkout)
+            {
+                return null;
+            }
+            var folder = Path.Combine(checkout, "Library", BenchmarksName);
+            if (Directory.Exists(folder))
+            {
+                return folder;
+            }
+            return null;
+        }
+
+        /// <summary>Every level the editor lists, newest first -- the one you were just working on is on top.</summary>
+        public static IReadOnlyList<string> List()
+        {
+            return EditorFolders(ResolveFolder()).SelectMany(folder => ListOne(folder.Folder))
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .ToList();
+        }
 
         public static IReadOnlyList<string> List(string mainFolder)
         {
@@ -73,20 +111,28 @@ namespace ManaVoxel.Code.Levels
         }
 
         /// <summary>
-        /// Where a level sits among the folders, for menus and the scene browser: relative to the main folder, or
-        /// <c>Games/&lt;Name&gt;/...</c> for a game's -- or null for a level in none of them.
+        /// Where a level sits among the folders, for menus and the scene browser: relative to the main folder,
+        /// <c>Games/&lt;Name&gt;/...</c> for a game's, <c>Benchmarks/...</c> for a benchmark scene -- or null for none.
         /// </summary>
         public static string? RelativePath(string path, string mainFolder)
         {
             var full = Path.GetFullPath(path);
-            foreach (var (game, folder) in Folders(mainFolder))
+            foreach (var (game, folder) in EditorFolders(mainFolder))
             {
                 var relative = Path.GetRelativePath(folder, full);
                 if (Path.IsPathRooted(relative) || relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar))
                 {
                     continue;
                 }
-                return game.Length == 0 ? relative : Path.Combine("Games", game, relative);
+                if (game.Length == 0)
+                {
+                    return relative;
+                }
+                if (folder.EndsWith(Path.Combine("Library", BenchmarksName), StringComparison.OrdinalIgnoreCase))
+                {
+                    return Path.Combine(BenchmarksName, relative);
+                }
+                return Path.Combine("Games", game, relative);
             }
             return null;
         }

@@ -53,6 +53,19 @@ public static class LevelLibraryChecks
             var tree = ManaLevelFolder.Build(listed, main);
             check("and come in under Games/<Name>", tree.Find(Path.Combine("Games", "Demo"))?.Levels.SequenceEqual(new[] { games }) == true
                 && tree.Levels.SequenceEqual(new[] { own }), "");
+
+            // Benchmark scenes made by Tools/Benchmarks into the gitignored Library/: the editor offers them, nothing else.
+            var benchmarks = Path.Combine(project, "Library", "Benchmarks", "Bistro");
+            Directory.CreateDirectory(benchmarks);
+            var bistro = Path.Combine(benchmarks, "Bistro Exterior.manalevel");
+            File.WriteAllText(bistro, "{}");
+            var editorFolders = ManaLevelLibrary.EditorFolders(main);
+            check("the editor's folders take in Library/Benchmarks", editorFolders.Any(f => f.Game == ManaLevelLibrary.BenchmarksName), "");
+            check("but the shipped folders (content checks, web, phone) do not",
+                ManaLevelLibrary.Folders(main).All(f => f.Game != ManaLevelLibrary.BenchmarksName) && !ManaLevelLibrary.List(main).Contains(bistro), "");
+            check("a benchmark scene sits under Benchmarks/ in the menus",
+                ManaLevelLibrary.RelativePath(bistro, main) == Path.Combine("Benchmarks", "Bistro", "Bistro Exterior.manalevel"),
+                ManaLevelLibrary.RelativePath(bistro, main) ?? "null");
         }
         finally
         {
