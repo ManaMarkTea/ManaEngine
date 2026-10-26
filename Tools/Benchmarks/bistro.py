@@ -382,6 +382,8 @@ def write_level(scene, gltf_path, raw):
             "rotation": [0, 0, 0],
             "scale": [1, 1, 1],
             "asset": asset,
+            # 1,600 parts drawn one by one (and again per shadow cascade) cost far more than their triangles.
+            "mergeParts": True,
         }],
     }
     sun = authored_sun(raw)

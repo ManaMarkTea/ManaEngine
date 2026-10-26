@@ -1,3 +1,4 @@
+using Mana.Code.Components;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
@@ -13,11 +14,20 @@ namespace Mana.Code.Models
     public sealed class ManaMeshBatch
     {
         private readonly Dictionary<string, Group> _groups = new();
+        private readonly Dictionary<string, int> _chunks = new();
+
+        /// <summary>Group by the whole material (every map, opacity, emission) rather than the colour texture alone --
+        /// for imported models whose materials share a picture but not the rest.</summary>
+        public bool GroupByMaterial { get; init; }
+
+        /// <summary>Vertices one merged mesh may hold before a group goes on in another, under WebGPU's buffer limit.</summary>
+        public int MaxVertices { get; init; } = 1 << 20;
 
         private sealed class Group
         {
             public ManaMaterial? Material;
             public ManaMeshCpuData? Template;
+            public int Chunk;
             public readonly List<Vector3> Positions = new();
             public readonly List<Vector3> Normals = new();
             public readonly List<Vector4> Colors = new();
@@ -56,10 +66,23 @@ namespace Mana.Code.Models
                 return;
             }
 
-            var key = TextureKey(cpu, material);
+            var baseKey = TextureKey(cpu, material);
+            if (GroupByMaterial)
+            {
+                baseKey = $"material:{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(material)}:{material.Name}";
+            }
+            var chunk = _chunks.GetValueOrDefault(baseKey);
+            var key = ChunkKey(baseKey, chunk);
+            if (_groups.TryGetValue(key, out var full) && full.Positions.Count > 0
+                && full.Positions.Count + cpu.Positions.Length > MaxVertices)
+            {
+                chunk++;
+                _chunks[baseKey] = chunk;
+                key = ChunkKey(baseKey, chunk);
+            }
             if (!_groups.TryGetValue(key, out var group))
             {
-                group = new Group { Material = material, Template = cpu };
+                group = new Group { Material = material, Template = cpu, Chunk = chunk };
                 _groups[key] = group;
             }
 
@@ -125,13 +148,70 @@ namespace Mana.Code.Models
                     NearestFiltering = template.NearestFiltering
                 });
                 mesh.SetSize(group.Min - pivot, group.Max - pivot);
-                var node = new ManaMeshSceneNode(context, mesh) { Name = name + " " + key, IsEditorTransient = true, Position = pivot };
+                var label = key;
+                if (GroupByMaterial)
+                {
+                    label = ChunkKey(group.Material!.Name, group.Chunk);
+                }
+                var node = new ManaMeshSceneNode(context, mesh) { Name = name + " " + label, IsEditorTransient = true, Position = pivot };
                 node.SetLocalTransform(Matrix4x4.CreateTranslation(pivot));
                 node.MeshRenderer.Material = group.Material!;
                 nodes.Add(node);
             }
 
             return nodes;
+        }
+
+        /// <summary>
+        /// Replaces everything under <paramref name="root"/> with one merged mesh per material, in its own space: for a
+        /// big static model (a city block of a thousand props) whose cost is the number of draws, not triangles. Its parts
+        /// stop being separate nodes, so it is no longer for picking apart or animating. Returns the meshes made.
+        /// </summary>
+        public static int MergeInPlace(ManaContext context, ManaSceneNode root)
+        {
+            if (root.Components.OfType<MeshRendererComponent>().Any())
+            {
+                return 0;
+            }
+            var model = ManaModel.FromNode(root.Name, root);
+            if (!model.HasGeometry)
+            {
+                return 0;
+            }
+
+            var batch = new ManaMeshBatch { GroupByMaterial = true };
+            foreach (var part in model.Parts)
+            {
+                // A placed copy gives each renderer a clone of its material; the mesh still holds the one they share.
+                var material = part.Material;
+                if (part.Mesh.Materials.FirstOrDefault() is { } shared && shared.Name == material.Name)
+                {
+                    material = shared;
+                }
+                batch.Add(part.Mesh, material, part.Transform);
+            }
+            var merged = batch.Build(context, root.Name);
+            lock (context.World.SceneLock)
+            {
+                foreach (var child in root.Children.ToList())
+                {
+                    root.RemoveChild(child);
+                }
+                foreach (var node in merged)
+                {
+                    root.AddChild(node);
+                }
+            }
+            return merged.Count;
+        }
+
+        private static string ChunkKey(string key, int chunk)
+        {
+            if (chunk == 0)
+            {
+                return key;
+            }
+            return $"{key} #{chunk + 1}";
         }
 
         /// <summary>A whole-unit point near the middle of a box, to place a merged mesh at.</summary>

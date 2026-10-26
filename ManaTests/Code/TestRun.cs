@@ -88,6 +88,7 @@ public static class TestRunner
         ("Mana", "pawn landing", PawnLandingChecks.Run),
         ("Mana", "mouse gesture latch", MouseGestureLatchChecks.Run),
         ("Mana", "rotation conversion", RotationChecks.Run),
+        ("Mana", "mesh batch", MeshBatchChecks.Run),
         ("Mana", "fixed-step clock", FixedStepClockChecks.Run),
         ("Mana", "sound bank and music", SoundBankChecks.Run),
         ("Mana", "panel window placement", WindowPlacementChecks.Run),

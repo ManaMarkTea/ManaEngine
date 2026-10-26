@@ -237,6 +237,10 @@ namespace ManaVoxel.Code.Levels
         public ManaLevelMaterial? Material { get; set; }
         public Dictionary<int, ManaLevelMaterial>? MeshMaterials { get; set; }
 
+        /// <summary>On a mesh: merge its parts into one mesh per material when loaded (ManaMeshBatch.MergeInPlace) --
+        /// for big static scenery, where every part drawn on its own costs a draw per shadow cascade too.</summary>
+        public bool? MergeParts { get; set; }
+
         public ManaLevelVoxels? Voxels { get; set; }
 
         public ManaLevelPlanet? Planet { get; set; }

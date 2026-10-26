@@ -533,6 +533,12 @@ namespace ManaVoxel.Code.Levels
             var asset = entry.Asset ?? throw new InvalidDataException("Mesh entry has no asset reference.");
             var node = ManaMeshAssetLoader.For(context.World).Load(asset, into);
             node.LevelSource = ManaLevelSource.ForMesh(asset);
+            if (entry.MergeParts == true)
+            {
+                var merged = Mana.Code.Models.ManaMeshBatch.MergeInPlace(context, node);
+                node.LevelSource = node.LevelSource with { MergeParts = true };
+                ManaConsole.WriteDiagnostic($"Merged '{asset}' into {merged} mesh(es), one per material.");
+            }
             if (entry.MeshMaterials != null)
             {
                 var renderers = ManaLevelMaterial.MeshRenderers(node).ToList();

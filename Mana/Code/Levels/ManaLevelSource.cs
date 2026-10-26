@@ -59,6 +59,9 @@ namespace Mana.Code.Levels
         /// <summary>Asset reference for <see cref="ManaLevelSourceKind.Mesh"/> -- a path, or a zip-encoded entry.</summary>
         public string? Asset { get; init; }
 
+        /// <summary>A mesh loaded with its parts merged per material; saved back as the level's mergeParts.</summary>
+        public bool MergeParts { get; init; }
+
         public Vector4 Color { get; init; } = Vector4.One;
 
         public Vector3 Size { get; init; } = Vector3.One;
