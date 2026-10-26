@@ -82,6 +82,13 @@ namespace ManaGraphics.Code.Graphics
             options.FramesPerSecond = 90;
             options.UpdatesPerSecond = 90;
             options.ShouldSwapAutomatically = false;
+            if (ManaWebGpuDevice.Uncapped)
+            {
+                // Zero is Silk's "as fast as it can".
+                options.FramesPerSecond = 0;
+                options.UpdatesPerSecond = 0;
+                ManaConsole.WriteDiagnostic("MANA_UNCAPPED: frame limiter and vsync off.");
+            }
 
             _window = Window.Create(options);
             _window.Load += Load;

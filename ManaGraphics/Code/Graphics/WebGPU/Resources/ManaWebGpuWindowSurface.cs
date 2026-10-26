@@ -43,6 +43,12 @@ namespace ManaGraphics.Code.Graphics.Resources
                 Api.SurfaceUnconfigure(_surface);
             }
 
+            var presentMode = PresentMode.Fifo;
+            if (ManaWebGpuDevice.Uncapped)
+            {
+                presentMode = PresentMode.Immediate;
+            }
+
             var configuration = new SurfaceConfiguration
             {
                 Device = Device,
@@ -51,7 +57,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                 Usage = TextureUsage.RenderAttachment | TextureUsage.CopySrc,
                 Width = (uint)size.X,
                 Height = (uint)size.Y,
-                PresentMode = PresentMode.Fifo,
+                PresentMode = presentMode,
                 AlphaMode = CompositeAlphaMode.Opaque
             };
 

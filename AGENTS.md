@@ -136,6 +136,21 @@ Patterns that work:
   `Highlights/Sample Course Tour.json` shoot DevPhotos with `@@PHOTO@@`); one-off scripts and every output belong in
   `Artifacts/` or the session scratchpad.
 
+## Benchmarks
+
+Big third-party scenes live in `Library/Benchmarks/` (gitignored), fetched by a script, never committed.
+`python Tools/Benchmarks/bistro.py` downloads NVIDIA ORCA's Amazon Lumberyard Bistro (CC-BY 4.0, ~900 MB), converts its
+FBX with Godot's FBX2glTF, rebuilds the materials from the pack's texture naming (glTF pointing at the original DDS; only
+the BC5 normals are rewritten, green flipped in their blocks) and writes `Bistro Exterior`/`Bistro Interior.manalevel`
+there. `Tools/Benchmarks/bistro-benchmark.ps1` builds Release and reports load time, GPU memory and fps with the profiler's
+top scopes from three viewpoints (`-NoBlockCompression` for the RGBA comparison, `-Capped` for the editor's normal pacing).
+`MANA_UNCAPPED=1` turns off vsync and the 90 fps limiter; `MANA_NO_BC=1` decodes DDS as a GPU without BC would.
+
+DDS (`ManaDds`, `ManaCore/Imaging/`): BC1-5 and 32-bit RGBA, read with every mip. Where the device has
+`TextureCompressionBC` the texture cache uploads the blocks as they are (flipped in place, as decoded pictures are);
+elsewhere -- the browser, phones, thumbnails -- `ManaImageCodec.Load` decodes level 0. Normal maps may be two-channel
+(BC5): `pbr_irradiance.wgsl` rebuilds z from x and y for every map.
+
 ## Testing the web build
 
 GPU particle stress testing: `Tools/Automation/benchmark-gpu-particles.ps1` builds Release and sweeps the
