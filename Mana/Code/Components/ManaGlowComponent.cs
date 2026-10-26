@@ -16,6 +16,29 @@ namespace Mana.Code.Components
         /// <summary>The colour it glows. White shows the meshes as in full daylight; a colour tints them.</summary>
         public Vector4 Color { get; set; } = new(1.0f, 0.85f, 0.4f, 1.0f);
 
+        private Vector4 _animatedColor;
+        private long? _animatedAtMs;
+
+        /// <summary>
+        /// A colour for right now from an animator (ColorCycle), shown instead of <see cref="Color"/> without changing it:
+        /// the saved colour stays what was authored. It lapses a moment after the animator stops setting it.
+        /// </summary>
+        public void Animate(Vector4 color)
+        {
+            _animatedColor = color;
+            _animatedAtMs = Environment.TickCount64;
+        }
+
+        /// <summary>The colour to draw with now: an animator's, while one is setting it, else <see cref="Color"/>.</summary>
+        public Vector4 CurrentColor()
+        {
+            if (_animatedAtMs is long at && Environment.TickCount64 - at < 250)
+            {
+                return _animatedColor;
+            }
+            return Color;
+        }
+
         /// <summary>How bright the glow is. 1 is fully lit; above 1 it blooms.</summary>
         public float Strength { get; set; } = 1.0f;
 

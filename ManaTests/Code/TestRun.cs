@@ -92,6 +92,7 @@ public static class TestRunner
         ("Mana", "sound bank and music", SoundBankChecks.Run),
         ("Mana", "panel window placement", WindowPlacementChecks.Run),
         ("Mana", "pickup motion", PickupMotionChecks.Run),
+        ("Mana", "stage animation", StageAnimationChecks.Run),
         ("Mana", "material render instances", MaterialRenderInstanceChecks.Run),
         ("Mana", "texture library", TextureLibraryChecks.Run),
         ("Mana", "sprites", SpriteChecks.Run),

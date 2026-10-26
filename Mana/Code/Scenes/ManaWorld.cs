@@ -293,7 +293,8 @@ namespace Mana
                     if (local.Count < ManaRenderScene.MaxLocalLights)
                     {
                         var at = Vector3.Transform(glow.LightOffset, node.WorldTransform);
-                        var colour = new Vector3(glow.Color.X, glow.Color.Y, glow.Color.Z) * glow.CurrentStrength() * glow.LightIntensity * LocalLightPowerScale;
+                        var glowColor = glow.CurrentColor();
+                        var colour = new Vector3(glowColor.X, glowColor.Y, glowColor.Z) * glow.CurrentStrength() * glow.LightIntensity * LocalLightPowerScale;
                         local.Add((new Vector4(at, glow.LightRange), new Vector4(colour, 1.0f)));
                     }
 
@@ -320,7 +321,8 @@ namespace Mana
                     continue;
                 }
 
-                var lightColorVec3 = new Vector3(light.Color.X, light.Color.Y, light.Color.Z);
+                var current = light.CurrentColor();
+                var lightColorVec3 = new Vector3(current.X, current.Y, current.Z);
                 if (light.IsGridLight)
                 {
                     // Scale by grid light power scale: these sit 256 units up.

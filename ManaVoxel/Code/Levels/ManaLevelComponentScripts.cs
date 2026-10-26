@@ -100,6 +100,19 @@ namespace ManaVoxel.Code.Levels
                     ComponentType = typeof(ManaGpuParticleEmitterComponent),
                     Create = node => new ManaGpuParticleEmitterComponent(node)
                 },
+                // Animators: a rainbow through the lights and glows beneath, and motion laid over a node's placement.
+                new()
+                {
+                    Type = "ColorCycle",
+                    ComponentType = typeof(Mana.Code.Components.ManaColorCycleComponent),
+                    Create = node => new Mana.Code.Components.ManaColorCycleComponent(node)
+                },
+                new()
+                {
+                    Type = "Motion",
+                    ComponentType = typeof(Mana.Code.Components.ManaMotionComponent),
+                    Create = node => new Mana.Code.Components.ManaMotionComponent(node)
+                },
                 new()
                 {
                     Type = "Light",

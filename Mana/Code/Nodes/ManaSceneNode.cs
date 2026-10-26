@@ -333,7 +333,7 @@ namespace Mana.Code.Nodes
                         FlatShaded = renderer.Material.FlatShaded,
                         Unlit = renderer.Material.Unlit,
                         AmbientOcclusion = renderer.Material.Occlusion.Value,
-                        Emission = glowing?.Color ?? renderer.Material.Emission.Value,
+                        Emission = glowing?.CurrentColor() ?? renderer.Material.Emission.Value,
                         EmissionStrength = glowing != null ? glowStrength : (float)renderer.Material.EmissionStrength,
                         PbrDebugMode = GetPbrDebugMode(renderer.Material),
                         IncludeInEnvironmentCapture = includeInEnvironmentCapture,
