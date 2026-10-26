@@ -121,16 +121,22 @@ def flip_bc5_green(data, offset):
 
 
 def texture_job(job):
-    """One texture's glTF URI (relative to the glTF folder) and whether its alpha is real. DDS is referenced where it
-    lies; only normal maps are rewritten (green flipped), and anything else (TGA) becomes a PNG."""
+    """One texture's glTF URI (relative to the glTF folder) and whether it carries real data: alpha in a BaseColor,
+    occlusion in an ORM map. DDS is referenced where it lies; only normal maps are rewritten (green flipped), and
+    anything else (TGA) becomes a PNG."""
     from PIL import Image
     source, kind, out_dir, gltf_dir = job
     stem, extension = os.path.splitext(os.path.basename(source))
-    has_alpha = False
+    has_data = False
     if kind == "BaseColor":
         image = Image.open(source)
         image.load()
-        has_alpha = image.mode == "RGBA" and image.getchannel("A").getextrema()[0] < 250
+        has_data = image.mode == "RGBA" and image.getchannel("A").getextrema()[0] < 250
+    elif kind == "Specular":
+        # The README calls red occlusion, but the pack leaves it black: as glTF occlusion it would put out all sky light.
+        image = Image.open(source)
+        image.load()
+        has_data = image.convert("RGB").getchannel("R").getextrema()[1] > 12
 
     if extension.lower() == ".dds":
         target = source
@@ -143,7 +149,7 @@ def texture_job(job):
                 os.replace(target + ".part", target)
         elif kind == "Normal":
             raise ValueError(f"{source}: normal map is not BC5; the green flip only handles BC5")
-        return source, os.path.relpath(target, gltf_dir).replace("\\", "/"), has_alpha
+        return source, os.path.relpath(target, gltf_dir).replace("\\", "/"), has_data
 
     image = Image.open(source)
     image.load()
@@ -154,7 +160,7 @@ def texture_job(job):
     if not os.path.exists(target):
         image.save(target + ".part", "PNG", compress_level=3)
         os.replace(target + ".part", target)
-    return source, os.path.relpath(target, gltf_dir).replace("\\", "/"), has_alpha
+    return source, os.path.relpath(target, gltf_dir).replace("\\", "/"), has_data
 
 
 def find_texture(prefixes, kind):
@@ -195,7 +201,7 @@ def rebuild_materials(scene, raw):
     jobs = sorted({(path, kind, out_textures, folder) for _, _, _, found in plans for kind, path in found.items() if path})
     log(f"{scene}: preparing {len(jobs)} textures")
     with multiprocessing.Pool() as pool:
-        results = {source: (written, alpha) for source, written, alpha in pool.map(texture_job, jobs, chunksize=2)}
+        results = {source: (written, has_data) for source, written, has_data in pool.map(texture_job, jobs, chunksize=2)}
 
     images, textures, lookup = [], [], {}
 
@@ -228,7 +234,8 @@ def rebuild_materials(scene, raw):
             pbr["metallicRoughnessTexture"] = texture(found["Specular"])
             pbr["metallicFactor"] = 1.0
             pbr["roughnessFactor"] = 1.0
-            rebuilt["occlusionTexture"] = texture(found["Specular"])
+            if results[found["Specular"]][1]:
+                rebuilt["occlusionTexture"] = texture(found["Specular"])
         if found["Normal"]:
             rebuilt["normalTexture"] = texture(found["Normal"])
         if found["Emissive"]:
@@ -331,6 +338,137 @@ def authored_sun(raw):
     return None
 
 
+def emissive_lights(gltf_path):
+    """A point light per glowing thing -- each string bulb, lantern, street lamp, sign. The pack lights its night with
+    emissive surfaces alone (Falcor path traces them); a rasteriser needs lights. Each emissive primitive is cut into
+    its connected pieces (one string-light mesh holds dozens of bulbs), pieces closer than 0.6 m join (a lamp's
+    panes), and each light takes its colour from the emissive picture and its reach from the piece's size."""
+    import numpy as np
+    from PIL import Image
+    folder = os.path.dirname(gltf_path)
+    gltf = json.load(open(gltf_path, encoding="utf-8"))
+    buffer = open(os.path.join(folder, gltf["buffers"][0]["uri"]), "rb").read()
+
+    def accessor(index):
+        item = gltf["accessors"][index]
+        view = gltf["bufferViews"][item["bufferView"]]
+        width = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}[item["type"]]
+        dtype = {5126: np.float32, 5125: np.uint32, 5123: np.uint16}[item["componentType"]]
+        start = view.get("byteOffset", 0) + item.get("byteOffset", 0)
+        data = np.frombuffer(buffer, dtype=dtype, count=item["count"] * width, offset=start)
+        return data.reshape(-1, width) if width > 1 else data
+
+    colours = {}
+    for index, material in enumerate(gltf["materials"]):
+        if "emissiveTexture" in material:
+            uri = gltf["images"][gltf["textures"][material["emissiveTexture"]["index"]]["source"]]["uri"]
+            pixels = np.asarray(Image.open(os.path.join(folder, uri)).convert("RGB").resize((16, 16))).reshape(-1, 3) / 255.0
+            bright = pixels[pixels.max(axis=1) > 0.2]
+            if len(bright):
+                colour = bright.mean(axis=0)
+                colours[index] = colour / colour.max()
+
+    def local_matrix(node):
+        x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+        matrix = np.eye(4)
+        matrix[:3, :3] = np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]]) * np.array(node.get("scale", [1, 1, 1]))
+        matrix[:3, 3] = node.get("translation", [0, 0, 0])
+        return matrix
+
+    pieces = []
+
+    def walk(index, parent):
+        node = gltf["nodes"][index]
+        world = parent @ local_matrix(node)
+        for primitive in gltf["meshes"][node["mesh"]]["primitives"] if "mesh" in node else []:
+            colour = colours.get(primitive.get("material"))
+            if colour is None:
+                continue
+            positions = accessor(primitive["attributes"]["POSITION"]).astype(np.float64)
+            positions = (world[:3, :3] @ positions.T).T + world[:3, 3]
+            triangles = accessor(primitive["indices"]).reshape(-1, 3)
+            # Split vertices of one surface share a welded position; union-find over the triangles' corners.
+            _, welded = np.unique(np.round(positions, 3), axis=0, return_inverse=True)
+            welded = welded.reshape(-1)
+            parents = np.arange(welded.max() + 1)
+
+            def find(item):
+                while parents[item] != item:
+                    parents[item] = parents[parents[item]]
+                    item = parents[item]
+                return item
+
+            for a, b, c in welded[triangles]:
+                ra, rb, rc = find(a), find(b), find(c)
+                parents[rb] = ra
+                parents[find(rc)] = ra
+            roots = np.array([find(item) for item in welded])
+            for root in np.unique(roots):
+                points = positions[roots == root]
+                pieces.append((points.mean(axis=0), float(np.linalg.norm(points.max(0) - points.min(0))), colour))
+        for child in node.get("children", []):
+            walk(child, world)
+
+    for root in gltf["scenes"][0]["nodes"]:
+        walk(root, np.eye(4))
+
+    lights = []
+    for centre, size, colour in sorted(pieces, key=lambda piece: -piece[1]):
+        for light in lights:
+            if np.linalg.norm(light["centre"] - centre) < 0.6:
+                light["size"] = max(light["size"], size)
+                break
+        else:
+            lights.append({"centre": centre, "size": size, "colour": colour})
+    return lights
+
+
+def write_night_level(scene, day_level):
+    """The day level at night: no sun or photo sky, a still night sky, and a point light at every glowing thing."""
+    level = json.load(open(day_level, encoding="utf-8"))
+    gltf_path = os.path.join(REPO, level["nodes"][0]["asset"])
+    lights = emissive_lights(gltf_path)
+    level["name"] = f"Bistro {scene} Night"
+    level["sky"] = {"mode": "DayNightCycle", "dateTime": "2026-06-21T23:30:00-08:00", "timeSpeed": 0}
+    level["nodes"] = [node for node in level["nodes"] if node["name"] != "Sun"]
+    group = {
+        "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-night-lights").hex,
+        "name": "Emissive Lights", "kind": "Group",
+        "position": OFFSET, "rotation": [0, 0, 0], "scale": [1, 1, 1], "children": [],
+    }
+    for number, light in enumerate(lights):
+        colour = light["colour"]
+        # A saturated colour is a string bulb: a faint tint a few metres round. White or warm is a lamp, a sign, a
+        # lit window: bright enough to reach the cobbles from four metres up.
+        if colour.min() < 0.35:
+            intensity, reach = 0.5, 3.0
+        else:
+            intensity, reach = 2.0 + light["size"] * 2.0, min(12.0, 7.0 + light["size"] * 6.0)
+        group["children"].append({
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-light-{number}").hex,
+            "name": f"Light {number}", "kind": "Group",
+            "position": [round(float(v), 3) for v in light["centre"]], "rotation": [0, 0, 0], "scale": [1, 1, 1],
+            "scripts": [{
+                "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-light-{number}-script").hex,
+                "type": "Light",
+                "properties": {
+                    "color": [round(float(v), 3) for v in colour] + [1],
+                    "intensity": round(float(intensity), 3),
+                    "range": round(float(reach), 2),
+                    "lightType": "Point",
+                },
+            }],
+        })
+    level["nodes"].append(group)
+    path = os.path.join(ROOT, f"Bistro {scene} Night.manalevel")
+    with open(path, "w", encoding="utf-8") as out:
+        json.dump(level, out, indent=2)
+    log(f"{scene}: wrote {os.path.relpath(path, REPO)} with {len(lights)} lights from its emissive surfaces")
+
+
 def authored_camera(raw):
     """The FBX's own camera (Falcor's start view) in glTF space, through every parent: eye and a point ahead."""
     import numpy as np
@@ -429,6 +567,8 @@ def main():
         if args.force or not os.path.exists(target):
             target = rebuild_materials(scene, raw)
         write_level(scene, target, raw)
+        if scene == "Exterior":
+            write_night_level(scene, os.path.join(ROOT, f"Bistro {scene}.manalevel"))
 
 
 if __name__ == "__main__":

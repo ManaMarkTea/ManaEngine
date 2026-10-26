@@ -150,6 +150,9 @@ top scopes from pbrt-v4's three Bistro cameras and an overview (`-NoBlockCompres
 `MANA_UNCAPPED=1` turns off vsync and the 90 fps limiter; `MANA_NO_BC=1` decodes DDS as a GPU without BC would.
 The Bistro mesh node sets `mergeParts`: on load its 1,600 parts become one mesh per material (`ManaMeshBatch.MergeInPlace`;
 there is no frustum culling, so nothing is lost) -- 52 fps to 340 at the vespa camera, every draw being CPU-bound.
+`Bistro Exterior Night.manalevel` (`-Night`) drops the sun for a still night sky and puts a point light at each glowing
+thing -- the pack lights its night with emissive surfaces only, which a rasteriser cannot (`emissive_lights` in bistro.py).
+The pack's ORM maps leave occlusion (red) black despite its README, so the converter wires no occlusion map.
 
 DDS (`ManaDds`, `ManaCore/Imaging/`): BC1-5 and 32-bit RGBA, read with every mip. Where the device has
 `TextureCompressionBC` the texture cache uploads the blocks as they are (flipped in place, as decoded pictures are);

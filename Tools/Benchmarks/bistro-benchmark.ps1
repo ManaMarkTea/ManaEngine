@@ -5,12 +5,15 @@
 .EXAMPLE
     ./Tools/Benchmarks/bistro-benchmark.ps1
     ./Tools/Benchmarks/bistro-benchmark.ps1 -NoBlockCompression   # DDS decoded to RGBA, for comparison
+    ./Tools/Benchmarks/bistro-benchmark.ps1 -Night                # 135 point lights from the emissive surfaces
 #>
 param(
     [string] $Exe,
     [string] $Name = 'bistro',
     # Decode DDS to RGBA as a GPU without BC sampling would (MANA_NO_BC=1).
     [switch] $NoBlockCompression,
+    # The night level: no sun, a point light at every glowing thing (clustered lighting under load).
+    [switch] $Night,
     # Leave vsync and the 90 fps limiter on, as the editor normally runs.
     [switch] $Capped,
     [int] $Frames = 600,
@@ -18,6 +21,7 @@ param(
 )
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $level = 'Library/Benchmarks/Bistro/Bistro Exterior.manalevel'
+if ($Night) { $level = 'Library/Benchmarks/Bistro/Bistro Exterior Night.manalevel' }
 if (-not (Test-Path (Join-Path $repo $level))) { throw "No Bistro level; run: python Tools/Benchmarks/bistro.py" }
 $out = Join-Path $repo 'Artifacts/Benchmarks'
 New-Item -ItemType Directory -Force $out | Out-Null
@@ -27,6 +31,7 @@ if (-not $Exe) {
     if ($LASTEXITCODE -ne 0) { throw 'Benchmark build failed.' }
 }
 if ($NoBlockCompression) { $Name = "$Name-rgba" }
+if ($Night) { $Name = "$Name-night" }
 
 # World positions (the level puts the scene at (100, 8, 100)). The first three are the cameras of Matt Pharr's pbrt-v4
 # port (github.com/mmp/pbrt-v4-scenes, bistro/*.pbrt): eye, target and vertical field of view as written there.
@@ -75,7 +80,7 @@ function Stamp($line) { [datetime]::ParseExact(($line -replace '^\[([0-9:.]+).*'
 $opened = $log | Where-Object { $_ -match 'Opened level' } | Select-Object -First 1
 $resident = $log | Where-Object { $_ -match 'deferred=0,' } | Select-Object -First 1
 $number = '[0-9]+(?:\.[0-9]+)?'
-"Bistro exterior, $(if ($NoBlockCompression) { 'DDS decoded to RGBA8' } else { 'DDS as BC blocks' }), $(if ($Capped) { 'capped' } else { 'uncapped' })"
+"Bistro exterior$(if ($Night) { ' at night' }), $(if ($NoBlockCompression) { 'DDS decoded to RGBA8' } else { 'DDS as BC blocks' }), $(if ($Capped) { 'capped' } else { 'uncapped' })"
 if ($opened -and $resident) { "  load: level opened to every mesh resident {0:0.0} s" -f ((Stamp $resident) - (Stamp $opened)).TotalSeconds }
 "  GPU memory: {0} MB in use at peak, {1} MB above the idle card" -f $peakMb, ($peakMb - $baseline)
 $results = foreach ($view in $views.Keys) {
