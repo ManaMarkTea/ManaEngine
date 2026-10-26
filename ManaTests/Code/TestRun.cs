@@ -106,6 +106,7 @@ public static class TestRunner
         ("ManaCore", "mesh data", MeshDataChecks.Run),
         ("ManaCore", "sky clock", SkyClockChecks.Run),
         ("ManaCore", "image codec", ImageCodecChecks.Run),
+        ("ManaCore", "dds", DdsChecks.Run),
         ("ManaCore", "wind", WindChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),

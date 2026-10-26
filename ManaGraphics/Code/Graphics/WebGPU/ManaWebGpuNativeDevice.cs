@@ -83,6 +83,9 @@ namespace ManaGraphics.Code.Graphics
         public unsafe Device* Device { get; private set; }
         public unsafe Queue* Queue { get; private set; }
 
+        /// <summary>The device samples BC1-BC7 blocks, so DDS textures upload as they are stored.</summary>
+        public bool SupportsBlockCompression { get; private set; }
+
 #if !MANA_BROWSER
         public InstanceBackend InstanceBackend { get; }
 
@@ -167,6 +170,13 @@ namespace ManaGraphics.Code.Graphics
         private unsafe void RequestDevice()
         {
             var descriptor = new DeviceDescriptor();
+            var blockCompression = FeatureName.TextureCompressionBC;
+            // MANA_NO_BC=1 decodes DDS to RGBA as a device without BC would: what a benchmark compares against.
+            if (_api.AdapterHasFeature(Adapter, blockCompression) && Environment.GetEnvironmentVariable("MANA_NO_BC") != "1")
+            {
+                descriptor.RequiredFeatureCount = 1;
+                descriptor.RequiredFeatures = &blockCompression;
+            }
             var self = GCHandle.Alloc(this);
             try
             {
@@ -180,6 +190,7 @@ namespace ManaGraphics.Code.Graphics
             {
                 throw new InvalidOperationException($"Failed to request WebGPU device. {_requestFailure}");
             }
+            SupportsBlockCompression = descriptor.RequiredFeatureCount > 0;
         }
 
 #if !MANA_BROWSER

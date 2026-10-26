@@ -24,6 +24,9 @@ namespace ManaGraphics.Code.Graphics
         public TextureFormat SurfaceFormat { get; }
         public TextureFormat DepthFormat { get; }
 
+        /// <summary>BC textures sample directly (DDS uploads as stored); otherwise they are decoded to RGBA first.</summary>
+        public bool SupportsBlockCompression { get; init; }
+
         /// <summary>The browser's phone profile: smaller reflection cubes and a particle budget.</summary>
         public static bool UseMobileRendering
         {
@@ -36,6 +39,9 @@ namespace ManaGraphics.Code.Graphics
 #endif
             }
         }
+
+        /// <summary>MANA_UNCAPPED=1: no frame limiter and no vsync, so a benchmark measures the frame rather than the display.</summary>
+        public static bool Uncapped { get; } = Environment.GetEnvironmentVariable("MANA_UNCAPPED") == "1";
 
         /// <summary>Texture-to-buffer copies need each row padded to a multiple of 256 bytes.</summary>
         public static uint AlignCopyRow(uint rowBytes) => (rowBytes + 255u) / 256u * 256u;

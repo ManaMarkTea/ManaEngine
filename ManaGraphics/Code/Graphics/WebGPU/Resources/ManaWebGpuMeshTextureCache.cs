@@ -121,6 +121,17 @@ namespace ManaGraphics.Code.Graphics.Resources
             uint width;
             uint height;
 
+            var hasFile = !string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath);
+            if (hasFile && TryCreateDdsTexture(() => File.ReadAllBytes(cpuData.AlbedoTexturePath!), srgb: true, "mesh", out meshTexture, out meshTextureView))
+            {
+                return;
+            }
+            if (!hasFile && cpuData.AlbedoTextureBytes is { Length: > 0 } ddsBytes
+                && TryCreateDdsTexture(() => ddsBytes, srgb: true, "mesh", out meshTexture, out meshTextureView))
+            {
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath)
                 && TryDecode(() => ManaImageCodec.Load(cpuData.AlbedoTexturePath)) is { } image)
             {
@@ -166,6 +177,12 @@ namespace ManaGraphics.Code.Graphics.Resources
                 ? TextureFormat.Rgba8UnormSrgb
                 : TextureFormat.Rgba8Unorm;
 
+            if (!string.IsNullOrWhiteSpace(path) && File.Exists(path)
+                && TryCreateDdsTexture(() => File.ReadAllBytes(path), kind == ManaMaterialMapKind.Colour, kind.ToString(), out texture, out textureView))
+            {
+                return;
+            }
+
             if (!string.IsNullOrWhiteSpace(path) && File.Exists(path) && TryDecode(() => ManaImageCodec.Load(path)) is { } image)
             {
                 CreateRgba8Texture(image.Pixels, (uint)image.Width, (uint)image.Height, kind.ToString(), format, out texture, out textureView);
@@ -187,6 +204,151 @@ namespace ManaGraphics.Code.Graphics.Resources
                 ManaConsole.WriteDiagnostic($"WebGPU texture unreadable: {exception.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// A DDS uploaded as stored -- its blocks and every mip -- when the device samples BC. False for anything else
+        /// (not a DDS, no BC support, a format with no sRGB form where one is needed, rows that will not flip), which
+        /// the caller decodes to RGBA as it does any picture.
+        /// </summary>
+        private bool TryCreateDdsTexture(Func<byte[]> read, bool srgb, string diagnosticName, out Texture* texture, out TextureView* textureView)
+        {
+            texture = null;
+            textureView = null;
+            if (!Gpu.SupportsBlockCompression)
+            {
+                return false;
+            }
+
+            ManaDds dds;
+            try
+            {
+                var bytes = read();
+                if (!ManaDds.IsDds(bytes))
+                {
+                    return false;
+                }
+                dds = ManaDds.Read(bytes);
+            }
+            catch (Exception exception) when (exception is InvalidDataException or IOException)
+            {
+                ManaConsole.WriteDiagnostic($"WebGPU DDS unreadable, decoding instead: {exception.Message}");
+                return false;
+            }
+
+            TextureFormat format;
+            switch (dds.Format)
+            {
+                case ManaDdsFormat.Bc1:
+                    format = TextureFormat.BC1RgbaUnorm;
+                    if (srgb)
+                    {
+                        format = TextureFormat.BC1RgbaUnormSrgb;
+                    }
+                    break;
+                case ManaDdsFormat.Bc2:
+                    format = TextureFormat.BC2RgbaUnorm;
+                    if (srgb)
+                    {
+                        format = TextureFormat.BC2RgbaUnormSrgb;
+                    }
+                    break;
+                case ManaDdsFormat.Bc3:
+                    format = TextureFormat.BC3RgbaUnorm;
+                    if (srgb)
+                    {
+                        format = TextureFormat.BC3RgbaUnormSrgb;
+                    }
+                    break;
+                case ManaDdsFormat.Bc4 when !srgb:
+                    format = TextureFormat.BC4RUnorm;
+                    break;
+                case ManaDdsFormat.Bc5 when !srgb:
+                    format = TextureFormat.BC5RGUnorm;
+                    break;
+                case ManaDdsFormat.Rgba8:
+                    format = TextureFormat.Rgba8Unorm;
+                    if (srgb)
+                    {
+                        format = TextureFormat.Rgba8UnormSrgb;
+                    }
+                    break;
+                default:
+                    return false;
+            }
+
+            // A BC texture's size must be whole blocks; its smaller mips are padded out to them by the format itself.
+            if (dds.IsBlockCompressed && (dds.Width % 4 != 0 || dds.Height % 4 != 0))
+            {
+                return false;
+            }
+            if (!dds.TryFlipVertical())
+            {
+                return false;
+            }
+
+            var levelCount = (uint)dds.Levels.Length;
+            var textureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = (uint)dds.Width, Height = (uint)dds.Height, DepthOrArrayLayers = 1 },
+                Format = format,
+                MipLevelCount = levelCount,
+                SampleCount = 1
+            };
+            texture = Api.DeviceCreateTexture(Device, &textureDescriptor);
+            if (texture == null)
+            {
+                throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} DDS texture.");
+            }
+
+            var texelsPerBlock = 1u;
+            if (dds.IsBlockCompressed)
+            {
+                texelsPerBlock = 4u;
+            }
+            for (var level = 0; level < dds.Levels.Length; level++)
+            {
+                var data = dds.Levels[level];
+                var columns = (uint)dds.LevelColumns(level);
+                var rows = (uint)dds.LevelRows(level);
+                fixed (byte* levelPointer = data)
+                {
+                    var destination = new ImageCopyTexture
+                    {
+                        Texture = texture,
+                        MipLevel = (uint)level,
+                        Origin = new Origin3D(),
+                        Aspect = TextureAspect.All
+                    };
+                    var dataLayout = new TextureDataLayout
+                    {
+                        Offset = 0,
+                        BytesPerRow = columns * (uint)dds.BlockBytes,
+                        RowsPerImage = rows
+                    };
+                    var writeSize = new Extent3D { Width = columns * texelsPerBlock, Height = rows * texelsPerBlock, DepthOrArrayLayers = 1 };
+                    Api.QueueWriteTexture(Queue, &destination, levelPointer, (nuint)data.Length, &dataLayout, &writeSize);
+                }
+            }
+
+            var textureViewDescriptor = new TextureViewDescriptor
+            {
+                Format = format,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = levelCount,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            textureView = Api.TextureCreateView(texture, &textureViewDescriptor);
+            if (textureView == null)
+            {
+                Api.TextureRelease(texture);
+                texture = null;
+                throw new InvalidOperationException($"Failed to create WebGPU {diagnosticName} DDS texture view.");
+            }
+            return true;
         }
 
         /// <summary>The value that leaves a channel exactly as its scalar left it.</summary>

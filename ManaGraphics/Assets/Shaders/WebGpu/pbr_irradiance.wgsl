@@ -119,7 +119,9 @@ fn mana_perturb_normal(n : vec3<f32>, world_position : vec3<f32>, uv : vec2<f32>
     let bitangent = normalize(cross(n, tangent)) * select(1.0, -1.0, determinant > 0.0);
 
     // A neutral map is (0.5, 0.5, 1), so this decodes to straight up and the mix below is a no-op.
-    let tangent_normal = normalize(sampled * 2.0 - vec3<f32>(1.0));
+    // Z is rebuilt from X and Y: a two-channel (BC5) map stores none, and for a three-channel one it is the same normal.
+    let xy = sampled.xy * 2.0 - vec2<f32>(1.0);
+    let tangent_normal = normalize(vec3<f32>(xy, sqrt(max(1.0 - dot(xy, xy), 0.0))));
     let perturbed = normalize(tangent * tangent_normal.x + bitangent * tangent_normal.y + n * tangent_normal.z);
 
     return normalize(mix(n, perturbed, saturate(strength)));

@@ -14,9 +14,17 @@ public static partial class ManaImageCodec
 
     public static ManaImage Load(string path) => Load(File.ReadAllBytes(path));
 
-    public static ManaImage Load(byte[] bytes) => Decode(bytes);
+    public static ManaImage Load(byte[] bytes)
+    {
+        // DDS is decoded here on every platform; a GPU that samples its blocks reads ManaDds directly instead.
+        if (ManaDds.IsDds(bytes))
+        {
+            return ManaDds.Read(bytes).Decode();
+        }
+        return Decode(bytes);
+    }
 
-    public static ManaImage Load(ReadOnlySpan<byte> bytes) => Decode(bytes.ToArray());
+    public static ManaImage Load(ReadOnlySpan<byte> bytes) => Load(bytes.ToArray());
 
     /// <summary>Saves as PNG on desktop. In the browser, whose encoder is asynchronous too, as raw pixels that
     /// <see cref="Load(string)"/> reads back -- its files live in memory and are only ever read by this.</summary>
@@ -31,7 +39,14 @@ public static partial class ManaImageCodec
     }
 
     /// <summary>Decodes a picture ahead of a synchronous <see cref="Load(byte[])"/> -- needed in the browser, a no-op elsewhere.</summary>
-    public static Task PrepareAsync(byte[] bytes) => PrepareCore(bytes);
+    public static Task PrepareAsync(byte[] bytes)
+    {
+        if (ManaDds.IsDds(bytes))
+        {
+            return Task.CompletedTask;
+        }
+        return PrepareCore(bytes);
+    }
 
     /// <summary>The file's picture, decoded ahead; a missing or unreadable file is skipped.</summary>
     public static async Task PrepareFileAsync(string path)
@@ -76,7 +91,7 @@ public static partial class ManaImageCodec
 
     /// <summary>Whether a file's extension is a picture this codec reads.</summary>
     public static bool IsPicture(string path) =>
-        Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif";
+        Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg" or ".webp" or ".bmp" or ".gif" or ".dds";
 
     // Averages every source pixel a target pixel covers, weighted by alpha so transparent ones don't darken edges.
     private static ManaImage ResizeByArea(ManaImage source, int width, int height)
