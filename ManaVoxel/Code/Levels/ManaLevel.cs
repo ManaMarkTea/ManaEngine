@@ -162,6 +162,9 @@ namespace ManaVoxel.Code.Levels
 
         public bool? ConstellationLines { get; set; }
 
+        /// <summary>The picture the Photo sky shows and reflects (an equirectangular PNG or JPEG); the default when absent.</summary>
+        public string? Photo { get; set; }
+
         public void ApplyTo(ManaCore.Graphics.ManaIrradianceSettings sky)
         {
             if (Enum.TryParse<ManaCore.Graphics.ManaSkyMode>(Mode, true, out var mode))

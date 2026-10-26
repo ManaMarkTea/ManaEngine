@@ -69,6 +69,9 @@ namespace Mana.Code.Automation
 
         /// <summary>sky: where in the day to hold a day-night cycle, 0..1 (0 sunrise, 0.25 noon, 0.5 sunset).</summary>
         public float? TimeOfDay { get; set; }
+
+        /// <summary>move_camera: the vertical field of view in degrees, to match another renderer's camera.</summary>
+        public float? Fov { get; set; }
     }
 
     public static class ManaCommandFile

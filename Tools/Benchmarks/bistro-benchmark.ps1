@@ -28,11 +28,13 @@ if (-not $Exe) {
 }
 if ($NoBlockCompression) { $Name = "$Name-rgba" }
 
-# World positions: the level puts the scene at (100, 8, 100). Falcor's own start view first.
+# World positions (the level puts the scene at (100, 8, 100)). The first three are the cameras of Matt Pharr's pbrt-v4
+# port (github.com/mmp/pbrt-v4-scenes, bistro/*.pbrt): eye, target and vertical field of view as written there.
 $views = [ordered]@{
-    street   = @{ position = @(114.61, 12.29, 58.19); target = @(111.43, 11.6, 67.65) }
-    vespa    = @{ position = @(86.0, 10.2, 108.0);    target = @(92.6, 9.4, 100.5) }
-    overview = @{ position = @(205.0, 85.0, 15.0);    target = @(125.0, 8.0, 105.0) }
+    vespa       = @{ position = @(90.3, 10.5, 104.3); target = @(92.5, 9.6, 99.75); fov = 45 }
+    cafe        = @{ position = @(88.3, 10.5, 106.5); target = @(91.5, 10.8, 108.0); fov = 53 }
+    boulangerie = @{ position = @(108.0, 11.9, 65.0); target = @(109.6, 11.9, 75.0); fov = 60 }
+    overview    = @{ position = @(205.0, 85.0, 15.0); target = @(125.0, 8.0, 105.0); fov = 55 }
 }
 $commands = [System.Collections.Generic.List[object]]::new()
 $commands.Add(@{ type = 'open_level'; path = $level })
@@ -41,7 +43,7 @@ $commands.Add(@{ type = 'gizmos'; visible = $false })
 $commands.Add(@{ type = 'wait'; frames = 900 })
 $commands.Add(@{ type = 'gpu_report'; path = "@@OUT@@.gpu.txt" })
 foreach ($view in $views.Keys) {
-    $commands.Add(@{ type = 'move_camera'; position = $views[$view].position; target = $views[$view].target })
+    $commands.Add(@{ type = 'move_camera'; position = $views[$view].position; target = $views[$view].target; fov = $views[$view].fov })
     $commands.Add(@{ type = 'wait'; frames = 120 })
     $commands.Add(@{ type = 'profile_reset' })
     $commands.Add(@{ type = 'wait'; frames = $Frames })

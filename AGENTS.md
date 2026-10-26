@@ -81,7 +81,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 |---|---|---|
 | `open_level` | `path` | Opens a level in the editor, as File > Open does |
 | `wait` | `frames` | Holds that many rendered frames (loading, physics settling, an animation) |
-| `move_camera` | `position`, `target`, `frames`, `background` | Puts the editor camera somewhere, facing a point; with `frames`, glides there eased (`background` lets the script go on meanwhile) |
+| `move_camera` | `position`, `target`, `frames`, `background`, `fov` | Puts the editor camera somewhere, facing a point; with `frames`, glides there eased (`background` lets the script go on meanwhile); `fov` sets the vertical field of view in degrees (55 by default) |
 | `select_node` | `name` | Selects a node by name (brings up its Inspector and gizmo), or a scene by name (its level settings and game modes) |
 | `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
 | `wind` | `position` (speed m/s, direction degrees, gustiness) | Sets the world wind (`ManaWind`): 0 is a glassy pond, 2.5 the default breeze, 4 a fresh one, 12+ chop |
@@ -142,8 +142,11 @@ Big third-party scenes live in `Library/Benchmarks/` (gitignored), fetched by a 
 `python Tools/Benchmarks/bistro.py` downloads NVIDIA ORCA's Amazon Lumberyard Bistro (CC-BY 4.0, ~900 MB), converts its
 FBX with Godot's FBX2glTF, rebuilds the materials from the pack's texture naming (glTF pointing at the original DDS; only
 the BC5 normals are rewritten, green flipped in their blocks) and writes `Bistro Exterior`/`Bistro Interior.manalevel`
-there. `Tools/Benchmarks/bistro-benchmark.ps1` builds Release and reports load time, GPU memory and fps with the profiler's
-top scopes from three viewpoints (`-NoBlockCompression` for the RGBA comparison, `-Capped` for the editor's normal pacing).
+there, lit as Falcor lights it: the pack's HDR as the Photo sky (`sky.photo` in a level names the picture; the HDR is
+turned to put its sun where the FBX's sun light comes from) and that light as a directional `Sun` node. The ORCA site's
+renders (`Library/Benchmarks/Bistro/reference/`) are the 2017 Lumberyard ones, lit differently.
+`Tools/Benchmarks/bistro-benchmark.ps1` builds Release and reports load time, GPU memory and fps with the profiler's
+top scopes from pbrt-v4's three Bistro cameras and an overview (`-NoBlockCompression` for the RGBA comparison, `-Capped` for the editor's normal pacing).
 `MANA_UNCAPPED=1` turns off vsync and the 90 fps limiter; `MANA_NO_BC=1` decodes DDS as a GPU without BC would.
 
 DDS (`ManaDds`, `ManaCore/Imaging/`): BC1-5 and 32-bit RGBA, read with every mip. Where the device has

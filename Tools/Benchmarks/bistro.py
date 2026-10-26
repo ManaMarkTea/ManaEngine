@@ -31,6 +31,9 @@ TEXTURES = os.path.join(SOURCE, "Textures")
 
 # Where each scene sits in the level: clear of the editor room's zero-axis walls, and above its floor.
 OFFSET = [100.0, 8.0, 100.0]
+# The local axis of the FBX's light node the sun shines along. FBX2glTF leaves its -Z pointing at the sun: +Z puts it
+# 28.8 degrees up, where the pack's HDR has its sun (28.6).
+SUN_AXIS = [0.0, 0.0, 1.0]
 SCENES = {
     "Exterior": "BistroExterior.fbx",
     "Interior": "BistroInterior.fbx",
@@ -51,9 +54,17 @@ def download(url, path):
     os.replace(path + ".part", path)
 
 
+REFERENCE_URL = "https://d29g4g2dyqv443.cloudfront.net/sites/default/files/"
+REFERENCES = ["akamai/Bistro_Exterior_1.png", "akamai/Bistro_Exterior_2.png", "Bistro_Night.png",
+              "akamai/Bistro_Interior_1.png", "akamai/Bistro_Interior_2.png", "akamai/Bistro_Interior_3.png"]
+
+
 def fetch_source():
     archive = os.path.join(ROOT, "Bistro_v5_2.zip")
     download(ZIP_URL, archive)
+    # The ORCA page's own renders, to set ours beside (2017 Lumberyard ones: not the FBX's light or the HDR sky).
+    for name in REFERENCES:
+        download(REFERENCE_URL + name, os.path.join(ROOT, "reference", os.path.basename(name)))
     if not os.path.exists(os.path.join(SOURCE, "BistroExterior.fbx")):
         log("unpacking")
         with zipfile.ZipFile(archive) as zf:
@@ -243,6 +254,83 @@ def rebuild_materials(scene, raw):
     return target
 
 
+def read_hdr(path):
+    """A Radiance .hdr (new-style run-length RGBE) as linear float RGB, rows top first."""
+    import numpy as np
+    data = open(path, "rb").read()
+    end = data.index(b"\n\n") + 2
+    size_line_end = data.index(b"\n", end)
+    parts = data[end:size_line_end].split()
+    height, width = int(parts[1]), int(parts[3])
+    position = size_line_end + 1
+    rgbe = np.empty((height, width, 4), dtype=np.uint8)
+    for row in range(height):
+        if data[position] != 2 or data[position + 1] != 2:
+            raise ValueError("only run-length encoded HDR files are read")
+        position += 4
+        for channel in range(4):
+            line = bytearray()
+            while len(line) < width:
+                count = data[position]
+                position += 1
+                if count > 128:
+                    line += bytes([data[position]]) * (count - 128)
+                    position += 1
+                else:
+                    line += data[position:position + count]
+                    position += count
+            rgbe[row, :, channel] = np.frombuffer(bytes(line), dtype=np.uint8)
+    exponent = np.where(rgbe[..., 3] > 0, np.ldexp(1.0, rgbe[..., 3].astype(np.int32) - 136), 0.0)
+    return rgbe[..., :3].astype(np.float32) * exponent[..., None].astype(np.float32)
+
+
+def write_sky_photo(sun_direction, force=False):
+    """The pack's HDR sky as the 8-bit picture Mana's Photo sky reads: turned so its sun stands where the light comes
+    from, exposed to match Mana's own sky photo, clipped, sRGB."""
+    import math
+    import numpy as np
+    from PIL import Image
+    target = os.path.join(ROOT, "gltf", "Textures", "san_giuseppe_bridge_4k.png")
+    if os.path.exists(target) and not force:
+        return target
+    log("converting the HDR sky")
+    linear = read_hdr(os.path.join(SOURCE, "san_giuseppe_bridge_4k.hdr"))
+    luminance = linear @ np.array([0.2126, 0.7152, 0.0722], dtype=np.float32)
+    row, column = np.unravel_index(np.argmax(luminance), luminance.shape)
+    log(f"HDR sun at elevation {90.0 - 180.0 * (row + 0.5) / luminance.shape[0]:.1f} deg")
+    # Mana reads a panorama at u = atan2(z, x) / 2pi + 0.5 (ManaWebGpuEnvironmentReflectionMap.EquirectImage).
+    toward_sun = [-v for v in sun_direction]
+    wanted = math.atan2(toward_sun[2], toward_sun[0]) / (2 * math.pi) + 0.5
+    shift = int(round(wanted * luminance.shape[1])) - int(column)
+    linear = np.roll(linear, shift, axis=1)
+    upper = luminance[: luminance.shape[0] // 2]
+    # As bright as Mana's own sky photo (kloofendal: upper-half median 0.35 linear), which its lighting is tuned for.
+    exposed = np.clip(linear * (0.35 / float(np.median(upper))), 0.0, 1.0)
+    encoded = np.where(exposed <= 0.0031308, exposed * 12.92, 1.055 * np.power(exposed, 1 / 2.4) - 0.055)
+    os.makedirs(os.path.dirname(target), exist_ok=True)
+    Image.fromarray((encoded * 255 + 0.5).astype(np.uint8), "RGB").save(target)
+    return target
+
+
+def authored_sun(raw):
+    """The FBX's directional light: colour and the direction it shines, in glTF space."""
+    import numpy as np
+    gltf = json.load(open(raw, encoding="utf-8"))
+    lights = gltf.get("extensions", {}).get("KHR_lights_punctual", {}).get("lights", [])
+    for node in gltf["nodes"]:
+        index = node.get("extensions", {}).get("KHR_lights_punctual", {}).get("light")
+        if index is None or lights[index].get("type") != "directional":
+            continue
+        x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+        rotation = np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+        direction = rotation @ np.array(SUN_AXIS)
+        return lights[index]["color"], [round(float(v), 4) for v in direction]
+    return None
+
+
 def authored_camera(raw):
     """The FBX's own camera (Falcor's start view) in glTF space, through every parent: eye and a point ahead."""
     import numpy as np
@@ -296,6 +384,31 @@ def write_level(scene, gltf_path, raw):
             "asset": asset,
         }],
     }
+    sun = authored_sun(raw)
+    if sun:
+        color, direction = sun
+        # Falcor's own lighting: the pack's HDR as the sky, and its sun as the only light, as bright as Mana's own.
+        level["sky"] = {"mode": "Photo", "photo": os.path.relpath(write_sky_photo(direction), REPO).replace("\\", "/")}
+        level["nodes"].append({
+            "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-sun").hex,
+            "name": "Sun",
+            "kind": "Group",
+            "position": [OFFSET[0], OFFSET[1] + 40, OFFSET[2]],
+            "rotation": [0, 0, 0],
+            "scale": [1, 1, 1],
+            "scripts": [{
+                "id": uuid.uuid5(uuid.NAMESPACE_URL, f"mana-bistro-{scene}-sun-light").hex,
+                "type": "Light",
+                "properties": {
+                    "color": [*color[:3], 1],
+                    "intensity": round(1.6 / max(color[:3]), 3),
+                    "lightType": "Directional",
+                    "castsShadows": True,
+                    "direction": direction,
+                },
+            }],
+        })
+        log(f"{scene}: sun shining along {direction}")
     with open(path, "w", encoding="utf-8") as out:
         json.dump(level, out, indent=2)
     log(f"{scene}: wrote {os.path.relpath(path, REPO)}")

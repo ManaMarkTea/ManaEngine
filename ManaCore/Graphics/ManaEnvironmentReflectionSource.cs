@@ -31,12 +31,13 @@ namespace ManaCore.Graphics
         public float SceneCaptureFarPlane { get; init; } = 512.0f;
         public int SceneCaptureRefreshIntervalFrames { get; init; } = 15;
 
-        public ManaEnvironmentReflectionSource Clone()
+        /// <summary>A copy; with <paramref name="sourcePath"/>, of another picture (a level's own sky photo).</summary>
+        public ManaEnvironmentReflectionSource Clone(string? sourcePath = null)
         {
             return new ManaEnvironmentReflectionSource
             {
                 SourceKind = SourceKind,
-                SourcePath = SourcePath,
+                SourcePath = sourcePath ?? SourcePath,
                 Projection = Projection,
                 BuildReflectionCubeMap = BuildReflectionCubeMap,
                 EnvironmentCubeSize = EnvironmentCubeSize,

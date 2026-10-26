@@ -257,6 +257,10 @@ namespace Mana.Code.Automation
 
             Register("move_camera", (command, _) =>
             {
+                if (command.Fov is { } fov)
+                {
+                    Context.World.MainCamera.FieldOfViewDegrees = Math.Clamp(fov, 1.0f, 150.0f);
+                }
                 if (command.Frames > 0 && command.Position is { Length: 3 } && command.Target is { Length: 3 })
                 {
                     StartCameraGlide(command);

@@ -124,6 +124,10 @@ namespace ManaVoxel.Code.Levels
             {
                 level.Sky.ApplyTo(world.IrradianceSettings);
                 scene.AuthoredSky = level.Sky;
+                if (!string.IsNullOrWhiteSpace(level.Sky.Photo))
+                {
+                    world.EnvironmentReflectionSource = world.EnvironmentReflectionSource.Clone(level.Sky.Photo);
+                }
             }
 
             scene.Publishing = level.Web?.ToPublishing() ?? new ManaScenePublishing();
