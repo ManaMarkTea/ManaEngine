@@ -17,6 +17,9 @@ public static class ScenesManaView
 
     private static readonly ConditionalWeakTable<ManaImageAtlas, PreviewCache> Previews = new();
 
+    // The browser decodes pictures only asynchronously: each is decoded ahead, and its tile waits until then.
+    private static readonly Dictionary<string, Task> Decoding = new(StringComparer.OrdinalIgnoreCase);
+
     public static IReadOnlyList<string> Filter(IEnumerable<string> paths, string search)
     {
         var words = search.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -168,6 +171,18 @@ public static class ScenesManaView
         {
             return entry;
         }
+        if (OperatingSystem.IsBrowser())
+        {
+            if (!Decoding.TryGetValue(path, out var decoding))
+            {
+                decoding = ManaImageCodec.PrepareFileAsync(path);
+                Decoding[path] = decoding;
+            }
+            if (!decoding.IsCompleted)
+            {
+                return null;
+            }
+        }
         try
         {
             var image = ManaImageCodec.Load(path);
@@ -180,6 +195,11 @@ public static class ScenesManaView
         catch (Exception exception) when (exception is IOException or InvalidDataException)
         {
             entry = null;
+            // The browser can drop a decoded picture before its tile asks again: decode it again rather than give up.
+            if (OperatingSystem.IsBrowser() && Decoding.Remove(path))
+            {
+                return null;
+            }
         }
         cache.Entries[path] = entry;
         return entry;
