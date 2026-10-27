@@ -39,45 +39,49 @@ namespace ManaVoxel.Code.Levels
             return folders;
         }
 
-        /// <summary>The checkout's third-party benchmark scenes (gitignored, made by Tools/Benchmarks): listed in the editor only.</summary>
-        public const string BenchmarksName = "Benchmarks";
+        /// <summary>Downloaded scene packs: the zips in <c>Downloaded/</c> and the levels imported from them into
+        /// <c>Library/Imported/</c> (both gitignored). Listed in the editor only.</summary>
+        public const string DownloadedName = Imports.ManaDownloads.FolderName;
 
         /// <summary>
-        /// What the editor offers: <see cref="Folders(string)"/>, then <c>Library/Benchmarks</c> when a benchmark script
-        /// has filled it. Kept apart so the content checks, the web selector and the phone never see those scenes.
+        /// What the editor offers: <see cref="Folders(string)"/>, then the downloaded packs and their imports when there
+        /// are any. Kept apart so the content checks, the web selector and the phone never see those scenes.
         /// </summary>
         public static IReadOnlyList<(string Game, string Folder)> EditorFolders(string mainFolder)
         {
             var folders = Folders(mainFolder).ToList();
-            if (BenchmarksFolder(mainFolder) is { } benchmarks)
+            if (Imports.ManaDownloads.Checkout(mainFolder) is { Length: > 0 } checkout)
             {
-                folders.Add((BenchmarksName, benchmarks));
+                foreach (var folder in new[] { Imports.ManaDownloads.Folder(checkout), Imports.ManaDownloads.ImportedRoot(checkout) })
+                {
+                    if (Directory.Exists(folder))
+                    {
+                        folders.Add((DownloadedName, folder));
+                    }
+                }
             }
             return folders;
         }
 
-        // <checkout>/Library/Benchmarks beside <checkout>/Content/Levels, when it exists.
-        private static string? BenchmarksFolder(string mainFolder)
-        {
-            var content = Path.GetDirectoryName(Path.GetFullPath(mainFolder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            if (Path.GetDirectoryName(content) is not { } checkout)
-            {
-                return null;
-            }
-            var folder = Path.Combine(checkout, "Library", BenchmarksName);
-            if (Directory.Exists(folder))
-            {
-                return folder;
-            }
-            return null;
-        }
-
-        /// <summary>Every level the editor lists, newest first -- the one you were just working on is on top.</summary>
+        /// <summary>Every level the editor lists -- and every downloaded pack, which imports when opened -- newest first.</summary>
         public static IReadOnlyList<string> List()
         {
-            return EditorFolders(ResolveFolder()).SelectMany(folder => ListOne(folder.Folder))
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .ToList();
+            var main = ResolveFolder();
+            var levels = EditorFolders(main).SelectMany(folder => ListOne(folder.Folder))
+                .Where(path => !IsInsideImportSource(path));
+            if (Imports.ManaDownloads.Checkout(main) is { Length: > 0 } checkout)
+            {
+                levels = levels.Concat(Imports.ManaDownloads.Packs(checkout));
+            }
+            return levels.OrderByDescending(File.GetLastWriteTimeUtc).ToList();
+        }
+
+        // A pack's own unpacked files are the importer's working copy, not levels of ours.
+        private static bool IsInsideImportSource(string path)
+        {
+            var forward = path.Replace(Path.DirectorySeparatorChar, '/');
+            return forward.Contains("/Library/Imported/", StringComparison.OrdinalIgnoreCase)
+                && forward.Contains("/source/", StringComparison.OrdinalIgnoreCase);
         }
 
         public static IReadOnlyList<string> List(string mainFolder)
@@ -112,7 +116,7 @@ namespace ManaVoxel.Code.Levels
 
         /// <summary>
         /// Where a level sits among the folders, for menus and the scene browser: relative to the main folder,
-        /// <c>Games/&lt;Name&gt;/...</c> for a game's, <c>Benchmarks/...</c> for a benchmark scene -- or null for none.
+        /// <c>Games/&lt;Name&gt;/...</c> for a game's, <c>Downloaded/...</c> for a pack or its imported levels -- or null for none.
         /// </summary>
         public static string? RelativePath(string path, string mainFolder)
         {
@@ -128,9 +132,9 @@ namespace ManaVoxel.Code.Levels
                 {
                     return relative;
                 }
-                if (folder.EndsWith(Path.Combine("Library", BenchmarksName), StringComparison.OrdinalIgnoreCase))
+                if (game == DownloadedName)
                 {
-                    return Path.Combine(BenchmarksName, relative);
+                    return Path.Combine(DownloadedName, relative);
                 }
                 return Path.Combine("Games", game, relative);
             }

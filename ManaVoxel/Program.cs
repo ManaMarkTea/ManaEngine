@@ -27,6 +27,19 @@ namespace Mana
                 var backendKind = launchOptions.GraphicsBackend;
 
 #if !MANA_BROWSER
+                if (launchOptions.ImportPath != null)
+                {
+                    var checkout = ManaVoxel.Code.Imports.ManaDownloads.Checkout(ManaVoxel.Code.Levels.ManaLevelLibrary.ResolveFolder())
+                        ?? throw new InvalidOperationException("No checkout to import into.");
+                    var levels = ManaVoxel.Code.Imports.ManaSceneImporter.EnsureAsync(checkout, Path.GetFullPath(launchOptions.ImportPath),
+                        new Progress<string>(Console.WriteLine)).GetAwaiter().GetResult();
+                    foreach (var level in levels)
+                    {
+                        Console.WriteLine($"Level: {Path.GetRelativePath(checkout, level)}");
+                    }
+                    return;
+                }
+
                 if (launchOptions.PrecacheThumbnails)
                 {
                     ManaVoxel.Code.Assets.MeshThumbnailCache.PrecacheLibrary(Console.WriteLine);

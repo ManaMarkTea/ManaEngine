@@ -566,6 +566,9 @@ namespace Mana.Code.GameModes
             }
 
             gameModePreviews.Sync(Context, !IsMatchRunning && !IsLoading && !_openingLevel);
+#if !MANA_BROWSER
+            PollImport();
+#endif
             PumpMeshThumbnails();
             SyncLightningBallVisibility();
             SyncLiquidBallVisibility();

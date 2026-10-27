@@ -23,6 +23,9 @@ namespace ManaCore.Graphics
         /// </summary>
         public string? CommandFilePath { get; private init; }
 
+        /// <summary>Set by <c>--import &lt;pack.zip&gt;</c>: import a downloaded scene pack into Library/Imported, headless, and exit.</summary>
+        public string? ImportPath { get; private init; }
+
         /// <summary>Set by <c>--precache-thumbnails</c>: make every missing asset thumbnail, headless, and exit.</summary>
         public bool PrecacheThumbnails { get; private init; }
 
@@ -37,6 +40,7 @@ namespace ManaCore.Graphics
             string? editLevelPath = null;
             string? commandFilePath = null;
             var precacheThumbnails = false;
+            string? importPath = null;
             var playMenu = false;
             var mute = Environment.GetEnvironmentVariable("MANA_MUTE") is "1" or "true";
 
@@ -81,6 +85,12 @@ namespace ManaCore.Graphics
                     continue;
                 }
 
+                if (TryReadOptionValue(args, ref i, "--import", out var importValue))
+                {
+                    importPath = importValue;
+                    continue;
+                }
+
                 if (arg.Equals("--precache-thumbnails", StringComparison.OrdinalIgnoreCase))
                 {
                     precacheThumbnails = true;
@@ -107,6 +117,7 @@ namespace ManaCore.Graphics
                 EditLevelPath = string.IsNullOrWhiteSpace(editLevelPath) ? null : editLevelPath,
                 CommandFilePath = string.IsNullOrWhiteSpace(commandFilePath) ? null : commandFilePath,
                 PrecacheThumbnails = precacheThumbnails,
+                ImportPath = string.IsNullOrWhiteSpace(importPath) ? null : importPath,
                 Mute = mute,
                 PlayMenu = playMenu
             };

@@ -138,24 +138,27 @@ Patterns that work:
 
 ## Benchmarks
 
-Big third-party scenes live in `Library/Benchmarks/` (gitignored), fetched by a script, never committed.
-`python Tools/Benchmarks/bistro.py` downloads NVIDIA ORCA's Amazon Lumberyard Bistro (CC-BY 4.0, ~900 MB), converts its
-FBX with Godot's FBX2glTF, rebuilds the materials from the pack's texture naming (glTF pointing at the original DDS; only
-the BC5 normals are rewritten, green flipped in their blocks) and writes `Bistro Exterior`/`Bistro Interior.manalevel`
-there, lit as Falcor lights it: the pack's HDR as the Photo sky (`sky.photo` in a level names the picture; the HDR is
-turned to put its sun where the FBX's sun light comes from) and that light as a directional `Sun` node. The ORCA site's
-renders (`Library/Benchmarks/Bistro/reference/`) are the 2017 Lumberyard ones, lit differently.
-`Tools/Benchmarks/bistro-benchmark.ps1` builds Release and reports load time, GPU memory and fps with the profiler's
-top scopes from pbrt-v4's three Bistro cameras and an overview (`-NoBlockCompression` for the RGBA comparison, `-Capped` for the editor's normal pacing).
+Big third-party scenes are downloaded, never committed. **Downloaded scene packs:** zips in `Downloaded/` (gitignored,
+kept as they came) show in the editor's Scenes panel and Level menu under Downloaded; opening one imports it -- in the
+background, progress in the status line -- into `Library/Imported/<zip name>/` (private, regenerable) and opens its
+first level, and later opens skip straight there while the zip is unchanged (`import.json`; bump
+`ManaDownloads.ImporterVersion` to redo every import). `ManaVoxel --import Downloaded/<pack>.zip` does it headless.
+The importer (`ManaVoxel/Code/Imports/`, `ManaSceneImporter`) unzips, converts each FBX with Godot's FBX2glTF (fetched
+once into `Library/Tools/`), rebuilds the materials from the pack's texture naming (`<name>_BaseColor`/`_Specular` or
+`_ORM`/`_Normal`/`_Emissive`; DDS referenced where it lies; normal maps flipped when the pack's readme says DirectX --
+BC5 inside its blocks), puts every part's pivot at its geometry (exported scenes leave them at the origin), and writes
+a level per scene: placed at (100, >=8, 100), batched by the renderer (`mergeParts`), a `ProbeVolume` over it, the
+file's camera, its directional light as the sun (as bright as the engine's own) with the HDR its `.pyscene` names as
+the Photo sky and exposure 1.6 -- plus a `<scene> Night` level lit by a light at each glowing piece; a scene with no sun
+gets those lights in its own level. glTF/GLB scenes in a pack are placed as they are.
+`python Tools/Benchmarks/bistro.py` downloads NVIDIA ORCA's Amazon Lumberyard Bistro (CC-BY 4.0, ~900 MB) and the
+ORCA site's renders (`Downloaded/Bistro reference/`, the 2017 Lumberyard ones, lit differently).
+`Tools/Benchmarks/bistro-benchmark.ps1` imports it if need be, builds Release and reports load time, GPU memory and fps
+with the profiler's top scopes from pbrt-v4's three Bistro cameras and an overview (`-NoBlockCompression` for the RGBA
+comparison, `-Capped` for the editor's normal pacing, `-Night` for the night level).
 `MANA_UNCAPPED=1` turns off vsync and the 90 fps limiter; `MANA_NO_BC=1` decodes DDS as a GPU without BC would.
-The Bistro mesh node sets `mergeParts`: the editor keeps the imported hierarchy and the renderer caches merged geometry
-per compatible opaque material (`ManaStaticMeshBatcher`). Transform, material and hierarchy edits invalidate the affected
-batches; selected parts draw separately for outlines, and transparent parts remain sortable. Imported child edits are
-saved as `meshParts` overrides, leaving the glTF unchanged.
-`Bistro Exterior Night.manalevel` (`-Night`) drops the sun for a still night sky and puts a point light at each glowing
-thing -- the pack lights its night with emissive surfaces only, which a rasteriser cannot (`emissive_lights` in bistro.py).
-The pack's ORM maps leave occlusion (red) black despite its README, so the converter wires no occlusion map.
-Both Bistro levels carry a `ProbeVolume` over the whole scene (below); the day level is exposed at 1.6 (`sky.exposure`).
+A Mesh node's `mergeParts` keeps the imported hierarchy editable while the renderer caches merged geometry per
+compatible opaque material (`ManaStaticMeshBatcher`); edits to imported parts are saved as `meshParts` overrides.
 
 DDS (`ManaDds`, `ManaCore/Imaging/`): BC1-5 and 32-bit RGBA, read with every mip. Where the device has
 `TextureCompressionBC` the texture cache uploads the blocks as they are (flipped in place, as decoded pictures are);

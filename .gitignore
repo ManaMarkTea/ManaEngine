@@ -369,6 +369,8 @@ FodyWeavers.xsd
 # Generated/derived data (mesh thumbnail cache, and anything else that lands here later) -- always
 # regenerable, never authored content. See ManaVoxel.Code.Assets.ManaProjectFolder.
 /Library/
+# Downloaded scene packs (zips as they came); opening one imports it into Library/Imported.
+/Downloaded/
 /Tools/WebAssets/__pycache__/
 
 # Legacy ImGui window layout, if an older build recreates it.

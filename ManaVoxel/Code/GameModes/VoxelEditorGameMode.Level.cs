@@ -283,6 +283,13 @@ namespace Mana.Code.GameModes
             {
                 return;
             }
+#if !MANA_BROWSER
+            if (ManaVoxel.Code.Imports.ManaDownloads.IsPack(path))
+            {
+                StartImport(path);
+                return;
+            }
+#endif
 
             StopPlayBeforeEditing();
 
@@ -742,6 +749,67 @@ namespace Mana.Code.GameModes
 
             return false;
         }
+
+#if !MANA_BROWSER
+        // The latest line of an import's progress, read by the frame loop: the import itself runs off the main thread.
+        private sealed class LatestLine : IProgress<string>
+        {
+            public volatile string? Line;
+            public void Report(string value) => Line = value;
+        }
+
+        private Task<IReadOnlyList<string>>? _import;
+        private LatestLine? _importProgress;
+        private string? _importShown;
+
+        /// <summary>Opening a downloaded pack imports it (unless its import is current) and then opens its first level.</summary>
+        private void StartImport(string zip)
+        {
+            if (_import != null)
+            {
+                _viewModel.Levels.SetStatus("An import is already running.");
+                return;
+            }
+            if (ManaVoxel.Code.Imports.ManaDownloads.Checkout(ManaLevelLibrary.ResolveFolder()) is not { Length: > 0 } checkout)
+            {
+                _viewModel.Levels.SetStatus("Imports need a checkout to put them in.");
+                return;
+            }
+            _importProgress = new LatestLine();
+            _importProgress.Report($"Importing {Path.GetFileName(zip)}");
+            _import = ManaVoxel.Code.Imports.ManaSceneImporter.EnsureAsync(checkout, zip, _importProgress);
+        }
+
+        /// <summary>Each frame: the import's progress in the status line, and its first level opened once it lands.</summary>
+        private void PollImport()
+        {
+            if (_import == null || _importProgress == null)
+            {
+                return;
+            }
+            if (_importProgress.Line is { } line && !ReferenceEquals(line, _importShown))
+            {
+                _importShown = line;
+                _viewModel.Levels.SetStatus(line);
+                ManaConsole.WriteDiagnostic($"Import: {line}");
+            }
+            if (!_import.IsCompleted)
+            {
+                return;
+            }
+            var finished = _import;
+            _import = null;
+            if (finished.IsCompletedSuccessfully && finished.Result.Count > 0)
+            {
+                _viewModel.Levels.Refresh();
+                OpenLevel(finished.Result[0]);
+                return;
+            }
+            var reason = finished.Exception?.GetBaseException().Message ?? "it made no levels";
+            _viewModel.Levels.SetStatus($"Import failed: {reason}");
+            ManaConsole.WriteDiagnostic($"Import failed: {finished.Exception}");
+        }
+#endif
 
         /// <summary>Opens the level named by <c>--play</c>, once the world has finished loading.</summary>
         private void OpenStartupLevelIfRequested()

@@ -54,17 +54,24 @@ public static class LevelLibraryChecks
             check("and come in under Games/<Name>", tree.Find(Path.Combine("Games", "Demo"))?.Levels.SequenceEqual(new[] { games }) == true
                 && tree.Levels.SequenceEqual(new[] { own }), "");
 
-            // Benchmark scenes made by Tools/Benchmarks into the gitignored Library/: the editor offers them, nothing else.
-            var benchmarks = Path.Combine(project, "Library", "Benchmarks", "Bistro");
-            Directory.CreateDirectory(benchmarks);
-            var bistro = Path.Combine(benchmarks, "Bistro Exterior.manalevel");
+            // Downloaded packs (Downloaded/*.zip) and what they import into Library/Imported: the editor offers them, nothing else.
+            var downloaded = Path.Combine(project, "Downloaded");
+            var imported = Path.Combine(project, "Library", "Imported", "Bistro");
+            Directory.CreateDirectory(downloaded);
+            Directory.CreateDirectory(Path.Combine(imported, "source"));
+            var pack = Path.Combine(downloaded, "Bistro.zip");
+            File.WriteAllText(pack, "");
+            var bistro = Path.Combine(imported, "Bistro Exterior.manalevel");
             File.WriteAllText(bistro, "{}");
+            File.WriteAllText(Path.Combine(imported, "source", "Inside The Pack.manalevel"), "{}");
             var editorFolders = ManaLevelLibrary.EditorFolders(main);
-            check("the editor's folders take in Library/Benchmarks", editorFolders.Any(f => f.Game == ManaLevelLibrary.BenchmarksName), "");
+            check("the editor's folders take in Downloaded/ and Library/Imported",
+                editorFolders.Count(f => f.Game == ManaLevelLibrary.DownloadedName) == 2, "");
             check("but the shipped folders (content checks, web, phone) do not",
-                ManaLevelLibrary.Folders(main).All(f => f.Game != ManaLevelLibrary.BenchmarksName) && !ManaLevelLibrary.List(main).Contains(bistro), "");
-            check("a benchmark scene sits under Benchmarks/ in the menus",
-                ManaLevelLibrary.RelativePath(bistro, main) == Path.Combine("Benchmarks", "Bistro", "Bistro Exterior.manalevel"),
+                ManaLevelLibrary.Folders(main).All(f => f.Game != ManaLevelLibrary.DownloadedName) && !ManaLevelLibrary.List(main).Contains(bistro), "");
+            check("a pack and its imported levels sit together under Downloaded/",
+                ManaLevelLibrary.RelativePath(bistro, main) == Path.Combine("Downloaded", "Bistro", "Bistro Exterior.manalevel")
+                    && ManaLevelLibrary.RelativePath(pack, main) == Path.Combine("Downloaded", "Bistro.zip"),
                 ManaLevelLibrary.RelativePath(bistro, main) ?? "null");
         }
         finally
