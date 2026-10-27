@@ -81,6 +81,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
                     continue;
                 }
 
+                // An instanced mesh's own uniform is otherwise left where it was when it last drew alone.
+                sceneMesh.PrepareObjectUniform(frame.Number);
                 if (sceneMesh.ObjectBindGroup != null)
                 {
                     Api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);
