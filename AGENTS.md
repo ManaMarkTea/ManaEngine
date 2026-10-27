@@ -148,8 +148,10 @@ renders (`Library/Benchmarks/Bistro/reference/`) are the 2017 Lumberyard ones, l
 `Tools/Benchmarks/bistro-benchmark.ps1` builds Release and reports load time, GPU memory and fps with the profiler's
 top scopes from pbrt-v4's three Bistro cameras and an overview (`-NoBlockCompression` for the RGBA comparison, `-Capped` for the editor's normal pacing).
 `MANA_UNCAPPED=1` turns off vsync and the 90 fps limiter; `MANA_NO_BC=1` decodes DDS as a GPU without BC would.
-The Bistro mesh node sets `mergeParts`: on load its 1,600 parts become one mesh per material (`ManaMeshBatch.MergeInPlace`;
-there is no frustum culling, so nothing is lost) -- 52 fps to 340 at the vespa camera, every draw being CPU-bound.
+The Bistro mesh node sets `mergeParts`: the editor keeps the imported hierarchy and the renderer caches merged geometry
+per compatible opaque material (`ManaStaticMeshBatcher`). Transform, material and hierarchy edits invalidate the affected
+batches; selected parts draw separately for outlines, and transparent parts remain sortable. Imported child edits are
+saved as `meshParts` overrides, leaving the glTF unchanged.
 `Bistro Exterior Night.manalevel` (`-Night`) drops the sun for a still night sky and puts a point light at each glowing
 thing -- the pack lights its night with emissive surfaces only, which a rasteriser cannot (`emissive_lights` in bistro.py).
 The pack's ORM maps leave occlusion (red) black despite its README, so the converter wires no occlusion map.

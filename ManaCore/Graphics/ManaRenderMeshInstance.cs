@@ -3,8 +3,11 @@ using System.Numerics;
 
 namespace ManaCore.Graphics
 {
-    public sealed class ManaRenderMeshInstance
+    public sealed record ManaRenderMeshInstance
     {
+        /// <summary>Optional render-only static batching scope; scene nodes remain independent.</summary>
+        public string? StaticBatchKey { get; init; }
+
         public string? InstanceKey { get; init; }
         public string? MeshKey { get; init; }
         public ulong MeshVersion { get; init; }

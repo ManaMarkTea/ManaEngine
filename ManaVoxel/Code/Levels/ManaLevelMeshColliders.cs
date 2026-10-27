@@ -20,7 +20,8 @@ internal static class ManaLevelMeshColliders
                 var boxes = child.Components.OfType<ManaBoxColliderComponent>()
                     .Select(box => new ManaLevelBoxCollider { Size = box.Size, Center = box.Center }).ToList();
                 if (boxes.Count > 0)
-                    overrides.Add(new ManaLevelChildColliders { Path = childPath, Names = childNames, Boxes = boxes });
+                    overrides.Add(new ManaLevelChildColliders { Path = ManaLevelMeshParts.Identity(child)?.Path ?? childPath,
+                        Names = ManaLevelMeshParts.Identity(child)?.Names ?? childNames, Boxes = boxes });
                 Walk(child, childPath, childNames);
             }
         }

@@ -1,3 +1,9 @@
+[x] - Editable Bistro imports (2026-10-26): keep the glTF hierarchy and Mesh Renderer components in the editor;
+    `ManaStaticMeshBatcher` caches compatible geometry in the renderer. `meshParts` saves imported transforms,
+    names, materials, components and deletions; `Tools/Automation/Checks/bistro-editable.json` checks the real scene.
+    Follow-up: persist reparenting/duplication and authored nodes nested inside imported parts; improve lighting
+    against the ORCA references. Static batching opts in through the mesh root's `mergeParts` flag.
+
 [] - Foundry factory builder: plan and roadmap in Plans/Foundry.md; game lives in Games/Foundry.
     [x] First playable (2026-10-20): finite mining, belts/backpressure, crafting, power, science goal,
         responsive ManaUI board, manual recovery/feeding, example layout, desktop save/load and automation check.

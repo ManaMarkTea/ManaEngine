@@ -261,7 +261,7 @@ namespace ManaGraphics.Code.Graphics
             IReadOnlyList<ManaRenderMeshInstance> renderableMeshes;
             using (ManaFrameProfiler.Measure("GPU: Gather Renderables"))
             {
-                renderableMeshes = ManaWebGpuSceneMeshes.GetRenderableMeshes(renderScene);
+                renderableMeshes = _meshes!.GetRenderableMeshes(renderScene);
             }
 
             _activeRenderScene = renderScene;

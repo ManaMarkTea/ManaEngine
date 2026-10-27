@@ -244,8 +244,7 @@ namespace ManaVoxel.Code.Levels
         public ManaLevelMaterial? Material { get; set; }
         public Dictionary<int, ManaLevelMaterial>? MeshMaterials { get; set; }
 
-        /// <summary>On a mesh: merge its parts into one mesh per material when loaded (ManaMeshBatch.MergeInPlace) --
-        /// for big static scenery, where every part drawn on its own costs a draw per shadow cascade too.</summary>
+        /// <summary>On a mesh: allow the renderer to batch compatible static parts without changing the editable hierarchy.</summary>
         public bool? MergeParts { get; set; }
 
         public ManaLevelVoxels? Voxels { get; set; }
@@ -266,7 +265,22 @@ namespace ManaVoxel.Code.Levels
         /// <summary>Scene-local box colliders on descendants recreated from a mesh asset.</summary>
         public List<ManaLevelChildColliders>? ChildColliders { get; set; }
 
+        public List<ManaLevelMeshPart>? MeshParts { get; set; }
+
         public List<ManaLevelNode>? Children { get; set; }
+    }
+
+    public sealed class ManaLevelMeshPart
+    {
+        public int[] Path { get; set; } = [];
+        public string[] Names { get; set; } = [];
+        public string? Name { get; set; }
+        public bool Deleted { get; set; }
+        public List<ManaLevelMaterial>? Materials { get; set; }
+        public Vector3 Position { get; set; }
+        public Vector3 Rotation { get; set; }
+        public Vector3 Scale { get; set; } = Vector3.One;
+        public List<ManaLevelScript>? Scripts { get; set; }
     }
 
     public sealed class ManaLevelChildColliders

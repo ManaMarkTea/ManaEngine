@@ -71,6 +71,12 @@ public static class BoxColliderPersistenceChecks
                 var restoredBox = FindChild(restoredAsset.Nodes.Single()).Components.OfType<ManaBoxColliderComponent>().Single();
                 Check("reloading a model restores its child collider", restoredAsset.Warnings.Count == 0
                     && restoredBox.Size == new Vector3(2, 3, 4) && restoredBox.Center == new Vector3(0, 1, 0));
+                assetChild.Name = "Renamed child";
+                var renamedSave = ManaLevel.FromJson(ManaLevelCapture.CaptureScene(world, assetScene, assetScene.Name).ToJson());
+                var renamedLoad = ManaLevelLoader.Load(renamedSave, context, new ManaScene(context), replaceAuthoredNodes: false);
+                Check("renaming imported children preserves collider identity", renamedLoad.Warnings.Count == 0
+                    && Descendants(renamedLoad.Nodes.Single()).Single(n => n.Name == "Renamed child")
+                        .Components.OfType<ManaBoxColliderComponent>().Single().Size == new Vector3(2, 3, 4));
                 capturedAsset.Nodes.Single().ChildColliders![0].Names[^1] = "No longer exists";
                 var changedHierarchy = ManaLevelLoader.Load(capturedAsset, context, new ManaScene(context), replaceAuthoredNodes: false);
                 Check("changed mesh hierarchies report unmatched colliders instead of assigning them elsewhere",

@@ -400,6 +400,7 @@ namespace ManaVoxel.Code.Levels
                     AddCollisionIfPresent(entry, state.Context, mesh);
                     AddScriptsIfPresent(entry, mesh);
                     ManaLevelMeshColliders.Apply(mesh, entry.ChildColliders, state.Result.Warnings);
+                    ManaLevelMeshParts.Apply(mesh, entry.MeshParts, state.Result.Warnings);
                     return mesh;
 
                 case ManaLevelSourceKind.Voxels:
@@ -533,11 +534,10 @@ namespace ManaVoxel.Code.Levels
             var asset = entry.Asset ?? throw new InvalidDataException("Mesh entry has no asset reference.");
             var node = ManaMeshAssetLoader.For(context.World).Load(asset, into);
             node.LevelSource = ManaLevelSource.ForMesh(asset);
+            ManaLevelMeshParts.RememberNames(node);
             if (entry.MergeParts == true)
             {
-                var merged = Mana.Code.Models.ManaMeshBatch.MergeInPlace(context, node);
                 node.LevelSource = node.LevelSource with { MergeParts = true };
-                ManaConsole.WriteDiagnostic($"Merged '{asset}' into {merged} mesh(es), one per material.");
             }
             if (entry.MeshMaterials != null)
             {

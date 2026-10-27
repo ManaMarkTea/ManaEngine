@@ -312,7 +312,10 @@ namespace ManaVoxel.Code.Levels
                 }
             }
             if (source.Kind == ManaLevelSourceKind.Mesh)
+            {
                 entry.ChildColliders = ManaLevelMeshColliders.Capture(node);
+                entry.MeshParts = ManaLevelMeshParts.Capture(node);
+            }
             return entry;
         }
 

@@ -326,15 +326,16 @@ namespace ManaGraphics.Code.Graphics.Resources
             return $"{instance.Name}:{index}";
         }
 
-        public static List<ManaRenderMeshInstance> GetRenderableMeshes(ManaRenderScene renderScene)
+        private readonly ManaStaticMeshBatcher _batcher = new();
+
+        public List<ManaRenderMeshInstance> GetRenderableMeshes(ManaRenderScene renderScene)
         {
-            return renderScene.Meshes
-                .Where(instance => instance.MeshData.Positions.Length > 0 && instance.MeshData.Indexes.Length > 0)
-                .ToList();
+            return _batcher.Build(renderScene.Meshes);
         }
 
         public override void Dispose()
         {
+            _batcher.Clear();
             ReleaseAll(immediate: true);
         }
     }

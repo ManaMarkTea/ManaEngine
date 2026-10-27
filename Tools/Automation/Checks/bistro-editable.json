@@ -1,0 +1,97 @@
+[
+  {
+    "type": "open_level",
+    "path": "Library/Benchmarks/Bistro/Bistro Exterior.manalevel"
+  },
+  {
+    "type": "gizmos",
+    "visible": false
+  },
+  {
+    "type": "wait",
+    "frames": 300
+  },
+  {
+    "type": "move_camera",
+    "position": [
+      90.3,
+      10.5,
+      104.3
+    ],
+    "target": [
+      92.5,
+      9.6,
+      99.75
+    ],
+    "fov": 45
+  },
+  {
+    "type": "wait",
+    "frames": 60
+  },
+  {
+    "type": "dirty_report",
+    "path": "Artifacts/Automation/bistro-editable-before"
+  },
+  {
+    "type": "select_node",
+    "name": "Bistro_Research_Exterior__lod0_Vespa_3937"
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@.selected.png"
+  },
+  {
+    "type": "transform_node",
+    "name": "Bistro_Research_Exterior__lod0_Vespa_3937",
+    "position": [
+      0,
+      1,
+      0
+    ]
+  },
+  {
+    "type": "wait",
+    "frames": 60
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@.moved.png",
+    "clean": true
+  },
+  {
+    "type": "save_as",
+    "path": "Artifacts/Automation/Bistro Editable.manalevel"
+  },
+  {
+    "type": "open_level",
+    "path": "Artifacts/Automation/Bistro Editable.manalevel"
+  },
+  {
+    "type": "wait",
+    "frames": 300
+  },
+  {
+    "type": "dirty_report",
+    "path": "Artifacts/Automation/bistro-editable-after"
+  },
+  {
+    "type": "profile_reset"
+  },
+  {
+    "type": "wait",
+    "frames": 180
+  },
+  {
+    "type": "profile_dump",
+    "path": "Artifacts/Automation/bistro-editable-profile.txt"
+  },
+  {
+    "type": "screenshot",
+    "path": "@@OUT@@.reloaded.png",
+    "clean": true
+  },
+  {
+    "type": "quit"
+  }
+]

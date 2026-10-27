@@ -289,12 +289,12 @@ namespace Mana.Code.Nodes
 
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
         {
-            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null);
+            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null, null);
         }
 
         // `glow` is the nearest enabled Glow on this node or above it: it replaces the emission of every mesh
         // beneath (see ManaGlowComponent), leaving the shared materials untouched.
-        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture, Components.ManaGlowComponent? glow)
+        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture, Components.ManaGlowComponent? glow, string? staticBatchKey)
         {
             foreach (var component in Components)
             {
@@ -306,6 +306,7 @@ namespace Mana.Code.Nodes
             }
 
             // Editor helpers under a glowing node -- its trigger box, say -- are not the thing that glows.
+            if (LevelSource?.MergeParts == true) staticBatchKey = AuthoredId;
             var glowing = includeInEnvironmentCapture ? glow : null;
             var glowStrength = glowing?.CurrentStrength() ?? 0.0f;
             foreach (var component in Components)
@@ -320,6 +321,7 @@ namespace Mana.Code.Nodes
                     var meshData = renderer.ApplyMaterialTextures(renderer.Mesh.GetOrCreateCpuData());
                     output.Add(new ManaRenderMeshInstance
                     {
+                        StaticBatchKey = staticBatchKey,
                         InstanceKey = renderer.InstanceKey,
                         MeshKey = renderer.Mesh.RenderKey,
                         MeshVersion = renderer.Mesh.CpuDataVersion,
@@ -373,7 +375,7 @@ namespace Mana.Code.Nodes
 
             foreach (var child in Children)
             {
-                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, child.IsEditorTransient ? null : glow);
+                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, child.IsEditorTransient ? null : glow, child.IsEditorTransient ? null : staticBatchKey);
             }
         }
 
