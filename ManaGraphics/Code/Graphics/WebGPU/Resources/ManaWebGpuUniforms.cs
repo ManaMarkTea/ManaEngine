@@ -40,6 +40,8 @@ namespace ManaGraphics.Code.Graphics.Resources
         // (count times spacing, which the harmonics textures span), w the spacing.
         public Vector4 ProbeVolumeMin;
         public Vector4 ProbeVolumeExtent;
+        // Screen-space ambient occlusion (ManaWebGpuAmbientOcclusionPass): x 1 when drawn this frame, zw the viewport.
+        public Vector4 AmbientOcclusion;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.

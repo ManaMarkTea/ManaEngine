@@ -111,7 +111,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `audio_test` / `audio_status` | | Plays a diagnostic tone and logs device availability/volume; reports source, playing-loop and loading-error counts. Pass `-Sound` to the automation runner to hear playback. Startup logs the selected desktop output device. |
 | `terrain` | `name`, `position`, `target` ([radius, strength, layer]), `count` | `sculpt`/`off` turns sculpting on the selected (or first) terrain on and off; a brush name (`raise`, `lower`, `smooth`, `flatten`, `noise`, `paint`) dabs it `count` times at a world `position` (flatten levels to its y), one undo step. Fixture: `Tools/Automation/Checks/terrain.json` |
 | `save_as` | `path` | Saves the open level to `path` as File > Save Level As does (renamed to match, editing carries on in the copy); without `path`, drops the Save As box down |
-| `debug_view` | `name` | The PBR debug view by name or number (Scene Inspector > PBR debug): `Light Count`, `Light Cells`, `Shadow Cascades`, `View Depth`, `World Normal`... `Off` for the shaded picture. Fixture: `Tools/Automation/Checks/debug-views.json` |
+| `debug_view` | `name` | The PBR debug view by name or number (Scene Inspector > PBR debug): `Light Count`, `Light Cells`, `Shadow Cascades`, `View Depth`, `Ambient Occlusion`, `World Normal`... `Off` for the shaded picture. Fixture: `Tools/Automation/Checks/debug-views.json` |
 | `measure` | `name`, `position` | The measuring tool: `distance`/`radius`/`path`/`ray` (turn it on in that mode; `ray_out`/`ray_up`/`ray_down` set the ray), `click`/`hover` at a world `position` (projected to the screen and snapped exactly as the pointer would be; logs what it snapped to and the last measurement), `finish`, `clear`, `stay`/`free`, `metric`/`imperial`, `off` |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 
@@ -345,6 +345,14 @@ are baked from; the live editor draws new ones with the GPU instead.
   buried in walls from their neighbours). The PBR shader reads L1 harmonics from three 3D textures in group 0
   (`include/probe_volume.wgsl`) in place of the irradiance cube, dims reflections by the same share, and no longer
   darkens ambient in sun shadow there. Without a volume nothing changes. Reference: the Bistro levels.
+- **Ambient occlusion:** `ManaWebGpuAmbientOcclusionPass`, before the scene pass: the opaque and cut-out PBR scenery
+  depth-only from the camera (a prepass, through `ManaWebGpuDepthOnlyDrawer` -- the same instanced depth drawing the
+  shadow cascades use), occlusion at half resolution from that depth with normals rebuilt from it (`ssao.wgsl`, 16
+  samples), and a depth-aware blur (`ssao_blur.wgsl`). The PBR shader darkens only its ambient by it (frame group
+  binding 10, `mana_ambient_occlusion`), never sun or lamps, nor glass. `ManaIrradianceSettings.AmbientOcclusion`
+  (strength, 1.5; 0 turns it off and skips the prepass) and `AmbientOcclusionRadius` (0.5 m), in Scene Inspector >
+  Lighting; the `ambient_occlusion` script command (`value`, `radius`); PBR debug view `Ambient Occlusion`. Off on
+  phones. Costs about 0.9 ms a frame on Bistro.
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

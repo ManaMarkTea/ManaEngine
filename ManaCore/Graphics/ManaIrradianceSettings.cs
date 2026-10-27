@@ -13,6 +13,12 @@ namespace ManaCore.Graphics
         public float Exposure { get; set; } = 0.92f;
         public float IblIntensity { get; set; } = 0.90f;
         public float LightIntensity { get; set; } = 1.35f;
+
+        /// <summary>Screen-space ambient occlusion: how much creases and contacts darken the ambient light, 0 off.</summary>
+        public float AmbientOcclusion { get; set; } = 1.5f;
+
+        /// <summary>How far, in metres, a surface looks for what hides its sky: corners and contacts within this darken.</summary>
+        public float AmbientOcclusionRadius { get; set; } = 0.5f;
         public Vector4 LightColor { get; set; } = Vector4.One;
         public Vector3 LightDirection { get; set; } = Vector3.Normalize(new Vector3(0.35f, 0.82f, 0.45f));
         public bool DrawDebugWorld { get; set; }
@@ -47,7 +53,8 @@ namespace ManaCore.Graphics
             "Light Count",
             "Light Cells",
             "Shadow Cascades",
-            "View Depth"
+            "View Depth",
+            "Ambient Occlusion"
         };
 
         public bool WireframeEnabled { get; set; }
@@ -120,6 +127,8 @@ namespace ManaCore.Graphics
                 Exposure = Exposure,
                 IblIntensity = IblIntensity,
                 LightIntensity = LightIntensity,
+                AmbientOcclusion = AmbientOcclusion,
+                AmbientOcclusionRadius = AmbientOcclusionRadius,
                 LightColor = LightColor,
                 LightDirection = LightDirection,
                 DrawDebugWorld = DrawDebugWorld,

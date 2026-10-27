@@ -407,6 +407,19 @@ namespace Mana.Code.Automation
                 Mana.Code.UI.ManaEditorGizmos.Visible = command.Visible ?? !Mana.Code.UI.ManaEditorGizmos.Visible;
             });
 
+            Register("ambient_occlusion", command =>
+            {
+                var settings = Context.World.IrradianceSettings;
+                if (command.Value is { } strength)
+                {
+                    settings.AmbientOcclusion = strength;
+                }
+                if (command.Radius is { } radius)
+                {
+                    settings.AmbientOcclusionRadius = radius;
+                }
+            });
+
             Register("profile_reset", _ =>
             {
                 ManaFrameProfiler.Reset();

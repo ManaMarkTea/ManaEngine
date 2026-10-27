@@ -53,6 +53,12 @@ namespace ManaVoxel.Code.UI.ManaUi
                 Row(theme, "IBL intensity", Scalar(
                     () => settings.IblIntensity, v => settings.IblIntensity = v, 0.0f, 4.0f)),
 
+                Row(theme, "Ambient occlusion", Scalar(
+                    () => settings.AmbientOcclusion, v => settings.AmbientOcclusion = v, 0.0f, 2.0f)),
+
+                Row(theme, "AO radius (m)", Scalar(
+                    () => settings.AmbientOcclusionRadius, v => settings.AmbientOcclusionRadius = v, 0.1f, 3.0f)),
+
                 Section(theme, "Wind"),
 
                 Row(theme, "Speed (m/s)", Scalar(
@@ -117,6 +123,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             settings.LightColor = defaults.LightColor;
             settings.Exposure = defaults.Exposure;
             settings.IblIntensity = defaults.IblIntensity;
+            settings.AmbientOcclusion = defaults.AmbientOcclusion;
+            settings.AmbientOcclusionRadius = defaults.AmbientOcclusionRadius;
             settings.DebugSceneScale = defaults.DebugSceneScale;
             settings.WebGpuDebugMode = defaults.WebGpuDebugMode;
             settings.WindSpeed = defaults.WindSpeed;

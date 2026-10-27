@@ -41,6 +41,8 @@ struct FrameUniform {
     // xyz the probes' extent (count times spacing), w the spacing.
     probe_volume_min : vec4<f32>,
     probe_volume_extent : vec4<f32>,
+    // Screen-space ambient occlusion (include/probe_volume.wgsl's mana_ambient_occlusion): x 1 when drawn, zw the viewport.
+    ambient_occlusion : vec4<f32>,
 };
 
 struct ObjectUniform {

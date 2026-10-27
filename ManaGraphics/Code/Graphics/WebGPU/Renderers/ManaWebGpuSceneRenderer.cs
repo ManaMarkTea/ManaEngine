@@ -29,6 +29,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private ManaWebGpuSceneBindings? _bindings;
 
         private readonly ManaWebGpuProbeVolumePass _probes = null!;
+        private readonly ManaWebGpuAmbientOcclusionPass _ambientOcclusion = null!;
 
         public ManaWebGpuSceneRenderer(
             ManaWebGpuDevice gpu, ManaWebGpuEnvironment environment, ManaWebGpuSceneMeshes meshes, Vector2D<int> size,
@@ -56,6 +57,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 // After the capture, whose sky the probes see; before anything shades with them.
                 _probes = AddPass(new ManaWebGpuProbeVolumePass(gpu, _bindings));
                 AddPass(new ManaWebGpuShadowPass(gpu, _bindings, shadowMap));
+                // Before the scene pass, whose PBR shader reads the occlusion back.
+                _ambientOcclusion = AddPass(new ManaWebGpuAmbientOcclusionPass(gpu, _bindings));
                 // The material pass draws the sky between its opaque and transparent meshes, where the depth test skips every
                 // pixel already covered: the full atmosphere is costly per pixel, and a board seen from above hides nearly all of it.
                 var sky = AddPass(new ManaWebGpuSkyPass(gpu));
@@ -132,6 +135,13 @@ namespace ManaGraphics.Code.Graphics.Renderers
             var uniform = ManaWebGpuFrameUniform.For(scene, _shadowMap, _lights.Clusters, seconds);
             uniform.ProbeVolumeMin = _probes.Volume.FrameMin;
             uniform.ProbeVolumeExtent = _probes.Volume.FrameExtent;
+            // x on when the occlusion is drawn this frame (the pass decides the same way); zw the viewport to read it by.
+            var occlusion = 0.0f;
+            if (scene.IrradianceSettings.AmbientOcclusion > 0.0f && !ManaWebGpuDevice.UseMobileRendering)
+            {
+                occlusion = 1.0f;
+            }
+            uniform.AmbientOcclusion = new System.Numerics.Vector4(occlusion, 0.0f, _size.X, _size.Y);
             _bindings!.WriteFrame(Queue, uniform);
         }
 
@@ -272,6 +282,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             var environment = _environment.Map;
             _frame.EnvironmentMap = environment == null ? null : environment.EnvironmentMapResource.TextureView;
             _frame.SceneSuspended = suspended;
+            _frame.Width = (uint)Math.Max(surface.Size.X, 0);
+            _frame.Height = (uint)Math.Max(surface.Size.Y, 0);
             return _frame;
         }
 

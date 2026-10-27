@@ -18,14 +18,20 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         public const int ObjectBindingCount = FirstMaterialMapBinding + MaterialMapCount;
 
-        /// <summary>Group 0: frame uniform, shadow map and sampler, three light buffers, probe harmonics and sampler.</summary>
-        public const int FrameBindingCount = 10;
+        /// <summary>Group 0: frame uniform, shadow map and sampler, three light buffers, probe harmonics and sampler, occlusion.</summary>
+        public const int FrameBindingCount = 11;
 
         private TextureView* _shadowMapArrayView;
         private Sampler* _shadowSampler;
         private ManaWebGpuLightClusters? _lights;
         private Texture* _emptyProbeTexture;
         private TextureView* _emptyProbeView;
+        private TextureView* _probeRed;
+        private TextureView* _probeGreen;
+        private TextureView* _probeBlue;
+        private TextureView* _occlusion;
+        private Texture* _openOcclusionTexture;
+        private TextureView* _openOcclusionView;
 
 
         public Sampler* LinearSampler { get; private set; }
@@ -197,6 +203,18 @@ namespace ManaGraphics.Code.Graphics.Resources
                     Visibility = ShaderStage.Fragment,
                     Sampler = new SamplerBindingLayout { Type = SamplerBindingType.Filtering }
                 };
+                // Screen-space ambient occlusion (ManaWebGpuAmbientOcclusionPass), half resolution.
+                frameBindGroupLayoutEntries[10] = new BindGroupLayoutEntry
+                {
+                    Binding = 10,
+                    Visibility = ShaderStage.Fragment,
+                    Texture = new TextureBindingLayout
+                    {
+                        SampleType = TextureSampleType.Float,
+                        ViewDimension = TextureViewDimension.Dimension2D,
+                        Multisampled = false
+                    }
+                };
 
                 var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
                 {
@@ -226,7 +244,8 @@ namespace ManaGraphics.Code.Graphics.Resources
                 _shadowSampler = shadowSampler;
                 _lights = lights;
                 CreateEmptyProbeTexture(api, device);
-                BuildFrameGroup(null, null, null);
+                CreateOpenOcclusionTexture(api, device);
+                BuildFrameGroup();
 
                 // Group 1: per-object data (model/material) -- sized for the much smaller per-object
                 // struct now that per-frame globals live separately above.
@@ -463,16 +482,34 @@ namespace ManaGraphics.Code.Graphics.Resources
         /// </summary>
         public void SetProbeVolume(TextureView* red, TextureView* green, TextureView* blue)
         {
-            BuildFrameGroup(red, green, blue);
+            _probeRed = red;
+            _probeGreen = green;
+            _probeBlue = blue;
+            BuildFrameGroup();
         }
 
-        private void BuildFrameGroup(TextureView* red, TextureView* green, TextureView* blue)
+        /// <summary>Binds the ambient occlusion (ManaWebGpuAmbientOcclusionPass) into group 0, or the open placeholder for null.</summary>
+        public void SetAmbientOcclusion(TextureView* occlusion)
         {
+            _occlusion = occlusion;
+            BuildFrameGroup();
+        }
+
+        private void BuildFrameGroup()
+        {
+            var red = _probeRed;
+            var green = _probeGreen;
+            var blue = _probeBlue;
             if (red == null || green == null || blue == null)
             {
                 red = _emptyProbeView;
                 green = _emptyProbeView;
                 blue = _emptyProbeView;
+            }
+            var occlusion = _occlusion;
+            if (occlusion == null)
+            {
+                occlusion = _openOcclusionView;
             }
 
             var entries = stackalloc BindGroupEntry[FrameBindingCount];
@@ -486,6 +523,7 @@ namespace ManaGraphics.Code.Graphics.Resources
             entries[7] = new BindGroupEntry { Binding = 7, TextureView = green };
             entries[8] = new BindGroupEntry { Binding = 8, TextureView = blue };
             entries[9] = new BindGroupEntry { Binding = 9, Sampler = ClampSampler };
+            entries[10] = new BindGroupEntry { Binding = 10, TextureView = occlusion };
 
             var descriptor = new BindGroupDescriptor { Layout = FrameLayout, EntryCount = FrameBindingCount, Entries = entries };
             var label = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");
@@ -539,6 +577,39 @@ namespace ManaGraphics.Code.Graphics.Resources
             _emptyProbeView = api.TextureCreateView(_emptyProbeTexture, &viewDescriptor);
         }
 
+        // White: nothing occluded. What group 0 binds while ambient occlusion is off.
+        private void CreateOpenOcclusionTexture(WebGPU api, Device* device)
+        {
+            var descriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = 1, Height = 1, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba8Unorm,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+            _openOcclusionTexture = api.DeviceCreateTexture(device, &descriptor);
+            if (_openOcclusionTexture == null)
+            {
+                throw new InvalidOperationException("Failed to create the open occlusion texture.");
+            }
+            var white = stackalloc byte[4] { 255, 255, 255, 255 };
+            var destination = new ImageCopyTexture { Texture = _openOcclusionTexture, MipLevel = 0, Origin = new Origin3D(), Aspect = TextureAspect.All };
+            var layout = new TextureDataLayout { Offset = 0, BytesPerRow = 4, RowsPerImage = 1 };
+            var size = new Extent3D { Width = 1, Height = 1, DepthOrArrayLayers = 1 };
+            api.QueueWriteTexture(api.DeviceGetQueue(device), &destination, white, 4, &layout, &size);
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba8Unorm,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            _openOcclusionView = api.TextureCreateView(_openOcclusionTexture, &viewDescriptor);
+        }
+
         public void WriteFrame(Queue* queue, in ManaWebGpuFrameUniform uniform)
         {
             fixed (ManaWebGpuFrameUniform* data = &uniform)
@@ -563,6 +634,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             if (FrameGroup != null) { Api.BindGroupRelease(FrameGroup); FrameGroup = null; }
             if (_emptyProbeView != null) { Api.TextureViewRelease(_emptyProbeView); _emptyProbeView = null; }
             if (_emptyProbeTexture != null) { Api.TextureRelease(_emptyProbeTexture); _emptyProbeTexture = null; }
+            if (_openOcclusionView != null) { Api.TextureViewRelease(_openOcclusionView); _openOcclusionView = null; }
+            if (_openOcclusionTexture != null) { Api.TextureRelease(_openOcclusionTexture); _openOcclusionTexture = null; }
             if (FrameBuffer != null) { Api.BufferRelease(FrameBuffer); FrameBuffer = null; }
             if (FrameLayout != null) { Api.BindGroupLayoutRelease(FrameLayout); FrameLayout = null; }
         }

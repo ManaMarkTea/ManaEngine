@@ -5,6 +5,17 @@
 @group(0) @binding(7) var probe_sh_g : texture_3d<f32>;
 @group(0) @binding(8) var probe_sh_b : texture_3d<f32>;
 @group(0) @binding(9) var probe_sampler : sampler;
+@group(0) @binding(10) var ambient_occlusion_texture : texture_2d<f32>;
+
+// How open this pixel is to ambient light (1 when screen-space ambient occlusion is off): frag_position is the
+// fragment's @builtin(position). Linear across the half-resolution texture, which the blur kept edge-aware.
+fn mana_ambient_occlusion(frag_position : vec4<f32>) -> f32 {
+    if (frame.ambient_occlusion.x < 0.5) {
+        return 1.0;
+    }
+    let uv = frag_position.xy / max(frame.ambient_occlusion.zw, vec2<f32>(1.0));
+    return textureSampleLevel(ambient_occlusion_texture, probe_sampler, uv, 0.0).r;
+}
 
 // The light reaching a surface at world_position facing n, as E / pi (the irradiance cube's units), in rgb; w how
 // much of it to use: 1 well inside the box, fading to 0 over its last probe spacing, 0 with no baked volume.

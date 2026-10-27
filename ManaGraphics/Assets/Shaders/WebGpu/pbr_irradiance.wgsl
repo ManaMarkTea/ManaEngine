@@ -350,7 +350,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // f0, not F: the LUT already integrates Fresnel (Karis split-sum is F0 * A + B). Using F here
     // applies it twice and blows out grazing angles.
     let specular_ibl = reflection_radiance * (f0 * brdf.x + brdf.y) * ibl_intensity * reflection_share;
-    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao * ambient_shade;
+    // Screen-space occlusion darkens only the ambient: corners and contacts the sky cannot reach. Not glass, which would
+    // take the occlusion of what is behind it.
+    var screen_ao = 1.0;
+    if (u32(object.opacity_mode + 0.5) != 3u) {
+        screen_ao = mana_ambient_occlusion(input.clip_position);
+    }
+    let ambient = (kd_ambient * diffuse_ibl + specular_ibl) * ao * screen_ao * ambient_shade;
     // With an emission map, it says what glows (glTF's rule). Without one, emission shows the surface's own
     // colour -- texture and all -- as if in full daylight, tinted by the emission colour: a glowing coin still
     // looks like the coin, where a white stand-in map painted it over in one flat colour.
@@ -463,6 +469,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         // Mode 18: View Depth -- white at the camera to black at 1 km, log scaled so the near metres read.
         let depth = max(dot(input.world_position - frame.camera_position.xyz, frame.camera_forward.xyz), 0.0);
         color = vec3<f32>(1.0 - clamp(log2(1.0 + depth) / log2(1001.0), 0.0, 1.0));
+    } else if (debug_mode == 19u) {
+        // Mode 19: Ambient Occlusion -- the screen-space term alone, white open to black hidden.
+        color = vec3<f32>(screen_ao);
     } else {
         // Mode 0: Normal shading
         color = color * exposure;

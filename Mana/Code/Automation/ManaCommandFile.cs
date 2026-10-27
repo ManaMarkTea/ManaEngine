@@ -72,6 +72,12 @@ namespace Mana.Code.Automation
 
         /// <summary>move_camera: the vertical field of view in degrees, to match another renderer's camera.</summary>
         public float? Fov { get; set; }
+
+        /// <summary>ambient_occlusion: its strength (0 off, 1 the default).</summary>
+        public float? Value { get; set; }
+
+        /// <summary>ambient_occlusion: how far it reaches, in metres.</summary>
+        public float? Radius { get; set; }
     }
 
     public static class ManaCommandFile

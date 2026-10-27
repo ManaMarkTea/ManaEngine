@@ -66,5 +66,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         public System.Numerics.Matrix4x4 Projection;
         /// <summary>Seconds since the context started: shader animation time.</summary>
         public float Time;
+        /// <summary>The scene target's size in pixels.</summary>
+        public uint Width;
+        public uint Height;
     }
 }
