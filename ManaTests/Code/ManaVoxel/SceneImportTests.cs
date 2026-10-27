@@ -18,6 +18,7 @@ public static class SceneImportChecks
             Bc5Flip(check);
             Hdr(check);
             Manifest(folder.FullName, check);
+            SceneFileMaterials(folder.FullName, check);
             check("pack names read as words", ManaSceneImporter.Words("BistroExterior") == "Bistro Exterior"
                 && ManaSceneImporter.Words("Bistro_Interior_Wine") == "Bistro Interior Wine", ManaSceneImporter.Words("BistroExterior"));
         }
@@ -118,6 +119,40 @@ public static class SceneImportChecks
         check("and is current once imported", ManaDownloads.CurrentLevels(checkout, zip)?.Count == 1, "");
         File.WriteAllText(zip, "a newer zip");
         check("until the zip changes", ManaDownloads.CurrentLevels(checkout, zip) == null, "");
+    }
+
+    // Falcor's scene file sets what FBX cannot carry: glass and wine that transmit light, and how much they absorb.
+    private static void SceneFileMaterials(string folder, Action<string, bool, string> check)
+    {
+        var settings = ManaPySceneMaterials.Parse("""
+            volume_absorption = {
+                'red_wine': float3(117.13133, 251.91133, 294.33867),
+            }
+            glass = sceneBuilder.getMaterial("TransparentGlass")
+            glass.roughness = 0
+            glass.specularTransmission = 1
+            glass.doubleSided = True  # two faces
+            wine = sceneBuilder.getMaterial("Red_Wine")
+            wine.specularTransmission = 1
+            wine.volumeAbsorption = volume_absorption['red_wine']
+            """);
+        check("a scene file's material settings are read", settings.Count == 2 && settings["TransparentGlass"].Numbers["roughness"] == 0
+            && settings["TransparentGlass"].Flags["doubleSided"] && settings["Red_Wine"].Colours["volumeAbsorption"].X > 117.0f,
+            string.Join(", ", settings.Keys));
+
+        var gltf = Triangles(folder, "glass", [Vector3.Zero, Vector3.UnitX, Vector3.UnitY], [0, 1, 2], "\"nodes\":[{\"mesh\":0}]", material: true);
+        gltf.Root["materials"] = new JsonArray(
+            new JsonObject { ["name"] = "TransparentGlass", ["pbrMetallicRoughness"] = new JsonObject { ["baseColorTexture"] = new JsonObject { ["index"] = 0 } } },
+            new JsonObject { ["name"] = "Red_Wine" });
+        check("both are applied", ManaPySceneMaterials.Apply(gltf, settings) == 2, "");
+        var glass = gltf.Materials[0]!;
+        var wineColour = gltf.Materials[1]!["pbrMetallicRoughness"]!["baseColorFactor"]!.AsArray();
+        check("glass that transmits is blended, faint, and loses the grey swatch over it",
+            glass["alphaMode"]?.GetValue<string>() == "BLEND" && glass["pbrMetallicRoughness"]!["baseColorTexture"] == null
+                && ManaGltfDocument.F(glass["pbrMetallicRoughness"]!["baseColorFactor"]![3]) < 0.3f && glass["doubleSided"]!.GetValue<bool>(), "");
+        check("red wine is red, and more opaque than clear glass",
+            ManaGltfDocument.F(wineColour[0]) > ManaGltfDocument.F(wineColour[2]) * 3 && ManaGltfDocument.F(wineColour[3]) > 0.5f,
+            wineColour.ToJsonString());
     }
 
     private static ManaGltfDocument Triangles(string folder, string name, Vector3[] points, uint[] indices, string nodes, bool material = false)

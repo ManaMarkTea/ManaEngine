@@ -105,6 +105,12 @@ namespace ManaVoxel.Code.Imports
                     sun = ManaImportScene.Sun(gltf);
                     camera = ManaImportScene.Camera(gltf);
                     var glowColours = ManaImportMaterials.Rebuild(gltf, pictures, Path.Combine(folder, "Textures"), directXNormals, sceneFolder, progress);
+                    var pyscene = Path.ChangeExtension(scene, ".pyscene");
+                    if (File.Exists(pyscene))
+                    {
+                        var adjusted = ManaPySceneMaterials.Apply(gltf, ManaPySceneMaterials.Parse(File.ReadAllText(pyscene)));
+                        ManaConsole.WriteDiagnostic($"Import {pack}/{stem}: {adjusted} materials set as its scene file says.");
+                    }
                     foreach (var key in new[] { "animations", "cameras" })
                     {
                         gltf.Root.Remove(key);
