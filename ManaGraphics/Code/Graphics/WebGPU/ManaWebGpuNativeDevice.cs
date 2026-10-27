@@ -20,7 +20,9 @@ namespace ManaGraphics.Code.Graphics
     internal sealed class ManaWebGpuNativeDevice : IDisposable
     {
         private readonly WebGPU _api;
+#if !MANA_BROWSER
         private string? _requestFailure;
+#endif
 
         public unsafe ManaWebGpuNativeDevice(WebGPU api, IWindow window, string? requestedBackend)
         {
