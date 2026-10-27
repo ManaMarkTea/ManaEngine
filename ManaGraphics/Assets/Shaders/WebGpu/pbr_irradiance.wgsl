@@ -380,6 +380,17 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
     var output_alpha = select(1.0, alpha, opacity_mode == 3u || opacity_mode == 4u);
 
+    // Blended glass reflects at full strength and lets through only what it does not reflect; straight alpha scaled
+    // its reflections down with its body, and clear glass all but vanished. Raise alpha by the Fresnel share and divide
+    // the colour back out, so the blend gives reflection + body * alpha + behind * (1 - alpha) * (1 - F).
+    if (opacity_mode == 3u && object.outline_parameters.w < 0.5) {
+        let reflected = specular_ibl * ao * ambient_shade;
+        let fresnel = saturate(dot(F, vec3<f32>(1.0 / 3.0)));
+        let glass_alpha = alpha + (1.0 - alpha) * fresnel;
+        color = ((color - reflected) * alpha + reflected) / max(glass_alpha, 0.001);
+        output_alpha = glass_alpha;
+    }
+
     // object.debug_mode_override < 0 means "no per-object override, use the frame's global mode".
     let effective_debug_mode = select(frame.webgpu_debug_mode, object.debug_mode_override, object.debug_mode_override >= 0.0);
     let debug_mode = u32(effective_debug_mode + 0.5);
