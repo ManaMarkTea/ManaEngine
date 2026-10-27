@@ -32,6 +32,12 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
 
         public virtual PrimitiveTopology Topology => PrimitiveTopology.LineList;
 
+        /// <summary>Alpha-blended over the scene rather than written over it.</summary>
+        public virtual bool Blended => false;
+
+        /// <summary>Whether this mesh gets the overlay; every mesh by default.</summary>
+        public virtual bool Includes(ManaWebGpuSceneMesh sceneMesh) => true;
+
         public override string ProfileName => _profileName ??= $"GPU: {Name} Overlay";
         public override int PipelineCount => _pipeline != null ? 1 : 0;
         public override int ShaderModuleCount => _shaderModule != null ? 1 : 0;
@@ -58,6 +64,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
                     _colorFormat,
                     _bindings.MeshLayout,
                     Name,
+                    isTransparent: Blended,
                     disableDepthWrite: true,
                     depthCompare: CompareFunction.LessEqual,
                     primitiveTopology: Topology);
@@ -69,6 +76,11 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
 
             foreach (var sceneMesh in frame.Meshes)
             {
+                if (!Includes(sceneMesh))
+                {
+                    continue;
+                }
+
                 if (sceneMesh.ObjectBindGroup != null)
                 {
                     Api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);

@@ -28,6 +28,9 @@ namespace Mana
         public Vector4 EditorOutlineColor { get; set; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float EditorOutlineWidth { get; set; } = 4.0f;
 
+        /// <summary>The editor's selection: its edges drawn faintly over it (ManaWebGpuSelectionWireframeOverlay).</summary>
+        public bool EditorWireframe { get; set; }
+
         // A custom outline takes priority so its width and colour remain editable while selected.
         public bool RenderOutlineEnabled => OutlineEnabled || EditorOutlineEnabled;
         public Vector4 RenderOutlineColor => OutlineEnabled ? OutlineColor : EditorOutlineColor;

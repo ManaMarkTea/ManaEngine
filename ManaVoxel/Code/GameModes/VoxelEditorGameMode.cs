@@ -1119,6 +1119,7 @@ namespace Mana.Code.GameModes
                 if (!targetOutlinedComponents.Contains(meshRenderer))
                 {
                     meshRenderer.EditorOutlineEnabled = false;
+                    meshRenderer.EditorWireframe = false;
                 }
             }
 
@@ -1130,6 +1131,7 @@ namespace Mana.Code.GameModes
                     meshRenderer.EditorOutlineEnabled = true;
                     meshRenderer.EditorOutlineColor = outlineColor;
                     meshRenderer.EditorOutlineWidth = 4.0f;
+                    meshRenderer.EditorWireframe = true;
                 }
             }
 

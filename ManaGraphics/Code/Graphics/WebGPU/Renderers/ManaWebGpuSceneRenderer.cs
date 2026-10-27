@@ -65,6 +65,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 AddPass(new ManaWebGpuMaterialPass(gpu, _bindings, sceneColor, sky));
                 _particles = AddPass(new ManaWebGpuParticlePass(gpu, sceneColor));
                 AddPass(new ManaWebGpuWireframeOverlay(gpu, _bindings, sceneColor));
+                AddPass(new ManaWebGpuSelectionWireframeOverlay(gpu, _bindings, sceneColor));
                 AddPass(new ManaWebGpuNormalLinesOverlay(gpu, _bindings, sceneColor));
                 AddPass(new ManaWebGpuOutlinePass(gpu, _bindings));
             }

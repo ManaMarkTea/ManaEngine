@@ -35,6 +35,9 @@ namespace ManaCore.Graphics
         public Vector4 OutlineColor { get; init; } = new(1.0f, 0.82f, 0.18f, 1.0f);
         public float OutlineWidth { get; init; } = 2.0f;
 
+        /// <summary>Selected in the editor: its edges are drawn faintly over it.</summary>
+        public bool SelectionWireframe { get; init; }
+
         /// <summary>
         /// Texture coordinate scale in XY and offset in ZW, applied to every map on this material.
         /// <para>
