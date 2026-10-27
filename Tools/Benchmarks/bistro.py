@@ -253,12 +253,85 @@ def rebuild_materials(scene, raw):
     for node in gltf["nodes"]:
         node.pop("camera", None)
     gltf["buffers"][0]["uri"] = f"Bistro{scene}_out/" + gltf["buffers"][0]["uri"]
+    recentre_pivots(gltf, folder, scene)
     with open(target, "w", encoding="utf-8") as out:
         json.dump(gltf, out)
     if missing:
         log(f"{scene}: {len(missing)} materials without a BaseColor texture: {', '.join(sorted(set(missing))[:12])}")
     log(f"{scene}: wrote {os.path.relpath(target, REPO)} ({len(gltf['materials'])} materials, {len(images)} images)")
     return target
+
+
+def recentre_pivots(gltf, folder, scene):
+    """Puts each mesh's origin at the middle of its geometry. The pack's parts mostly sit at the scene origin with their
+    vertices in place (glTF has no FBX-style pivot to carry one across), so every part would turn and scale about a point
+    metres away. Vertices shift by the mesh's bounds centre; each node using the mesh moves by as much in its parent's
+    space, and its children move back, so nothing moves in the world. Writes a buffer of its own beside the converter's."""
+    import numpy as np
+    buffer_path = os.path.join(folder, gltf["buffers"][0]["uri"])
+    data = bytearray(open(buffer_path, "rb").read())
+
+    def positions(index):
+        item = gltf["accessors"][index]
+        view = gltf["bufferViews"][item["bufferView"]]
+        start = view.get("byteOffset", 0) + item.get("byteOffset", 0)
+        stride = view.get("byteStride", 12)
+        if stride != 12 or item["componentType"] != 5126:
+            return None
+        return np.frombuffer(data, dtype=np.float32, count=item["count"] * 3, offset=start).reshape(-1, 3), start
+
+    # An accessor shared between meshes cannot move for one alone.
+    owners = {}
+    for mesh_index, mesh in enumerate(gltf["meshes"]):
+        for primitive in mesh["primitives"]:
+            owners.setdefault(primitive["attributes"]["POSITION"], set()).add(mesh_index)
+
+    centres = {}
+    for mesh_index, mesh in enumerate(gltf["meshes"]):
+        accessors = {primitive["attributes"]["POSITION"] for primitive in mesh["primitives"]}
+        if any(len(owners[index]) > 1 for index in accessors) or any("targets" in p for p in mesh["primitives"]):
+            continue
+        low = np.min([gltf["accessors"][index]["min"] for index in accessors], axis=0)
+        high = np.max([gltf["accessors"][index]["max"] for index in accessors], axis=0)
+        centre = (low + high) / 2.0
+        if np.linalg.norm(centre) < 0.01:
+            continue
+        for index in accessors:
+            found = positions(index)
+            if found is None:
+                break
+            points, start = found
+            moved = (points - centre.astype(np.float32)).astype(np.float32)
+            data[start:start + moved.nbytes] = moved.tobytes()
+            # From the float32 values themselves: bounds worked out in doubles miss them by a rounding, and glTF readers check.
+            item = gltf["accessors"][index]
+            item["min"] = [float(v) for v in moved.min(axis=0)]
+            item["max"] = [float(v) for v in moved.max(axis=0)]
+        else:
+            centres[mesh_index] = centre
+
+    moved_nodes = 0
+    for node in gltf["nodes"]:
+        centre = centres.get(node.get("mesh"))
+        if centre is None or "skin" in node:
+            continue
+        x, y, z, w = node.get("rotation", [0, 0, 0, 1])
+        rotation = np.array([
+            [1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)],
+            [2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)],
+            [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
+        scale = np.array(node.get("scale", [1, 1, 1]))
+        node["translation"] = [float(v) for v in np.array(node.get("translation", [0, 0, 0])) + rotation @ (scale * centre)]
+        for child in node.get("children", []):
+            child_node = gltf["nodes"][child]
+            child_node["translation"] = [float(v) for v in np.array(child_node.get("translation", [0, 0, 0])) - centre]
+        moved_nodes += 1
+
+    pivoted = f"Bistro{scene}_pivoted.bin"
+    with open(os.path.join(folder, pivoted), "wb") as out:
+        out.write(data)
+    gltf["buffers"][0]["uri"] = pivoted
+    log(f"{scene}: pivots moved to their geometry on {moved_nodes} parts ({len(centres)} meshes)")
 
 
 def read_hdr(path):
