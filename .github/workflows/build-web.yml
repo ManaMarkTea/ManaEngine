@@ -25,7 +25,7 @@ permissions:
 
 jobs:
   changes:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, zeus]
     timeout-minutes: 5
     permissions:
       actions: read
@@ -82,7 +82,7 @@ jobs:
   publish:
     needs: changes
     if: needs.changes.outputs.deploy == 'true'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, zeus]
     # RunAOTCompilation + the emscripten native build are slow; give real headroom without letting a
     # stuck build hang for the default 6 hours.
     timeout-minutes: 80
@@ -95,6 +95,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+
+      # The self-hosted runner can't write /usr/share/dotnet; ~/.dotnet is also where the workload cache looks.
+      - name: Install .NET under the runner's home
+        run: echo "DOTNET_INSTALL_DIR=$HOME/.dotnet" >> "$GITHUB_ENV"
 
       - name: Set up .NET 10 SDK
         uses: actions/setup-dotnet@v6
