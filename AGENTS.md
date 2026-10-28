@@ -273,6 +273,13 @@ are baked from; the live editor draws new ones with the GPU instead.
 - **Code comments:** one or two lines, saying why, not what; no essays.
 - **Commit and push** working steps as they land, with a message saying what changed and why.
 - **GitHub Actions:** do not manually trigger workflows unless the user explicitly asks. Let the daily deployment run to save compute.
+  The web build (`.github/workflows/build-web.yml`) runs on a self-hosted Linux runner, `[self-hosted, linux, x64, zeus]`,
+  not GitHub's hosted Ubuntu, so the machine needs what those images have built in: `git`, `gh` (the change check and the
+  Pages artifact cleanup call `gh api`; the job's token is passed in, no `gh auth login`) and `libatomic1` (the Node.js in
+  the Emscripten workload pack loads it), plus a distro `actions/setup-python` supports (Ubuntu) and a few GB of disk --
+  the workspace stays between runs. Debian/Ubuntu: `sudo apt-get install -y git gh libatomic1`. .NET installs into the
+  runner account's `~/.dotnet` (it cannot write `/usr/share/dotnet`), where the workload cache also looks. A new
+  `command not found` or missing `.so` on that runner is a package to install there, not a workflow change.
 
 ## Architecture
 
