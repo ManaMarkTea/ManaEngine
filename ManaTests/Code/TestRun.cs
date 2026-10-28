@@ -98,6 +98,7 @@ public static class TestRunner
         ("Mana", "stage animation", StageAnimationChecks.Run),
         ("Mana", "material render instances", MaterialRenderInstanceChecks.Run),
         ("Mana", "cloth", ClothChecks.Run),
+        ("Mana", "scatter", ScatterChecks.Run),
         ("Mana", "texture library", TextureLibraryChecks.Run),
         ("Mana", "sprites", SpriteChecks.Run),
         ("Mana", "moving colliders", MovingColliderChecks.Run),

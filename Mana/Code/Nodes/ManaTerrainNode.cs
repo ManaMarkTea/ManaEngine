@@ -105,6 +105,17 @@ namespace Mana.Code.Nodes
         /// <summary>The patch child nodes, for tests and the picker.</summary>
         public IEnumerable<ManaMeshSceneNode> PatchNodes => _patches.Select(patch => patch.Node);
 
+        /// <summary>Counts every change to the heights or paint, so what sits on the ground (Scatter) knows to follow.</summary>
+        public int Revision { get; private set; }
+
+        /// <summary>One layer's paint at a local x, z, 0..1, from the nearest sample.</summary>
+        public float PaintAt(float localX, float localZ, int layer)
+        {
+            var x = Math.Clamp((int)MathF.Round((localX + Width * 0.5f) / Spacing), 0, SamplesX - 1);
+            var z = Math.Clamp((int)MathF.Round((localZ + Depth * 0.5f) / Spacing), 0, SamplesZ - 1);
+            return _splat[(z * SamplesX + x) * LayerCount + Math.Clamp(layer, 0, LayerCount - 1)] / 255.0f;
+        }
+
         /// <summary>
         /// Replaces the whole grid. Missing or mis-sized heights start flat, missing splat starts on the first layer.
         /// </summary>
@@ -397,6 +408,7 @@ namespace Mana.Code.Nodes
         /// <summary>Rebuilds every patch: after <see cref="Load"/>, or heights set one by one.</summary>
         public void RebuildAll()
         {
+            Revision++;
             var patchesX = PatchesX;
             var patchesZ = PatchesZ;
             if (_patches.Length != patchesX * patchesZ)
@@ -427,6 +439,7 @@ namespace Mana.Code.Nodes
 
         private int RebuildMarked(bool[] dirty)
         {
+            Revision++;
             var rebuilt = 0;
             for (var i = 0; i < dirty.Length; i++)
             {

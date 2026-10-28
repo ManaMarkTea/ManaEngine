@@ -80,7 +80,14 @@
     `Content/Levels/Tests/Terrain.manalevel` (hills, a dirt path, a pond), check `Tools/Automation/Checks/terrain.json`,
     tests in `ManaTests/Code/ManaVoxel/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
     Open: the path spline tool (flatten + paint along a draggable curve); a terrain shader with tiling textures per
-    layer and triplanar rock; scatter (grass, trees, rocks); layer (2), caves and cliffs. Not yet tried on the web build.
+    layer and triplanar rock; layer (2), caves and cliffs. Not yet tried on the web build.
+    Claude (2026-10-28): scatter is built. A `Scatter` script on a terrain strews models (picked in the Inspector's new
+    model picker, `[ModelPath]`) where one paint layer is, at a density a square metre, off slopes past a limit, turned,
+    sized and leaned from a seed; copies are editor-transient, regrown a moment after a sculpt or paint stroke. The
+    Terrain test level now grows grass, a mixed wood and rocks from the survival kit. ManaScatterComponent,
+    ModelPicker, ScatterTests.cs, DevPhotos/2026-10-28 terrain-scatter.png. Follow-ups: ~2,900 copies cost ~4 ms of
+    CPU a frame walking and collecting nodes -- a scatter should hand the renderer its transforms directly (one
+    instanced batch per model) instead of a node per copy; distance fade for grass; colliders for trees in play.
 
 [] - Is there some kind of couch co-op 4 - 8 player game we could make using this stuff
     Plan: Plans/Couch-Coop.md. Claude (2026-10-07, ideas only): what exists is a side-on platformer pawn, bows and arrows, enemies, coins, checkpoints and

@@ -106,7 +106,8 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 }
 
                 var isPictureList = property.PropertyType == typeof(string[])
-                    && property.GetCustomAttribute<Mana.Code.Components.PicturePathAttribute>() != null;
+                    && (property.GetCustomAttribute<Mana.Code.Components.PicturePathAttribute>() != null
+                        || property.GetCustomAttribute<Mana.Code.Components.ModelPathAttribute>() != null);
                 if (!IsSupported(property.PropertyType) && !isPictureList)
                 {
                     continue;
@@ -325,6 +326,18 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                 if (type == typeof(string[]))
                 {
                     return PicturePicker.List(theme, Humanise(property.Name), () => Read() as string[] ?? [], value => Write(value));
+                }
+            }
+
+            if (property.GetCustomAttribute<Mana.Code.Components.ModelPathAttribute>() != null)
+            {
+                if (type == typeof(string))
+                {
+                    return ModelPicker.Slot(theme, Humanise(property.Name), () => Read() as string ?? string.Empty, value => Write(value));
+                }
+                if (type == typeof(string[]))
+                {
+                    return ModelPicker.List(theme, Humanise(property.Name), () => Read() as string[] ?? [], value => Write(value));
                 }
             }
 
