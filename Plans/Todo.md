@@ -171,3 +171,12 @@
     Tools/Automation/Checks/cloth.json, tests ManaTests/Code/Mana/ClothTests.cs, DevPhotos/2026-10-28 cloth-in-the-wind.png.
     Follow-ups: tents and awnings (collision with a box or the ground, more pin shapes); ~0.2 ms a frame per cloth in
     Release, fine for a handful -- sleep cloths out of view if a level wants dozens; untried on the web build.
+    Claude (2026-10-28): capes -- the Character game mode's `cape` (and `capeColor`) hangs one on the player
+    (`ManaCape`, Mana/Code/Components): a Cloth on a node beside the pawn, held behind the neck by `HangFrom`, curled
+    round the body and kept out of a capsule round it (`CollideWith`), fitted to the model's bounds; skipped side-on.
+    Cloth gained `wrap`, `weight` and `inertia` (Unity's world-velocity scale: the pawn goes 0 to 7 m/s at once, which
+    flings a fully world-space cape over its head), damping now settles toward the holder's motion rather than a
+    standstill (it was a hidden air brake), and still air drags. Tests in ClothTests (setting off and a sharp turn keep
+    the hem below the neck); `walk_player` script command; DevPhotos/2026-10-28 character-cape.png.
+    Follow-ups: pin to the chest bone (no bone attach yet, so it hangs from the root and ignores the animation);
+    legs can poke through when they swing back; turned on in no bundled level yet.

@@ -279,6 +279,15 @@ namespace Mana.Code.Automation
                 }
             });
 
+            Register("walk_player", command =>
+            {
+                // Walks the character to a spot as a click-to-move would, turning it to face the way -- to watch it move.
+                if (command.Position is { Length: 3 } spot && Context.World.GameState.Player is { } walker)
+                {
+                    walker.WalkTo(new Vector3(spot[0], spot[1], spot[2]));
+                }
+            });
+
             Register("log_player", command =>
             {
                 // Where the player is and whether it stands, for a scripted check of a level's footing.
