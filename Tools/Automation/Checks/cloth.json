@@ -1,0 +1,107 @@
+[
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Tests/Cloth.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "gizmos",
+  "visible": false
+ },
+ {
+  "type": "wind",
+  "position": [
+   0,
+   90,
+   0
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   52,
+   4,
+   58
+  ],
+  "target": [
+   52,
+   3.5,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.still.png",
+  "clean": true
+ },
+ {
+  "type": "wind",
+  "position": [
+   5,
+   60,
+   0.5
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 240
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.breeze.png",
+  "clean": true
+ },
+ {
+  "type": "wind",
+  "position": [
+   12,
+   60,
+   0.8
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 180
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.gale.png",
+  "clean": true
+ },
+ {
+  "type": "move_camera",
+  "position": [
+   44,
+   4,
+   32
+  ],
+  "target": [
+   46,
+   4,
+   44
+  ]
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@.behind.png",
+  "clean": true
+ },
+ {
+  "type": "quit"
+ }
+]

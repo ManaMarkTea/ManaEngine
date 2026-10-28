@@ -65,7 +65,6 @@
     it reads fine at night there, so I can't tell which sprite looks wrong. Tell me one (a level and a sprite) and I'll
     tune ManaSpriteNormals against it. Auto Normal Map is still off by default.
 
-[] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags,
 
 [] - Terrain support?  Would be nice to have rolling hills, or dirt paths, sculpting, etc. Can also be marching cube style voxel terrain to support caves and cliffs?
     Plan: Plans/Terrain.md. Claude (2026-10-07, not started -- a design choice for you): I'd build it in two layers. (1) A heightfield terrain node:
@@ -150,4 +149,12 @@
     and three times more for the shadow cascades. Meshes alike now go out as one instanced draw, in the material pass and
     the shadow pass; shadow cascades are cut to the casters and cull what is outside them. Frame CPU 12.8 ms -> 4.7 ms.
 
-[] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags, etc)
+[x] - Do we have cloth simulation in bepu? If so can we set it up to work with ManaWind on some of the cloths (tents, flags, etc)
+    Claude (2026-10-28): BEPU has no cloth (only rigid bodies and joints, far too heavy for a flag), so cloth is its own
+    script: `Cloth` (`ManaClothComponent`, Mana/Code/Components) -- a sheet of points and springs solved in world space,
+    held along its left edge, top edge or top corners, pushed by ManaWind's speed, direction and gusts with a flutter,
+    drawn as a mesh rebuilt each frame and lit from both sides (new per-object two-sided lighting). Moving the node drags
+    it. Reference: Content/Levels/Tests/Cloth.manalevel (two flags, a banner, a sheet on a line), check
+    Tools/Automation/Checks/cloth.json, tests ManaTests/Code/Mana/ClothTests.cs, DevPhotos/2026-10-28 cloth-in-the-wind.png.
+    Follow-ups: tents and awnings (collision with a box or the ground, more pin shapes); ~0.2 ms a frame per cloth in
+    Release, fine for a handful -- sleep cloths out of view if a level wants dozens; untried on the web build.

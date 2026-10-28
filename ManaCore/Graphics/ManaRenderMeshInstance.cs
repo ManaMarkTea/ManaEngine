@@ -38,6 +38,9 @@ namespace ManaCore.Graphics
         /// <summary>Selected in the editor: its edges are drawn faintly over it.</summary>
         public bool SelectionWireframe { get; init; }
 
+        /// <summary>Each side lit as the side facing the camera: a thin sheet seen from both sides.</summary>
+        public bool TwoSidedLighting { get; init; }
+
         /// <summary>
         /// Texture coordinate scale in XY and offset in ZW, applied to every map on this material.
         /// <para>

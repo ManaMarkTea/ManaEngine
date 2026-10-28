@@ -31,6 +31,9 @@ namespace Mana
         /// <summary>The editor's selection: its edges drawn faintly over it (ManaWebGpuSelectionWireframeOverlay).</summary>
         public bool EditorWireframe { get; set; }
 
+        /// <summary>Each side lit as the side facing the camera -- a thin sheet seen from both sides (cloth).</summary>
+        public bool TwoSidedLighting { get; set; }
+
         // A custom outline takes priority so its width and colour remain editable while selected.
         public bool RenderOutlineEnabled => OutlineEnabled || EditorOutlineEnabled;
         public Vector4 RenderOutlineColor => OutlineEnabled ? OutlineColor : EditorOutlineColor;

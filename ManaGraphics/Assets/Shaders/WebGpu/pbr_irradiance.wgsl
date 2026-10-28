@@ -216,7 +216,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let opacity_sample = textureSample(opacity_texture, color_sampler, uv).r;
     let alpha = input.color.a * sampled.a * object.material_albedo.a * opacity_sample;
 
-    let smooth_n = normalize(input.world_normal);
+    // Two-sided sheets (cloth) light whichever side faces the camera.
+    let interpolated_n = normalize(input.world_normal);
+    let back_side = object.parallax.y > 0.5 && dot(interpolated_n, frame.camera_position.xyz - input.world_position) < 0.0;
+    let smooth_n = select(interpolated_n, -interpolated_n, back_side);
 
     // Flat shading from screen-space derivatives: the cross of the world-position gradients IS the
     // triangle's geometric normal, so faceting needs no duplicated vertices. Derivatives must be taken

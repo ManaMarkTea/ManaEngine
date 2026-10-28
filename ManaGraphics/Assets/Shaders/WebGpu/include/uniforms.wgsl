@@ -60,5 +60,5 @@ struct ObjectUniform {
     opacity_mode : f32,
     // Texture coordinate scale in xy, offset in zw. Applies to every map on the material.
     uv_transform : vec4<f32>,
-    parallax : vec4<f32>, // x: inset depth in world metres
+    parallax : vec4<f32>, // x: inset depth in world metres, y: two-sided lighting
 };

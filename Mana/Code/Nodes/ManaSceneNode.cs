@@ -353,6 +353,7 @@ namespace Mana.Code.Nodes
                         OutlineColor = renderer.RenderOutlineColor,
                         OutlineWidth = renderer.RenderOutlineWidth,
                         SelectionWireframe = renderer.EditorWireframe,
+                        TwoSidedLighting = renderer.TwoSidedLighting,
                         InsetDepth = renderer.Material.InsetDepth,
                         UvTransform = new Vector4(
                             renderer.Material.UvScale.X,

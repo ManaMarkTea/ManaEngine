@@ -148,7 +148,9 @@ namespace ManaGraphics.Code.Graphics.Resources
                     // w carries the cutout threshold, which is only read in that mode.
                     Math.Clamp(meshInstance.AlphaCutoff, 0.0f, 1.0f)),
                 UvTransform = meshInstance.UvTransform,
-                Parallax = new Vector4(float.IsFinite(meshInstance.InsetDepth) ? Math.Max(0, meshInstance.InsetDepth) : 0, 0, 0, 0),
+                // y: two-sided lighting (pbr_irradiance.wgsl turns the normal to the camera).
+                Parallax = new Vector4(float.IsFinite(meshInstance.InsetDepth) ? Math.Max(0, meshInstance.InsetDepth) : 0,
+                    meshInstance.TwoSidedLighting ? 1.0f : 0.0f, 0, 0),
                 OpacityMode = (float)meshInstance.OpacityMode,
                 NormalStrength = Math.Clamp(meshInstance.NormalStrength, 0.0f, 1.0f),
                 MaterialEmission = new Vector4(

@@ -109,6 +109,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "Cloth",
+                    ComponentType = typeof(Mana.Code.Components.ManaClothComponent),
+                    Create = node => new Mana.Code.Components.ManaClothComponent(node)
+                },
+                new()
+                {
                     Type = "Motion",
                     ComponentType = typeof(Mana.Code.Components.ManaMotionComponent),
                     Create = node => new Mana.Code.Components.ManaMotionComponent(node)
