@@ -95,14 +95,40 @@ fn mana_terrain_uv(p : vec2<f32>, layer : u32) -> vec2<f32> {
 
 // Blends the layers by their weights, sharpened by each layer's own brightness: where grass meets dirt the brighter
 // tufts and stones win first, so the edge breaks up as real ground does rather than smearing.
-fn mana_terrain_surface(weights_in : vec4<f32>, p : vec2<f32>, dx : vec2<f32>, dy : vec2<f32>) -> TerrainSurface {
+// One projection of the ground: where along it (in tiles) and its two screen gradients.
+struct TerrainProjection {
+    p : vec2<f32>,
+    dx : vec2<f32>,
+    dy : vec2<f32>,
+};
+
+fn mana_terrain_projection(p : vec2<f32>) -> TerrainProjection {
+    var projection : TerrainProjection;
+    projection.p = p;
+    projection.dx = mana_terrain_gradient(dpdx(p) * TerrainInner);
+    projection.dy = mana_terrain_gradient(dpdy(p) * TerrainInner);
+    return projection;
+}
+
+// Colour is triplanar -- seen from above, and from the sides on steep ground, weighted by the normal (tri), so a cliff
+// is not smeared down its face; the side reads are skipped where the ground is near flat. Normals are the top's only.
+fn mana_terrain_surface(weights_in : vec4<f32>, top_view : TerrainProjection, side_x : TerrainProjection, side_z : TerrainProjection, tri : vec3<f32>) -> TerrainSurface {
     let weights = max(weights_in, vec4<f32>(0.0)) / max(dot(max(weights_in, vec4<f32>(0.0)), vec4<f32>(1.0)), 1e-4);
+    let p = top_view.p;
+    let dx = top_view.dx;
+    let dy = top_view.dy;
     var albedo : array<vec3<f32>, 4>;
     var normal : array<vec3<f32>, 4>;
     var height : vec4<f32>;
     for (var i = 0u; i < 4u; i = i + 1u) {
         let uv = mana_terrain_uv(p, i);
-        albedo[i] = textureSampleGrad(color_texture, color_sampler, uv, dx, dy).rgb;
+        albedo[i] = textureSampleGrad(color_texture, color_sampler, uv, dx, dy).rgb * tri.y;
+        if (tri.x > 0.01) {
+            albedo[i] = albedo[i] + textureSampleGrad(color_texture, color_sampler, mana_terrain_uv(side_x.p, i), side_x.dx, side_x.dy).rgb * tri.x;
+        }
+        if (tri.z > 0.01) {
+            albedo[i] = albedo[i] + textureSampleGrad(color_texture, color_sampler, mana_terrain_uv(side_z.p, i), side_z.dx, side_z.dy).rgb * tri.z;
+        }
         normal[i] = textureSampleGrad(normal_texture, color_sampler, uv, dx, dy).rgb;
         height[i] = weights[i] + 0.35 * dot(albedo[i], vec3<f32>(0.3, 0.6, 0.1));
     }
@@ -268,9 +294,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // A textured terrain (its own build, so no branch): the vertex colour is its four layer weights. Gradients come
     // from the unbroken world position, so the wrap at each tile's edge leaves no seam.
     let terrain_p = input.world_position.xz / TerrainTileMetres;
-    let terrain_dx = mana_terrain_gradient(dpdx(terrain_p) * TerrainInner);
-    let terrain_dy = mana_terrain_gradient(dpdy(terrain_p) * TerrainInner);
-    let surface = mana_terrain_surface(input.color, terrain_p, terrain_dx, terrain_dy);
+    let terrain_top = mana_terrain_projection(terrain_p);
+    let terrain_side_x = mana_terrain_projection(input.world_position.zy / TerrainTileMetres);
+    let terrain_side_z = mana_terrain_projection(input.world_position.xy / TerrainTileMetres);
+    // Sharpened, so only real slopes take the side views; a gentle hill stays all top.
+    let terrain_facing = pow(abs(normalize(input.world_normal)), vec3<f32>(6.0));
+    let terrain_tri = terrain_facing / max(terrain_facing.x + terrain_facing.y + terrain_facing.z, 1e-4);
+    let surface = mana_terrain_surface(input.color, terrain_top, terrain_side_x, terrain_side_z, terrain_tri);
     vertex_albedo = surface.albedo * material_albedo_linear;
     alpha = object.material_albedo.a;
 #endif
