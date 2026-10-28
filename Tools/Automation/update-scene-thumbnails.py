@@ -33,7 +33,9 @@ def main():
         'Sprite Normals': ([45, 4, 55], [45, 3.6, 40]),
         'Particles': ([50, 4.5, 54], [50, 1.7, 40]),
     }
-    for level_file in sorted((root / 'Content/Levels').rglob('*.manalevel')):
+    level_files = sorted((root / 'Content/Levels').rglob('*.manalevel'))
+    level_files += sorted(root.glob('Games/*/Content/Levels/*.manalevel'))
+    for level_file in level_files:
         name = level_file.stem
         if args.only and name != args.only:
             continue
@@ -58,13 +60,14 @@ def main():
             commands.append({'type': 'move_camera', 'position': position, 'target': target})
         if name == 'Voxel Showcase':
             commands.append({'type': 'select_node', 'name': 'Player Start'})
-        if name in ('Sample Course', '2D Sample', 'Yacht Jousting') or name.startswith('Train Yard Wars'):
+        if name in ('Sample Course', '2D Sample', 'Yacht Jousting', 'Foundry', 'Code Screensaver') or name.startswith('Train Yard Wars'):
             commands += [{'type': 'play'}, {'type': 'wait', 'frames': 120}]
         if name.startswith('Train Yard Wars'):
             commands += [{'type': 'tyw_new_map', 'seed': 42}, {'type': 'wait', 'frames': 120}]
         commands += [
             {'type': 'wait', 'frames': 60},
-            {'type': 'screenshot', 'path': '@@OUT@@', 'clean': True},
+            # The screensaver is all HUD, which a clean shot leaves out.
+            {'type': 'screenshot', 'path': '@@OUT@@', 'clean': name != 'Code Screensaver'},
             {'type': 'quit'},
         ]
         capture_path = output / (name + '.png')
