@@ -8,6 +8,12 @@ namespace ManaCore.Graphics
         public required Vector3[] Positions { get; init; }
         public required Vector3[] Normals { get; init; }
         public required Vector4[] Colors { get; init; }
+
+        /// <summary>
+        /// What the GPU's vertex colour carries in place of <see cref="Colors"/>, when its shader reads something else
+        /// there (a terrain's four layer weights). Everything on the CPU -- light probes, picking -- keeps the colours.
+        /// </summary>
+        public Vector4[]? ShaderColors { get; init; }
         public required Vector2[] TextureCoordinates0 { get; init; }
         public required Vector2[] TextureCoordinates1 { get; init; }
         public string? AlbedoTexturePath { get; init; }

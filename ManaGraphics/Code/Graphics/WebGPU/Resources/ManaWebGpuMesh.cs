@@ -107,11 +107,16 @@ namespace ManaGraphics.Code.Graphics.Resources
             var normals = MemoryMarshal.Cast<Vector3, float>(meshData.Normals.AsSpan());
             var hasUvs = meshData.TextureCoordinates0.Length == meshData.Positions.Length;
             var uvs = MemoryMarshal.Cast<Vector2, float>(meshData.TextureCoordinates0.AsSpan());
-            var hasColors = meshData.Colors.Length == meshData.Positions.Length;
+            var colors = meshData.Colors;
+            if (meshData.ShaderColors is { } shaderColors && shaderColors.Length == meshData.Positions.Length)
+            {
+                colors = shaderColors;
+            }
+            var hasColors = colors.Length == meshData.Positions.Length;
 
             for (var i = 0; i < vertices.Length; i++)
             {
-                var color = hasColors ? meshData.Colors[i] : Vector4.One;
+                var color = hasColors ? colors[i] : Vector4.One;
                 var uv = hasUvs ? new Vector2(uvs[i * 2], uvs[i * 2 + 1]) : Vector2.Zero;
                 var normal = hasNormals ? new Vector3(normals[i * 3], normals[i * 3 + 1], normals[i * 3 + 2]) : Vector3.UnitY;
                 var position = new Vector3(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);

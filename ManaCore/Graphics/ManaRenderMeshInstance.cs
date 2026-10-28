@@ -41,6 +41,9 @@ namespace ManaCore.Graphics
         /// <summary>Each side lit as the side facing the camera: a thin sheet seen from both sides.</summary>
         public bool TwoSidedLighting { get; init; }
 
+        /// <summary>A textured terrain: drawn by the PBR shader's MANA_TERRAIN build, its vertex colour four layer weights.</summary>
+        public bool TerrainLayers { get; init; }
+
         /// <summary>
         /// Texture coordinate scale in XY and offset in ZW, applied to every map on this material.
         /// <para>

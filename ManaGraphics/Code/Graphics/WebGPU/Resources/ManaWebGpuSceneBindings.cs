@@ -96,7 +96,8 @@ namespace ManaGraphics.Code.Graphics.Resources
                     LodMinClamp = 0.0f,
                     LodMaxClamp = 32.0f,
                     Compare = CompareFunction.Undefined,
-                    MaxAnisotropy = 1
+                    // Ground and floors seen at a low angle stay sharp instead of blurring to a far mip.
+                    MaxAnisotropy = 8
                 };
                 LinearSampler = api.DeviceCreateSampler(device, &samplerDescriptor);
                 if (LinearSampler == null)
@@ -107,6 +108,8 @@ namespace ManaGraphics.Code.Graphics.Resources
                 // Pixel art: texels stay square up close; mips still blend so it does not shimmer far away.
                 samplerDescriptor.MagFilter = FilterMode.Nearest;
                 samplerDescriptor.MinFilter = FilterMode.Nearest;
+                // Anisotropy needs every filter linear.
+                samplerDescriptor.MaxAnisotropy = 1;
                 NearestSampler = api.DeviceCreateSampler(device, &samplerDescriptor);
                 if (NearestSampler == null)
                 {

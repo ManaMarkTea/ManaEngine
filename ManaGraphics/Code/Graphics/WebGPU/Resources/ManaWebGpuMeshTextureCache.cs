@@ -363,13 +363,16 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         private void CreateRgba8Texture(byte[] pixels, uint width, uint height, string diagnosticName, TextureFormat format, out Texture* texture, out TextureView* textureView)
         {
+            // Every level down to 1 x 1: without them a texture tiled into the distance (ground, brick) shimmers.
+            var mips = ManaCore.Imaging.ManaMipChain.Build(pixels, (int)width, (int)height, format == TextureFormat.Rgba8UnormSrgb);
+            var levelCount = (uint)(mips.Count + 1);
             var textureDescriptor = new TextureDescriptor
             {
                 Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
                 Dimension = TextureDimension.Dimension2D,
                 Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
                 Format = format,
-                MipLevelCount = 1,
+                MipLevelCount = levelCount,
                 SampleCount = 1
             };
             texture = Api.DeviceCreateTexture(Device, &textureDescriptor);
@@ -396,12 +399,23 @@ namespace ManaGraphics.Code.Graphics.Resources
                 var writeSize = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 };
                 Api.QueueWriteTexture(Queue, &destination, pixelPointer, (nuint)pixels.Length, &dataLayout, &writeSize);
             }
+            for (var level = 0; level < mips.Count; level++)
+            {
+                var (mipPixels, mipWidth, mipHeight) = mips[level];
+                fixed (byte* mipPointer = mipPixels)
+                {
+                    var destination = new ImageCopyTexture { Texture = texture, MipLevel = (uint)(level + 1), Origin = new Origin3D(), Aspect = TextureAspect.All };
+                    var dataLayout = new TextureDataLayout { Offset = 0, BytesPerRow = (uint)mipWidth * 4, RowsPerImage = (uint)mipHeight };
+                    var writeSize = new Extent3D { Width = (uint)mipWidth, Height = (uint)mipHeight, DepthOrArrayLayers = 1 };
+                    Api.QueueWriteTexture(Queue, &destination, mipPointer, (nuint)mipPixels.Length, &dataLayout, &writeSize);
+                }
+            }
 
             var textureViewDescriptor = new TextureViewDescriptor
             {
                 Format = format,
                 Dimension = TextureViewDimension.Dimension2D,
-                MipLevelCount = 1,
+                MipLevelCount = levelCount,
                 ArrayLayerCount = 1,
                 Aspect = TextureAspect.All
             };

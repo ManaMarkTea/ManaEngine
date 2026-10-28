@@ -158,6 +158,23 @@ public static class TerrainChecks
         check("its layer colours", loaded.LayerColors[3] == terrain.LayerColors[3], $"{loaded.LayerColors[3]}");
         check("and where it stands", loaded.Position == terrain.Position, $"{loaded.Position}");
         check("its patches are not saved as nodes of their own", entry!.Children == null, "");
+        check("ground pictures, the default, are not written out", entry.Terrain!.Textured == null, "");
+        check("and it loads textured", loaded.Textured, "");
+
+        // Textured, the GPU gets the paint weights in place of the colours; probes still see the colours.
+        var patch = loaded.PatchNodes.First();
+        var data = patch.Mesh.CpuData!;
+        check("textured patches carry their layer weights for the shader",
+            patch.MeshRenderer.TerrainLayers && data.ShaderColors != null && data.ShaderColors.All(w => MathF.Abs(w.X + w.Y + w.Z + w.W - 1.0f) < 0.02f),
+            $"{data.ShaderColors?[0]}");
+        check("and their blended colours for everything else", data.Colors.Length == data.Positions.Length && data.Colors[0].X < 1.0f, $"{data.Colors[0]}");
+
+        loaded.Textured = false;
+        var flat = loaded.PatchNodes.First();
+        check("flat colours when the pictures are off", !flat.MeshRenderer.TerrainLayers && flat.Mesh.CpuData!.ShaderColors == null, "");
+        var flatJson = ManaLevelCapture.Capture(reloaded.World, "Terrain").ToJson();
+        var flatEntry = ManaLevel.FromJson(flatJson).Nodes.Single(node => node.Kind == ManaLevelSourceKind.Terrain);
+        check("which is saved", flatEntry.Terrain!.Textured == false, "");
     }
 
     private static void RunSlopeChecks(Action<string, bool, string> check)

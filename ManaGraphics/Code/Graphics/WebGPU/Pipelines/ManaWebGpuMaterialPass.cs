@@ -270,7 +270,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private static ulong BatchKey(ManaWebGpuSceneMesh mesh)
         {
             var shader = mesh.Instance.ShaderName;
-            if ((shader != null && shader != "ManaPbrShader") || mesh.HasCustomUniforms || mesh.ObjectEntries.Length == 0)
+            if ((shader != null && shader != "ManaPbrShader") || mesh.HasCustomUniforms || mesh.ObjectEntries.Length == 0
+                || mesh.Instance.TerrainLayers)
             {
                 return 0;
             }
@@ -296,11 +297,12 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 // Only blended materials cull; water, liquid and lightning want both faces.
                 cullBackFaces: instance.OpacityMode is ManaOpacityMode.Blend or ManaOpacityMode.Additive,
                 alwaysOnTop: instance.AlwaysOnTop,
-                additiveBlend: instance.OpacityMode == ManaOpacityMode.Additive);
+                additiveBlend: instance.OpacityMode == ManaOpacityMode.Additive,
+                terrain: instance.TerrainLayers);
 
         private RenderPipeline* GetOrCreatePipeline(
             string? shaderName, bool isTransparent = false, bool disableDepthWrite = false, bool cullBackFaces = false,
-            bool alwaysOnTop = false, bool additiveBlend = false, bool instanced = false)
+            bool alwaysOnTop = false, bool additiveBlend = false, bool instanced = false, bool terrain = false)
         {
             shaderName ??= "ManaPbrShader";
 
@@ -311,6 +313,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             if (alwaysOnTop) { flags |= 8; }
             if (additiveBlend) { flags |= 16; }
             if (instanced) { flags |= 32; }
+            if (terrain) { flags |= 64; }
             var pipelineKey = (shaderName, flags);
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
@@ -327,6 +330,12 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             {
                 moduleKey = shaderName + "#instanced";
                 defines = ["MANA_INSTANCED"];
+            }
+            // A textured terrain's build reads its layer atlas (pbr_irradiance.wgsl), never instanced.
+            if (terrain)
+            {
+                moduleKey = shaderName + "#terrain";
+                defines = ["MANA_TERRAIN"];
             }
             if (!_shaderModules.TryGetValue(moduleKey, out var shaderModule))
             {

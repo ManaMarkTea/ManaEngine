@@ -116,6 +116,11 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
                             0.1f,
                             8.0f)));
                         rows.Add(InspectorControls.Row(context, "Size", ReadOnly(theme, () => $"{terrain.Width:0.#} x {terrain.Depth:0.#} m")));
+                        var textured = new CheckBox().Label("Ground pictures").Checked(terrain.Textured)
+                            .OnChanged(value => terrain.Textured = value);
+                        textured.BindPolled(control => control.IsChecked, () => terrain.Textured);
+                        rows.Add(InspectorControls.Row(context, "Layers", textured,
+                            "Grass, soil, rock and sand pictures tiled across the ground; off, each layer is its flat colour."));
                     }
 
                     break;

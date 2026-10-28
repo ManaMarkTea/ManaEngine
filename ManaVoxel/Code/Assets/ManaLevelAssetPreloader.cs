@@ -95,6 +95,14 @@ namespace ManaVoxel.Code.Assets
                         catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload audio '{path}': {ex.Message}"); }
                     }
                 }
+                if (node.Terrain is { Textured: not false })
+                {
+                    foreach (var atlas in new[] { Mana.Code.Nodes.ManaTerrainNode.LayerAlbedoAtlas, Mana.Code.Nodes.ManaTerrainNode.LayerNormalAtlas })
+                    {
+                        try { await catalog.EnsureAsync(atlas); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload terrain pictures '{atlas}': {ex.Message}"); }
+                    }
+                }
                 if (!string.IsNullOrWhiteSpace(node.Asset))
                 {
                     await catalog.EnsureAsync(node.Asset);

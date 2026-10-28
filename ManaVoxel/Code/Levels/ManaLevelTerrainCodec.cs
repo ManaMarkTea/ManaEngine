@@ -21,7 +21,9 @@ namespace ManaVoxel.Code.Levels
                 Spacing = terrain.Spacing,
                 Heights = Pack(heights),
                 Splat = Pack(terrain.Splat.ToArray()),
-                Layers = terrain.LayerColors.Select(c => new[] { c.X, c.Y, c.Z, c.W }).ToList()
+                Layers = terrain.LayerColors.Select(c => new[] { c.X, c.Y, c.Z, c.W }).ToList(),
+                // Written only when off, so a level from before the pictures saves unchanged.
+                Textured = terrain.Textured ? null : false
             };
         }
 
@@ -54,6 +56,7 @@ namespace ManaVoxel.Code.Levels
                     .Select(c => new Vector4(c[0], c[1], c[2], c.Length > 3 ? c[3] : 1.0f)).ToArray();
             }
 
+            terrain.Textured = settings.Textured ?? true;
             terrain.Load(samplesX, samplesZ, settings.Spacing, heights, Unpack(settings.Splat), layers);
         }
 

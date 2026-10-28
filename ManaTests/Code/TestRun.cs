@@ -113,6 +113,7 @@ public static class TestRunner
         ("ManaCore", "image codec", ImageCodecChecks.Run),
         ("ManaCore", "dds", DdsChecks.Run),
         ("ManaCore", "probe voxelizer", ProbeVoxelizerChecks.Run),
+        ("ManaCore", "mip chain", MipChainChecks.Run),
         ("ManaVoxel", "scene import", SceneImportChecks.Run),
         ("ManaCore", "wind", WindChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),

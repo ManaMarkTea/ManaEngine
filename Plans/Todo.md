@@ -79,8 +79,13 @@
     ring on the ground under the pointer. Saved as deflated base64 blobs (`ManaLevelTerrain`). Reference level
     `Content/Levels/Tests/Terrain.manalevel` (hills, a dirt path, a pond), check `Tools/Automation/Checks/terrain.json`,
     tests in `ManaTests/Code/ManaVoxel/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
-    Open: the path spline tool (flatten + paint along a draggable curve); a terrain shader with tiling textures per
-    layer and triplanar rock; layer (2), caves and cliffs. Tried on the web build (2026-10-28): terrain, footing and
+    Open: the path spline tool (flatten + paint along a draggable curve); triplanar rock (steep slopes stretch the
+    top-down pictures); layer (2), caves and cliffs.
+    Claude (2026-10-28): the layers are textured -- grass, soil, granite and sand pictures (CC0 packs already in
+    Assets/Materials) in one 2 x 2 atlas, tiled every 4 m and blended by paint weight sharpened by brightness, through
+    a `MANA_TERRAIN` build of the PBR shader; Inspector > Level JSON > Layers turns it off. Every picture texture now
+    has mips (ManaMipChain) and the sampler 8x anisotropy, which also stops distant textures shimmering everywhere.
+    Checked in Chrome. DevPhotos/2026-10-28 terrain-ground-pictures.png. Tried on the web build (2026-10-28): terrain, footing and
     scatter all work in Chrome (84 fps on the Terrain level).
     Claude (2026-10-28): scatter is built. A `Scatter` script on a terrain strews models (picked in the Inspector's new
     model picker, `[ModelPath]`) where one paint layer is, at a density a square metre, off slopes past a limit, turned,

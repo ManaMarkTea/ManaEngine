@@ -67,6 +67,54 @@ fn vs_main(
     return output;
 }
 
+// A textured terrain's maps are a 2 x 2 atlas of its four layers (Tools/Terrain/make_terrain_atlas.py): each quarter a
+// tile shrunk to 448 of its 512 pixels inside a 32 px wrapped border, repeated every TerrainTileMetres of ground.
+const TerrainTileMetres : f32 = 4.0;
+const TerrainBorder : f32 = 32.0 / 1024.0;
+const TerrainInner : f32 = 448.0 / 1024.0;
+// Gradients are capped so the furthest mip read still has border round its tile: no neighbour bleeds in.
+const TerrainMaxGradient : f32 = 1.0 / 48.0;
+
+struct TerrainSurface {
+    albedo : vec3<f32>,
+    normal : vec3<f32>,
+};
+
+fn mana_terrain_gradient(g : vec2<f32>) -> vec2<f32> {
+    let length_g = length(g);
+    return g * min(1.0, TerrainMaxGradient / max(length_g, 1e-8));
+}
+
+fn mana_terrain_uv(p : vec2<f32>, layer : u32) -> vec2<f32> {
+    let column = f32(layer % 2u);
+    let row = f32(layer / 2u);
+    // Pictures load bottom row first, so the atlas's top half (layers 0 and 1) is v 0.5..1.
+    let corner = vec2<f32>(column * 0.5, 0.5 - row * 0.5) + vec2<f32>(TerrainBorder);
+    return corner + fract(p) * TerrainInner;
+}
+
+// Blends the layers by their weights, sharpened by each layer's own brightness: where grass meets dirt the brighter
+// tufts and stones win first, so the edge breaks up as real ground does rather than smearing.
+fn mana_terrain_surface(weights_in : vec4<f32>, p : vec2<f32>, dx : vec2<f32>, dy : vec2<f32>) -> TerrainSurface {
+    let weights = max(weights_in, vec4<f32>(0.0)) / max(dot(max(weights_in, vec4<f32>(0.0)), vec4<f32>(1.0)), 1e-4);
+    var albedo : array<vec3<f32>, 4>;
+    var normal : array<vec3<f32>, 4>;
+    var height : vec4<f32>;
+    for (var i = 0u; i < 4u; i = i + 1u) {
+        let uv = mana_terrain_uv(p, i);
+        albedo[i] = textureSampleGrad(color_texture, color_sampler, uv, dx, dy).rgb;
+        normal[i] = textureSampleGrad(normal_texture, color_sampler, uv, dx, dy).rgb;
+        height[i] = weights[i] + 0.35 * dot(albedo[i], vec3<f32>(0.3, 0.6, 0.1));
+    }
+    let top = max(max(height.x, height.y), max(height.z, height.w)) - 0.15;
+    let blend = max(height - vec4<f32>(top), vec4<f32>(0.0)) * select(vec4<f32>(0.0), vec4<f32>(1.0), weights > vec4<f32>(0.001));
+    let total = max(dot(blend, vec4<f32>(1.0)), 1e-4);
+    var surface : TerrainSurface;
+    surface.albedo = (albedo[0] * blend.x + albedo[1] * blend.y + albedo[2] * blend.z + albedo[3] * blend.w) / total;
+    surface.normal = (normal[0] * blend.x + normal[1] * blend.y + normal[2] * blend.z + normal[3] * blend.w) / total;
+    return surface;
+}
+
 // Project the view ray onto a plane behind the surface. Dual UV gradients preserve scale and mirroring.
 fn mana_inset_uv(uv : vec2<f32>, position : vec3<f32>, normal : vec3<f32>) -> vec2<f32> {
     let dx = dpdx(position);
@@ -212,9 +260,20 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let sampled = textureSample(color_texture, color_sampler, uv);
     let vertex_color_linear = pow(max(input.color.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
     let material_albedo_linear = pow(max(object.material_albedo.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
-    let vertex_albedo = vertex_color_linear * sampled.rgb * material_albedo_linear;
+    var vertex_albedo = vertex_color_linear * sampled.rgb * material_albedo_linear;
     let opacity_sample = textureSample(opacity_texture, color_sampler, uv).r;
-    let alpha = input.color.a * sampled.a * object.material_albedo.a * opacity_sample;
+    var alpha = input.color.a * sampled.a * object.material_albedo.a * opacity_sample;
+
+#if MANA_TERRAIN
+    // A textured terrain (its own build, so no branch): the vertex colour is its four layer weights. Gradients come
+    // from the unbroken world position, so the wrap at each tile's edge leaves no seam.
+    let terrain_p = input.world_position.xz / TerrainTileMetres;
+    let terrain_dx = mana_terrain_gradient(dpdx(terrain_p) * TerrainInner);
+    let terrain_dy = mana_terrain_gradient(dpdy(terrain_p) * TerrainInner);
+    let surface = mana_terrain_surface(input.color, terrain_p, terrain_dx, terrain_dy);
+    vertex_albedo = surface.albedo * material_albedo_linear;
+    alpha = object.material_albedo.a;
+#endif
 
     // Two-sided sheets (cloth) light whichever side faces the camera.
     let interpolated_n = normalize(input.world_normal);
@@ -229,8 +288,12 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let facet_n = select(-derivative_n, derivative_n, dot(derivative_n, smooth_n) >= 0.0);
     let geometric_n = select(smooth_n, facet_n, object.flat_shading > 0.5);
 
+#if MANA_TERRAIN
+    let n = mana_perturb_normal(geometric_n, input.world_position, terrain_p, surface.normal, object.normal_strength);
+#else
     let normal_sample = textureSample(normal_texture, color_sampler, uv).rgb;
     let n = mana_perturb_normal(geometric_n, input.world_position, base_uv, normal_sample, object.normal_strength);
+#endif
 
     let v = normalize(frame.camera_position.xyz - input.world_position);
 

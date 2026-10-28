@@ -105,6 +105,29 @@ namespace Mana.Code.Nodes
         /// <summary>The patch child nodes, for tests and the picker.</summary>
         public IEnumerable<ManaMeshSceneNode> PatchNodes => _patches.Select(patch => patch.Node);
 
+        /// <summary>The four layers' pictures, a 2 x 2 atlas each (Tools/Terrain/make_terrain_atlas.py): grass, dirt, rock, sand.</summary>
+        public const string LayerAlbedoAtlas = "Assets/Textures/Terrain/terrain_albedo.jpg";
+        public const string LayerNormalAtlas = "Assets/Textures/Terrain/terrain_normal.jpg";
+
+        /// <summary>
+        /// Draw the layers with their pictures (ground, soil, granite, sand tiled every few metres); off, each is the
+        /// flat colour in <see cref="LayerColors"/>.
+        /// </summary>
+        public bool Textured
+        {
+            get => _textured;
+            set
+            {
+                if (_textured != value)
+                {
+                    _textured = value;
+                    RebuildAll();
+                }
+            }
+        }
+
+        private bool _textured = true;
+
         /// <summary>Counts every change to the heights or paint, so what sits on the ground (Scatter) knows to follow.</summary>
         public int Revision { get; private set; }
 
@@ -491,6 +514,11 @@ namespace Mana.Code.Nodes
             var positions = new Vector3[columns * rows];
             var normals = new Vector3[positions.Length];
             var colors = new Vector4[positions.Length];
+            Vector4[]? weights = null;
+            if (_textured)
+            {
+                weights = new Vector4[positions.Length];
+            }
             var uvs = new Vector2[positions.Length];
             var min = new Vector3(float.MaxValue);
             var max = new Vector3(float.MinValue);
@@ -509,6 +537,11 @@ namespace Mana.Code.Nodes
                     var dz = (this[x, z + 1] - this[x, z - 1]) / ((Math.Min(z + 1, SamplesZ - 1) - Math.Max(z - 1, 0)) * Spacing);
                     normals[v] = Vector3.Normalize(new Vector3(-dx, 1.0f, -dz));
                     colors[v] = SampleColor(z * SamplesX + x);
+                    if (weights != null)
+                    {
+                        var s = (z * SamplesX + x) * LayerCount;
+                        weights[v] = new Vector4(_splat[s], _splat[s + 1], _splat[s + 2], _splat[s + 3]) / 255.0f;
+                    }
                     uvs[v] = new Vector2(local.X, local.Y);
                 }
             }
@@ -536,15 +569,33 @@ namespace Mana.Code.Nodes
             }
 
             var mesh = patch.Node.Mesh;
+            string? albedoAtlas = null;
+            string? normalAtlas = null;
+            if (_textured)
+            {
+                albedoAtlas = Find(LayerAlbedoAtlas);
+                normalAtlas = Find(LayerNormalAtlas);
+            }
+            // Textured, the GPU's vertex colour is the four weights; light probes still read the blended colours.
             mesh.SetCpuData(new ManaMeshCpuData
             {
                 Indexes = indexes,
                 Positions = positions,
                 Normals = normals,
                 Colors = colors,
+                ShaderColors = weights,
                 TextureCoordinates0 = uvs,
-                TextureCoordinates1 = uvs
+                TextureCoordinates1 = uvs,
+                AlbedoTexturePath = albedoAtlas,
+                NormalTexturePath = normalAtlas
             });
+            patch.Node.MeshRenderer.TerrainLayers = _textured;
+            // The atlas's normal map at full strength when textured; the selector's other end is the vertex normal.
+            _material.NormalSelector = 1.0;
+            if (_textured)
+            {
+                _material.NormalSelector = 0.0;
+            }
             mesh.SetSize(min, max);
             patch.Builds++;
             RebuildCollider(patch, triangles);
@@ -598,6 +649,25 @@ namespace Mana.Code.Nodes
             }
 
             _patches = [];
+        }
+
+        // The browser's copy from the asset catalog, else the checkout or the build output (which copies Assets/Textures).
+        private static string? Find(string asset)
+        {
+            if (ManaCore.Assets.ManaAssetCatalog.Current?.LocalFileOf(asset) is { } downloaded && File.Exists(downloaded))
+            {
+                return downloaded;
+            }
+            if (File.Exists(asset))
+            {
+                return asset;
+            }
+            var output = Path.Combine(AppContext.BaseDirectory, asset);
+            if (File.Exists(output))
+            {
+                return output;
+            }
+            return null;
         }
 
         private Vector2 SampleLocal(int x, int z) => new(x * Spacing - Width * 0.5f, z * Spacing - Depth * 0.5f);

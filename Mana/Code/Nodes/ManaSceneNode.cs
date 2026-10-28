@@ -354,6 +354,7 @@ namespace Mana.Code.Nodes
                         OutlineWidth = renderer.RenderOutlineWidth,
                         SelectionWireframe = renderer.EditorWireframe,
                         TwoSidedLighting = renderer.TwoSidedLighting,
+                        TerrainLayers = renderer.TerrainLayers,
                         InsetDepth = renderer.Material.InsetDepth,
                         UvTransform = new Vector4(
                             renderer.Material.UvScale.X,

@@ -464,6 +464,9 @@ namespace ManaVoxel.Code.Levels
 
         /// <summary>The four paint layers' colours.</summary>
         public List<float[]>? Layers { get; set; }
+
+        /// <summary>False draws each layer as its flat colour; absent (the default) draws the ground pictures.</summary>
+        public bool? Textured { get; set; }
     }
 
     /// <summary>

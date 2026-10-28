@@ -34,6 +34,9 @@ namespace Mana
         /// <summary>Each side lit as the side facing the camera -- a thin sheet seen from both sides (cloth).</summary>
         public bool TwoSidedLighting { get; set; }
 
+        /// <summary>A textured terrain: the vertex colour is four layer weights, the maps a 2 x 2 atlas (ManaTerrainNode).</summary>
+        public bool TerrainLayers { get; set; }
+
         // A custom outline takes priority so its width and colour remain editable while selected.
         public bool RenderOutlineEnabled => OutlineEnabled || EditorOutlineEnabled;
         public Vector4 RenderOutlineColor => OutlineEnabled ? OutlineColor : EditorOutlineColor;
