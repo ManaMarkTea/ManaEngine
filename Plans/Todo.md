@@ -80,7 +80,8 @@
     `Content/Levels/Tests/Terrain.manalevel` (hills, a dirt path, a pond), check `Tools/Automation/Checks/terrain.json`,
     tests in `ManaTests/Code/ManaVoxel/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
     Open: the path spline tool (flatten + paint along a draggable curve); a terrain shader with tiling textures per
-    layer and triplanar rock; layer (2), caves and cliffs. Not yet tried on the web build.
+    layer and triplanar rock; layer (2), caves and cliffs. Tried on the web build (2026-10-28): terrain, footing and
+    scatter all work in Chrome (84 fps on the Terrain level).
     Claude (2026-10-28): scatter is built. A `Scatter` script on a terrain strews models (picked in the Inspector's new
     model picker, `[ModelPath]`) where one paint layer is, at a density a square metre, off slopes past a limit, turned,
     sized and leaned from a seed; copies are editor-transient, regrown a moment after a sculpt or paint stroke. The

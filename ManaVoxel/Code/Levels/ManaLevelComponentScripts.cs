@@ -263,6 +263,18 @@ namespace ManaVoxel.Code.Levels
         /// it is ignored in practice; for a type that can repeat without <c>AllowMultiple</c> (trigger volumes), it
         /// picks which existing component receives the properties, so several round-trip in order.
         /// </param>
+        /// <summary>The models a saved script names in its <c>[ModelPath]</c> properties (a Scatter's), to fetch ahead on the web.</summary>
+        public static IEnumerable<string> ModelPaths(ManaLevelScript script)
+        {
+            var definition = Definitions.FirstOrDefault(definition =>
+                string.Equals(definition.Type, script.Type, StringComparison.OrdinalIgnoreCase));
+            if (definition == null)
+            {
+                return [];
+            }
+            return ManaLevelComponentPropertyBag.ModelPaths(definition.ComponentType, script.Properties);
+        }
+
         public static bool AddToNode(ManaSceneNode node, ManaLevelScript script, int occurrence = 0)
         {
             var definition = Definitions.FirstOrDefault(definition =>
@@ -340,6 +352,29 @@ namespace ManaVoxel.Code.Levels
             }
 
             return properties;
+        }
+
+        public static IEnumerable<string> ModelPaths(
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties)] Type componentType,
+            IReadOnlyDictionary<string, JsonElement> properties)
+        {
+            var found = new List<string>();
+            foreach (var property in SerializableProperties(componentType))
+            {
+                if (property.GetCustomAttribute<Mana.Code.Components.ModelPathAttribute>() == null || !TryGet(properties, property, out var value))
+                {
+                    continue;
+                }
+                if (value.ValueKind == JsonValueKind.String)
+                {
+                    found.Add(value.GetString() ?? string.Empty);
+                }
+                else if (value.ValueKind == JsonValueKind.Array)
+                {
+                    found.AddRange(value.EnumerateArray().Where(item => item.ValueKind == JsonValueKind.String).Select(item => item.GetString() ?? string.Empty));
+                }
+            }
+            return found.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase);
         }
 
         [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "Property types are kept by the annotation on componentType; the web build turns reflection JSON on.")]

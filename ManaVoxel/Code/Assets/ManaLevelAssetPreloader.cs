@@ -80,6 +80,11 @@ namespace ManaVoxel.Code.Assets
                         try { await catalog.EnsureAsync(picture); }
                         catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload sprite picture '{picture}': {ex.Message}"); }
                     }
+                    foreach (var model in ManaLevelComponentScripts.ModelPaths(script))
+                    {
+                        try { await catalog.EnsureAsync(model); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload model '{model}': {ex.Message}"); }
+                    }
                     if (!string.Equals(script.Type, ManaAudioSourceComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) { continue; }
                     string Text(string key) => script.Properties.FirstOrDefault(pair =>
                         string.Equals(pair.Key, key, StringComparison.OrdinalIgnoreCase)).Value is var value
