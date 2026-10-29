@@ -26,6 +26,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly RenderPipeline* _blurVPipeline;
         private readonly RenderPipeline* _combinePipeline;
         private readonly RenderPipeline* _plainPipeline;
+        // SMAA's input: the tone map alone, into a texture of the window's format (made on first use).
+        private RenderPipeline* _tonemapPipeline;
 
         // Textures & Views (Full Res Scene, 1/4 Res Bloom A & B)
         private Texture* _sceneTexture;
@@ -154,6 +156,33 @@ namespace ManaGraphics.Code.Graphics.Renderers
             }
         }
 
+        /// <summary>The tone-mapped scene, bloom and all, into <paramref name="target"/> (the window's format): SMAA's input.</summary>
+        public void EncodeTonemap(CommandEncoder* encoder, TextureView* target)
+        {
+            if (_combineBindGroup == null)
+            {
+                return;
+            }
+            if (_tonemapPipeline == null)
+            {
+                _tonemapPipeline = CreatePipeline(_pipelineLayout, "fs_tonemap", _surfaceFormat);
+            }
+            var colorAttachment = new RenderPassColorAttachment
+            {
+                View = target,
+                LoadOp = LoadOp.Clear,
+                StoreOp = StoreOp.Store,
+                ClearValue = new Color { R = 0.0, G = 0.0, B = 0.0, A = 1.0 }
+            };
+            var passDescriptor = new RenderPassDescriptor { ColorAttachmentCount = 1, ColorAttachments = &colorAttachment };
+            var pass = Api.CommandEncoderBeginRenderPass(encoder, &passDescriptor);
+            Api.RenderPassEncoderSetPipeline(pass, _tonemapPipeline);
+            Api.RenderPassEncoderSetBindGroup(pass, 0, _combineBindGroup, 0, null);
+            Api.RenderPassEncoderDraw(pass, 3, 1, 0, 0);
+            Api.RenderPassEncoderEnd(pass);
+            Api.RenderPassEncoderRelease(pass);
+        }
+
         /// <param name="fxaa">FXAA on the way out; off when anti-aliasing is off or done elsewhere.</param>
         public void Draw(RenderPassEncoder* renderPass, bool fxaa = true)
         {
@@ -180,6 +209,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
             if (_combinePipeline != null) Api.RenderPipelineRelease(_combinePipeline);
             if (_plainPipeline != null) Api.RenderPipelineRelease(_plainPipeline);
+            if (_tonemapPipeline != null) Api.RenderPipelineRelease(_tonemapPipeline);
             if (_blurVPipeline != null) Api.RenderPipelineRelease(_blurVPipeline);
             if (_blurHPipeline != null) Api.RenderPipelineRelease(_blurHPipeline);
             if (_brightPipeline != null) Api.RenderPipelineRelease(_brightPipeline);

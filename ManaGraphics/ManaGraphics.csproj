@@ -56,6 +56,8 @@
     <Content Include="Assets\Shaders\WebGpu\**\*.wgsl">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <!-- SMAA's precomputed area and search tables (MIT, LICENSE.txt beside them), read by ManaWebGpuSmaa. -->
+    <EmbeddedResource Include="Assets\Smaa\*.bin" LogicalName="Smaa.%(Filename).bin" />
     <Content Include="..\Mana\Assets\Models\FlightHelmet\glTF\**\*">
       <Link>Assets\Models\FlightHelmet\glTF\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

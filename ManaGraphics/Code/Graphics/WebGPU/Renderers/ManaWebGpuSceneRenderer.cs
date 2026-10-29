@@ -22,6 +22,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly ManaWebGpuPointShadowMap? _pointShadowMap;
         // Made the first time MSAA is chosen; the anti-aliasing last drawn picks the tone map's FXAA.
         private ManaWebGpuMsaaTargets? _msaa;
+        private ManaWebGpuSmaa? _smaa;
         private ManaAntiAliasing _antiAliasing = ManaAntiAliasing.Fxaa;
         private ManaWebGpuLightClusters? _lights;
         private Vector2D<int> _size;
@@ -270,6 +271,14 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 {
                     _hdr.Process(encoder);
                 }
+                if (_antiAliasing == ManaAntiAliasing.Smaa && !suspended)
+                {
+                    using (ManaFrameProfiler.Measure("GPU: SMAA"))
+                    {
+                        _smaa ??= new ManaWebGpuSmaa(Gpu, Gpu.SurfaceFormat);
+                        _smaa.Encode(encoder, _hdr, frame.Width, frame.Height);
+                    }
+                }
             }
 
             return !useHdr;
@@ -301,6 +310,12 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// <summary>Tone-maps the HDR scene into the surface pass the UI then draws over.</summary>
         public void DrawToneMap(RenderPassEncoder* pass)
         {
+            // SMAA's last pass is the tone map's stand-in: its blend, with the outline drawn over it.
+            if (_antiAliasing == ManaAntiAliasing.Smaa && _smaa is { Ready: true })
+            {
+                _smaa.DrawPresent(pass);
+                return;
+            }
             _hdr.Draw(pass, _antiAliasing == ManaAntiAliasing.Fxaa);
         }
 
@@ -347,6 +362,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _pointShadowMap?.Dispose();
             _msaa?.Dispose();
             _msaa = null;
+            _smaa?.Dispose();
+            _smaa = null;
         }
     }
 }

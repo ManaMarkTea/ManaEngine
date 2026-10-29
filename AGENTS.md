@@ -99,6 +99,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; drops down the viewport bar's snap options |
 | `emission` | `name`, `position` (rgb), `frames` (strength x100) | Sets emission on every mesh under a node |
 | `dump_environment` | `path` | Saves the reflection cube's six faces as `<path>.face0..5.png` (+X -X +Y -Y +Z -Z) |
+| `anti_aliasing` | `name` (`Off`, `Fxaa`, `Smaa`, `Msaa`) | Sets Scene Inspector > Lighting > Anti-aliasing. Fixture: `Tools/Automation/Checks/anti-aliasing.json` |
 | `lighting` | `name` (`exposure`, `ibl`, `light`), `value` | Sets one of Scene Inspector > Lighting's sliders. Inside a probe volume `ibl` scales only the sky's share of the baked light, not lamps bounced |
 | `material` | `name`, `position` (metallic, roughness) | Sets metallic and roughness on every mesh under a node -- `[1, 0]` is a mirror |
 | `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
@@ -383,6 +384,16 @@ dark when it casts shadows, which a click selects; the selected light's range as
   Lighting; the `ambient_occlusion` script command (`value`, `radius`); PBR debug view `Ambient Occlusion`. Off on
   phones. The earlier 16-sample hemisphere version cost about 0.9 ms a frame on Bistro; the bitmask is not timed yet.
   Debug views drop blended surfaces (glass): their -1 "leave alone" alpha would blend to black.
+- **Anti-aliasing:** `ManaIrradianceSettings.AntiAliasing` (Scene Inspector > Lighting; `anti_aliasing` command), not saved.
+  FXAA (the default) runs in the tone map (`hdr_tonemap.wgsl`, `fs_main`; `fs_plain` without). SMAA 1x
+  (`ManaWebGpuSmaa`, `smaa.wgsl`, a port of the reference SMAA.hlsl at its HIGH preset without the diagonal search;
+  its area and search tables are embedded from `ManaGraphics/Assets/Smaa/`, MIT): the tone map into a texture, luma
+  edges, blend weights, and the neighbourhood blend drawn into the window in place of the tone map, with the outline
+  (`include/outline_composite.wgsl`) over it; it also smooths shadow edges. MSAA 4x (WebGPU allows only 1 or 4): the
+  scene pass draws into `ManaWebGpuMsaaTargets`, its colour resolving into the HDR target; depth cannot be resolved, so
+  `depth_resolve.wgsl` copies sample 0 into the surface depth for the passes after. Everything drawn in the scene pass
+  builds for `ManaWebGpuFrame.SampleCount` (material pipelines key on it; overlays, sky and particles rebuild on a
+  change); the always-on-top pass after it stays single-sampled.
 - **Point-light shadows:** a point `Light` with `castsShadows` gets a shadow slot when it is among the 8 nearest the
   camera (`ManaRenderScene.AssignPointShadows`, the slot in its colour's w): six 90-degree depth faces of 512 in one
   array (`ManaWebGpuPointShadowMap`), drawn by `ManaWebGpuPointShadowPass` through the depth-only drawer only when the
