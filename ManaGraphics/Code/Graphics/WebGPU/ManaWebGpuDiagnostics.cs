@@ -71,11 +71,19 @@ namespace ManaGraphics.Code.Graphics
                     ManaGraphicsDiagnosticsCommonSections.CreateSystem(),
                     ManaGraphicsDiagnosticsCommonSections.CreateAdapter(
                         graphicsApi: "WebGPU",
+#if MANA_BROWSER
+                        renderer: Browser.ManaBrowserInterop.GpuAdapter(),
+#else
                         renderer: ReadDiagnosticString(properties.Name),
+#endif
                         vendor: $"{ReadDiagnosticString(properties.VendorName)} (0x{properties.VendorID:X4})",
                         deviceId: $"0x{properties.DeviceID:X4}",
                         driver: ReadDiagnosticString(properties.DriverDescription),
+#if MANA_BROWSER
+                        apiVersion: "Browser WebGPU via Emscripten",
+#else
                         apiVersion: "WebGPU via wgpu-native",
+#endif
                         shaderLanguage: "WGSL",
                         adapterType: properties.AdapterType.ToString(),
                         architecture: ReadDiagnosticString(properties.Architecture),

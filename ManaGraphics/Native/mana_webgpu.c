@@ -276,8 +276,52 @@ size_t mana_wgpuAdapterEnumerateFeatures(WGPUAdapter adapter, WGPUFeatureName * 
     return wgpuAdapterEnumerateFeatures(adapter, features);
 }
 
+// Emscripten 3.1.56 aborts in AdapterGetLimits; query the browser objects directly.
+EM_JS(double, mana_limit, (int handle, int device, const char *name), {
+    var object = device ? WebGPU.mgrDevice.get(handle) : WebGPU.mgrAdapter.get(handle);
+    var value = object.limits[UTF8ToString(name)];
+    return typeof value === 'number' ? value : -1;
+});
+
+static WGPUBool mana_read_limits(int handle, int device, WGPUSupportedLimits *limits) {
+    if (!limits) return 0;
+    { double value = mana_limit(handle, device, "maxTextureDimension1D"); limits->limits.maxTextureDimension1D = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxTextureDimension2D"); limits->limits.maxTextureDimension2D = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxTextureDimension3D"); limits->limits.maxTextureDimension3D = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxTextureArrayLayers"); limits->limits.maxTextureArrayLayers = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxBindGroups"); limits->limits.maxBindGroups = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxBindGroupsPlusVertexBuffers"); limits->limits.maxBindGroupsPlusVertexBuffers = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxBindingsPerBindGroup"); limits->limits.maxBindingsPerBindGroup = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxDynamicUniformBuffersPerPipelineLayout"); limits->limits.maxDynamicUniformBuffersPerPipelineLayout = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxDynamicStorageBuffersPerPipelineLayout"); limits->limits.maxDynamicStorageBuffersPerPipelineLayout = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxSampledTexturesPerShaderStage"); limits->limits.maxSampledTexturesPerShaderStage = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxSamplersPerShaderStage"); limits->limits.maxSamplersPerShaderStage = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxStorageBuffersPerShaderStage"); limits->limits.maxStorageBuffersPerShaderStage = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxStorageTexturesPerShaderStage"); limits->limits.maxStorageTexturesPerShaderStage = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxUniformBuffersPerShaderStage"); limits->limits.maxUniformBuffersPerShaderStage = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxUniformBufferBindingSize"); limits->limits.maxUniformBufferBindingSize = value < 0 ? UINT64_MAX : (uint64_t)value; }
+    { double value = mana_limit(handle, device, "maxStorageBufferBindingSize"); limits->limits.maxStorageBufferBindingSize = value < 0 ? UINT64_MAX : (uint64_t)value; }
+    { double value = mana_limit(handle, device, "minUniformBufferOffsetAlignment"); limits->limits.minUniformBufferOffsetAlignment = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "minStorageBufferOffsetAlignment"); limits->limits.minStorageBufferOffsetAlignment = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxVertexBuffers"); limits->limits.maxVertexBuffers = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxBufferSize"); limits->limits.maxBufferSize = value < 0 ? UINT64_MAX : (uint64_t)value; }
+    { double value = mana_limit(handle, device, "maxVertexAttributes"); limits->limits.maxVertexAttributes = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxVertexBufferArrayStride"); limits->limits.maxVertexBufferArrayStride = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxInterStageShaderComponents"); limits->limits.maxInterStageShaderComponents = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxInterStageShaderVariables"); limits->limits.maxInterStageShaderVariables = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxColorAttachments"); limits->limits.maxColorAttachments = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxColorAttachmentBytesPerSample"); limits->limits.maxColorAttachmentBytesPerSample = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeWorkgroupStorageSize"); limits->limits.maxComputeWorkgroupStorageSize = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeInvocationsPerWorkgroup"); limits->limits.maxComputeInvocationsPerWorkgroup = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeWorkgroupSizeX"); limits->limits.maxComputeWorkgroupSizeX = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeWorkgroupSizeY"); limits->limits.maxComputeWorkgroupSizeY = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeWorkgroupSizeZ"); limits->limits.maxComputeWorkgroupSizeZ = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    { double value = mana_limit(handle, device, "maxComputeWorkgroupsPerDimension"); limits->limits.maxComputeWorkgroupsPerDimension = value < 0 ? UINT32_MAX : (uint32_t)value; }
+    return 1;
+}
+
 WGPUBool mana_wgpuAdapterGetLimits(WGPUAdapter adapter, WGPUSupportedLimits * limits) {
-    return wgpuAdapterGetLimits(adapter, limits);
+    return mana_read_limits((int)adapter, 0, limits);
 }
 
 void mana_wgpuAdapterGetProperties(WGPUAdapter adapter, WGPUAdapterProperties * properties) {
@@ -552,7 +596,7 @@ size_t mana_wgpuDeviceEnumerateFeatures(WGPUDevice device, WGPUFeatureName * fea
 }
 
 WGPUBool mana_wgpuDeviceGetLimits(WGPUDevice device, WGPUSupportedLimits * limits) {
-    return wgpuDeviceGetLimits(device, limits);
+    return mana_read_limits((int)device, 1, limits);
 }
 
 WGPUQueue mana_wgpuDeviceGetQueue(WGPUDevice device) {

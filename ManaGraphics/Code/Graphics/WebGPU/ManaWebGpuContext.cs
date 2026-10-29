@@ -184,8 +184,8 @@ namespace ManaGraphics.Code.Graphics
             ManaConsole.WriteDiagnostic($"WebGPU surface configured: {window.FramebufferSize.X}x{window.FramebufferSize.Y}, format={_surfaceFormat}.");
 #if !MANA_BROWSER
             _diagnostics.LogStartup(DiagnosticsState());
-            CaptureInitializationSnapshot();
 #endif
+            CaptureInitializationSnapshot();
         }
 
         public void Resize(Vector2D<int> framebufferSize)
