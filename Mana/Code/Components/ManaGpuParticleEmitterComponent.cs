@@ -18,11 +18,33 @@ public sealed class ManaGpuParticleEmitterComponent : ManaComponent
     [Category("Emission")] public int Seed { get; set; } = 1;
     [Category("Emission")] public float SpreadDegrees { get; set; } = 30;
     [Category("Emission")] public float Radius { get; set; } = 2;
+    /// <summary>Born on the rim of Radius rather than across the disc: rings, tornado walls, accretion disks.</summary>
+    [Category("Emission")] public bool EmitFromEdge { get; set; }
+    /// <summary>Births bunched into this many spokes; with Swirl Falloff they wind into spiral arms. 0 is even.</summary>
+    [Category("Emission")] public int Arms { get; set; }
+    /// <summary>How far births scatter either side of an arm, as a share of the gap between arms.</summary>
+    [Category("Emission")] public float ArmWidth { get; set; } = 0.2f;
+    /// <summary>Launch speed out from the node's up axis, added to Speed along the spread.</summary>
+    [Category("Emission")] public float RadialSpeed { get; set; }
+    /// <summary>Bursts a lifetime, each born all at once somewhere within Radius: fireworks. 0 is a steady stream.</summary>
+    [Category("Emission")] public int Bursts { get; set; }
+    /// <summary>Share of launch speed each particle may lose, so a spray has depth rather than one shell.</summary>
+    [Category("Motion")] public float SpeedVariation { get; set; }
     [Category("Motion")] public float Lifetime { get; set; } = 3;
     [Category("Motion")] public float Speed { get; set; } = 5;
     [Category("Motion")] public Vector3 Gravity { get; set; } = new(0, -3, 0);
     [Category("Motion")] public float Drag { get; set; }
     [Category("Motion")] public float WindInfluence { get; set; } = 1;
+    /// <summary>Degrees a second round the node's up axis at its birth pose.</summary>
+    [Category("Swirl")] public float SwirlSpeed { get; set; }
+    /// <summary>Slows the swirl with distance from the axis (per metre), so it shears into spirals.</summary>
+    [Category("Swirl")] public float SwirlFalloff { get; set; }
+    /// <summary>Draws particles in toward the axis (per second); negative flings them out, a widening funnel.</summary>
+    [Category("Swirl")] public float Pull { get; set; }
+    /// <summary>Metres a particle wanders in a flowing noise field.</summary>
+    [Category("Turbulence")] public float Turbulence { get; set; }
+    [Category("Turbulence")] public float TurbulenceScale { get; set; } = 2;
+    [Category("Turbulence")] public float TurbulenceSpeed { get; set; } = 0.5f;
     [Category("Bounce")] public bool BouncePlane1Enabled { get; set; }
     [Category("Bounce")] public Vector3 BouncePlane1Position { get; set; }
     [Category("Bounce")] public Vector3 BouncePlane1Normal { get; set; } = Vector3.UnitY;
@@ -36,6 +58,14 @@ public sealed class ManaGpuParticleEmitterComponent : ManaComponent
     [Category("Look")] public Vector4 EndColor { get; set; } = new(1, 0.1f, 0, 0);
     [Category("Look")] public float Brightness { get; set; } = 1;
     [Category("Look")] public bool HardEdge { get; set; }
+    /// <summary>Seconds of travel each particle is stretched over: sparks and rain rather than dots.</summary>
+    [Category("Look")] public float StreakLength { get; set; }
+    /// <summary>Share of the colour wheel each particle's hue is scattered over (1 is a rainbow).</summary>
+    [Category("Look")] public float HueVariation { get; set; }
+    /// <summary>Turns of hue a particle goes round over its life.</summary>
+    [Category("Look")] public float HueShift { get; set; }
+    [Category("Look")] public float Twinkle { get; set; }
+    [Category("Look")] public float SizeVariation { get; set; }
     private double _seconds;
     public const int SpawnHistoryLength = 256;
     private readonly Matrix4x4[] _spawnTransforms = new Matrix4x4[SpawnHistoryLength];
@@ -102,7 +132,13 @@ public sealed class ManaGpuParticleEmitterComponent : ManaComponent
         _spawnTransforms, _spawnRevision, (uint)(_spawnTick % SpawnHistoryLength),
         (uint)(_spawnTick % (SpawnHistoryLength - 2)), SpawnInterval,
         Plane(BouncePlane1Position, BouncePlane1Normal), Plane(BouncePlane2Position, BouncePlane2Normal),
-        new(BouncePlane1Enabled ? 1 : 0, BouncePlane2Enabled ? 1 : 0, Math.Clamp(Finite(Bounciness, 0.6f), 0, 1), 0), Math.Max(Finite(WindInfluence, 1), 0));
+        new(BouncePlane1Enabled ? 1 : 0, BouncePlane2Enabled ? 1 : 0, Math.Clamp(Finite(Bounciness, 0.6f), 0, 1), 0), Math.Max(Finite(WindInfluence, 1), 0),
+        new(Finite(SwirlSpeed, 0) * MathF.PI / 180, Math.Max(Finite(SwirlFalloff, 0), 0), Math.Clamp(Finite(Pull, 0), -5, 20), Finite(RadialSpeed, 0)),
+        // The noise clock wraps far apart (10 minutes) so the field never visibly jumps the way the lifetime phase would.
+        new(Math.Max(Finite(Turbulence, 0), 0), 1 / Math.Max(Finite(TurbulenceScale, 2), 0.01f), Finite(TurbulenceSpeed, 0.5f), (float)(_seconds % 600)),
+        new(Math.Clamp(Finite(HueVariation, 0), 0, 1), Finite(HueShift, 0), Math.Clamp(Finite(Twinkle, 0), 0, 1), Math.Clamp(Finite(SizeVariation, 0), 0, 1)),
+        new(EmitFromEdge ? 1 : 0, Math.Clamp(Arms, 0, 64), Math.Clamp(Finite(StreakLength, 0), 0, 2), Math.Clamp(Finite(ArmWidth, 0.2f), 0, 1)),
+        new(Math.Clamp(Bursts, 0, 1024), (float)(Math.Floor(_seconds / SafeLifetime) % 4096), Math.Clamp(Finite(SpeedVariation, 0), 0, 1), 0));
     }
 
     // Planes are world-space. Their normals point into the permitted half-space.

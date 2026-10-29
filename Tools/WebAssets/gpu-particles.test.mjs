@@ -15,19 +15,20 @@ const test = async function(source) {
     const module = device.createShaderModule({code: source + `
 @group(0) @binding(2) var<storage, read_write> positions: array<vec4<f32>>;
 @compute @workgroup_size(1) fn regression(@builtin(global_invocation_id) id: vec3<u32>) {
-    positions[id.x] = particle_motion(id.x);
+    let launch = particle_launch(id.x);
+    positions[id.x] = vec4<f32>(position_at(launch, launch.age), launch.t);
 }`});
     const info = await module.getCompilationInfo();
     if(info.messages.some(m=>m.type==='error')) throw Error(info.messages.map(m=>m.message).join('\n'));
     const compute = await device.createComputePipelineAsync({layout:'auto',compute:{module,entryPoint:'regression'}});
     const renderLayout = device.createBindGroupLayout({entries:[
-      {binding:0,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform',minBindingSize:336}},
+      {binding:0,visibility:GPUShaderStage.VERTEX|GPUShaderStage.FRAGMENT,buffer:{type:'uniform',minBindingSize:416}},
       {binding:1,visibility:GPUShaderStage.VERTEX,buffer:{type:'read-only-storage',minBindingSize:16384}}
     ]});
     const render = await device.createRenderPipelineAsync({layout:device.createPipelineLayout({bindGroupLayouts:[renderLayout]}),
       vertex:{module,entryPoint:'vs_main'},fragment:{module,entryPoint:'fs_main',targets:[{format:'rgba16float',blend:{color:{srcFactor:'src-alpha',dstFactor:'one',operation:'add'},alpha:{srcFactor:'zero',dstFactor:'one',operation:'add'}}}]},
       primitive:{topology:'triangle-list',cullMode:'none'},depthStencil:{format:'depth24plus',depthWriteEnabled:false,depthCompare:'less-equal'}});
-    const uniform = device.createBuffer({size:336,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+    const uniform = device.createBuffer({size:416,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
     const history = device.createBuffer({size:16384,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
     const output = device.createBuffer({size:160,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC});
     const staging = device.createBuffer({size:160,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST});
@@ -36,7 +37,7 @@ const test = async function(source) {
     const identity = [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1];
     const moved = [0,1,0,0,-1,0,0,0,0,0,1,0,10,2,3,1];
     for(let i=0;i<256;i++) samples.set(identity,i*16);
-    const data = new ArrayBuffer(336), f = new Float32Array(data), u = new Uint32Array(data);
+    const data = new ArrayBuffer(416), f = new Float32Array(data), u = new Uint32Array(data);
     f[0]=f[5]=0.1; f[10]=0.01; f[14]=0.5; f[15]=1;
     f.set(moved,16); f[32]=1; f[37]=1;
     f.set([0,1,2,1],40); f.set([0,-4,0,0],44); f.set([0.1,0.02,0,1],48);
@@ -107,6 +108,12 @@ const test = async function(source) {
     f[83]=1; f[47]=0; f.set([0,1,0,0],68); f[76]=1;
     for(let i=0;i<256;i++) samples.set(down,i*16);
     near(await positionsAt(0.5),0,[1.5,0.5,-1],'wind preserves tangential motion through a floor bounce');
+    // Swirl turns the free flight about the birth axis: a quarter turn at this age, round +Y through the origin.
+    for(let i=0;i<256;i++) samples.set(identity,i*16);
+    f[76]=f[77]=0; const still=await positionsAt(0.5);
+    f[84]=Math.PI; const turned=await positionsAt(0.5);
+    near(turned,0,[still[2],still[1],-still[0]],'swirl turns a particle about its birth axis');
+    f[84]=0;
     // Validate the actual instanced HDR/depth render path as well as compute readback.
     const renderGroup=device.createBindGroup({layout:renderLayout,entries:[{binding:0,resource:{buffer:uniform}},{binding:1,resource:{buffer:history}}]});
     const color=device.createTexture({size:[64,64],format:'rgba16float',usage:GPUTextureUsage.RENDER_ATTACHMENT});
@@ -114,7 +121,7 @@ const test = async function(source) {
     const encoder=device.createCommandEncoder(); const pass=encoder.beginRenderPass({colorAttachments:[{view:color.createView(),loadOp:'clear',storeOp:'store',clearValue:[0,0,0,1]}],depthStencilAttachment:{view:depth.createView(),depthLoadOp:'clear',depthStoreOp:'store',depthClearValue:1}});
     pass.setPipeline(render); pass.setBindGroup(0,renderGroup); pass.draw(6,10); pass.end(); device.queue.submit([encoder.finish()]);
     await device.queue.onSubmittedWorkDone(); const error=await device.popErrorScope(); if(error) throw Error(error.message);
-    document.body.textContent='PASS: GPU particle readback preserves birth positions, world gravity, rotated launches and ring/lifetime wrap; global wind, floor, restitution, resting contact, two-plane bounces and drag validated; render pipeline validated.';
+    document.body.textContent='PASS: GPU particle readback preserves birth positions, world gravity, rotated launches and ring/lifetime wrap; global wind, floor, restitution, resting contact, two-plane bounces, drag and swirl validated; render pipeline validated.';
     console.log(document.body.textContent);
   } catch(error) { document.body.textContent='FAIL: '+error.stack; console.error(document.body.textContent); }
 };

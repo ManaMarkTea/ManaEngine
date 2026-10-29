@@ -1,0 +1,302 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "ef8518db68e74b358ff03276938ee24e",
+  "name": "Rocket",
+  "root": {
+    "id": "852959f6949f4bb1887dcc2748a0780d",
+    "name": "Rocket",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "scripts": [],
+    "children": [
+      {
+        "id": "4af04614c97b4b66b1fa312f19c7c523",
+        "name": "Base",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "asset": "zip:kenney_space-kit.zip/Models/GLTF format/rocket_baseA.glb"
+      },
+      {
+        "id": "4ff0721e39174417a512b237bbc811f9",
+        "name": "Fuel",
+        "kind": "Mesh",
+        "position": [
+          0,
+          1,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "asset": "zip:kenney_space-kit.zip/Models/GLTF format/rocket_fuelB.glb"
+      },
+      {
+        "id": "7852342686774bbfb9e9e33461ef5258",
+        "name": "Sides",
+        "kind": "Mesh",
+        "position": [
+          0,
+          2,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "asset": "zip:kenney_space-kit.zip/Models/GLTF format/rocket_sidesA.glb"
+      },
+      {
+        "id": "e5b98e95287147f1814fec37ad2e9857",
+        "name": "Top",
+        "kind": "Mesh",
+        "position": [
+          0,
+          3,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "asset": "zip:kenney_space-kit.zip/Models/GLTF format/rocket_topA.glb"
+      },
+      {
+        "id": "5214152ff6704d218bc822a7a497be38",
+        "name": "Thruster",
+        "kind": "Group",
+        "position": [
+          0,
+          0.3,
+          0
+        ],
+        "rotation": [
+          3.141592653589793,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "scripts": [
+          {
+            "id": "7f61d1ddf6ae4bb494e375ab9512c3a9",
+            "type": "GpuParticleEmitter",
+            "properties": {
+              "enabled": true,
+              "seed": 7,
+              "drag": 1.2,
+              "windInfluence": 0,
+              "brightness": 2,
+              "hardEdge": false,
+              "count": 40000,
+              "radius": 0.16,
+              "spreadDegrees": 10,
+              "speed": 14,
+              "speedVariation": 0.3,
+              "lifetime": 0.7,
+              "gravity": [
+                0,
+                0,
+                0
+              ],
+              "turbulence": 0.08,
+              "turbulenceScale": 0.6,
+              "turbulenceSpeed": 2,
+              "bouncePlane1Enabled": true,
+              "bouncePlane1Position": [
+                0,
+                0.02,
+                0
+              ],
+              "bouncePlane1Normal": [
+                0,
+                1,
+                0
+              ],
+              "bounciness": 0.1,
+              "startSize": 0.22,
+              "endSize": 0.55,
+              "startColor": [
+                1,
+                0.85,
+                0.55,
+                0.8
+              ],
+              "endColor": [
+                1,
+                0.22,
+                0.04,
+                0
+              ],
+              "streakLength": 0.02,
+              "sizeVariation": 0.4,
+              "radialSpeed": 2.5
+            }
+          }
+        ],
+        "children": [
+          {
+            "id": "a9aea038511f45c58ff25793483b4452",
+            "name": "Thruster Core",
+            "kind": "Group",
+            "position": [
+              0,
+              0,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "scripts": [
+              {
+                "id": "f07ecc6f5f354a19ba07ceecb914efca",
+                "type": "GpuParticleEmitter",
+                "properties": {
+                  "enabled": true,
+                  "seed": 8,
+                  "drag": 0,
+                  "windInfluence": 0,
+                  "brightness": 3,
+                  "hardEdge": false,
+                  "count": 6000,
+                  "radius": 0.08,
+                  "spreadDegrees": 2,
+                  "speed": 9,
+                  "lifetime": 0.12,
+                  "gravity": [
+                    0,
+                    0,
+                    0
+                  ],
+                  "startSize": 0.28,
+                  "endSize": 0.14,
+                  "startColor": [
+                    0.55,
+                    0.75,
+                    1,
+                    1
+                  ],
+                  "endColor": [
+                    1,
+                    0.9,
+                    0.7,
+                    0.4
+                  ]
+                }
+              }
+            ],
+            "children": []
+          },
+          {
+            "id": "5cfb4ee88aee42a18bea5dc076d47c6c",
+            "name": "Thruster Light",
+            "kind": "Group",
+            "position": [
+              0,
+              0.8,
+              0
+            ],
+            "rotation": [
+              0,
+              0,
+              0
+            ],
+            "scale": [
+              1,
+              1,
+              1
+            ],
+            "scripts": [
+              {
+                "id": "3ab3b1cd54014b8685460dc3f603ec9f",
+                "type": "Light",
+                "properties": {
+                  "color": [
+                    1,
+                    0.6,
+                    0.25,
+                    1
+                  ],
+                  "intensity": 3,
+                  "range": 12,
+                  "lightType": "Point",
+                  "flickerAmount": 0.3,
+                  "flickerSpeed": 14
+                }
+              }
+            ],
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "ad29add5a50243a8992b19a0dec1374d",
+      "name": "Thrust",
+      "nodeId": "5214152ff6704d218bc822a7a497be38",
+      "componentId": "7f61d1ddf6ae4bb494e375ab9512c3a9",
+      "property": "speed",
+      "minimum": 0,
+      "maximum": 40
+    }
+  ]
+}

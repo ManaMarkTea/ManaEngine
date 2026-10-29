@@ -119,10 +119,12 @@
 
 [x] - Add support for GPU particles
     Codex (2026-10-08): GPU Particle Emitter on WebGPU -- additive procedural discs, shader-side ballistic motion/drag,
-    up to 10 million per emitter, without per-particle CPU work. Test scene: Content/Levels/GPU Particles.manalevel.
+    up to 10 million per emitter, without per-particle CPU work. Test scene: Content/Levels/Particle Garden.manalevel (GPU Fountain).
     Run Tools/Automation/benchmark-gpu-particles.ps1 for a count sweep with a zero-particle baseline. Details: Plans/GpuParticles.md.
     Moving/rotating emitters now preserve each particle's birth pose, with world-space gravity; no per-particle CPU state.
-    Optional bounce against two world-space infinite planes, with restitution and drag. Demo: GPU Particle Bounce.
+    Optional bounce against two world-space infinite planes, with restitution and drag. Demo: the garden's GPU Bounce.
+    2026-10-29: the GPU demos joined Particle Garden, with swirl/pull, turbulence, arms, bursts, streaks and colour
+    variety -- tornado, galaxy, black hole, comet, aurora, fireworks, volcano, boats and a Rocket prefab (Plans/GpuParticles.md).
 
 
 [] - UI Editor is not working and not used, needs updating - low priority

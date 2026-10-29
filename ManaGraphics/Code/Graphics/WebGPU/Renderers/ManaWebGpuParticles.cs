@@ -26,7 +26,7 @@ internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
         public Matrix4x4 ViewProjection, Model;
         public Vector4 Right, Up, Motion, GravityDrag, Sizes, StartColor, EndColor;
         public uint Count, Seed, HardEdge, SpawnHead;
-        public Vector4 History, BouncePlane1, BouncePlane2, BounceSettings, Wind;
+        public Vector4 History, BouncePlane1, BouncePlane2, BounceSettings, Wind, Swirl, Turbulence, Variation, Shape, Burst;
     }
 
     public ManaWebGpuParticles(ManaWebGpuDevice gpu, TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
@@ -61,6 +61,7 @@ internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
                 // Phase uses the rendered count, keeping the reduced stream spread across its lifetime.
                 Count = (uint)count, Seed = unchecked((uint)emitter.Seed), HardEdge = emitter.HardEdge ? 1u : 0u,
                 BouncePlane1 = emitter.BouncePlane1, BouncePlane2 = emitter.BouncePlane2, BounceSettings = emitter.BounceSettings,
+                Swirl = emitter.Swirl, Turbulence = emitter.Turbulence, Variation = emitter.Variation, Shape = emitter.Shape, Burst = emitter.Burst,
                 SpawnHead = emitter.SpawnHead, History = new(emitter.SpawnTickWithinLifetime, emitter.SpawnInterval, 0, 0)
             };
             var slot = _slots[i];

@@ -170,10 +170,10 @@ elsewhere -- the browser, phones, thumbnails -- `ManaImageCodec.Load` decodes le
 ## Testing the web build
 
 GPU particle stress testing: `Tools/Automation/benchmark-gpu-particles.ps1` builds Release and sweeps the
-`GPU Fountain` in `Content/Levels/GPU Particles.manalevel` from zero to 10 million. The `gpu_particles`
+`GPU Fountain` in `Content/Levels/Particle Garden.manalevel` from zero to 10 million. The `gpu_particles`
 command takes `name` and `count`; `profile_dump` includes GPU emitter/particle counts. `GpuParticleEmitter`
-is an additive, procedural WebGPU script with fixed lifetimes, sampled birth poses and world-space gravity;
-see `Plans/GpuParticles.md`. `transform_node` takes a node `name` and optional `position`/`rotation` (Euler radians);
+is an additive, procedural WebGPU script with fixed lifetimes, sampled birth poses and world-space gravity, plus
+swirl, turbulence, bursts and streaks (the garden's showcase); see `Plans/GpuParticles.md`. `transform_node` takes a node `name` and optional `position`/`rotation` (Euler radians);
 the moving-emitter check is `Tools/Automation/Checks/gpu-particles-world.json`.
 
 Publish (`dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release`, AOT, a few minutes), serve it

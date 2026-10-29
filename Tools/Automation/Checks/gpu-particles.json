@@ -1,7 +1,7 @@
 [
-  {"type":"open_level","path":"Content/Levels/GPU Particles.manalevel"},
+  {"type":"open_level","path":"Content/Levels/Particle Garden.manalevel"},
   {"type":"wait","frames":240},
-  {"position":[50,7,57],"type":"move_camera","target":[50,4,40]},
+  {"position":[50,7,93],"type":"move_camera","target":[50,3,76]},
   {"type":"wait","frames":120},
   {"count":0,"name":"GPU Fountain","type":"gpu_particles"},
   {"type":"wait","frames":90},

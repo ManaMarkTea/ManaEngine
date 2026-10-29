@@ -9,4 +9,5 @@ public readonly record struct ManaGpuParticleEmitter(
     float StartSize, float EndSize, Vector4 StartColor, Vector4 EndColor,
     float Brightness, int Seed, bool HardEdge,
     ReadOnlyMemory<Matrix4x4> SpawnTransforms, uint SpawnRevision,
-    uint SpawnHead, uint SpawnTickWithinLifetime, float SpawnInterval, Vector4 BouncePlane1, Vector4 BouncePlane2, Vector4 BounceSettings, float WindInfluence);
+    uint SpawnHead, uint SpawnTickWithinLifetime, float SpawnInterval, Vector4 BouncePlane1, Vector4 BouncePlane2, Vector4 BounceSettings, float WindInfluence,
+    Vector4 Swirl = default, Vector4 Turbulence = default, Vector4 Variation = default, Vector4 Shape = default, Vector4 Burst = default);

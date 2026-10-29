@@ -27,6 +27,7 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 - [kenney_modular-dungeon-kit_1.0](#kenney_modular-dungeon-kit_10) -- 39 models, 1 picture
 - [kenney_new-platformer-pack-1.1](#kenney_new-platformer-pack-11) -- 876 pictures
 - [kenney_pirate-kit](#kenney_pirate-kit) -- 72 models, 1 picture
+- [kenney_space-kit](#kenney_space-kit) -- 153 models, 771 pictures
 - [kenney_space-station-kit](#kenney_space-station-kit) -- 97 models, 1 picture
 - [kenney_survival-kit](#kenney_survival-kit) -- 80 models, 1 picture
 - [kenney_toy-car-kit](#kenney_toy-car-kit) -- 157 models
@@ -1198,6 +1199,174 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 |---|---:|---|
 | `./` | 1 | Sample |
 
+## kenney_space-kit
+
+153 models, placed as `zip:kenney_space-kit.zip/Models/GLTF format/<model>.glb`.
+
+| Model | W | H | D | Sits at (when off centre) | Clips |
+|---|---:|---:|---:|---|---|
+| `alien` | 0.48 | 0.84 | 0.33 |  |  |
+| `astronautA` | 0.48 | 0.79 | 0.33 |  |  |
+| `astronautB` | 0.48 | 0.79 | 0.33 |  |  |
+| `barrel` | 0.2 | 0.25 | 0.17 |  |  |
+| `barrels` | 0.55 | 0.35 | 0.5 |  |  |
+| `barrels_rail` | 0.55 | 0.35 | 0.5 |  |  |
+| `bones` | 0.86 | 0.44 | 0.58 |  |  |
+| `chimney` | 0.4 | 2 | 0.4 |  |  |
+| `chimney_detailed` | 0.4 | 2 | 0.4 |  |  |
+| `corridor` | 1 | 1 | 1 |  |  |
+| `corridor_corner` | 1 | 1 | 1 |  |  |
+| `corridor_cornerRound` | 1 | 1 | 1 |  |  |
+| `corridor_cornerRoundWindow` | 1 | 1 | 1 |  |  |
+| `corridor_cross` | 1 | 1 | 1 |  |  |
+| `corridor_detailed` | 1.2 | 1.1 | 1 |  |  |
+| `corridor_end` | 1 | 1 | 0.5 | x -0.5..0.5, y 0..1, z 0..0.5 |  |
+| `corridor_open` | 1 | 1 | 1 |  |  |
+| `corridor_roof` | 1 | 0.24 | 1 |  |  |
+| `corridor_split` | 1 | 1 | 1 |  |  |
+| `corridor_wall` | 0.1 | 0.8 | 1 | x 0.4..0.5, y 0..0.8, z -0.5..0.5 |  |
+| `corridor_wallCorner` | 1 | 0.8 | 1 |  |  |
+| `corridor_window` | 1 | 1 | 1 |  |  |
+| `corridor_windowClosed` | 1 | 1 | 1 |  |  |
+| `craft_cargoA` | 1.6 | 0.8 | 2.45 |  |  |
+| `craft_cargoB` | 1.5 | 0.9 | 2.5 |  |  |
+| `craft_miner` | 1.8 | 0.7 | 2.6 |  |  |
+| `craft_racer` | 1.2 | 0.75 | 2.03 |  |  |
+| `craft_speederA` | 2 | 0.8 | 2.1 |  |  |
+| `craft_speederB` | 2 | 0.6 | 2.03 |  |  |
+| `craft_speederC` | 2.8 | 0.6 | 1.93 |  |  |
+| `craft_speederD` | 2.8 | 0.9 | 2.23 |  |  |
+| `crater` | 0.71 | 0.12 | 0.83 |  |  |
+| `craterLarge` | 0.89 | 0.12 | 0.89 |  |  |
+| `desk_chair` | 0.15 | 0.29 | 0.15 |  |  |
+| `desk_chairArms` | 0.25 | 0.34 | 0.15 |  |  |
+| `desk_chairStool` | 0.15 | 0.17 | 0.15 |  |  |
+| `desk_computer` | 0.53 | 0.38 | 0.23 |  |  |
+| `desk_computerCorner` | 0.75 | 0.38 | 0.75 |  |  |
+| `desk_computerScreen` | 0.53 | 0.64 | 0.23 |  |  |
+| `gate_complex` | 1 | 1.01 | 0.5 |  |  |
+| `gate_simple` | 1 | 1.08 | 0.5 |  |  |
+| `hangar_largeA` | 2 | 1 | 3 |  |  |
+| `hangar_largeB` | 2.2 | 1.1 | 3 |  |  |
+| `hangar_roundA` | 3.27 | 1.5 | 2.83 |  |  |
+| `hangar_roundB` | 3.27 | 1.8 | 2.83 |  |  |
+| `hangar_roundGlass` | 3.27 | 1.4 | 2.83 |  |  |
+| `hangar_smallA` | 2 | 1 | 2 |  |  |
+| `hangar_smallB` | 2 | 1 | 2 |  |  |
+| `machine_barrel` | 0.65 | 0.6 | 0.52 | x -0.22..0.42, y 0..0.6, z -0.26..0.26 |  |
+| `machine_barrelLarge` | 0.75 | 0.6 | 0.75 |  |  |
+| `machine_generator` | 0.7 | 0.4 | 0.53 | x -0.4..0.3, y 0..0.4, z -0.33..0.2 |  |
+| `machine_generatorLarge` | 1 | 0.68 | 1.3 |  |  |
+| `machine_wireless` | 0.75 | 0.6 | 0.5 |  |  |
+| `machine_wirelessCable` | 0.75 | 0.8 | 0.6 | x -0.45..0.3, y 0..0.8, z -0.35..0.25 |  |
+| `meteor` | 0.87 | 0.73 | 0.75 |  |  |
+| `meteor_detailed` | 0.87 | 0.73 | 0.83 |  |  |
+| `meteor_half` | 0.87 | 0.37 | 0.75 |  |  |
+| `monorail_trackCornerLarge` | 1.6 | 0.13 | 1.6 | x -1..0.6, y 0..0.13, z -1..0.6 |  |
+| `monorail_trackCornerSmall` | 0.6 | 0.13 | 0.6 | x -0.5..0.1, y 0..0.13, z -0.5..0.1 |  |
+| `monorail_trackSlope` | 0.2 | 0.63 | 1 |  |  |
+| `monorail_trackStraight` | 0.2 | 0.13 | 1 |  |  |
+| `monorail_trackSupport` | 0.2 | 0.5 | 0.2 |  |  |
+| `monorail_trackSupportCorner` | 0.2 | 0.5 | 0.2 |  |  |
+| `monorail_trainBox` | 0.5 | 0.8 | 1 |  |  |
+| `monorail_trainCargo` | 0.5 | 0.64 | 1 |  |  |
+| `monorail_trainEnd` | 0.5 | 0.8 | 1 |  |  |
+| `monorail_trainFlat` | 0.5 | 0.25 | 1 |  |  |
+| `monorail_trainFront` | 0.6 | 0.8 | 1.05 |  |  |
+| `monorail_trainPassenger` | 0.5 | 0.8 | 1 |  |  |
+| `pipe_corner` | 0.85 | 0.6 | 0.85 | x -0.5..0.35, y 0..0.6, z -0.5..0.35 |  |
+| `pipe_cornerDiagonal` | 0.85 | 0.6 | 0.85 | x -0.5..0.35, y 0..0.6, z -0.5..0.35 |  |
+| `pipe_cornerRound` | 0.85 | 0.6 | 0.85 | x -0.5..0.35, y 0..0.6, z -0.5..0.35 |  |
+| `pipe_cornerRoundLarge` | 1.85 | 0.6 | 1.85 |  |  |
+| `pipe_cross` | 1 | 0.6 | 1 |  |  |
+| `pipe_end` | 0.69 | 0.6 | 1 |  |  |
+| `pipe_entrance` | 0.92 | 0.8 | 0.6 | x -0.46..0.46, y -0.1..0.7, z -0.1..0.5 |  |
+| `pipe_open` | 0.69 | 0.6 | 1 |  |  |
+| `pipe_rampLarge` | 0.69 | 1.2 | 2 | x -0.35..0.35, y 0..1.2, z -0.5..1.5 |  |
+| `pipe_rampSmall` | 0.69 | 0.9 | 2 | x -0.35..0.35, y 0..0.9, z -0.5..1.5 |  |
+| `pipe_ring` | 0.92 | 0.8 | 1 | x -0.46..0.46, y -0.1..0.7, z -0.5..0.5 |  |
+| `pipe_ringHigh` | 0.92 | 1.3 | 1 |  |  |
+| `pipe_ringHighEnd` | 0.92 | 1.3 | 0.8 | x -0.46..0.46, y 0..1.3, z -0.3..0.5 |  |
+| `pipe_ringSupport` | 0.92 | 1.3 | 0.4 |  |  |
+| `pipe_split` | 1 | 0.6 | 0.85 | x -0.5..0.5, y 0..0.6, z -0.5..0.35 |  |
+| `pipe_straight` | 0.69 | 0.6 | 1 |  |  |
+| `pipe_supportHigh` | 0.4 | 1 | 0.4 |  |  |
+| `pipe_supportLow` | 0.4 | 0.5 | 0.4 |  |  |
+| `platform_center` | 1 | 0 | 1 | x -0.5..0.5, y 0.05..0.05, z -0.5..0.5 |  |
+| `platform_corner` | 1 | 0.1 | 1 |  |  |
+| `platform_cornerOpen` | 1 | 0.1 | 1 |  |  |
+| `platform_cornerRound` | 1 | 0.1 | 1 |  |  |
+| `platform_end` | 1 | 0.1 | 1 |  |  |
+| `platform_high` | 1 | 1 | 1 |  |  |
+| `platform_large` | 2 | 0.1 | 2 |  |  |
+| `platform_long` | 2 | 0.1 | 1 |  |  |
+| `platform_low` | 1 | 0.5 | 1 |  |  |
+| `platform_side` | 1 | 0.1 | 1 |  |  |
+| `platform_small` | 1 | 0.1 | 1 |  |  |
+| `platform_smallDiagonal` | 1 | 0.1 | 1 |  |  |
+| `platform_straight` | 1 | 0.1 | 1 |  |  |
+| `rail` | 0.8 | 0.25 | 0.05 | x -0.4..0.4, y 0..0.25, z 0.45..0.5 |  |
+| `rail_corner` | 0.9 | 0.25 | 0.9 |  |  |
+| `rail_end` | 0.9 | 0.25 | 0.05 | x -0.5..0.4, y 0..0.25, z 0.45..0.5 |  |
+| `rail_middle` | 1 | 0.25 | 0.05 | x -0.5..0.5, y 0..0.25, z 0.45..0.5 |  |
+| `rock` | 0.8 | 0.3 | 0.85 |  |  |
+| `rock_crystals` | 0.85 | 0.34 | 0.8 |  |  |
+| `rock_crystalsLargeA` | 0.83 | 0.54 | 0.92 |  |  |
+| `rock_crystalsLargeB` | 0.94 | 0.55 | 0.93 |  |  |
+| `rock_largeA` | 0.92 | 0.5 | 0.83 |  |  |
+| `rock_largeB` | 0.93 | 0.5 | 0.94 |  |  |
+| `rocket_baseA` | 1.8 | 1.6 | 1.8 |  |  |
+| `rocket_baseB` | 1.8 | 1.3 | 1.8 |  |  |
+| `rocket_finsA` | 1.2 | 0.7 | 1.2 |  |  |
+| `rocket_finsB` | 1.2 | 0.7 | 1.2 |  |  |
+| `rocket_fuelA` | 1 | 0.5 | 1 |  |  |
+| `rocket_fuelB` | 1 | 1 | 1 |  |  |
+| `rocket_sidesA` | 1 | 1 | 1 |  |  |
+| `rocket_sidesB` | 1.3 | 1 | 1.3 |  |  |
+| `rocket_topA` | 1 | 0.8 | 1 |  |  |
+| `rocket_topB` | 1 | 1.1 | 1 |  |  |
+| `rocks_smallA` | 0.94 | 0.11 | 0.87 |  |  |
+| `rocks_smallB` | 0.73 | 0.19 | 0.7 |  |  |
+| `rover` | 0.3 | 0.39 | 0.35 |  |  |
+| `satelliteDish` | 0.69 | 0.62 | 0.57 |  |  |
+| `satelliteDish_detailed` | 0.7 | 0.62 | 0.7 |  |  |
+| `satelliteDish_large` | 0.85 | 0.81 | 0.74 | x -0.42..0.42, y 0..0.81, z -0.47..0.27 |  |
+| `stairs` | 0.3 | 0.5 | 0.7 | x -0.15..0.15, y 0..0.5, z -0.2..0.5 |  |
+| `stairs_corner` | 0.6 | 0.5 | 0.6 | x -0.45..0.15, y 0..0.5, z -0.2..0.4 |  |
+| `stairs_short` | 0.3 | 0.27 | 0.4 |  |  |
+| `structure` | 1 | 1 | 1 |  |  |
+| `structure_closed` | 1 | 1 | 1 |  |  |
+| `structure_detailed` | 1 | 1 | 1 |  |  |
+| `structure_diagonal` | 1 | 1 | 1 |  |  |
+| `supports_high` | 0.83 | 1 | 0.83 |  |  |
+| `supports_low` | 0.83 | 0.5 | 0.83 |  |  |
+| `terrain` | 1 | 0 | 1 |  |  |
+| `terrain_ramp` | 1 | 0.5 | 1 |  |  |
+| `terrain_rampLarge` | 1 | 0.5 | 2 | x -0.5..0.5, y 0..0.5, z -0.5..1.5 |  |
+| `terrain_rampLarge_detailed` | 1 | 0.5 | 2 | x -0.5..0.5, y 0..0.5, z -0.5..1.5 |  |
+| `terrain_roadCorner` | 1 | 0 | 1 | x 0..1, y 0..0, z -1..0 |  |
+| `terrain_roadCross` | 1 | 0 | 1 |  |  |
+| `terrain_roadEnd` | 1 | 0 | 1 |  |  |
+| `terrain_roadSplit` | 1 | 0 | 1 | x 0..1, y 0..0, z -1..0 |  |
+| `terrain_roadStraight` | 1 | 0 | 1 |  |  |
+| `terrain_side` | 1 | 0.5 | 1 | x -0.5..0.5, y -0.5..0, z -0.5..0.5 |  |
+| `terrain_sideCliff` | 0.5 | 0.5 | 1 | x 0..0.5, y 0..0.5, z -0.5..0.5 |  |
+| `terrain_sideCorner` | 1 | 0.5 | 1 | x 0..1, y 0..0.5, z -1..0 |  |
+| `terrain_sideCornerInner` | 1 | 0.5 | 1 | x 0..1, y 0..0.5, z -1..0 |  |
+| `terrain_sideEnd` | 1 | 0.5 | 1 |  |  |
+| `turret_double` | 0.9 | 0.7 | 0.6 |  |  |
+| `turret_single` | 0.6 | 0.9 | 0.72 |  |  |
+| `weapon_gun` | 0.2 | 0.45 | 0.7 |  |  |
+| `weapon_rifle` | 0.2 | 0.55 | 1 |  |  |
+
+771 pictures, as `zip:kenney_space-kit.zip/<folder>/<picture>.png`.
+
+| Folder | Pictures | Examples |
+|---|---:|---|
+| `./` | 1 | Sample |
+| `Isometric/` | 624 | alien_E, alien_N, alien_NE, alien_NW, alien_S, alien_SE, alien_SW, alien_W, astronautA_E, astronautA_N, astronautA_NE, astronautA_NW, ... |
+| `Side/` | 146 | alien, astronautA, astronautB, barrel, barrels, barrels_rail, bones, chimney, chimney_detailed, corridor, corridor_corner, corridor_cornerRound, ... |
+
 ## kenney_space-station-kit
 
 97 models, placed as `zip:kenney_space-station-kit.zip/Models/GLB format/<model>.glb`.
@@ -1886,6 +2055,7 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Prefab | `Prefabs/Glowing Coin.manaprefab` |
 | Prefab | `Prefabs/Lamp.manaprefab` |
 | Prefab | `Prefabs/New Prefab.manaprefab` |
+| Prefab | `Prefabs/Rocket.manaprefab` |
 | Prefab | `Prefabs/Spikes 2D.manaprefab` |
 | Prefab | `Prefabs/Spring 2D.manaprefab` |
 | Prefab | `@Foundry/Prefabs/Arc Furnace.manaprefab` |
@@ -2038,8 +2208,7 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Generator rules | `Generators/Dungeon.manawfc` |
 | Generator rules | `Generators/Table Clutter.manawfc` |
 | Level | `Levels/2D Sample.manalevel` |
-| Level | `Levels/GPU Particle Bounce.manalevel` |
-| Level | `Levels/GPU Particles.manalevel` |
+| Level | `Levels/Light Show.manalevel` |
 | Level | `Levels/Little Pond.manalevel` |
 | Level | `Levels/Little Train Yard.manalevel` |
 | Level | `Levels/Night Sky.manalevel` |
@@ -2049,11 +2218,15 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Level | `Levels/Prefab Lamps.manalevel` |
 | Level | `Levels/Sample Course.manalevel` |
 | Level | `Levels/Tests/Anti Aliasing.manalevel` |
+| Level | `Levels/Tests/Cloth.manalevel` |
+| Level | `Levels/Tests/Many Lights.manalevel` |
 | Level | `Levels/Tests/Orthographic Navigation.manalevel` |
+| Level | `Levels/Tests/Parallax.manalevel` |
 | Level | `Levels/Tests/Particles.manalevel` |
 | Level | `Levels/Tests/Reflections.manalevel` |
 | Level | `Levels/Tests/Shadow Contact.manalevel` |
 | Level | `Levels/Tests/Sprite Normals.manalevel` |
+| Level | `Levels/Tests/Terrain.manalevel` |
 | Level | `Levels/Voxel Showcase.manalevel` |
 | Level | `@CodeScreensaver/Levels/Code Screensaver.manalevel` |
 | Level | `@Foundry/Levels/Foundry.manalevel` |

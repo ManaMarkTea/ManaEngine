@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Mana.Code.Shapes.Loaders
 {
@@ -142,6 +143,95 @@ namespace Mana.Code.Shapes.Loaders
                 // one's -- refusing here would blame the wrong thing for every truly corrupt file.
                 return null;
             }
+        }
+
+        /// <summary>
+        /// A .glb whose scenes list a node that is also another node's child (UniGLTF exports, Kenney's Space Kit),
+        /// rewritten with that node a root only; null when nothing needs fixing. SharpGLTF refuses such files outright.
+        /// </summary>
+        public static byte[]? RepairSceneRoots(byte[] glb)
+        {
+            const uint GlbMagic = 0x46546C67;
+            const uint JsonChunk = 0x4E4F534A;
+            if (glb.Length < 20 || BitConverter.ToUInt32(glb, 0) != GlbMagic || BitConverter.ToUInt32(glb, 16) != JsonChunk)
+            {
+                return null;
+            }
+            var jsonLength = (int)BitConverter.ToUInt32(glb, 12);
+            if (jsonLength <= 0 || 20 + jsonLength > glb.Length)
+            {
+                return null;
+            }
+            JsonNode? root;
+            try
+            {
+                root = JsonNode.Parse(glb.AsSpan(20, jsonLength));
+            }
+            catch (JsonException)
+            {
+                return null;
+            }
+            if (root?["scenes"] is not JsonArray scenes || root["nodes"] is not JsonArray nodes)
+            {
+                return null;
+            }
+            var roots = new HashSet<int>();
+            foreach (var scene in scenes)
+            {
+                if (scene?["nodes"] is JsonArray list)
+                {
+                    foreach (var entry in list)
+                    {
+                        roots.Add(entry?.GetValue<int>() ?? -1);
+                    }
+                }
+            }
+            // The scene's own list wins: a declared root is cut loose from whatever parent also claims it.
+            var changed = false;
+            foreach (var parent in nodes)
+            {
+                if (parent?["children"] is not JsonArray list)
+                {
+                    continue;
+                }
+                for (var i = list.Count - 1; i >= 0; i--)
+                {
+                    var child = list[i]?.GetValue<int>() ?? -1;
+                    if (!roots.Contains(child))
+                    {
+                        continue;
+                    }
+                    list.RemoveAt(i);
+                    changed = true;
+                    // UniGLTF wraps the model in a temporary parent and leaves the Unity scene position on it.
+                    if (parent["name"]?.GetValue<string>() == "tmpParent" && nodes[child] is JsonObject loose)
+                    {
+                        loose.Remove("translation");
+                    }
+                }
+                // glTF forbids an empty children array.
+                if (list.Count == 0 && parent is JsonObject emptied)
+                {
+                    emptied.Remove("children");
+                }
+            }
+            if (!changed)
+            {
+                return null;
+            }
+            var json = Encoding.UTF8.GetBytes(root.ToJsonString());
+            var padded = (json.Length + 3) & ~3;
+            var rest = glb.AsSpan(20 + jsonLength);
+            var output = new byte[20 + padded + rest.Length];
+            BitConverter.GetBytes(GlbMagic).CopyTo(output, 0);
+            BitConverter.GetBytes(BitConverter.ToUInt32(glb, 4)).CopyTo(output, 4);
+            BitConverter.GetBytes((uint)output.Length).CopyTo(output, 8);
+            BitConverter.GetBytes((uint)padded).CopyTo(output, 12);
+            BitConverter.GetBytes(JsonChunk).CopyTo(output, 16);
+            json.CopyTo(output, 20);
+            output.AsSpan(20 + json.Length, padded - json.Length).Fill((byte)' ');
+            rest.CopyTo(output.AsSpan(20 + padded));
+            return output;
         }
 
         /// <summary>

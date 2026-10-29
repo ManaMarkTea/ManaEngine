@@ -7,12 +7,12 @@
   },
   "camera": {
     "position": [
-      47,
-      1.8,
-      47
+      50,
+      8,
+      140
     ],
     "rotation": [
-      -0.1,
+      -0.06,
       0,
       0
     ]
@@ -31,7 +31,7 @@
       "position": [
         50,
         -0.18,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -63,7 +63,7 @@
       "position": [
         41.9,
         0,
-        40.0
+        92.0
       ],
       "rotation": [
         0,
@@ -95,7 +95,7 @@
       "position": [
         41.636396103067895,
         0,
-        40.636396103067895
+        92.6363961030679
       ],
       "rotation": [
         0,
@@ -127,7 +127,7 @@
       "position": [
         41.0,
         0,
-        40.9
+        92.9
       ],
       "rotation": [
         0,
@@ -159,7 +159,7 @@
       "position": [
         40.363603896932105,
         0,
-        40.636396103067895
+        92.6363961030679
       ],
       "rotation": [
         0,
@@ -191,7 +191,7 @@
       "position": [
         40.1,
         0,
-        40.0
+        92.0
       ],
       "rotation": [
         0,
@@ -223,7 +223,7 @@
       "position": [
         40.363603896932105,
         0,
-        39.363603896932105
+        91.3636038969321
       ],
       "rotation": [
         0,
@@ -255,7 +255,7 @@
       "position": [
         41.0,
         0,
-        39.1
+        91.1
       ],
       "rotation": [
         0,
@@ -287,7 +287,7 @@
       "position": [
         41.636396103067895,
         0,
-        39.363603896932105
+        91.3636038969321
       ],
       "rotation": [
         0,
@@ -319,7 +319,7 @@
       "position": [
         41,
         0.25,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -404,7 +404,7 @@
       "position": [
         41,
         0.5,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -460,7 +460,7 @@
       "position": [
         41,
         1.3,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -515,7 +515,7 @@
       "position": [
         46.9,
         0,
-        40.0
+        92.0
       ],
       "rotation": [
         0,
@@ -547,7 +547,7 @@
       "position": [
         46.636396103067895,
         0,
-        40.636396103067895
+        92.6363961030679
       ],
       "rotation": [
         0,
@@ -579,7 +579,7 @@
       "position": [
         46.0,
         0,
-        40.9
+        92.9
       ],
       "rotation": [
         0,
@@ -611,7 +611,7 @@
       "position": [
         45.363603896932105,
         0,
-        40.636396103067895
+        92.6363961030679
       ],
       "rotation": [
         0,
@@ -643,7 +643,7 @@
       "position": [
         45.1,
         0,
-        40.0
+        92.0
       ],
       "rotation": [
         0,
@@ -675,7 +675,7 @@
       "position": [
         45.363603896932105,
         0,
-        39.363603896932105
+        91.3636038969321
       ],
       "rotation": [
         0,
@@ -707,7 +707,7 @@
       "position": [
         46.0,
         0,
-        39.1
+        91.1
       ],
       "rotation": [
         0,
@@ -739,7 +739,7 @@
       "position": [
         46.636396103067895,
         0,
-        39.363603896932105
+        91.3636038969321
       ],
       "rotation": [
         0,
@@ -771,7 +771,7 @@
       "position": [
         46,
         0.25,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -856,7 +856,7 @@
       "position": [
         46,
         0.6,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -910,7 +910,7 @@
       "position": [
         46,
         1.2,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -964,7 +964,7 @@
       "position": [
         54,
         0,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -996,7 +996,7 @@
       "position": [
         54,
         0.5,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -1049,7 +1049,7 @@
       "position": [
         54,
         0.5,
-        40
+        92
       ],
       "rotation": [
         0,
@@ -1101,7 +1101,7 @@
       "position": [
         60,
         7,
-        40
+        92
       ],
       "rotation": [
         3.14159,
@@ -1156,7 +1156,7 @@
       "position": [
         49,
         1.4,
-        36
+        88
       ],
       "rotation": [
         0,
@@ -1202,6 +1202,1861 @@
             "brightness": 1.4,
             "maxParticles": 60
           }
+        }
+      ]
+    },
+    {
+      "id": "gpu-particle-fountain",
+      "name": "GPU Fountain",
+      "kind": "Group",
+      "position": [
+        50,
+        0,
+        76
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "gpu-fountain-emitter",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 17,
+            "drag": 0,
+            "windInfluence": 0.3,
+            "brightness": 1,
+            "hardEdge": false,
+            "count": 100000,
+            "spreadDegrees": 10,
+            "radius": 0.5,
+            "lifetime": 3,
+            "speed": 9,
+            "gravity": [
+              0,
+              -6,
+              0
+            ],
+            "swirlSpeed": 70,
+            "pull": -0.25,
+            "bouncePlane1Enabled": true,
+            "bouncePlane1Position": [
+              0,
+              0.02,
+              0
+            ],
+            "bouncePlane1Normal": [
+              0,
+              1,
+              0
+            ],
+            "bounciness": 0.35,
+            "startSize": 0.12,
+            "endSize": 0.03,
+            "startColor": [
+              0.05,
+              0.45,
+              1,
+              0.7
+            ],
+            "endColor": [
+              0.6,
+              0.1,
+              1,
+              0
+            ],
+            "hueVariation": 0.2,
+            "hueShift": 0.3,
+            "streakLength": 0.04,
+            "sizeVariation": 0.4
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": "51a973e3b2434edba80d9d5d4daa1259",
+      "name": "GPU Bounce",
+      "kind": "Group",
+      "position": [
+        80,
+        1,
+        70
+      ],
+      "rotation": [
+        -0.4164325,
+        0,
+        0.84313637
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "7309423e1bef44d9b963f4732fd498c8",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 17,
+            "drag": 0.055,
+            "windInfluence": 0.21,
+            "brightness": 1,
+            "hardEdge": false,
+            "count": 100000,
+            "spreadDegrees": 4,
+            "radius": 0.975,
+            "lifetime": 4.65,
+            "speed": 20,
+            "gravity": [
+              0,
+              -60,
+              0
+            ],
+            "bouncePlane1Enabled": true,
+            "bouncePlane1Position": [
+              0,
+              0.02,
+              0
+            ],
+            "bouncePlane1Normal": [
+              0,
+              1,
+              0
+            ],
+            "bouncePlane2Enabled": true,
+            "bouncePlane2Position": [
+              75,
+              0,
+              0
+            ],
+            "bouncePlane2Normal": [
+              1,
+              0,
+              0
+            ],
+            "bounciness": 0.7,
+            "startSize": 0.12,
+            "endSize": 0.01,
+            "startColor": [
+              1,
+              0.2,
+              0.05,
+              0.65
+            ],
+            "endColor": [
+              0.48,
+              0.04,
+              0,
+              0.5
+            ],
+            "hueVariation": 0.08,
+            "twinkle": 0.5,
+            "streakLength": 0.025
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": "4ba63488daae4d20aa959593f3c7a2b5",
+      "name": "Bounce Wall",
+      "kind": "Shape",
+      "position": [
+        74.9,
+        2,
+        70
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.2,
+        0.22,
+        0.28,
+        1
+      ],
+      "size": [
+        0.2,
+        4,
+        8
+      ],
+      "material": {
+        "metallic": 0.6,
+        "roughness": 0.35,
+        "emission": [
+          1,
+          0.35,
+          0.1,
+          1
+        ],
+        "emissionStrength": 0.6
+      }
+    },
+    {
+      "id": "1feb7b4d2e474f4791d8415473723046",
+      "name": "Tornado",
+      "kind": "Group",
+      "position": [
+        32,
+        0,
+        74
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "b97f3df9bae74eba9a7a31c445bd387a",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 3,
+            "drag": 0,
+            "windInfluence": 0.2,
+            "brightness": 1,
+            "hardEdge": false,
+            "count": 150000,
+            "emitFromEdge": true,
+            "radius": 0.35,
+            "spreadDegrees": 15,
+            "speed": 0.6,
+            "lifetime": 4,
+            "gravity": [
+              0,
+              1.6,
+              0
+            ],
+            "swirlSpeed": 520,
+            "swirlFalloff": 0.8,
+            "pull": -0.3,
+            "turbulence": 0.15,
+            "turbulenceScale": 1.5,
+            "turbulenceSpeed": 0.8,
+            "startSize": 0.06,
+            "endSize": 0.025,
+            "startColor": [
+              0.75,
+              0.88,
+              1,
+              0.25
+            ],
+            "endColor": [
+              0.3,
+              0.4,
+              0.95,
+              0
+            ],
+            "streakLength": 0.035,
+            "sizeVariation": 0.5
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "12f2c0b0edfb472eadb37fd2e9e29789",
+          "name": "Tornado Debris",
+          "kind": "Group",
+          "position": [
+            0,
+            0.1,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "0cc312b6ac9d44319a087d566f6cdfcd",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 5,
+                "drag": 0,
+                "windInfluence": 0,
+                "brightness": 1,
+                "hardEdge": false,
+                "count": 20000,
+                "emitFromEdge": true,
+                "radius": 1.2,
+                "spreadDegrees": 60,
+                "speed": 2.2,
+                "lifetime": 1.5,
+                "gravity": [
+                  0,
+                  -3,
+                  0
+                ],
+                "swirlSpeed": 300,
+                "swirlFalloff": 0.4,
+                "bouncePlane1Enabled": true,
+                "bouncePlane1Position": [
+                  0,
+                  0.02,
+                  0
+                ],
+                "bouncePlane1Normal": [
+                  0,
+                  1,
+                  0
+                ],
+                "bounciness": 0.2,
+                "startSize": 0.07,
+                "endSize": 0.03,
+                "startColor": [
+                  0.75,
+                  0.55,
+                  0.3,
+                  0.7
+                ],
+                "endColor": [
+                  0.4,
+                  0.3,
+                  0.2,
+                  0
+                ],
+                "sizeVariation": 0.6
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "6159de33739249cfbfc934a3b83275c1",
+      "name": "Galaxy",
+      "kind": "Group",
+      "position": [
+        58,
+        18,
+        48
+      ],
+      "rotation": [
+        1.1,
+        0,
+        0.25
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [],
+      "children": [
+        {
+          "id": "e57e5fc1bf3a413885cb0e02913a8701",
+          "name": "Galaxy Stars",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "f627964d06a344d496e2a3189842eb7c",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 11,
+                "drag": 0,
+                "windInfluence": 0,
+                "brightness": 1,
+                "hardEdge": false,
+                "count": 150000,
+                "radius": 0.25,
+                "spreadDegrees": 180,
+                "speed": 0.08,
+                "radialSpeed": 0.9,
+                "arms": 2,
+                "lifetime": 7,
+                "gravity": [
+                  0,
+                  0,
+                  0
+                ],
+                "swirlSpeed": 360,
+                "swirlFalloff": 0.6,
+                "turbulence": 0.05,
+                "turbulenceScale": 1.2,
+                "turbulenceSpeed": 0.2,
+                "startSize": 0.06,
+                "endSize": 0.04,
+                "startColor": [
+                  1,
+                  0.85,
+                  0.6,
+                  0.4
+                ],
+                "endColor": [
+                  0.35,
+                  0.5,
+                  1,
+                  0.05
+                ],
+                "hueVariation": 0.15,
+                "twinkle": 0.6,
+                "sizeVariation": 0.6,
+                "armWidth": 0.12
+              }
+            },
+            {
+              "id": "c2f0b7c98ac3465297ed06f4bfcebf45",
+              "type": "Motion",
+              "properties": {
+                "spinAxis": [
+                  0,
+                  1,
+                  0
+                ],
+                "spinSpeed": 8
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "36ec2d88de2d4e8f88d6e0fea4c26021",
+          "name": "Galaxy Core",
+          "kind": "Group",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "1a47a18389e44552af46f58c95d93469",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 12,
+                "drag": 0,
+                "windInfluence": 0,
+                "brightness": 1.5,
+                "hardEdge": false,
+                "count": 20000,
+                "radius": 0,
+                "spreadDegrees": 180,
+                "speed": 0.35,
+                "lifetime": 2,
+                "gravity": [
+                  0,
+                  0,
+                  0
+                ],
+                "swirlSpeed": 200,
+                "startSize": 0.45,
+                "endSize": 0.1,
+                "startColor": [
+                  1,
+                  0.8,
+                  0.55,
+                  0.08
+                ],
+                "endColor": [
+                  1,
+                  0.6,
+                  0.4,
+                  0
+                ]
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "4eb9c81ba0d94f0cbe74626ed83ea7de",
+      "name": "Black Hole",
+      "kind": "Group",
+      "position": [
+        70,
+        10,
+        64
+      ],
+      "rotation": [
+        1.2,
+        0,
+        -0.3
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "5a52ac7da44b429abd69a3bc6ed88149",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 23,
+            "drag": 0,
+            "windInfluence": 0,
+            "brightness": 1.2,
+            "hardEdge": false,
+            "count": 200000,
+            "emitFromEdge": true,
+            "radius": 5.5,
+            "arms": 4,
+            "spreadDegrees": 0,
+            "speed": 0,
+            "lifetime": 3.5,
+            "gravity": [
+              0,
+              0,
+              0
+            ],
+            "swirlSpeed": 480,
+            "swirlFalloff": 0.6,
+            "pull": 0.9,
+            "startSize": 0.06,
+            "endSize": 0.03,
+            "startColor": [
+              0.3,
+              0.2,
+              1,
+              0.12
+            ],
+            "endColor": [
+              1,
+              0.75,
+              0.45,
+              0.7
+            ],
+            "hueVariation": 0.1,
+            "streakLength": 0.06,
+            "sizeVariation": 0.4,
+            "armWidth": 0.25
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "c22cfefa1c6e48e88ed54b3d6af1f798",
+          "name": "Event Horizon",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Sphere",
+          "color": [
+            0,
+            0,
+            0,
+            1
+          ],
+          "size": [
+            0.7,
+            0.7,
+            0.7
+          ],
+          "material": {
+            "roughness": 1,
+            "unlit": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "1d0b605cf1824738816c4d8d22bc2dab",
+      "name": "Comet Orbit",
+      "kind": "Group",
+      "position": [
+        50,
+        8,
+        74
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "dd97a43e89c744aa8fbdce959234fe1a",
+          "type": "Motion",
+          "properties": {
+            "spinAxis": [
+              0,
+              1,
+              0
+            ],
+            "spinSpeed": 22
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "fad6854bde5a4198a3533c79dd36c219",
+          "name": "Comet",
+          "kind": "Group",
+          "position": [
+            16,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "888d93c9026f48ba92378691f54956ee",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 31,
+                "drag": 1.2,
+                "windInfluence": 0,
+                "brightness": 1.4,
+                "hardEdge": false,
+                "count": 25000,
+                "radius": 0.1,
+                "spreadDegrees": 180,
+                "speed": 2,
+                "lifetime": 2.5,
+                "gravity": [
+                  0,
+                  -0.6,
+                  0
+                ],
+                "turbulence": 0.4,
+                "turbulenceScale": 1.5,
+                "turbulenceSpeed": 0.6,
+                "startSize": 0.07,
+                "endSize": 0.01,
+                "startColor": [
+                  1,
+                  0.55,
+                  0.15,
+                  1
+                ],
+                "endColor": [
+                  0.3,
+                  0.5,
+                  1,
+                  0
+                ],
+                "hueVariation": 0.6,
+                "hueShift": 0.5,
+                "twinkle": 0.7,
+                "streakLength": 0.06
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "d17ec514746b44039319cdd79aebfa1a",
+      "name": "Aurora",
+      "kind": "Group",
+      "position": [
+        72,
+        40,
+        32
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        26,
+        1,
+        0.3
+      ],
+      "scripts": [
+        {
+          "id": "9f366e8af7c14da08d6b7dcfbe76e0a3",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 41,
+            "drag": 0,
+            "windInfluence": 0,
+            "brightness": 0.6,
+            "hardEdge": false,
+            "count": 70000,
+            "radius": 1,
+            "spreadDegrees": 0,
+            "speed": 0,
+            "lifetime": 6,
+            "gravity": [
+              0,
+              0.6,
+              0
+            ],
+            "turbulence": 2.4,
+            "turbulenceScale": 8,
+            "turbulenceSpeed": 0.15,
+            "startSize": 1.0,
+            "endSize": 1.6,
+            "startColor": [
+              0.15,
+              1,
+              0.45,
+              0.1
+            ],
+            "endColor": [
+              0.2,
+              0.9,
+              0.6,
+              0
+            ],
+            "hueShift": 0.3,
+            "sizeVariation": 0.3
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": "6915d59770ad4cf092992dcddf126945",
+      "name": "Launch Pad",
+      "kind": "Shape",
+      "position": [
+        72,
+        -0.009999999999999998,
+        90
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Disk",
+      "color": [
+        0.3,
+        0.3,
+        0.33,
+        1
+      ],
+      "size": [
+        4.5,
+        0.1,
+        4.5
+      ]
+    },
+    {
+      "id": "c362a933dd5a4c688f916cda7f0ddf32",
+      "name": "Rocket Hover",
+      "kind": "Group",
+      "position": [
+        72,
+        2.2,
+        90
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "77899c6a427f4beca94f77b4203d9ff1",
+          "type": "Motion",
+          "properties": {
+            "moveAxis": [
+              0,
+              1,
+              0
+            ],
+            "moveDistance": 1.2,
+            "moveSpeed": 0.15
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "90e77cc9f016478d9ea275ac1460336d",
+          "name": "Rocket",
+          "kind": "Prefab",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "prefab": {
+            "assetId": "ef8518db68e74b358ff03276938ee24e",
+            "assetPath": "Prefabs/Rocket.manaprefab",
+            "overrides": []
+          }
+        }
+      ]
+    },
+    {
+      "id": "b74b553be14c4de09532aabfdbcbd45f",
+      "name": "Fireworks",
+      "kind": "Group",
+      "position": [
+        36,
+        24,
+        70
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "ff4ce182c5864372b082cd2728d34d29",
+          "type": "GpuParticleEmitter",
+          "properties": {
+            "enabled": true,
+            "seed": 51,
+            "drag": 1.6,
+            "windInfluence": 0,
+            "brightness": 2.2,
+            "hardEdge": false,
+            "count": 14000,
+            "bursts": 7,
+            "radius": 9,
+            "spreadDegrees": 180,
+            "speed": 9,
+            "speedVariation": 0.08,
+            "lifetime": 2.6,
+            "gravity": [
+              0,
+              -2.5,
+              0
+            ],
+            "startSize": 0.05,
+            "endSize": 0.02,
+            "startColor": [
+              1,
+              0.35,
+              0.2,
+              1
+            ],
+            "endColor": [
+              1,
+              0.75,
+              0.4,
+              0
+            ],
+            "hueVariation": 1,
+            "twinkle": 0.3,
+            "streakLength": 0.22
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "b57bc477b3464f1d96a842d893322b93",
+          "name": "Fireworks Willow",
+          "kind": "Group",
+          "position": [
+            0,
+            2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "f79b343bae1d4fb1bc7c31301abbe421",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 52,
+                "drag": 0.7,
+                "windInfluence": 0,
+                "brightness": 2,
+                "hardEdge": false,
+                "count": 4500,
+                "bursts": 3,
+                "radius": 9,
+                "spreadDegrees": 180,
+                "speed": 4.5,
+                "speedVariation": 0.1,
+                "lifetime": 4,
+                "gravity": [
+                  0,
+                  -3.5,
+                  0
+                ],
+                "startSize": 0.04,
+                "endSize": 0.015,
+                "startColor": [
+                  1,
+                  0.8,
+                  0.35,
+                  1
+                ],
+                "endColor": [
+                  1,
+                  0.35,
+                  0.05,
+                  0
+                ],
+                "streakLength": 0.4
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "d6f22eee41f74db6b250f5b754a20281",
+          "name": "Fireworks Crackle",
+          "kind": "Group",
+          "position": [
+            0,
+            -1,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "c52410d05e9c4d958d631af1800faf9f",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 53,
+                "drag": 1,
+                "windInfluence": 0,
+                "brightness": 3,
+                "hardEdge": false,
+                "count": 6000,
+                "bursts": 6,
+                "radius": 9,
+                "spreadDegrees": 180,
+                "speed": 3,
+                "speedVariation": 0.5,
+                "lifetime": 1.8,
+                "gravity": [
+                  0,
+                  -2,
+                  0
+                ],
+                "startSize": 0.04,
+                "endSize": 0.02,
+                "startColor": [
+                  1,
+                  1,
+                  0.85,
+                  1
+                ],
+                "endColor": [
+                  1,
+                  0.85,
+                  0.5,
+                  0
+                ],
+                "twinkle": 1
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "40eb81508324497d80fb18621bb43633",
+      "name": "Volcano",
+      "kind": "Group",
+      "position": [
+        33,
+        0,
+        118
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [],
+      "children": [
+        {
+          "id": "4b123caad77c4dc39bc2b395486bb8ea",
+          "name": "Volcano Cone",
+          "kind": "Shape",
+          "position": [
+            0,
+            3,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            10,
+            6,
+            10
+          ],
+          "shape": "Pyramid",
+          "color": [
+            0.3,
+            0.2,
+            0.17,
+            1
+          ],
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "roughness": 0.9,
+            "emission": [
+              1,
+              0.28,
+              0.06,
+              1
+            ],
+            "emissionStrength": 0.45
+          }
+        },
+        {
+          "id": "41fcbf6a64b043cbabb73cd0a9e4d995",
+          "name": "Lava Fountain",
+          "kind": "Group",
+          "position": [
+            0,
+            6,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "754fb9da854344ef808cc0bb932ea728",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 61,
+                "drag": 0.1,
+                "windInfluence": 0,
+                "brightness": 1.8,
+                "hardEdge": false,
+                "count": 8000,
+                "radius": 0.5,
+                "spreadDegrees": 16,
+                "speed": 10,
+                "speedVariation": 0.5,
+                "lifetime": 2.6,
+                "gravity": [
+                  0,
+                  -9.8,
+                  0
+                ],
+                "bouncePlane1Enabled": true,
+                "bouncePlane1Position": [
+                  0,
+                  0.02,
+                  0
+                ],
+                "bouncePlane1Normal": [
+                  0,
+                  1,
+                  0
+                ],
+                "bounciness": 0.15,
+                "startSize": 0.18,
+                "endSize": 0.08,
+                "startColor": [
+                  1,
+                  0.75,
+                  0.2,
+                  1
+                ],
+                "endColor": [
+                  0.6,
+                  0.05,
+                  0.01,
+                  0.5
+                ],
+                "streakLength": 0.05,
+                "sizeVariation": 0.5,
+                "twinkle": 0.25
+              }
+            },
+            {
+              "id": "278688e0fb80433b9cb89f4086d13761",
+              "type": "Light",
+              "properties": {
+                "color": [
+                  1,
+                  0.35,
+                  0.1,
+                  1
+                ],
+                "intensity": 5,
+                "range": 22,
+                "lightType": "Point",
+                "flickerAmount": 0.35,
+                "flickerSpeed": 6
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "1d812a3444a6418f9316a1c642b8652f",
+          "name": "Lava Embers",
+          "kind": "Group",
+          "position": [
+            0,
+            6.2,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "6df702e53680458785ae435491ad628b",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 62,
+                "drag": 0,
+                "windInfluence": 0.6,
+                "brightness": 2,
+                "hardEdge": false,
+                "count": 20000,
+                "radius": 0.8,
+                "spreadDegrees": 30,
+                "speed": 1.5,
+                "lifetime": 5,
+                "gravity": [
+                  0,
+                  1.2,
+                  0
+                ],
+                "turbulence": 1.2,
+                "turbulenceScale": 2.5,
+                "turbulenceSpeed": 0.4,
+                "startSize": 0.08,
+                "endSize": 0.02,
+                "startColor": [
+                  1,
+                  0.45,
+                  0.1,
+                  1
+                ],
+                "endColor": [
+                  0.8,
+                  0.1,
+                  0.02,
+                  0
+                ],
+                "twinkle": 0.8
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "e50be546815445009d1fa8fd5f55aec8",
+          "name": "Lava River",
+          "kind": "Group",
+          "position": [
+            0,
+            6.05,
+            0.15
+          ],
+          "rotation": [
+            1.1,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "children": [],
+          "scripts": [
+            {
+              "id": "5db8ab052fd54ed98e0347839e05c775",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 63,
+                "count": 14000,
+                "radius": 0.7,
+                "spreadDegrees": 35,
+                "speed": 1.2,
+                "speedVariation": 0.5,
+                "lifetime": 3.5,
+                "gravity": [
+                  0,
+                  -9.8,
+                  0
+                ],
+                "drag": 1.6,
+                "windInfluence": 0,
+                "bouncePlane1Enabled": true,
+                "bouncePlane1Position": [
+                  33,
+                  6,
+                  118
+                ],
+                "bouncePlane1Normal": [
+                  0.0,
+                  0.6401843996644799,
+                  0.7682212795973759
+                ],
+                "bouncePlane2Enabled": true,
+                "bouncePlane2Position": [
+                  0,
+                  0.02,
+                  0
+                ],
+                "bouncePlane2Normal": [
+                  0,
+                  1,
+                  0
+                ],
+                "bounciness": 0,
+                "startSize": 0.3,
+                "endSize": 0.2,
+                "startColor": [
+                  1,
+                  0.7,
+                  0.2,
+                  1
+                ],
+                "endColor": [
+                  0.7,
+                  0.08,
+                  0.01,
+                  0.6
+                ],
+                "brightness": 2,
+                "hardEdge": false,
+                "sizeVariation": 0.5,
+                "turbulence": 0.1,
+                "turbulenceScale": 0.8,
+                "turbulenceSpeed": 0.3
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "d42fd18b91534f369df971d4acddf4a6",
+      "name": "Boat Pond",
+      "kind": "Water",
+      "position": [
+        50,
+        0.1,
+        112
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "water": {
+        "size": [
+          18,
+          18
+        ],
+        "resolution": 96
+      }
+    },
+    {
+      "id": "dd9741d554054b369794e32ef6b2054f",
+      "name": "Fireboat",
+      "kind": "Group",
+      "position": [
+        50,
+        -0.1,
+        112
+      ],
+      "rotation": [
+        0,
+        0.6,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [],
+      "children": [
+        {
+          "id": "4cdf24112c42423fa4414d370848c41a",
+          "name": "Fireboat Hull",
+          "kind": "Mesh",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/boat-fishing-small.glb"
+        },
+        {
+          "id": "1289f148f43d478197afd627db2da488",
+          "name": "Water Cannon Left",
+          "kind": "Group",
+          "position": [
+            -0.5,
+            2.3,
+            0.6
+          ],
+          "rotation": [
+            0,
+            0,
+            0.75
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "0eca03c7efa34719a34c8cddb0c30690",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 71,
+                "drag": 0.15,
+                "windInfluence": 0.4,
+                "brightness": 1,
+                "hardEdge": false,
+                "count": 9000,
+                "radius": 0.05,
+                "spreadDegrees": 2.5,
+                "speed": 12,
+                "speedVariation": 0.15,
+                "lifetime": 2.6,
+                "gravity": [
+                  0,
+                  -9.8,
+                  0
+                ],
+                "bouncePlane1Enabled": true,
+                "bouncePlane1Position": [
+                  0,
+                  0.1,
+                  0
+                ],
+                "bouncePlane1Normal": [
+                  0,
+                  1,
+                  0
+                ],
+                "bounciness": 0.05,
+                "turbulence": 0.08,
+                "turbulenceScale": 1,
+                "turbulenceSpeed": 1,
+                "startSize": 0.06,
+                "endSize": 0.22,
+                "startColor": [
+                  0.85,
+                  0.95,
+                  1,
+                  0.3
+                ],
+                "endColor": [
+                  0.7,
+                  0.85,
+                  1,
+                  0
+                ],
+                "streakLength": 0.03,
+                "sizeVariation": 0.4
+              }
+            },
+            {
+              "id": "cbdb6485fbc043e386fa2bedd78af6df",
+              "type": "Motion",
+              "properties": {
+                "swingAxis": [
+                  0,
+                  0,
+                  1
+                ],
+                "swingAngle": 18,
+                "swingSpeed": 0.12,
+                "phase": 0
+              }
+            }
+          ],
+          "children": []
+        },
+        {
+          "id": "1e795ea46cb04b598ec063dd9c5a64e5",
+          "name": "Water Cannon Right",
+          "kind": "Group",
+          "position": [
+            0.5,
+            2.3,
+            0.6
+          ],
+          "rotation": [
+            0,
+            0,
+            -0.75
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [
+            {
+              "id": "08b2d89f60bf4416aca403aa3fb17708",
+              "type": "GpuParticleEmitter",
+              "properties": {
+                "enabled": true,
+                "seed": 72,
+                "drag": 0.15,
+                "windInfluence": 0.4,
+                "brightness": 1,
+                "hardEdge": false,
+                "count": 9000,
+                "radius": 0.05,
+                "spreadDegrees": 2.5,
+                "speed": 12,
+                "speedVariation": 0.15,
+                "lifetime": 2.6,
+                "gravity": [
+                  0,
+                  -9.8,
+                  0
+                ],
+                "bouncePlane1Enabled": true,
+                "bouncePlane1Position": [
+                  0,
+                  0.1,
+                  0
+                ],
+                "bouncePlane1Normal": [
+                  0,
+                  1,
+                  0
+                ],
+                "bounciness": 0.05,
+                "turbulence": 0.08,
+                "turbulenceScale": 1,
+                "turbulenceSpeed": 1,
+                "startSize": 0.06,
+                "endSize": 0.22,
+                "startColor": [
+                  0.85,
+                  0.95,
+                  1,
+                  0.3
+                ],
+                "endColor": [
+                  0.7,
+                  0.85,
+                  1,
+                  0
+                ],
+                "streakLength": 0.03,
+                "sizeVariation": 0.4
+              }
+            },
+            {
+              "id": "91cbf16e7fc646fa801812f7716965aa",
+              "type": "Motion",
+              "properties": {
+                "swingAxis": [
+                  0,
+                  0,
+                  1
+                ],
+                "swingAngle": 18,
+                "swingSpeed": 0.12,
+                "phase": 4
+              }
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "37ef50f42b214dbcb61bb1b97153c508",
+      "name": "Speedboat Orbit",
+      "kind": "Group",
+      "position": [
+        50,
+        0.1,
+        112
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "0ebbcab3744b45b89b38afb6cd61de29",
+          "type": "Motion",
+          "properties": {
+            "spinAxis": [
+              0,
+              1,
+              0
+            ],
+            "spinSpeed": -32
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "4f8fa1fa35a24b94a654ff05b337420c",
+          "name": "Speedboat",
+          "kind": "Group",
+          "position": [
+            5.5,
+            -0.15,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            -0.08
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "scripts": [],
+          "children": [
+            {
+              "id": "753c9d32665e4eee819b12ab2d7b614d",
+              "name": "Speedboat Hull",
+              "kind": "Mesh",
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "asset": "zip:kenney_watercraft-pack.zip/Models/GLB format/boat-speed-a.glb"
+            },
+            {
+              "id": "f928ce765bed432bb61deb6a6624347f",
+              "name": "Rooster Tail",
+              "kind": "Group",
+              "position": [
+                0,
+                0.35,
+                -1.8
+              ],
+              "rotation": [
+                -0.65,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "scripts": [
+                {
+                  "id": "070364e0b7b44a7292a3fe7db4b6c9ec",
+                  "type": "GpuParticleEmitter",
+                  "properties": {
+                    "enabled": true,
+                    "seed": 81,
+                    "drag": 0.3,
+                    "windInfluence": 0.3,
+                    "brightness": 1,
+                    "hardEdge": false,
+                    "count": 9000,
+                    "radius": 0.15,
+                    "spreadDegrees": 14,
+                    "speed": 6.5,
+                    "speedVariation": 0.45,
+                    "lifetime": 1.6,
+                    "gravity": [
+                      0,
+                      -9.8,
+                      0
+                    ],
+                    "bouncePlane1Enabled": true,
+                    "bouncePlane1Position": [
+                      0,
+                      0.1,
+                      0
+                    ],
+                    "bouncePlane1Normal": [
+                      0,
+                      1,
+                      0
+                    ],
+                    "bounciness": 0.05,
+                    "startSize": 0.06,
+                    "endSize": 0.2,
+                    "startColor": [
+                      0.85,
+                      0.95,
+                      1,
+                      0.3
+                    ],
+                    "endColor": [
+                      0.65,
+                      0.85,
+                      1,
+                      0
+                    ],
+                    "streakLength": 0.03,
+                    "sizeVariation": 0.5
+                  }
+                }
+              ],
+              "children": []
+            },
+            {
+              "id": "728d8532578449b0abb588c74ec3962e",
+              "name": "Bow Spray",
+              "kind": "Group",
+              "position": [
+                0,
+                0.2,
+                1.2
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ],
+              "scale": [
+                1,
+                1,
+                1
+              ],
+              "scripts": [
+                {
+                  "id": "1a094ea7ada6451db9a0a5f709808a22",
+                  "type": "GpuParticleEmitter",
+                  "properties": {
+                    "enabled": true,
+                    "seed": 82,
+                    "drag": 0,
+                    "windInfluence": 0,
+                    "brightness": 1,
+                    "hardEdge": false,
+                    "count": 5000,
+                    "radius": 0.3,
+                    "emitFromEdge": true,
+                    "spreadDegrees": 35,
+                    "speed": 2.2,
+                    "speedVariation": 0.5,
+                    "lifetime": 0.9,
+                    "gravity": [
+                      0,
+                      -9.8,
+                      0
+                    ],
+                    "bouncePlane1Enabled": true,
+                    "bouncePlane1Position": [
+                      0,
+                      0.1,
+                      0
+                    ],
+                    "bouncePlane1Normal": [
+                      0,
+                      1,
+                      0
+                    ],
+                    "bounciness": 0.05,
+                    "startSize": 0.08,
+                    "endSize": 0.16,
+                    "startColor": [
+                      0.9,
+                      0.97,
+                      1,
+                      0.45
+                    ],
+                    "endColor": [
+                      0.7,
+                      0.85,
+                      1,
+                      0
+                    ]
+                  }
+                }
+              ],
+              "children": []
+            }
+          ]
         }
       ]
     }

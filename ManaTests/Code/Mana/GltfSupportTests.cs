@@ -125,6 +125,24 @@ public static class GltfSupportChecks
                 string.Join(", ", parts.Select(part => part.Mesh.CpuData?.Indexes.Length ?? -1)));
         }
 
+        // ---------------------------------------------------------------- UniGLTF's doubled root
+        // Kenney's Space Kit lists its model node as a scene root and as the child of a "tmpParent" left at
+        // Unity's scene position; SharpGLTF refuses that, and the stray offset would move every model.
+        var uniGltf = Glb("{\"asset\":{\"version\":\"2.0\"},\"scene\":0,\"scenes\":[{\"nodes\":[1]}],\"nodes\":["
+            + "{\"name\":\"tmpParent\",\"children\":[1]},{\"name\":\"model\",\"translation\":[2,0,1.5]}]}");
+        var repaired = ManaGltfSupport.RepairSceneRoots(uniGltf);
+        SharpGLTF.Schema2.ModelRoot? repairedModel = null;
+        if (repaired != null)
+        {
+            repairedModel = SharpGLTF.Schema2.ModelRoot.ParseGLB(repaired);
+        }
+        Check("a UniGLTF model whose root is also a child loads once repaired",
+            repairedModel?.DefaultScene.VisualChildren.Single().Name == "model", "");
+        Check("and sits where it was modelled, not at the exporter's scene position",
+            repairedModel?.DefaultScene.VisualChildren.Single().LocalTransform.Translation == System.Numerics.Vector3.Zero, "");
+        Check("a well-formed GLB is left alone",
+            ManaGltfSupport.RepairSceneRoots(Glb("{\"asset\":{\"version\":\"2.0\"},\"scenes\":[{\"nodes\":[0]}],\"nodes\":[{\"name\":\"a\"}]}")) == null, "");
+
         // ---------------------------------------------------------------- the view preset's range
         // A camera parked further from its pivot than the far plane renders nothing, and the presets were
         // happy to put it there: the orbit distance came from a field the fly camera never updates, so after
@@ -209,6 +227,21 @@ public static class GltfSupportChecks
     }
 
     /// <summary>A scratch .gltf holding just the given JSON, deleted once the check has read it.</summary>
+    private static byte[] Glb(string json)
+    {
+        var text = System.Text.Encoding.UTF8.GetBytes(json);
+        var padded = (text.Length + 3) & ~3;
+        var glb = new byte[20 + padded];
+        BitConverter.GetBytes(0x46546C67u).CopyTo(glb, 0);
+        BitConverter.GetBytes(2u).CopyTo(glb, 4);
+        BitConverter.GetBytes((uint)glb.Length).CopyTo(glb, 8);
+        BitConverter.GetBytes((uint)padded).CopyTo(glb, 12);
+        BitConverter.GetBytes(0x4E4F534Au).CopyTo(glb, 16);
+        text.CopyTo(glb, 20);
+        glb.AsSpan(20 + text.Length).Fill((byte)' ');
+        return glb;
+    }
+
     private static string Header(string json)
     {
         var path = Path.Combine(Path.GetTempPath(), $"mana-gltf-{Guid.NewGuid():N}.gltf");

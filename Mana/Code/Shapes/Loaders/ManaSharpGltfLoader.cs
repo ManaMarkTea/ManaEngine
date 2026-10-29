@@ -59,7 +59,20 @@ namespace Mana.Code.Shapes.Loaders
                 sceneFile = alternative;
             }
 
-            _model = ModelRoot.Load(sceneFile);
+            byte[]? repaired = null;
+            if (sceneFile.EndsWith(".glb", StringComparison.OrdinalIgnoreCase))
+            {
+                repaired = ManaGltfSupport.RepairSceneRoots(System.IO.File.ReadAllBytes(sceneFile));
+            }
+            if (repaired != null)
+            {
+                using var repairedStream = new System.IO.MemoryStream(repaired);
+                _model = ReadContext.CreateFromDirectory(new System.IO.DirectoryInfo(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(sceneFile)) ?? ".")).ReadSchema2(repairedStream);
+            }
+            else
+            {
+                _model = ModelRoot.Load(sceneFile);
+            }
             ActivePath = System.IO.Path.GetDirectoryName(sceneFile) ?? string.Empty;
             _externalAssetResolver = null;
             return LoadModel(System.IO.Path.GetFileNameWithoutExtension(sceneFile));
@@ -74,6 +87,7 @@ namespace Mana.Code.Shapes.Loaders
             _externalAssetResolver = externalAssetResolver;
 
             var bytes = sceneBytes.ToArray();
+            bytes = ManaGltfSupport.RepairSceneRoots(bytes) ?? bytes;
             var readContext = ReadContext.Create(assetName =>
             {
                 var resolved = externalAssetResolver?.Invoke(assetName);

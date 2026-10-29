@@ -71,11 +71,12 @@ public static class ParticleChecks
         }
         check("with emission off, they all die of old age", fountain.AliveCount == 0, $"{fountain.AliveCount}");
 
-        check("the GPU demo appears in the level picker", ManaLevelLibrary.List().Any(path => ManaLevelLibrary.DisplayName(path) == "GPU Particles"), "");
-        var gpuLevel = ManaLevelLoader.Load(ManaLevel.Load(Path.Combine(ManaContentLibrary.Root, "Levels", "GPU Particles.manalevel")),
-            context, context.World.DefaultScene, replaceAuthoredNodes: false);
-        check("the GPU stress level loads without warnings", gpuLevel.Warnings.Count == 0, string.Join("; ", gpuLevel.Warnings));
-        var gpuNode = gpuLevel.Nodes.First(n => n.Name == "GPU Fountain");
+        // The GPU demos share the garden: the benchmark's fountain, the two-plane bounce and the swirl showcase.
+        check("the garden appears in the level picker", ManaLevelLibrary.List().Any(path => ManaLevelLibrary.DisplayName(path) == "Particle Garden"), "");
+        var gpuNode = garden.Nodes.First(n => n.Name == "GPU Fountain");
+        var tornado = garden.Nodes.First(n => n.Name == "Tornado").Components.OfType<ManaGpuParticleEmitterComponent>().Single().Describe();
+        check("the tornado swirls in radians, flung outward, born on its rim", Math.Abs(tornado.Swirl.X - 520 * MathF.PI / 180) < 0.001f
+            && tornado.Swirl.Z < 0 && tornado.Shape.X == 1, $"{tornado.Swirl} {tornado.Shape}");
         var gpu = gpuNode.Components.OfType<ManaGpuParticleEmitterComponent>().Single();
         gpu.Count = 1_000_000;
         var packets = new List<ManaCore.Graphics.ManaGpuParticleEmitter>();
@@ -94,7 +95,8 @@ public static class ParticleChecks
         gpu.Lifetime = float.NaN;
         gpu.Step(float.NaN);
         check("GPU settings bound unsafe counts and lifetime", gpu.Describe().Count == ManaGpuParticleEmitterComponent.MaximumCount && float.IsFinite(gpu.Describe().Seconds), "");
-        check("GPU bounce is optional by default", gpu.Describe().BounceSettings.X == 0 && gpu.Describe().BounceSettings.Y == 0, "");
+        var fresh = new ManaGpuParticleEmitterComponent(new Mana.Code.Nodes.ManaSceneNode(context, Matrix4x4.Identity)).Describe();
+        check("GPU bounce is optional by default", fresh.BounceSettings.X == 0 && fresh.BounceSettings.Y == 0, "");
         gpu.BouncePlane1Enabled = true; gpu.BouncePlane1Position = new(0, 2, 0);
         gpu.BouncePlane1Normal = new(0, 4, 0); gpu.Bounciness = 2;
         check("GPU planes normalize world normals and clamp restitution", gpu.Describe().BouncePlane1 == new Vector4(0, 1, 0, -2)
@@ -110,11 +112,17 @@ public static class ParticleChecks
 
         check("GPU bounce settings survive level save and reload", reloadedGpu.BouncePlane1Enabled
             && reloadedGpu.BouncePlane1Position == new Vector3(0, 2, 0) && reloadedGpu.Bounciness == 2, "");
-        var bounceLevel = ManaLevelLoader.Load(ManaLevel.Load(Path.Combine(ManaContentLibrary.Root, "Levels", "GPU Particle Bounce.manalevel")),
-            context, context.World.DefaultScene, replaceAuthoredNodes: false);
-        check("the two-plane GPU bounce demo loads without warnings", bounceLevel.Warnings.Count == 0, string.Join("; ", bounceLevel.Warnings));
+        var bounce = garden.Nodes.First(n => n.Name == "GPU Bounce").Components.OfType<ManaGpuParticleEmitterComponent>().Single().Describe();
+        check("the garden's bounce demo uses both planes", bounce.BounceSettings.X == 1 && bounce.BounceSettings.Y == 1, $"{bounce.BounceSettings}");
 
         check("GPU wind influence survives save and reload", reloadedGpu.WindInfluence == 0.25f && reloadedGpu.Describe().WindInfluence == 0.25f, "");
+        check("GPU swirl, arms and streaks survive save and reload", reloadedGpu.SwirlSpeed == gpu.SwirlSpeed && reloadedGpu.Arms == gpu.Arms
+            && reloadedGpu.StreakLength == gpu.StreakLength && reloadedGpu.HueVariation == gpu.HueVariation, "");
+        reloadedGpu.SwirlSpeed = float.NaN; reloadedGpu.Pull = 1000; reloadedGpu.Arms = -3; reloadedGpu.TurbulenceScale = 0;
+        reloadedGpu.Twinkle = 5; reloadedGpu.StreakLength = float.PositiveInfinity;
+        var unsafeLook = reloadedGpu.Describe();
+        check("GPU swirl and look settings are bounded", unsafeLook.Swirl.X == 0 && unsafeLook.Swirl.Z == 20 && unsafeLook.Shape.Y == 0
+            && float.IsFinite(unsafeLook.Turbulence.Y) && unsafeLook.Variation.Z == 1 && unsafeLook.Shape.Z == 0, $"{unsafeLook.Swirl} {unsafeLook.Shape}");
         reloadedGpu.WindInfluence = float.NaN;
         check("GPU wind influence sanitizes invalid settings", reloadedGpu.Describe().WindInfluence == 1, "");
 

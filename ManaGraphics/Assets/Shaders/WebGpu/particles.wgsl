@@ -16,6 +16,11 @@ struct Uniforms {
     bounce_plane2: vec4<f32>,
     bounce_settings: vec4<f32>, // enabled 1, enabled 2, restitution, reserved
     wind: vec4<f32>, // global world-space air velocity, emitter influence
+    swirl: vec4<f32>, // radians a second round the birth up axis, falloff per metre, pull per second, radial launch speed
+    turbulence: vec4<f32>, // metres, 1 / feature size, field speed, field clock
+    variation: vec4<f32>, // hue scatter, hue turns over life, twinkle, size scatter
+    shape: vec4<f32>, // rim births, arm count, streak seconds, arm width (share of the gap between arms)
+    burst: vec4<f32>, // bursts a lifetime, lifetimes elapsed (wrapped), speed scatter, reserved
 }
 @group(0) @binding(0) var<uniform> u: Uniforms;
 @group(0) @binding(1) var<storage, read> spawn_transforms: array<mat4x4<f32>, 256>;
@@ -31,6 +36,7 @@ struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) uv: vec2<f32>,
     @location(1) color: vec4<f32>,
+    @location(2) stretch: f32,
 }
 // Exact free flight, including linear drag. Collision work is skipped when both planes are disabled.
 fn travel_time(t: f32) -> f32 {
@@ -128,48 +134,148 @@ fn bounce_motion(origin: vec3<f32>, velocity: vec3<f32>, age: f32) -> vec3<f32> 
     }
     return p;
 }
-fn particle_motion(instance: u32) -> vec4<f32> {
+struct Launch {
+    origin: vec3<f32>,
+    velocity: vec3<f32>,
+    axis: vec3<f32>,
+    center: vec3<f32>,
+    age: f32,
+    t: f32,
+    seed: u32,
+    group: u32, // the burst's seed when bursting, else the particle's
+}
+fn particle_launch(instance: u32) -> Launch {
     let seed = hash(instance ^ u.flags.y);
-    let phase = f32(instance) / f32(max(u.flags.x, 1u));
+    var phase = f32(instance) / f32(max(u.flags.x, 1u));
+    var group = seed;
+    if (u.burst.x >= 1.0) {
+        // Whole groups born together, one firework each; the lifetime count gives every burst a new place and colour.
+        let burst = floor(phase * u.burst.x);
+        phase = burst / u.burst.x;
+        let cycle = u.burst.y + select(0.0, 1.0, u.motion.x / u.motion.y + phase >= 1.0);
+        group = hash(u32(burst + cycle * u.burst.x) ^ (u.flags.y * 7919u));
+    }
     let t = fract(u.motion.x / u.motion.y + phase);
     let age = t * u.motion.y;
     let c = mix(u.motion.w, 1.0, random(seed));
     let s = sqrt(max(0.0, 1.0 - c*c));
     let angle = random(seed + 1u) * 6.2831853;
     let local_direction = vec3<f32>(s*cos(angle), c, s*sin(angle));
-    let radius = sqrt(random(seed + 2u)) * u.sizes.z;
-    let origin_angle = random(seed + 3u) * 6.2831853;
-    let origin = vec3<f32>(radius*cos(origin_angle), 0.0, radius*sin(origin_angle));
+    let radius = select(sqrt(random(seed + 2u)), 1.0, u.shape.x != 0.0) * u.sizes.z;
+    var origin_angle = random(seed + 3u) * 6.2831853;
+    if (u.shape.y >= 1.0) {
+        // Spokes with a soft (two-sample) scatter; swirl falloff winds them into arms.
+        let arm = floor(random(seed + 4u) * u.shape.y);
+        let scatter = (random(seed + 5u) + random(seed + 6u) - 1.0) * u.shape.w;
+        origin_angle = (arm + scatter) / u.shape.y * 6.2831853;
+    }
+    let outward = vec3<f32>(cos(origin_angle), 0.0, sin(origin_angle));
+    var origin = outward * radius;
+    if (u.burst.x >= 1.0) {
+        // A burst goes off anywhere in the ball of Radius.
+        let z = random(group) * 2.0 - 1.0;
+        let around = random(group + 1u) * 6.2831853;
+        origin = vec3<f32>(sqrt(1.0 - z*z)*cos(around), z, sqrt(1.0 - z*z)*sin(around)) * pow(random(group + 2u), 0.3333) * u.sizes.z;
+    }
+    let speed = u.motion.z * (1.0 - u.burst.z * random(seed + 11u));
     // Integer birth ticks remain fixed for a slot's entire life. Using floating-point
     // (current time - age) here can hop between samples and make moving streams jitter.
     let cycle_offset = select(0, 254, u.motion.x / u.motion.y + phase >= 1.0);
     let birth_tick = i32(floor(-phase * 254.0)) + cycle_offset;
     let index = u32((i32(u.flags.w) - i32(u.history.x) + birth_tick + 512) % 256);
     let spawn = spawn_transforms[index];
-    let launch_origin = (spawn * vec4<f32>(origin, 1.0)).xyz;
     let launch_direction = (spawn * vec4<f32>(local_direction, 0.0)).xyz;
-    let velocity = launch_direction / max(length(launch_direction), 0.000001) * u.motion.z;
-    return vec4<f32>(bounce_motion(launch_origin, velocity, age), t);
+    let axis = (spawn * vec4<f32>(0.0, 1.0, 0.0, 0.0)).xyz;
+    var launch: Launch;
+    launch.origin = (spawn * vec4<f32>(origin, 1.0)).xyz;
+    launch.velocity = launch_direction / max(length(launch_direction), 0.000001) * speed
+        + (spawn * vec4<f32>(outward, 0.0)).xyz * u.swirl.w;
+    launch.axis = axis / max(length(axis), 0.000001);
+    launch.center = spawn[3].xyz;
+    launch.age = age;
+    launch.t = t;
+    launch.seed = seed;
+    launch.group = group;
+    return launch;
+}
+// Nested sines in two octaves: smooth in space, so neighbouring particles drift together like smoke.
+fn flow(q: vec3<f32>) -> vec3<f32> {
+    let a = vec3<f32>(sin(q.y + 1.7*sin(q.z*1.3)), sin(q.z + 1.7*sin(q.x*1.1)), sin(q.x + 1.7*sin(q.y*1.7)));
+    let r = q*2.13 + vec3<f32>(3.1, 1.7, 5.3);
+    let b = vec3<f32>(sin(r.z + 1.3*sin(r.y)), sin(r.x + 1.3*sin(r.z)), sin(r.y + 1.3*sin(r.x)));
+    return a + b*0.5;
+}
+fn position_at(launch: Launch, age: f32) -> vec3<f32> {
+    var p = bounce_motion(launch.origin, launch.velocity, age);
+    if (u.swirl.x != 0.0 || u.swirl.z != 0.0) {
+        // Turn (and pull) the free flight about the birth axis, closed form in age. The turn slows away
+        // from the axis, which shears even streams into spirals.
+        let offset = p - launch.center;
+        let along = launch.axis*dot(offset, launch.axis);
+        let pulled = (offset - along)*exp(-u.swirl.z*age);
+        let turn = u.swirl.x*age/(1.0 + u.swirl.y*length(pulled));
+        p = launch.center + along + pulled*cos(turn) + cross(launch.axis, pulled)*sin(turn);
+    }
+    if (u.turbulence.x > 0.0) {
+        let grow = 1.0 - exp(-2.0*age);
+        let drift = u.turbulence.w*u.turbulence.z;
+        p += flow(p*u.turbulence.y + vec3<f32>(0.0, drift, drift*0.7))*(u.turbulence.x*grow);
+    }
+    return p;
+}
+fn hue_rotate(color: vec3<f32>, turns: f32) -> vec3<f32> {
+    let k = vec3<f32>(0.57735);
+    let a = turns*6.2831853;
+    let c = cos(a);
+    return max(color*c + cross(k, color)*sin(a) + k*dot(k, color)*(1.0 - c), vec3<f32>(0.0));
 }
 @vertex fn vs_main(@builtin(vertex_index) vertex: u32, @builtin(instance_index) instance: u32) -> VertexOutput {
-    let motion = particle_motion(instance);
-    let t = motion.w;
+    let launch = particle_launch(instance);
+    let t = launch.t;
     // Billboard offsets and gravity are world-space; the spawn pose sets only origin and launch direction.
     var corners = array<vec2<f32>, 6>(vec2(-1.0,-1.0), vec2(1.0,-1.0), vec2(-1.0,1.0),
                                      vec2(-1.0,1.0), vec2(1.0,-1.0), vec2(1.0,1.0));
     let uv = corners[vertex];
-    let size = mix(u.sizes.x, u.sizes.y, t)*0.5;
-    let center = motion.xyz;
+    let size = mix(u.sizes.x, u.sizes.y, t)*0.5*max(1.0 + u.variation.w*(random(launch.seed + 7u)*2.0 - 1.0), 0.0);
+    let head = position_at(launch, launch.age);
+    var side = u.right.xyz;
+    var along = u.up.xyz;
+    var center = head;
+    var stretch = 0.0;
+    if (u.shape.z > 0.0) {
+        // A capsule from where the particle was streak-seconds ago to where it is, facing the camera.
+        let tail = position_at(launch, max(launch.age - u.shape.z, 0.0));
+        let path = head - tail;
+        let across = cross(path, cross(side, along));
+        if (length(path) > 0.0001 && length(across) > 0.000001) {
+            along = normalize(path);
+            side = normalize(across);
+            center = (head + tail)*0.5;
+            stretch = length(path)*0.5/max(size, 0.000001);
+        }
+    }
     var output: VertexOutput;
-    output.position = u.view_projection * vec4<f32>(center + (u.right.xyz*uv.x + u.up.xyz*uv.y)*size, 1.0);
+    output.position = u.view_projection * vec4<f32>(center + side*(uv.x*size) + along*(uv.y*size*(1.0 + stretch)), 1.0);
     output.uv = uv;
-    output.color = mix(u.start_color, u.end_color, t);
-    output.color = vec4<f32>(output.color.rgb*u.sizes.w, output.color.a);
+    output.stretch = stretch;
+    var color = mix(u.start_color, u.end_color, t);
+    let hue = (random(launch.group + 8u) - 0.5)*u.variation.x + u.variation.y*t;
+    if (hue != 0.0) { color = vec4<f32>(hue_rotate(color.rgb, hue), color.a); }
+    var glow = u.sizes.w;
+    if (u.variation.z > 0.0) {
+        let rate = 6.0 + random(launch.seed + 9u)*14.0;
+        glow *= 1.0 - u.variation.z*(0.5 + 0.5*sin(launch.age*rate + random(launch.seed + 10u)*6.2831853));
+    }
+    output.color = vec4<f32>(color.rgb*glow, color.a);
     return output;
 }
 @fragment fn fs_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let distance = length(input.uv);
+    // A streak is a capsule: the stretched middle is all core, only the caps round off.
+    let k = input.stretch;
+    let distance = length(vec2<f32>(input.uv.x, max(abs(input.uv.y)*(k + 1.0) - k, 0.0)));
     if (distance > 1.0) { discard; }
-    let fade = select(1.0 - smoothstep(0.0, 1.0, distance), 1.0, u.flags.z != 0u);
+    var fade = select(1.0 - smoothstep(0.0, 1.0, distance), 1.0, u.flags.z != 0u);
+    // The tail of a streak fades into its head.
+    fade *= mix(1.0, 0.15 + 0.85*(input.uv.y*0.5 + 0.5), min(k, 1.0));
     return vec4<f32>(input.color.rgb, input.color.a*fade);
 }

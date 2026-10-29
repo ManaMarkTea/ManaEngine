@@ -1,11 +1,12 @@
 # GPU particles
 
-Open `Content/Levels/GPU Particles.manalevel`, select **GPU Fountain**, then change **Count** on its
-**GPU Particle Emitter** component. The scene starts with 100,000 tiny blue/violet fountain particles.
+Open `Content/Levels/Particle Garden.manalevel` (the CPU fires and fountain up front, the GPU showcase behind),
+select **GPU Fountain**, then change **Count** on its **GPU Particle Emitter** component. The fountain starts with
+100,000 particles.
 Any node can receive the component through Add Component. Its settings save with levels and prefabs.
 
 ```powershell
-dotnet run --project ManaVoxel -- --level "Content/Levels/GPU Particles.manalevel"
+dotnet run --project ManaVoxel -- --level "Content/Levels/Particle Garden.manalevel"
 
 # Builds Release, warms up, sweeps counts, prints FPS / slowdown / worst frame / hitches.
 ./Tools/Automation/benchmark-gpu-particles.ps1
@@ -36,8 +37,8 @@ each lifetime. Changing lifetime resets the transform history; changing Count re
 It draws into
 the HDR scene before post processing, so bright particles bloom. It does not write depth or cast shadows.
 
-Alpha sorting, mesh collisions, textured sprites, turbulence and trail geometry are outside this
-first GPU path. The existing CPU `ParticleEmitter` remains available for its richer effects and OpenGL.
+Alpha sorting, mesh collisions and textured sprites are outside this GPU path (see Swirl, turbulence and
+looks below for what was added since). The existing CPU `ParticleEmitter` remains available for its richer effects and OpenGL.
 `GpuParticleEmitter` renders on WebGPU only; OpenGL does not render this component.
 
 Motion regression: `node Tools/WebAssets/gpu-particles.test.mjs` reads back the production shader's computed
@@ -84,7 +85,8 @@ workload is missing; the browser C# / native interop path remains unverified in 
 
 ## Plane bounce
 
-Open **GPU Particle Bounce** for a floor and wall demo. Each emitter has two optional infinite planes
+The garden's **GPU Bounce** is a floor and wall demo (the lava river runs down the volcano on a third
+plane: a slope). Each emitter has two optional infinite planes
 under **Bounce**, each with a world-space position and normal. The normal points into the permitted
 half-space. Bounciness is shared: zero settles and one preserves normal impact speed; tangential speed
 is preserved. Particle centers collide, without accounting for billboard size.
@@ -110,3 +112,26 @@ Wind advects particles in world XZ at the global air velocity, and drag damps la
 to that moving air. Bounce reflects the resulting world velocity, retaining tangential wind motion.
 This procedural path uses the current wind across a particle's reconstructed lifetime; editing wind
 or gust changes can move existing trajectories. It does not retain a history of wind forces.
+
+## Swirl, turbulence and looks
+
+Everything stays a closed-form function of age, so there is still no per-particle state. After free flight
+(and bounce), the shader turns the position about the birth pose's up axis: **Swirl Speed** degrees a second,
+slowed by **Swirl Falloff** per metre from the axis (which shears streams into spirals), with **Pull** drawing
+toward the axis per second (negative flings out). **Turbulence** then displaces by a smooth two-octave sine
+field (**Turbulence Scale** metres, **Turbulence Speed**), growing from zero at birth. Bounce planes see the
+free-flight path only, so a swirled or turbulent particle can cross a plane.
+
+Emission: **Emit From Edge** (the rim of Radius), **Arms** with **Arm Width** (births bunched into spokes;
+with swirl falloff they wind into a galaxy's arms), **Radial Speed** (out from the axis), and **Bursts** --
+groups born together somewhere in the ball of Radius, a new place and colour every lifetime: fireworks.
+**Speed Variation** gives sprays depth. Looks: **Streak Length** (seconds of path drawn as a camera-facing
+capsule fading to its tail; costs a second path evaluation), **Hue Variation** (per particle, or per burst),
+**Hue Shift** over life, **Twinkle**, **Size Variation**.
+
+The garden shows each: a tornado (rim, swirl, outward pull), a galaxy (arms, radial speed, falloff), a black
+hole (rim, arms, inward pull), a comet orbiting on a `Motion` script (world-space trail, turbulence), an
+aurora (a node squashed flat into a line emitter), fireworks (bursts, streaks), a volcano (lava bombs and a
+river sliding down a slope plane), a fireboat and a speedboat (water arcs and a wake on the water plane), and
+the `Rocket` prefab (`Content/Prefabs/Rocket.manaprefab`, Kenney Space Kit) whose exhaust fans across its pad.
+Foundry's rocket silo switches the same kind of thruster on for a launch.

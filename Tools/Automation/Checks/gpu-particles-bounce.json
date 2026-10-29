@@ -1,24 +1,24 @@
 [
   {
     "type": "open_level",
-    "path": "Content/Levels/GPU Particle Bounce.manalevel"
+    "path": "Content/Levels/Particle Garden.manalevel"
   },
   {
     "type": "move_camera",
     "position": [
-      50,
+      77,
       7,
-      57
+      87
     ],
     "target": [
-      50,
+      77,
       2,
-      40
+      70
     ]
   },
   {
     "type": "gpu_particles",
-    "name": "GPU Fountain",
+    "name": "GPU Bounce",
     "count": 0
   },
   {
@@ -38,7 +38,7 @@
   },
   {
     "type": "gpu_particles",
-    "name": "GPU Fountain",
+    "name": "GPU Bounce",
     "count": 100000
   },
   {
@@ -63,7 +63,7 @@
   },
   {
     "type": "gpu_particles",
-    "name": "GPU Fountain",
+    "name": "GPU Bounce",
     "count": 1000000
   },
   {
@@ -83,16 +83,16 @@
   },
   {
     "type": "transform_node",
-    "name": "GPU Fountain",
+    "name": "GPU Bounce",
     "position": [
-      52,
+      82,
       2,
-      40
+      70
     ],
     "rotation": [
       0,
       0,
-      -1
+      1
     ]
   },
   {
