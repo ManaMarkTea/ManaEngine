@@ -373,7 +373,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
   shadow cascades use), occlusion at half resolution from that depth with normals rebuilt from it (`ssao.wgsl`: the
   visibility bitmask of Therrien et al. 2023 -- GTAO's 3 slices and 6 steps a side, but each depth sample a surface of
   thickness 0.4 x radius hiding only its own share of 32 sectors, so light gets behind chair legs; samples on the
-  surface's own plane are skipped), and a depth-aware blur (`ssao_blur.wgsl`). The PBR shader darkens only its ambient by it (frame group
+  surface's own plane are skipped), a depth-aware blur (`ssao_blur.wgsl`) and accumulation over frames
+  (`ssao_temporal.wgsl`: each point reprojected to last frame, 6% of the new frame blended in, history dropped where the
+  distance from that frame's camera disagrees and clamped to this frame's neighbourhood; 13x steadier than without on
+  Bistro). Measuring AO flicker: compare non-`clean` screenshots -- a clean one refits the camera to the whole window
+  and back, which moves every reprojected pixel. The PBR shader darkens only its ambient by it (frame group
   binding 10, `mana_ambient_occlusion`), never sun or lamps, nor glass. `ManaIrradianceSettings.AmbientOcclusion`
   (strength, 1.5; 0 turns it off and skips the prepass) and `AmbientOcclusionRadius` (0.5 m), in Scene Inspector >
   Lighting; the `ambient_occlusion` script command (`value`, `radius`); PBR debug view `Ambient Occlusion`. Off on

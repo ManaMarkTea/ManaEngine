@@ -11,8 +11,9 @@ namespace ManaGraphics.Code.Graphics.Pipelines
     /// <summary>
     /// Screen-space ambient occlusion, before the scene pass: the opaque PBR scenery depth-only from the camera (a
     /// prepass; the scene pass makes its depth as it shades, too late), occlusion from that at half resolution
-    /// (ssao.wgsl) and a depth-aware blur (ssao_blur.wgsl). The PBR shader darkens only its ambient light by it (frame
-    /// group binding 10), so sun and lamps are left as they are. Off (and nothing drawn) at strength 0 and on phones.
+    /// (ssao.wgsl), a depth-aware blur (ssao_blur.wgsl) and accumulation over frames (ssao_temporal.wgsl), which is
+    /// what stills the noise. The PBR shader darkens only its ambient light by it (frame group binding 10), so sun and
+    /// lamps are left as they are. Off (and nothing drawn) at strength 0 and on phones.
     /// </summary>
     internal sealed unsafe class ManaWebGpuAmbientOcclusionPass : ManaWebGpuRenderPass
     {
@@ -23,6 +24,10 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             public Matrix4x4 InverseProjection;
             public Vector4 Size;
             public Vector4 Settings;
+            // ssao_temporal.wgsl only; the other two read the start of the same buffer.
+            public Matrix4x4 InverseView;
+            public Matrix4x4 PreviousViewProjection;
+            public Vector4 PreviousCamera;
         }
 
         private readonly ManaWebGpuSceneBindings _bindings;
@@ -37,14 +42,27 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private PipelineLayout* _blurPipelineLayout;
         private ComputePipeline* _aoPipeline;
         private ComputePipeline* _blurPipeline;
+        private ShaderModule* _temporalShader;
+        private BindGroupLayout* _temporalLayout;
+        private PipelineLayout* _temporalPipelineLayout;
+        private ComputePipeline* _temporalPipeline;
+        private Sampler* _historySampler;
         private BindGroup* _aoGroup;
         private BindGroup* _blurGroup;
+        private BindGroup* _temporalGroup;
         private Texture* _depth;
         private TextureView* _depthView;
         private Texture* _raw;
         private TextureView* _rawView;
+        private Texture* _blurred;
+        private TextureView* _blurredView;
         private Texture* _final;
         private TextureView* _finalView;
+        private Texture* _history;
+        private TextureView* _historyView;
+        private Matrix4x4 _previousViewProjection;
+        private Vector3 _previousCamera;
+        private bool _historyValid;
         private uint _width;
         private uint _height;
         private bool _bound;
@@ -68,8 +86,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         }
 
         public override string ProfileName => "GPU: Ambient Occlusion";
-        public override int PipelineCount => _drawer.PipelineCount + 2;
-        public override int ShaderModuleCount => _drawer.PipelineCount + 2;
+        public override int PipelineCount => _drawer.PipelineCount + 3;
+        public override int ShaderModuleCount => _drawer.PipelineCount + 3;
 
         /// <summary>What the prepass draws: opaque and cut-out PBR surfaces, the ones that read the occlusion back.</summary>
         public static bool Occludes(ManaRenderMeshInstance instance) =>
@@ -86,6 +104,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                     _bindings.SetAmbientOcclusion(null);
                     _bound = false;
                 }
+                _historyValid = false;
                 return;
             }
 
@@ -104,6 +123,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             _drawer.Draw(frame, _view, _ => (nint)_depthView, Occludes);
 
             Matrix4x4.Invert(camera.Projection, out var inverse);
+            Matrix4x4.Invert(camera.View, out var inverseView);
             var halfWidth = (_width + 1) / 2;
             var halfHeight = (_height + 1) / 2;
             var parameters = new Params
@@ -113,12 +133,29 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 Size = new Vector4(_width, _height, halfWidth, halfHeight),
                 Settings = new Vector4(Math.Clamp(settings.AmbientOcclusionRadius, 0.05f, 10.0f), Math.Clamp(settings.AmbientOcclusion, 0.0f, 4.0f), frame.Number % 64,
                     // How thick a depth sample is taken to be (ssao.wgsl): thin enough that light gets behind a chair leg.
-                    Math.Clamp(settings.AmbientOcclusionRadius * 0.4f, 0.05f, 2.0f))
+                    Math.Clamp(settings.AmbientOcclusionRadius * 0.4f, 0.05f, 2.0f)),
+                InverseView = inverseView,
+                PreviousViewProjection = _previousViewProjection,
+                PreviousCamera = new Vector4(_previousCamera, 0.0f)
             };
+            if (_historyValid)
+            {
+                parameters.PreviousCamera.W = 1.0f;
+            }
             Api.QueueWriteBuffer(Queue, _params, 0, &parameters, (nuint)sizeof(Params));
 
             Dispatch(frame.Encoder, _aoPipeline, _aoGroup, halfWidth, halfHeight);
             Dispatch(frame.Encoder, _blurPipeline, _blurGroup, halfWidth, halfHeight);
+            Dispatch(frame.Encoder, _temporalPipeline, _temporalGroup, halfWidth, halfHeight);
+
+            // This frame becomes the next one's history.
+            var source = new ImageCopyTexture { Texture = _final, MipLevel = 0, Aspect = TextureAspect.All };
+            var target = new ImageCopyTexture { Texture = _history, MipLevel = 0, Aspect = TextureAspect.All };
+            var extent = new Extent3D { Width = halfWidth, Height = halfHeight, DepthOrArrayLayers = 1 };
+            Api.CommandEncoderCopyTextureToTexture(frame.Encoder, &source, &target, &extent);
+            _previousViewProjection = _view[0];
+            _previousCamera = camera.Position;
+            _historyValid = true;
         }
 
         private void Dispatch(CommandEncoder* encoder, ComputePipeline* pipeline, BindGroup* group, uint width, uint height)
@@ -147,7 +184,11 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             var halfHeight = (height + 1) / 2;
             Create(width, height, TextureFormat.Depth32float, TextureUsage.RenderAttachment | TextureUsage.TextureBinding, TextureAspect.DepthOnly, out _depth, out _depthView);
             Create(halfWidth, halfHeight, TextureFormat.Rgba8Unorm, TextureUsage.StorageBinding | TextureUsage.TextureBinding, TextureAspect.All, out _raw, out _rawView);
-            Create(halfWidth, halfHeight, TextureFormat.Rgba8Unorm, TextureUsage.StorageBinding | TextureUsage.TextureBinding, TextureAspect.All, out _final, out _finalView);
+            Create(halfWidth, halfHeight, TextureFormat.Rgba8Unorm, TextureUsage.StorageBinding | TextureUsage.TextureBinding, TextureAspect.All, out _blurred, out _blurredView);
+            // Half floats: g carries each pixel's distance from the camera, for the next frame's same-surface test.
+            Create(halfWidth, halfHeight, TextureFormat.Rgba16float, TextureUsage.StorageBinding | TextureUsage.TextureBinding | TextureUsage.CopySrc, TextureAspect.All, out _final, out _finalView);
+            Create(halfWidth, halfHeight, TextureFormat.Rgba16float, TextureUsage.TextureBinding | TextureUsage.CopyDst, TextureAspect.All, out _history, out _historyView);
+            _historyValid = false;
 
             var ao = stackalloc BindGroupEntry[3];
             ao[0] = new BindGroupEntry { Binding = 0, Buffer = _params, Size = (ulong)sizeof(Params) };
@@ -160,10 +201,20 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             blur[0] = new BindGroupEntry { Binding = 0, Buffer = _params, Size = (ulong)sizeof(Params) };
             blur[1] = new BindGroupEntry { Binding = 1, TextureView = _depthView };
             blur[2] = new BindGroupEntry { Binding = 2, TextureView = _rawView };
-            blur[3] = new BindGroupEntry { Binding = 3, TextureView = _finalView };
+            blur[3] = new BindGroupEntry { Binding = 3, TextureView = _blurredView };
             var blurDescriptor = new BindGroupDescriptor { Layout = _blurLayout, EntryCount = 4, Entries = blur };
             _blurGroup = Api.DeviceCreateBindGroup(Device, &blurDescriptor);
-            if (_aoGroup == null || _blurGroup == null)
+
+            var temporal = stackalloc BindGroupEntry[6];
+            temporal[0] = new BindGroupEntry { Binding = 0, Buffer = _params, Size = (ulong)sizeof(Params) };
+            temporal[1] = new BindGroupEntry { Binding = 1, TextureView = _depthView };
+            temporal[2] = new BindGroupEntry { Binding = 2, TextureView = _blurredView };
+            temporal[3] = new BindGroupEntry { Binding = 3, TextureView = _historyView };
+            temporal[4] = new BindGroupEntry { Binding = 4, Sampler = _historySampler };
+            temporal[5] = new BindGroupEntry { Binding = 5, TextureView = _finalView };
+            var temporalDescriptor = new BindGroupDescriptor { Layout = _temporalLayout, EntryCount = 6, Entries = temporal };
+            _temporalGroup = Api.DeviceCreateBindGroup(Device, &temporalDescriptor);
+            if (_aoGroup == null || _blurGroup == null || _temporalGroup == null)
             {
                 throw new InvalidOperationException("Failed to create the ambient occlusion bind groups.");
             }
@@ -212,20 +263,26 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 Visibility = ShaderStage.Compute,
                 Texture = new TextureBindingLayout { SampleType = TextureSampleType.Depth, ViewDimension = TextureViewDimension.Dimension2D }
             };
-            BindGroupLayoutEntry Storage(uint binding) => new()
+            BindGroupLayoutEntry Storage(uint binding, TextureFormat format) => new()
             {
                 Binding = binding,
                 Visibility = ShaderStage.Compute,
                 StorageTexture = new StorageTextureBindingLayout
                 {
-                    Access = StorageTextureAccess.WriteOnly, Format = TextureFormat.Rgba8Unorm, ViewDimension = TextureViewDimension.Dimension2D
+                    Access = StorageTextureAccess.WriteOnly, Format = format, ViewDimension = TextureViewDimension.Dimension2D
                 }
+            };
+            BindGroupLayoutEntry Sampled(uint binding) => new()
+            {
+                Binding = binding,
+                Visibility = ShaderStage.Compute,
+                Texture = new TextureBindingLayout { SampleType = TextureSampleType.Float, ViewDimension = TextureViewDimension.Dimension2D }
             };
 
             var ao = stackalloc BindGroupLayoutEntry[3];
             ao[0] = uniform;
             ao[1] = depth;
-            ao[2] = Storage(2);
+            ao[2] = Storage(2, TextureFormat.Rgba8Unorm);
             var aoDescriptor = new BindGroupLayoutDescriptor { EntryCount = 3, Entries = ao };
             _aoLayout = Api.DeviceCreateBindGroupLayout(Device, &aoDescriptor);
 
@@ -238,12 +295,41 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 Visibility = ShaderStage.Compute,
                 Texture = new TextureBindingLayout { SampleType = TextureSampleType.Float, ViewDimension = TextureViewDimension.Dimension2D }
             };
-            blur[3] = Storage(3);
+            blur[3] = Storage(3, TextureFormat.Rgba8Unorm);
             var blurDescriptor = new BindGroupLayoutDescriptor { EntryCount = 4, Entries = blur };
             _blurLayout = Api.DeviceCreateBindGroupLayout(Device, &blurDescriptor);
 
+            var temporal = stackalloc BindGroupLayoutEntry[6];
+            temporal[0] = uniform;
+            temporal[1] = depth;
+            temporal[2] = Sampled(2);
+            temporal[3] = Sampled(3);
+            temporal[4] = new BindGroupLayoutEntry
+            {
+                Binding = 4,
+                Visibility = ShaderStage.Compute,
+                Sampler = new SamplerBindingLayout { Type = SamplerBindingType.Filtering }
+            };
+            temporal[5] = Storage(5, TextureFormat.Rgba16float);
+            var temporalDescriptor = new BindGroupLayoutDescriptor { EntryCount = 6, Entries = temporal };
+            _temporalLayout = Api.DeviceCreateBindGroupLayout(Device, &temporalDescriptor);
+
+            // Bilinear: history is looked up where a point was last frame, between texels.
+            var samplerDescriptor = new SamplerDescriptor
+            {
+                AddressModeU = AddressMode.ClampToEdge,
+                AddressModeV = AddressMode.ClampToEdge,
+                AddressModeW = AddressMode.ClampToEdge,
+                MagFilter = FilterMode.Linear,
+                MinFilter = FilterMode.Linear,
+                MipmapFilter = MipmapFilterMode.Nearest,
+                MaxAnisotropy = 1
+            };
+            _historySampler = Api.DeviceCreateSampler(Device, &samplerDescriptor);
+
             Compute("ssao.wgsl", _aoLayout, out _aoShader, out _aoPipelineLayout, out _aoPipeline);
             Compute("ssao_blur.wgsl", _blurLayout, out _blurShader, out _blurPipelineLayout, out _blurPipeline);
+            Compute("ssao_temporal.wgsl", _temporalLayout, out _temporalShader, out _temporalPipelineLayout, out _temporalPipeline);
         }
 
         private void Compute(string shader, BindGroupLayout* layout, out ShaderModule* module, out PipelineLayout* pipelineLayout, out ComputePipeline* pipeline)
@@ -275,6 +361,11 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         {
             if (_aoGroup != null) { Api.BindGroupRelease(_aoGroup); _aoGroup = null; }
             if (_blurGroup != null) { Api.BindGroupRelease(_blurGroup); _blurGroup = null; }
+            if (_temporalGroup != null) { Api.BindGroupRelease(_temporalGroup); _temporalGroup = null; }
+            if (_blurredView != null) { Api.TextureViewRelease(_blurredView); _blurredView = null; }
+            if (_blurred != null) { Api.TextureRelease(_blurred); _blurred = null; }
+            if (_historyView != null) { Api.TextureViewRelease(_historyView); _historyView = null; }
+            if (_history != null) { Api.TextureRelease(_history); _history = null; }
             if (_depthView != null) { Api.TextureViewRelease(_depthView); _depthView = null; }
             if (_depth != null) { Api.TextureRelease(_depth); _depth = null; }
             if (_rawView != null) { Api.TextureViewRelease(_rawView); _rawView = null; }
@@ -291,6 +382,11 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             ReleaseTargets();
             if (_aoPipeline != null) { Api.ComputePipelineRelease(_aoPipeline); _aoPipeline = null; }
             if (_blurPipeline != null) { Api.ComputePipelineRelease(_blurPipeline); _blurPipeline = null; }
+            if (_temporalPipeline != null) { Api.ComputePipelineRelease(_temporalPipeline); _temporalPipeline = null; }
+            if (_temporalPipelineLayout != null) { Api.PipelineLayoutRelease(_temporalPipelineLayout); _temporalPipelineLayout = null; }
+            if (_temporalLayout != null) { Api.BindGroupLayoutRelease(_temporalLayout); _temporalLayout = null; }
+            if (_temporalShader != null) { Api.ShaderModuleRelease(_temporalShader); _temporalShader = null; }
+            if (_historySampler != null) { Api.SamplerRelease(_historySampler); _historySampler = null; }
             if (_aoPipelineLayout != null) { Api.PipelineLayoutRelease(_aoPipelineLayout); _aoPipelineLayout = null; }
             if (_blurPipelineLayout != null) { Api.PipelineLayoutRelease(_blurPipelineLayout); _blurPipelineLayout = null; }
             if (_aoLayout != null) { Api.BindGroupLayoutRelease(_aoLayout); _aoLayout = null; }
