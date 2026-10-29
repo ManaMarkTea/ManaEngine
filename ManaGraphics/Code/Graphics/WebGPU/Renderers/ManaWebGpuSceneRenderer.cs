@@ -23,7 +23,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         // Made the first time MSAA is chosen; the anti-aliasing last drawn picks the tone map's FXAA.
         private ManaWebGpuMsaaTargets? _msaa;
         private ManaWebGpuSmaa? _smaa;
-        private ManaAntiAliasing _antiAliasing = ManaAntiAliasing.Fxaa;
+        private ManaAntiAliasing _antiAliasing = ManaAntiAliasing.Smaa;
         private ManaWebGpuLightClusters? _lights;
         private Vector2D<int> _size;
         private readonly ManaWebGpuHdrPostProcessor _hdr;

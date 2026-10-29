@@ -385,7 +385,7 @@ dark when it casts shadows, which a click selects; the selected light's range as
   phones. The earlier 16-sample hemisphere version cost about 0.9 ms a frame on Bistro; the bitmask is not timed yet.
   Debug views drop blended surfaces (glass): their -1 "leave alone" alpha would blend to black.
 - **Anti-aliasing:** `ManaIrradianceSettings.AntiAliasing` (Scene Inspector > Lighting; `anti_aliasing` command), not saved.
-  FXAA (the default) runs in the tone map (`hdr_tonemap.wgsl`, `fs_main`; `fs_plain` without). SMAA 1x
+  SMAA is the default. FXAA runs in the tone map (`hdr_tonemap.wgsl`, `fs_main`; `fs_plain` without). SMAA 1x
   (`ManaWebGpuSmaa`, `smaa.wgsl`, a port of the reference SMAA.hlsl at its HIGH preset without the diagonal search;
   its area and search tables are embedded from `ManaGraphics/Assets/Smaa/`, MIT): the tone map into a texture, luma
   edges, blend weights, and the neighbourhood blend drawn into the window in place of the tone map, with the outline

@@ -250,14 +250,14 @@ public static class PortedPaletteChecks
 
         // Anti-aliasing's list is in ManaAntiAliasing's order, which is what the renderer reads.
         var antiAliasing = FindAll<ComboBox>(panel).FirstOrDefault(combo => combo.Items.Count == 4);
-        Check("anti-aliasing is offered, FXAA by default", antiAliasing?.SelectedIndex == (int)ManaCore.Graphics.ManaAntiAliasing.Fxaa,
+        Check("anti-aliasing is offered, SMAA by default", antiAliasing?.SelectedIndex == (int)ManaCore.Graphics.ManaAntiAliasing.Smaa,
             $"{antiAliasing?.SelectedIndex}");
         if (antiAliasing != null)
         {
             antiAliasing.SelectedIndex = 3;
             Check("and choosing MSAA reaches the render settings", settings.AntiAliasing == ManaCore.Graphics.ManaAntiAliasing.Msaa,
                 $"{settings.AntiAliasing}");
-            settings.AntiAliasing = ManaCore.Graphics.ManaAntiAliasing.Fxaa;
+            settings.AntiAliasing = ManaCore.Graphics.ManaAntiAliasing.Smaa;
         }
 
         // The debug mode index is what reaches the shader, so the order of the list is not cosmetic.
