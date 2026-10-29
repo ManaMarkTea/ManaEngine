@@ -71,5 +71,23 @@ public static class LightClusterChecks
         var behind = new ManaLightClusters();
         behind.Build([(new Vector4(eye + (eye - Vector3.Zero), 1), Vector4.One), (new Vector4(0, 0, 0, 0), Vector4.One)], perspective, viewport);
         check("a light behind the camera or without a range lights no cell", behind.IndexCount == 0, $"{behind.IndexCount} entries");
+
+        // Point-light shadows: the casters nearest the camera get the slots, named in their colour's w as slot + 1.
+        var lamps = new List<(Vector4 Position, Vector4 Color)>();
+        var casters = new List<int>();
+        for (var i = 0; i < 12; i++)
+        {
+            lamps.Add((new Vector4(i * 3.0f, 2, 0, 5), new Vector4(1, 1, 1, 0)));
+            if (i != 1)
+            {
+                casters.Add(i);
+            }
+        }
+        var slots = ManaRenderScene.AssignPointShadows(lamps, casters, new Vector3(30, 2, 0));
+        check("at most MaxPointShadows lights cast shadows", slots.Count == ManaRenderScene.MaxPointShadows, $"{slots.Count}");
+        check("the nearest caster to the camera has the first slot", slots[0].X == 30 && lamps[10].Color.W == 1, $"{slots[0]}");
+        check("the farthest casters and the non-caster keep no slot", lamps[0].Color.W == 0 && lamps[1].Color.W == 0 && lamps[2].Color.W == 0,
+            string.Join(", ", lamps.Select(l => l.Color.W)));
+        check("each slot names its own light", Enumerable.Range(0, slots.Count).All(s => lamps.Count(l => l.Color.W == s + 1 && l.Position == slots[s]) == 1), "");
     }
 }

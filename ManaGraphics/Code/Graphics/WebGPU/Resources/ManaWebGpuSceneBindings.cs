@@ -19,8 +19,12 @@ namespace ManaGraphics.Code.Graphics.Resources
         public const int ObjectBindingCount = FirstMaterialMapBinding + MaterialMapCount;
 
         /// <summary>Group 0: frame uniform, shadow map and sampler, three light buffers, probe harmonics and sampler, occlusion.</summary>
-        public const int FrameBindingCount = 11;
+        private const int BaseFrameBindingCount = 11;
 
+        /// <summary>Those, then the point-light shadow faces and their matrices where the device has room for them.</summary>
+        public int FrameBindingCount { get; private set; } = BaseFrameBindingCount;
+
+        private ManaWebGpuPointShadowMap? _pointShadows;
         private TextureView* _shadowMapArrayView;
         private Sampler* _shadowSampler;
         private ManaWebGpuLightClusters? _lights;
@@ -67,9 +71,16 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         /// <param name="shadowMapArrayView">Bound into group 0; the shadow pass keeps it alive for as long as these bindings.</param>
         /// <param name="lights">The light cluster buffers, bound into group 0; the scene renderer keeps them as long.</param>
-        public ManaWebGpuSceneBindings(ManaWebGpuDevice gpu, TextureView* shadowMapArrayView, Sampler* shadowSampler, ManaWebGpuLightClusters lights)
+        /// <param name="pointShadows">Bound into group 0 as 11 and 12 when given (the device supports point shadows).</param>
+        public ManaWebGpuSceneBindings(ManaWebGpuDevice gpu, TextureView* shadowMapArrayView, Sampler* shadowSampler, ManaWebGpuLightClusters lights,
+            ManaWebGpuPointShadowMap? pointShadows = null)
             : base(gpu)
         {
+            _pointShadows = pointShadows;
+            if (pointShadows != null)
+            {
+                FrameBindingCount = BaseFrameBindingCount + 2;
+            }
             var api = gpu.Api;
             var device = gpu.Device;
             try
@@ -219,9 +230,30 @@ namespace ManaGraphics.Code.Graphics.Resources
                     }
                 };
 
+                if (_pointShadows != null)
+                {
+                    frameBindGroupLayoutEntries[11] = new BindGroupLayoutEntry
+                    {
+                        Binding = 11,
+                        Visibility = ShaderStage.Fragment,
+                        Texture = new TextureBindingLayout
+                        {
+                            SampleType = TextureSampleType.Depth,
+                            ViewDimension = TextureViewDimension.Dimension2DArray,
+                            Multisampled = false
+                        }
+                    };
+                    frameBindGroupLayoutEntries[12] = new BindGroupLayoutEntry
+                    {
+                        Binding = 12,
+                        Visibility = ShaderStage.Fragment,
+                        Buffer = new BufferBindingLayout { Type = BufferBindingType.ReadOnlyStorage, MinBindingSize = ManaWebGpuPointShadowMap.MatricesSize }
+                    };
+                }
+
                 var frameBindGroupLayoutDescriptor = new BindGroupLayoutDescriptor
                 {
-                    EntryCount = FrameBindingCount,
+                    EntryCount = (nuint)FrameBindingCount,
                     Entries = frameBindGroupLayoutEntries
                 };
                 FrameLayout = api.DeviceCreateBindGroupLayout(device, &frameBindGroupLayoutDescriptor);
@@ -527,8 +559,13 @@ namespace ManaGraphics.Code.Graphics.Resources
             entries[8] = new BindGroupEntry { Binding = 8, TextureView = blue };
             entries[9] = new BindGroupEntry { Binding = 9, Sampler = ClampSampler };
             entries[10] = new BindGroupEntry { Binding = 10, TextureView = occlusion };
+            if (_pointShadows != null)
+            {
+                entries[11] = new BindGroupEntry { Binding = 11, TextureView = _pointShadows.ArrayView };
+                entries[12] = new BindGroupEntry { Binding = 12, Buffer = _pointShadows.Matrices, Offset = 0, Size = ManaWebGpuPointShadowMap.MatricesSize };
+            }
 
-            var descriptor = new BindGroupDescriptor { Layout = FrameLayout, EntryCount = FrameBindingCount, Entries = entries };
+            var descriptor = new BindGroupDescriptor { Layout = FrameLayout, EntryCount = (nuint)FrameBindingCount, Entries = entries };
             var label = Marshal.StringToCoTaskMemUTF8("Scene frame and shadows");
             BindGroup* group;
             try

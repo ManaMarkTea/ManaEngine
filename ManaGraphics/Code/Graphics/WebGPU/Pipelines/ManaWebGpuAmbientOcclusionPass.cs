@@ -111,7 +111,9 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 Projection = camera.Projection,
                 InverseProjection = inverse,
                 Size = new Vector4(_width, _height, halfWidth, halfHeight),
-                Settings = new Vector4(Math.Clamp(settings.AmbientOcclusionRadius, 0.05f, 10.0f), Math.Clamp(settings.AmbientOcclusion, 0.0f, 4.0f), frame.Number % 64, 0.0f)
+                Settings = new Vector4(Math.Clamp(settings.AmbientOcclusionRadius, 0.05f, 10.0f), Math.Clamp(settings.AmbientOcclusion, 0.0f, 4.0f), frame.Number % 64,
+                    // How thick a depth sample is taken to be (ssao.wgsl): thin enough that light gets behind a chair leg.
+                    Math.Clamp(settings.AmbientOcclusionRadius * 0.4f, 0.05f, 2.0f))
             };
             Api.QueueWriteBuffer(Queue, _params, 0, &parameters, (nuint)sizeof(Params));
 

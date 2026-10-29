@@ -14,6 +14,9 @@ struct VertexOutput {
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/shadows.wgsl"
+#if MANA_POINT_SHADOWS
+#include "include/point_shadows.wgsl"
+#endif
 #include "include/probe_volume.wgsl"
 #if MANA_INSTANCED
 // Instanced (ManaWebGpuMaterialPass batches meshes alike): each instance's object uniform from an array, copied into
@@ -391,7 +394,13 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 
         let to_light = lamp.position_range.xyz - input.world_position;
         let distance = max(length(to_light), 0.05);
-        let radiance = light_color * mana_point_light_attenuation(distance, range);
+        var radiance = light_color * mana_point_light_attenuation(distance, range);
+#if MANA_POINT_SHADOWS
+        let shadow_slot = u32(lamp.color.w + 0.5);
+        if (shadow_slot > 0u) {
+            radiance = radiance * mana_point_shadow(shadow_slot - 1u, lamp.position_range.xyz, input.world_position, input.world_normal);
+        }
+#endif
 
         let l = to_light / distance;
         let h = normalize(v + l);
@@ -573,6 +582,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         color = color * exposure;
     }
     if (debug_mode != 0u) {
+        // The -1 alpha marks the colour for the tone map to leave alone, which a blended pipeline would blend with
+        // instead (behind * 2 - colour, black after a few layers of glass): blended surfaces step aside.
+        if (opacity_mode == 3u || opacity_mode == 4u) {
+            discard;
+        }
         color = debug_color_to_surface(color);
         output_alpha = -1.0;
     }

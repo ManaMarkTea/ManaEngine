@@ -215,9 +215,11 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
         /// <summary>
         /// One depth-only pass per view, each into its own target and cleared first. A mesh is drawn in a view only
-        /// when <paramref name="include"/> takes it and its bounds can land in that view.
+        /// when <paramref name="include"/> takes it and its bounds can land in that view, and <paramref name="skip"/>
+        /// (given the view and the bounds) does not leave it out there.
         /// </summary>
-        public void Draw(ManaWebGpuFrame frame, ReadOnlySpan<Matrix4x4> viewProjections, Func<int, nint> target, Func<ManaRenderMeshInstance, bool> include)
+        public void Draw(ManaWebGpuFrame frame, ReadOnlySpan<Matrix4x4> viewProjections, Func<int, nint> target, Func<ManaRenderMeshInstance, bool> include,
+            Func<int, (Vector3 Min, Vector3 Max), bool>? skip = null)
         {
             _meshes.Clear();
             foreach (var sceneMesh in frame.Meshes)
@@ -254,7 +256,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                     if (geometry == 0)
                     {
                         // Outside this view it draws nothing, but costs a draw call all the same.
-                        if (InsideBox(_meshes[index].Bounds, viewProjection))
+                        if (InsideBox(_meshes[index].Bounds, viewProjection) && skip?.Invoke(view, _meshes[index].Bounds) != true)
                         {
                             _alone.Add((view, _meshes[index].Mesh));
                         }
@@ -268,7 +270,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                     {
                         var (_, mesh, bounds) = _meshes[index];
                         index++;
-                        if (!InsideBox(bounds, viewProjection))
+                        if (!InsideBox(bounds, viewProjection) || skip?.Invoke(view, bounds) == true)
                         {
                             continue;
                         }

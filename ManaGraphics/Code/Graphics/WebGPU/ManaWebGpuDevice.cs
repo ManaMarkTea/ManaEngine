@@ -27,6 +27,9 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>BC textures sample directly (DDS uploads as stored); otherwise they are decoded to RGBA first.</summary>
         public bool SupportsBlockCompression { get; init; }
 
+        /// <summary>Point lights can cast shadows: the device allows the extra texture, and shaders build with MANA_POINT_SHADOWS.</summary>
+        public bool SupportsPointShadows { get; init; }
+
         /// <summary>The browser's phone profile: smaller reflection cubes and a particle budget.</summary>
         public static bool UseMobileRendering
         {
@@ -82,6 +85,10 @@ namespace ManaGraphics.Code.Graphics
         public ShaderModule* CreateShaderModule(string fileName, params string[] defines)
         {
             var path = ResolveAssetPath(ShaderPath(fileName));
+            if (SupportsPointShadows)
+            {
+                defines = [.. defines, "MANA_POINT_SHADOWS"];
+            }
             var source = ManaWgslPreprocessor.LoadResolved(path, defines);
             nint sourcePointer = Marshal.StringToCoTaskMemUTF8(source);
 

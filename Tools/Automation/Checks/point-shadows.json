@@ -1,0 +1,14 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Point Shadows.manalevel"},
+  {"type":"wait","frames":120},
+  {"type":"gizmos","visible":false},
+  {"type":"screenshot","path":"@@OUT@@","clean":true},
+  {"type":"gizmos","visible":true},
+  {"type":"select_node","name":"Shaded Lamp"},
+  {"type":"wait","frames":5},
+  {"type":"screenshot","path":"@@OUT@@.icons.png"},
+  {"type":"debug_view","name":"Ambient Occlusion"},
+  {"type":"wait","frames":5},
+  {"type":"screenshot","path":"@@OUT@@.ao.png","clean":true},
+  {"type":"quit"}
+]

@@ -19,6 +19,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly ManaWebGpuEnvironment _environment;
         private readonly ManaWebGpuSceneMeshes _meshes;
         private readonly ManaWebGpuShadowMap _shadowMap;
+        private readonly ManaWebGpuPointShadowMap? _pointShadowMap;
         private ManaWebGpuLightClusters? _lights;
         private Vector2D<int> _size;
         private readonly ManaWebGpuHdrPostProcessor _hdr;
@@ -39,13 +40,18 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _environment = environment;
             _meshes = meshes;
             ManaWebGpuShadowMap? shadowMap = null;
+            ManaWebGpuPointShadowMap? pointShadowMap = null;
             ManaWebGpuHdrPostProcessor? hdr = null;
             try
             {
                 // The frame group binds the shadow map, so the map comes first.
                 shadowMap = new ManaWebGpuShadowMap(gpu);
+                if (gpu.SupportsPointShadows)
+                {
+                    pointShadowMap = new ManaWebGpuPointShadowMap(gpu);
+                }
                 _lights = new ManaWebGpuLightClusters(gpu);
-                _bindings = new ManaWebGpuSceneBindings(gpu, shadowMap.ArrayView, shadowMap.Sampler, _lights);
+                _bindings = new ManaWebGpuSceneBindings(gpu, shadowMap.ArrayView, shadowMap.Sampler, _lights, pointShadowMap);
                 _size = size;
                 hdr = new ManaWebGpuHdrPostProcessor(gpu, gpu.SurfaceFormat,
                     ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("hdr_tonemap.wgsl")));
@@ -57,6 +63,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 // After the capture, whose sky the probes see; before anything shades with them.
                 _probes = AddPass(new ManaWebGpuProbeVolumePass(gpu, _bindings));
                 AddPass(new ManaWebGpuShadowPass(gpu, _bindings, shadowMap));
+                if (pointShadowMap != null)
+                {
+                    AddPass(new ManaWebGpuPointShadowPass(gpu, _bindings, pointShadowMap));
+                }
                 // Before the scene pass, whose PBR shader reads the occlusion back.
                 _ambientOcclusion = AddPass(new ManaWebGpuAmbientOcclusionPass(gpu, _bindings));
                 // The material pass draws the sky between its opaque and transparent meshes, where the depth test skips every
@@ -72,11 +82,13 @@ namespace ManaGraphics.Code.Graphics.Renderers
             catch
             {
                 _shadowMap = shadowMap!;
+                _pointShadowMap = pointShadowMap;
                 _hdr = hdr!;
                 Dispose();
                 throw;
             }
             _shadowMap = shadowMap;
+            _pointShadowMap = pointShadowMap;
             _hdr = hdr;
         }
 
@@ -304,6 +316,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _lights?.Dispose();
             _lights = null;
             _shadowMap?.Dispose();
+            _pointShadowMap?.Dispose();
         }
     }
 }

@@ -36,7 +36,10 @@ namespace Mana.Code
 
         public ManaLightType LightType { get; set; } = ManaLightType.Point;
 
-        /// <summary>Only meaningful when <see cref="LightType"/> is Directional -- casts cascaded shadow maps.</summary>
+        /// <summary>
+        /// A directional light casts the sun's cascaded shadows; a point light a cube of its own, for the eight nearest
+        /// the camera, where the device has room (ManaWebGpuPointShadowMap).
+        /// </summary>
         public bool CastsShadows { get; set; }
 
         /// <summary>How far a point light reaches, in metres; it fades smoothly to nothing there.</summary>
@@ -64,7 +67,7 @@ namespace Mana.Code
         }
 
         // The irradiance renderer's far-off fill lights, which keep the four grid slots rather than a lamp's.
-        internal bool IsGridLight { get; set; }
+        public bool IsGridLight { get; internal set; }
 
         public ManaLightSourceComponent(ManaSceneNode owner) : base(owner)
         {

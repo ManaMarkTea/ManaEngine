@@ -282,6 +282,7 @@ namespace Mana
             ManaSceneNode node,
             List<(Vector3 Position, Vector3 Color)> output,
             List<(Vector4 Position, Vector4 Color)> local,
+            List<int> shadowCasters,
             ref (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun)
         {
             if (node == null) return;
@@ -295,7 +296,7 @@ namespace Mana
                         var at = Vector3.Transform(glow.LightOffset, node.WorldTransform);
                         var glowColor = glow.CurrentColor();
                         var colour = new Vector3(glowColor.X, glowColor.Y, glowColor.Z) * glow.CurrentStrength() * glow.LightIntensity * LocalLightPowerScale;
-                        local.Add((new Vector4(at, glow.LightRange), new Vector4(colour, 1.0f)));
+                        local.Add((new Vector4(at, glow.LightRange), new Vector4(colour, 0.0f)));
                     }
 
                     continue;
@@ -332,13 +333,17 @@ namespace Mana
                 }
                 else if (local.Count < ManaRenderScene.MaxLocalLights)
                 {
-                    local.Add((new Vector4(node.WorldTransform.Translation, Math.Max(light.Range, 0.01f)), new Vector4(lightColorVec3 * light.Intensity * LocalLightPowerScale * light.FlickerFactor(Environment.TickCount64 / 1000.0), 1.0f)));
+                    if (light.CastsShadows)
+                    {
+                        shadowCasters.Add(local.Count);
+                    }
+                    local.Add((new Vector4(node.WorldTransform.Translation, Math.Max(light.Range, 0.01f)), new Vector4(lightColorVec3 * light.Intensity * LocalLightPowerScale * light.FlickerFactor(Environment.TickCount64 / 1000.0), 0.0f)));
                 }
             }
 
             foreach (var child in node.Children)
             {
-                CollectLightsFromNode(child, output, local, ref sun);
+                CollectLightsFromNode(child, output, local, shadowCasters, ref sun);
             }
         }
 
@@ -389,7 +394,7 @@ namespace Mana
                 {
                     foreach (var child in scene.Children)
                     {
-                        CollectLightsFromNode(child, grid, local, ref sun);
+                        CollectLightsFromNode(child, grid, local, [], ref sun);
                     }
                 }
             }
@@ -402,6 +407,7 @@ namespace Mana
             var gpuParticles = new List<ManaGpuParticleEmitter>();
             var collectedLights = new List<(Vector3 Position, Vector3 Color)>();
             var localLights = new List<(Vector4 Position, Vector4 Color)>();
+            var shadowCasters = new List<int>();
             (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
 
             var collectStopwatch = Stopwatch.StartNew();
@@ -429,7 +435,7 @@ namespace Mana
                     {
                         foreach (var child in scene.Children)
                         {
-                            CollectLightsFromNode(child, collectedLights, localLights, ref sun);
+                            CollectLightsFromNode(child, collectedLights, localLights, shadowCasters, ref sun);
                         }
                     }
                 }
@@ -507,6 +513,7 @@ namespace Mana
                 LightPositions = lightPositions,
                 LightColors = lightColors,
                 LocalLights = localLights,
+                PointShadows = ManaRenderScene.AssignPointShadows(localLights, shadowCasters, MainCamera.Owner.Position),
                 HasSun = sun.Found,
                 SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
                 SunColor = sun.Found ? sun.Color : Vector4.One,

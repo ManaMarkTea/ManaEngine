@@ -88,6 +88,9 @@ namespace ManaGraphics.Code.Graphics
         /// <summary>The device samples BC1-BC7 blocks, so DDS textures upload as they are stored.</summary>
         public bool SupportsBlockCompression { get; private set; }
 
+        /// <summary>Room for the point-light shadow map: one sampled texture a fragment shader more than WebGPU's default 16.</summary>
+        public bool SupportsPointShadows { get; private set; }
+
 #if !MANA_BROWSER
         public InstanceBackend InstanceBackend { get; }
 
@@ -179,6 +182,16 @@ namespace ManaGraphics.Code.Graphics
                 descriptor.RequiredFeatureCount = 1;
                 descriptor.RequiredFeatures = &blockCompression;
             }
+            // The PBR shader binds the default limit's 16 textures already; ask for what the adapter has when it is more.
+#if !MANA_BROWSER
+            var required = new RequiredLimits();
+            var supported = new SupportedLimits();
+            if (_api.AdapterGetLimits(Adapter, &supported) && supported.Limits.MaxSampledTexturesPerShaderStage >= 17)
+            {
+                required.Limits = supported.Limits;
+                descriptor.RequiredLimits = &required;
+            }
+#endif
             var self = GCHandle.Alloc(this);
             try
             {
@@ -193,6 +206,7 @@ namespace ManaGraphics.Code.Graphics
                 throw new InvalidOperationException($"Failed to request WebGPU device. {_requestFailure}");
             }
             SupportsBlockCompression = descriptor.RequiredFeatureCount > 0;
+            SupportsPointShadows = descriptor.RequiredLimits != null;
         }
 
 #if !MANA_BROWSER

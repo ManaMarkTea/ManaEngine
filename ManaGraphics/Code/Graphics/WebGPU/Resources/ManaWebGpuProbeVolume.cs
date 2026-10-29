@@ -344,7 +344,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             foreach (var (position, color) in scene.LocalLights)
             {
                 hash.Add(Vector4.Round(position * 20.0f));
-                hash.Add(Vector4.Round(color * 50.0f));
+                // Not w: that is the light's shadow slot, which moves with the camera and changes no bounce.
+                hash.Add(Vector3.Round(new Vector3(color.X, color.Y, color.Z) * 50.0f));
             }
             hash.Add(scene.Sky.Mode);
             hash.Add(MathF.Round(SkyIntensity(scene), 2));

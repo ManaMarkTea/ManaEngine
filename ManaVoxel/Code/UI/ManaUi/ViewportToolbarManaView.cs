@@ -42,7 +42,9 @@ namespace ManaVoxel.Code.UI.ManaUi
                     "The room's walls and ceiling. Off, they show only while drawing voxels.",
                     () => ManaEditorGizmos.ShowRoom, () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom),
                 ToolbarIcons.IconButton(theme, DrawWireframe, "Wireframe.",
-                    () => editor.ShowWireframe, () => editor.ShowWireframe = !editor.ShowWireframe));
+                    () => editor.ShowWireframe, () => editor.ShowWireframe = !editor.ShowWireframe),
+                ToolbarIcons.IconButton(theme, DrawLightBulb, "Light icons: click one to select its light; the selected one shows its range.",
+                    () => ManaEditorGizmos.ShowLights, () => ManaEditorGizmos.ShowLights = !ManaEditorGizmos.ShowLights));
 
             return new Grid().Columns("Auto, *, Auto").Rows("*").Children(
                 Build(editor, camera, world).GridColumn(0),
@@ -168,6 +170,18 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         /// <summary>A wire cube.</summary>
+        private static void DrawLightBulb(ManaUiDrawList drawList, UiRect box, Vector4 color)
+        {
+            const float thickness = 1.4f;
+            Vector2 P(float x, float y) => ToolbarIcons.P(box, x, y);
+            var bulb = UiRect.FromEdges(P(0.3f, 0.12f).X, P(0.3f, 0.12f).Y, P(0.7f, 0.52f).X, P(0.7f, 0.52f).Y);
+            drawList.DrawBorder(bulb, color, thickness, new CornerRadius(bulb.Width * 0.5f));
+            drawList.DrawLine(P(0.4f, 0.52f), P(0.42f, 0.66f), color, thickness);
+            drawList.DrawLine(P(0.6f, 0.52f), P(0.58f, 0.66f), color, thickness);
+            drawList.DrawLine(P(0.4f, 0.7f), P(0.6f, 0.7f), color, thickness);
+            drawList.DrawLine(P(0.42f, 0.8f), P(0.58f, 0.8f), color, thickness);
+        }
+
         private static void DrawWireframe(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
             const float thickness = 1.4f;
@@ -220,7 +234,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                     Toggle("Shade by normal", () => editor.ShowNormals, () => editor.ShowNormals = !editor.ShowNormals),
                     MenuItem.Separator(),
                     Toggle("Gizmos", () => ManaEditorGizmos.Visible, () => ManaEditorGizmos.Visible = !ManaEditorGizmos.Visible),
-                    Toggle("Room walls", () => ManaEditorGizmos.ShowRoom, () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom)),
+                    Toggle("Room walls", () => ManaEditorGizmos.ShowRoom, () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom),
+                    Toggle("Light icons", () => ManaEditorGizmos.ShowLights, () => ManaEditorGizmos.ShowLights = !ManaEditorGizmos.ShowLights)),
                 new MenuItem("Focus").WithItems(
                     new MenuItem("Focus selection", () =>
                     {

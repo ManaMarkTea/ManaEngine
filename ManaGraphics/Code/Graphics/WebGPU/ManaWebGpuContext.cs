@@ -143,9 +143,10 @@ namespace ManaGraphics.Code.Graphics
             _surfaceFormat = native.PreferredSurfaceFormat();
             _gpu = new ManaWebGpuDevice(_api, native.Device, native.Queue, _surfaceFormat, _depthFormat)
             {
-                SupportsBlockCompression = native.SupportsBlockCompression
+                SupportsBlockCompression = native.SupportsBlockCompression,
+                SupportsPointShadows = native.SupportsPointShadows
             };
-            ManaConsole.WriteDiagnostic($"WebGPU block-compressed textures: {native.SupportsBlockCompression}.");
+            ManaConsole.WriteDiagnostic($"WebGPU block-compressed textures: {native.SupportsBlockCompression}; point-light shadows: {native.SupportsPointShadows}.");
             _meshTextures = new ManaWebGpuMeshTextureCache(_gpu);
             _environment = new ManaWebGpuEnvironment(_gpu, EnvironmentLoading);
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);

@@ -1,0 +1,496 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Point Shadows",
+  "camera": {
+    "position": [
+      50,
+      4.5,
+      59
+    ],
+    "rotation": [
+      -0.3,
+      0,
+      0
+    ]
+  },
+  "sky": {
+    "mode": "DayNightCycle",
+    "dateTime": "2026-12-20T23:30:00-08:00",
+    "timeSpeed": 0
+  },
+  "nodes": [
+    {
+      "id": "3b5f90ff24d74fce90a94962e2a509f0",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [
+        50,
+        -0.1,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.62,
+        0.64,
+        1
+      ],
+      "size": [
+        14,
+        0.2,
+        14
+      ]
+    },
+    {
+      "id": "c4044ab9a9e54bb3a0209f2fb15d724f",
+      "name": "Back Wall",
+      "kind": "Shape",
+      "position": [
+        50,
+        3,
+        43
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.62,
+        0.64,
+        1
+      ],
+      "size": [
+        14,
+        6,
+        0.2
+      ]
+    },
+    {
+      "id": "e632a192618744a9a80d151b77a426c6",
+      "name": "Left Wall",
+      "kind": "Shape",
+      "position": [
+        43,
+        3,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.62,
+        0.64,
+        1
+      ],
+      "size": [
+        0.2,
+        6,
+        14
+      ]
+    },
+    {
+      "id": "98d9b9f8854d4b19acb813202e2ffc97",
+      "name": "Crate",
+      "kind": "Shape",
+      "position": [
+        48.5,
+        0.5,
+        48.5
+      ],
+      "rotation": [
+        0,
+        0.4,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.75,
+        0.45,
+        0.2,
+        1
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "4784a8f785ff4f1b95f23d9d72613b16",
+      "name": "Ball",
+      "kind": "Shape",
+      "position": [
+        51.5,
+        0.6,
+        49
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ],
+      "shape": "Sphere",
+      "color": [
+        0.25,
+        0.45,
+        0.8,
+        1
+      ],
+      "size": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "19d5fb1033c64254b119348782978360",
+      "name": "Pillar",
+      "kind": "Shape",
+      "position": [
+        46,
+        1.25,
+        46
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.8,
+        0.8,
+        0.8,
+        1
+      ],
+      "size": [
+        0.4,
+        2.5,
+        0.4
+      ]
+    },
+    {
+      "id": "8e991455be5f4530a4056ef9716c9b66",
+      "name": "Table Top",
+      "kind": "Shape",
+      "position": [
+        52,
+        0.9,
+        52.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.5,
+        0.33,
+        0.2,
+        1
+      ],
+      "size": [
+        1.6,
+        0.08,
+        1
+      ]
+    },
+    {
+      "id": "acba879324a9410eab7abde009dedda0",
+      "name": "Table Leg 1",
+      "kind": "Shape",
+      "position": [
+        51.3,
+        0.45,
+        52.1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.5,
+        0.33,
+        0.2,
+        1
+      ],
+      "size": [
+        0.08,
+        0.9,
+        0.08
+      ]
+    },
+    {
+      "id": "8bf63e841d804e03836b8998ef4f7c86",
+      "name": "Table Leg 2",
+      "kind": "Shape",
+      "position": [
+        52.7,
+        0.45,
+        52.1
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.5,
+        0.33,
+        0.2,
+        1
+      ],
+      "size": [
+        0.08,
+        0.9,
+        0.08
+      ]
+    },
+    {
+      "id": "89d5c2b425de46d7978eb878391be28a",
+      "name": "Table Leg 3",
+      "kind": "Shape",
+      "position": [
+        51.3,
+        0.45,
+        52.9
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.5,
+        0.33,
+        0.2,
+        1
+      ],
+      "size": [
+        0.08,
+        0.9,
+        0.08
+      ]
+    },
+    {
+      "id": "7485614a727d44cbbbfd7b56799fcfa6",
+      "name": "Table Leg 4",
+      "kind": "Shape",
+      "position": [
+        52.7,
+        0.45,
+        52.9
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.5,
+        0.33,
+        0.2,
+        1
+      ],
+      "size": [
+        0.08,
+        0.9,
+        0.08
+      ]
+    },
+    {
+      "id": "fa0c81f35cfd47e39f835d23bc4c2995",
+      "name": "Warm Lamp",
+      "kind": "Group",
+      "position": [
+        50,
+        2.6,
+        50.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "f91175828a3944f3b3eaa5a2020303ee",
+          "type": "Light",
+          "properties": {
+            "color": [
+              1,
+              0.8,
+              0.55,
+              1
+            ],
+            "intensity": 3,
+            "range": 10,
+            "lightType": "Point",
+            "castsShadows": true
+          }
+        }
+      ],
+      "children": []
+    },
+    {
+      "id": "b3e4aa29a1204cfc9a1010b26e7c3fe4",
+      "name": "Shaded Lamp",
+      "kind": "Group",
+      "position": [
+        47.5,
+        2.2,
+        51.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "9ffc34a5b9e74d49bf765f0c1b3016f2",
+          "type": "Light",
+          "properties": {
+            "color": [
+              0.6,
+              0.75,
+              1,
+              1
+            ],
+            "intensity": 2.5,
+            "range": 9,
+            "lightType": "Point",
+            "castsShadows": true
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "f71dc8c8234c446bb36b9fd773bf0ea1",
+          "name": "Shade",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            0.35,
+            0.35,
+            0.35
+          ],
+          "shape": "Sphere",
+          "color": [
+            1,
+            1,
+            1,
+            1
+          ],
+          "size": [
+            1,
+            1,
+            1
+          ],
+          "material": {
+            "emission": [
+              0.6,
+              0.75,
+              1,
+              1
+            ],
+            "emissionStrength": 2
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -16,8 +16,32 @@ namespace ManaCore.Graphics
         public const int MaxLocalLights = 4096;
 
         // Lights placed in the scene -- lamps, torches, glows -- apart from the grid above: xyz position, w range;
-        // colour pre-multiplied by intensity.
+        // colour pre-multiplied by intensity, its w the light's shadow slot plus one (0 casts none).
         public IReadOnlyList<(Vector4 Position, Vector4 Color)> LocalLights { get; init; } = [];
+
+        /// <summary>Point lights that cast shadows this frame, nearest the camera first: at most this many.</summary>
+        public const int MaxPointShadows = 8;
+
+        /// <summary>Each shadow slot's light: xyz position, w range (LocalLights' colour w names the slot).</summary>
+        public IReadOnlyList<Vector4> PointShadows { get; init; } = [];
+
+        /// <summary>
+        /// Gives the shadow-casting lights (<paramref name="casters"/>, indices into <paramref name="lights"/>) nearest the
+        /// camera a slot each, marked in their colour's w as slot + 1, and returns the slots' lights for PointShadows.
+        /// </summary>
+        public static List<Vector4> AssignPointShadows(List<(Vector4 Position, Vector4 Color)> lights, List<int> casters, Vector3 camera)
+        {
+            var slots = new List<Vector4>();
+            float Distance(int light) => Vector3.DistanceSquared(new Vector3(lights[light].Position.X, lights[light].Position.Y, lights[light].Position.Z), camera);
+            casters.Sort((a, b) => Distance(a).CompareTo(Distance(b)));
+            for (var i = 0; i < casters.Count && slots.Count < MaxPointShadows; i++)
+            {
+                var (position, color) = lights[casters[i]];
+                lights[casters[i]] = (position, color with { W = slots.Count + 1 });
+                slots.Add(position);
+            }
+            return slots;
+        }
 
         // A single directional "sun" light, separate from the 4-slot point light grid above. At most
         // one is honored per frame -- see ManaWorld.CollectLightsFromNode.

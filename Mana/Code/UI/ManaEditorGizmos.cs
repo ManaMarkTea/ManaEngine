@@ -26,5 +26,8 @@ namespace Mana.Code.UI
         /// are the planes drawn against; the rest of the time the floor is enough.
         /// </summary>
         public static bool ShowRoom { get; set; }
+
+        /// <summary>An icon at each placed light, which a click selects; the selected one shows its range.</summary>
+        public static bool ShowLights { get; set; } = true;
     }
 }
