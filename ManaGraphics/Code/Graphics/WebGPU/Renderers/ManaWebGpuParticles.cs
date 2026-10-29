@@ -20,6 +20,9 @@ internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
     }
     private readonly List<Slot> _slots = [];
 
+    /// <summary>The scene pass's samples a pixel this was built for.</summary>
+    public uint SampleCount { get; }
+
     [StructLayout(LayoutKind.Sequential)]
     private struct Uniform
     {
@@ -29,9 +32,10 @@ internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
         public Vector4 History, BouncePlane1, BouncePlane2, BounceSettings, Wind, Swirl, Turbulence, Variation, Shape, Burst;
     }
 
-    public ManaWebGpuParticles(ManaWebGpuDevice gpu, TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath)
+    public ManaWebGpuParticles(ManaWebGpuDevice gpu, TextureFormat colorFormat, TextureFormat depthFormat, string shaderPath, uint sampleCount = 1)
         : base(gpu)
     {
+        SampleCount = sampleCount;
         try { CreatePipeline(colorFormat, depthFormat, shaderPath); }
         catch { Dispose(); throw; }
     }
@@ -147,7 +151,7 @@ internal unsafe sealed class ManaWebGpuParticles : ManaWebGpuDeviceObject
                 Vertex = new VertexState { Module = shader, EntryPoint = (byte*)vertexEntry },
                 Fragment = &fragment, DepthStencil = &depth,
                 Primitive = new PrimitiveState { Topology = PrimitiveTopology.TriangleList, FrontFace = FrontFace.Ccw, CullMode = CullMode.None },
-                Multisample = new MultisampleState { Count = 1, Mask = uint.MaxValue }
+                Multisample = new MultisampleState { Count = SampleCount, Mask = uint.MaxValue }
             };
             _pipeline = Api.DeviceCreateRenderPipeline(Device, &descriptor);
             if (_pipeline == null) throw new InvalidOperationException("Cannot create GPU particle pipeline.");

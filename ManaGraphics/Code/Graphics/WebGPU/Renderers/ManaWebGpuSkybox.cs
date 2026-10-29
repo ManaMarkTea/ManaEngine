@@ -29,6 +29,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private BindGroupLayout* _bindGroupLayout;
         private PipelineLayout* _pipelineLayout;
         private RenderPipeline* _pipeline;
+        private uint _pipelineSamples = 1;
         private ShaderModule* _shaderModule;
         // One uniform per slot: a queue write lands before the whole command buffer runs, so six cube faces
         // drawn in one frame from one buffer would all see the last face's camera.
@@ -86,7 +87,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             Vector3 towardSun,
             ManaSky.State sky,
             float seconds,
-            int slot = 0)
+            int slot = 0,
+            uint sampleCount = 1)
         {
             if (_failed || clampSampler == null || environmentView == null || slot < 0 || slot >= _slots)
             {
@@ -95,7 +97,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
             try
             {
-                EnsurePipeline(colorFormat);
+                EnsurePipeline(colorFormat, sampleCount);
                 EnsureBindGroup(slot, clampSampler, environmentView);
                 UpdateUniform(slot, camera, aspectCorrectedProjection, towardSun, sky, seconds);
             }
@@ -152,10 +154,18 @@ namespace ManaGraphics.Code.Graphics.Renderers
             Api.QueueWriteBuffer(Queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
         }
 
-        private void EnsurePipeline(TextureFormat colorFormat)
+        private void EnsurePipeline(TextureFormat colorFormat, uint sampleCount)
         {
+            if (_pipeline != null && _pipelineSamples == sampleCount)
+            {
+                return;
+            }
             if (_pipeline != null)
             {
+                // Anti-aliasing changed: only the pipeline knows the sample count.
+                Api.RenderPipelineRelease(_pipeline);
+                _pipeline = null;
+                CreateRenderPipeline(colorFormat, sampleCount);
                 return;
             }
 
@@ -247,6 +257,12 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 _uniformBuffers[slot] = (nint)buffer;
             }
 
+            CreateRenderPipeline(colorFormat, sampleCount);
+        }
+
+        private void CreateRenderPipeline(TextureFormat colorFormat, uint sampleCount)
+        {
+            _pipelineSamples = sampleCount;
             var vertexEntryPoint = (byte*)Marshal.StringToCoTaskMemUTF8("vs_main");
             var fragmentEntryPoint = (byte*)Marshal.StringToCoTaskMemUTF8("fs_main");
 
@@ -308,7 +324,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                         FrontFace = FrontFace.Ccw,
                         CullMode = CullMode.None
                     },
-                    Multisample = new MultisampleState { Count = 1, Mask = uint.MaxValue },
+                    Multisample = new MultisampleState { Count = sampleCount, Mask = uint.MaxValue },
                     DepthStencil = _depthFormat == null ? null : &depthStencilState,
                     Fragment = &fragmentState
                 };

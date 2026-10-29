@@ -66,6 +66,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         public System.Numerics.Matrix4x4 Projection;
         /// <summary>Seconds since the context started: shader animation time.</summary>
         public float Time;
+        /// <summary>Samples a pixel in the scene pass: 4 under MSAA, else 1. Pipelines drawn there must match it.</summary>
+        public uint SampleCount = 1;
         /// <summary>The scene target's size in pixels.</summary>
         public uint Width;
         public uint Height;

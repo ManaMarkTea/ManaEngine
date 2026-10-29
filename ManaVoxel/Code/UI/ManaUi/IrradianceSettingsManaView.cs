@@ -27,6 +27,19 @@ namespace ManaVoxel.Code.UI.ManaUi
             constellations.Tooltip = "At night, show constellation figures when looking toward them. Hold Alt to show all figures.";
             constellations.BindPolled(box => box.IsChecked, () => settings.ConstellationLines);
 
+            // In ManaAntiAliasing's order.
+            var antiAliasing = new ComboBox().Options(["Off", "FXAA", "SMAA", "MSAA 4x"]);
+            antiAliasing.SelectedIndex = (int)settings.AntiAliasing;
+            antiAliasing.Tooltip = "FXAA: cheapest, a little soft. SMAA: crisper edges for a little more. MSAA: true geometry edges, four samples a pixel.";
+            antiAliasing.SelectionChanged += (_, _) =>
+            {
+                if (!antiAliasing.IsApplyingBinding)
+                {
+                    settings.AntiAliasing = (ManaAntiAliasing)antiAliasing.SelectedIndex;
+                }
+            };
+            antiAliasing.BindPolled(c => c.SelectedIndex, () => (int)settings.AntiAliasing);
+
             var debugMode = new ComboBox().Options(DebugModes);
             debugMode.SelectedIndex = Clamp((int)settings.WebGpuDebugMode);
             debugMode.SelectionChanged += (_, _) =>
@@ -58,6 +71,8 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 Row(theme, "AO radius (m)", Scalar(
                     () => settings.AmbientOcclusionRadius, v => settings.AmbientOcclusionRadius = v, 0.1f, 3.0f)),
+
+                Row(theme, "Anti-aliasing", antiAliasing),
 
                 Section(theme, "Wind"),
 
@@ -125,6 +140,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             settings.IblIntensity = defaults.IblIntensity;
             settings.AmbientOcclusion = defaults.AmbientOcclusion;
             settings.AmbientOcclusionRadius = defaults.AmbientOcclusionRadius;
+            settings.AntiAliasing = defaults.AntiAliasing;
             settings.DebugSceneScale = defaults.DebugSceneScale;
             settings.WebGpuDebugMode = defaults.WebGpuDebugMode;
             settings.WindSpeed = defaults.WindSpeed;

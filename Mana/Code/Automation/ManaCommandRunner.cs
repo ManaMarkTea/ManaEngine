@@ -429,6 +429,16 @@ namespace Mana.Code.Automation
                 }
             });
 
+            // Off, Fxaa, Smaa or Msaa (ManaAntiAliasing).
+            Register("anti_aliasing", command =>
+            {
+                if (!Enum.TryParse<ManaCore.Graphics.ManaAntiAliasing>(command.Name, true, out var mode))
+                {
+                    throw new InvalidOperationException($"anti_aliasing: '{command.Name}' is not one of {string.Join(", ", Enum.GetNames<ManaCore.Graphics.ManaAntiAliasing>())}.");
+                }
+                Context.World.IrradianceSettings.AntiAliasing = mode;
+            });
+
             // Scene Inspector > Lighting's sliders: name exposure, ibl or light, and its value.
             Register("lighting", command =>
             {

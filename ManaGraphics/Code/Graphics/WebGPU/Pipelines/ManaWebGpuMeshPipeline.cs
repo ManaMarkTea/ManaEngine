@@ -25,7 +25,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             CompareFunction depthCompare = CompareFunction.Less,
             PrimitiveTopology primitiveTopology = PrimitiveTopology.TriangleList,
             bool cullBackFaces = false,
-            bool additiveBlend = false)
+            bool additiveBlend = false,
+            uint sampleCount = 1)
         {
             nint vertexEntryPoint = Marshal.StringToCoTaskMemUTF8("vs_main");
             nint fragmentEntryPoint = Marshal.StringToCoTaskMemUTF8("fs_main");
@@ -167,7 +168,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                     },
                     Multisample = new MultisampleState
                     {
-                        Count = 1,
+                        // 4 in the scene pass under MSAA; every other target is single-sampled.
+                        Count = sampleCount,
                         Mask = uint.MaxValue
                     },
                     DepthStencil = &depthStencilState,

@@ -69,7 +69,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 frame.Projection,
                 TowardSun(scene),
                 scene.Sky,
-                ManaSky.Seconds);
+                ManaSky.Seconds,
+                sampleCount: frame.SampleCount);
         }
 
         public override void Dispose()

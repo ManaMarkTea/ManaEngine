@@ -19,6 +19,9 @@ namespace ManaCore.Graphics
 
         /// <summary>How far, in metres, a surface looks for what hides its sky: corners and contacts within this darken.</summary>
         public float AmbientOcclusionRadius { get; set; } = 0.5f;
+
+        /// <summary>How edges are smoothed: FXAA by default, SMAA or MSAA for crisper ones.</summary>
+        public ManaAntiAliasing AntiAliasing { get; set; } = ManaAntiAliasing.Fxaa;
         public Vector4 LightColor { get; set; } = Vector4.One;
         public Vector3 LightDirection { get; set; } = Vector3.Normalize(new Vector3(0.35f, 0.82f, 0.45f));
         public bool DrawDebugWorld { get; set; }
@@ -129,6 +132,7 @@ namespace ManaCore.Graphics
                 LightIntensity = LightIntensity,
                 AmbientOcclusion = AmbientOcclusion,
                 AmbientOcclusionRadius = AmbientOcclusionRadius,
+                AntiAliasing = AntiAliasing,
                 LightColor = LightColor,
                 LightDirection = LightDirection,
                 DrawDebugWorld = DrawDebugWorld,

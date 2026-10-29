@@ -26,6 +26,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private long _frameNumber;
         private const uint Alone = uint.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
+        // The pass being drawn's samples a pixel: the scene pass's under MSAA, 1 for the always-on-top pass.
+        private uint _sampleCount = 1;
 
         public ManaWebGpuMaterialPass(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat, ManaWebGpuSkyPass? sky = null)
             : base(gpu)
@@ -54,6 +56,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
         public override void DrawScene(ManaWebGpuFrame frame, RenderPassEncoder* pass)
         {
+            _sampleCount = frame.SampleCount;
             _frameNumber = frame.Number;
             _boundPipeline = null;
 
@@ -163,6 +166,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         // Handles keep the scene's colour but depth-test against one another, not the scene.
         public override void AfterScene(ManaWebGpuFrame frame)
         {
+            // Always-on-top meshes draw in a pass of their own over the resolved, single-sampled picture.
+            _sampleCount = 1;
             if (frame.SceneSuspended || frame.HandleDepth == null || !frame.Meshes.Any(mesh => mesh.Instance.AlwaysOnTop))
             {
                 return;
@@ -314,6 +319,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             if (additiveBlend) { flags |= 16; }
             if (instanced) { flags |= 32; }
             if (terrain) { flags |= 64; }
+            if (_sampleCount > 1) { flags |= 128; }
             var pipelineKey = (shaderName, flags);
             if (_pipelines.TryGetValue(pipelineKey, out var cachedPipeline))
             {
@@ -365,7 +371,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 alwaysOnTop ? false : disableDepthWrite,
                 depthCompare: CompareFunction.Less,
                 cullBackFaces: cullBackFaces,
-                additiveBlend: additiveBlend);
+                additiveBlend: additiveBlend,
+                sampleCount: _sampleCount);
             _pipelines[pipelineKey] = (nint)pipeline;
 
             ManaConsole.WriteDiagnostic($"WebGPU render pipeline for '{shaderName}' created successfully using '{shaderFile}'.");

@@ -130,11 +130,20 @@ fn fxaa(uv : vec2<f32>) -> vec3<f32> {
 // 4. FXAA on the tone-mapped scene; selection outlines and UI stay crisp above it.
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
-    var mapped = fxaa(input.uv);
+    return with_outline(fxaa(input.uv), input.uv);
+}
 
+// The same without FXAA: anti-aliasing off, or already done (MSAA in the scene pass).
+@fragment
+fn fs_plain(input : VertexOutput) -> @location(0) vec4<f32> {
+    return with_outline(scene_color(input.uv), input.uv);
+}
+
+fn with_outline(scene : vec3<f32>, uv : vec2<f32>) -> vec4<f32> {
+    var mapped = scene;
     let dimensions = vec2<i32>(textureDimensions(outline_mask, 0u));
     let maximum_pixel = dimensions - vec2<i32>(1);
-    let pixel = clamp(vec2<i32>(input.uv * vec2<f32>(dimensions)), vec2<i32>(0), maximum_pixel);
+    let pixel = clamp(vec2<i32>(uv * vec2<f32>(dimensions)), vec2<i32>(0), maximum_pixel);
     let center_mask = textureLoad(outline_mask, pixel, 0);
     var outline_color = vec3<f32>(0.0);
     var best_coverage = 0.0;

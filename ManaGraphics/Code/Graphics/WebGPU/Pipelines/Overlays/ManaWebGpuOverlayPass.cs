@@ -15,6 +15,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
         private readonly TextureFormat _colorFormat;
         private ShaderModule* _shaderModule;
         private RenderPipeline* _pipeline;
+        private uint _pipelineSamples = 1;
         private string? _profileName;
 
         protected ManaWebGpuOverlayPass(ManaWebGpuDevice gpu, ManaWebGpuSceneBindings bindings, TextureFormat colorFormat)
@@ -55,9 +56,18 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
                 return;
             }
 
+            if (_pipeline != null && _pipelineSamples != frame.SampleCount)
+            {
+                Api.RenderPipelineRelease(_pipeline);
+                _pipeline = null;
+            }
             if (_pipeline == null)
             {
-                _shaderModule = Gpu.CreateShaderModule(ShaderFileName);
+                if (_shaderModule == null)
+                {
+                    _shaderModule = Gpu.CreateShaderModule(ShaderFileName);
+                }
+                _pipelineSamples = frame.SampleCount;
                 _pipeline = ManaWebGpuMeshPipeline.Create(
                     Gpu,
                     _shaderModule,
@@ -67,7 +77,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines.Overlays
                     isTransparent: Blended,
                     disableDepthWrite: true,
                     depthCompare: CompareFunction.LessEqual,
-                    primitiveTopology: Topology);
+                    primitiveTopology: Topology,
+                    sampleCount: _pipelineSamples);
                 ManaConsole.WriteDiagnostic($"WebGPU {Name} overlay pipeline created successfully.");
             }
 

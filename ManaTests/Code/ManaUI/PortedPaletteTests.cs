@@ -248,8 +248,20 @@ public static class PortedPaletteChecks
         Check("a change made elsewhere shows up here",
             exposure != null && MathF.Abs(exposure.Value - 1.25f) < 0.01f, $"{exposure?.Value}");
 
+        // Anti-aliasing's list is in ManaAntiAliasing's order, which is what the renderer reads.
+        var antiAliasing = FindAll<ComboBox>(panel).FirstOrDefault(combo => combo.Items.Count == 4);
+        Check("anti-aliasing is offered, FXAA by default", antiAliasing?.SelectedIndex == (int)ManaCore.Graphics.ManaAntiAliasing.Fxaa,
+            $"{antiAliasing?.SelectedIndex}");
+        if (antiAliasing != null)
+        {
+            antiAliasing.SelectedIndex = 3;
+            Check("and choosing MSAA reaches the render settings", settings.AntiAliasing == ManaCore.Graphics.ManaAntiAliasing.Msaa,
+                $"{settings.AntiAliasing}");
+            settings.AntiAliasing = ManaCore.Graphics.ManaAntiAliasing.Fxaa;
+        }
+
         // The debug mode index is what reaches the shader, so the order of the list is not cosmetic.
-        var modes = FindAll<ComboBox>(panel).FirstOrDefault();
+        var modes = FindAll<ComboBox>(panel).FirstOrDefault(combo => combo.Items.Count > 10);
         Check("the PBR debug outputs are offered", modes != null && modes.Items.Count > 10,
             $"{modes?.Items.Count} modes");
 

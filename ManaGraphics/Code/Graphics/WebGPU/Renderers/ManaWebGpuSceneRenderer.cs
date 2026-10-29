@@ -20,6 +20,9 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly ManaWebGpuSceneMeshes _meshes;
         private readonly ManaWebGpuShadowMap _shadowMap;
         private readonly ManaWebGpuPointShadowMap? _pointShadowMap;
+        // Made the first time MSAA is chosen; the anti-aliasing last drawn picks the tone map's FXAA.
+        private ManaWebGpuMsaaTargets? _msaa;
+        private ManaAntiAliasing _antiAliasing = ManaAntiAliasing.Fxaa;
         private ManaWebGpuLightClusters? _lights;
         private Vector2D<int> _size;
         private readonly ManaWebGpuHdrPostProcessor _hdr;
@@ -171,6 +174,15 @@ namespace ManaGraphics.Code.Graphics.Renderers
             var useHdr = hdrView != null;
             var sceneTarget = useHdr ? hdrView : surfaceView;
             var frame = FillFrame(encoder, scene, surface, sceneTarget, useHdr, suspended, seconds);
+            _antiAliasing = scene.IrradianceSettings.AntiAliasing;
+            var msaa = useHdr && !suspended && _antiAliasing == ManaAntiAliasing.Msaa && frame.Width > 0 && frame.Height > 0;
+            frame.SampleCount = 1;
+            if (msaa)
+            {
+                _msaa ??= new ManaWebGpuMsaaTargets(Gpu, _hdr.SceneFormat, Gpu.DepthFormat);
+                _msaa.Ensure(frame.Width, frame.Height);
+                frame.SampleCount = ManaWebGpuMsaaTargets.SampleCount;
+            }
 
             if (!suspended)
             {
@@ -192,9 +204,21 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 StoreOp = StoreOp.Store,
                 ClearValue = clearColor
             };
+            if (msaa)
+            {
+                // Four samples a pixel, resolved into the HDR target as the pass ends.
+                colorAttachment.View = _msaa!.Color;
+                colorAttachment.ResolveTarget = sceneTarget;
+                colorAttachment.StoreOp = StoreOp.Discard;
+            }
+            var depthView = surface.Depth;
+            if (msaa)
+            {
+                depthView = _msaa!.Depth;
+            }
             var depthAttachment = new RenderPassDepthStencilAttachment
             {
-                View = surface.Depth,
+                View = depthView,
                 DepthLoadOp = LoadOp.Clear,
                 DepthStoreOp = StoreOp.Store,
                 DepthClearValue = 1.0f,
@@ -228,6 +252,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
             finally
             {
                 Api.RenderPassEncoderRelease(scenePass);
+            }
+            if (msaa)
+            {
+                _msaa!.ResolveDepth(encoder, surface.Depth);
             }
 
             foreach (var pass in _passes)
@@ -273,7 +301,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// <summary>Tone-maps the HDR scene into the surface pass the UI then draws over.</summary>
         public void DrawToneMap(RenderPassEncoder* pass)
         {
-            _hdr.Draw(pass);
+            _hdr.Draw(pass, _antiAliasing == ManaAntiAliasing.Fxaa);
         }
 
         private ManaWebGpuFrame FillFrame(
@@ -317,6 +345,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _lights = null;
             _shadowMap?.Dispose();
             _pointShadowMap?.Dispose();
+            _msaa?.Dispose();
+            _msaa = null;
         }
     }
 }

@@ -25,6 +25,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private readonly RenderPipeline* _blurHPipeline;
         private readonly RenderPipeline* _blurVPipeline;
         private readonly RenderPipeline* _combinePipeline;
+        private readonly RenderPipeline* _plainPipeline;
 
         // Textures & Views (Full Res Scene, 1/4 Res Bloom A & B)
         private Texture* _sceneTexture;
@@ -57,6 +58,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _blurHPipeline = CreatePipeline(_pipelineLayout, "fs_blur_h", _sceneFormat);
             _blurVPipeline = CreatePipeline(_pipelineLayout, "fs_blur_v", _sceneFormat);
             _combinePipeline = CreatePipeline(_pipelineLayout, "fs_main", _surfaceFormat);
+            _plainPipeline = CreatePipeline(_pipelineLayout, "fs_plain", _surfaceFormat);
         }
 
         public TextureFormat SceneFormat => _sceneFormat;
@@ -152,14 +154,22 @@ namespace ManaGraphics.Code.Graphics.Renderers
             }
         }
 
-        public void Draw(RenderPassEncoder* renderPass)
+        /// <param name="fxaa">FXAA on the way out; off when anti-aliasing is off or done elsewhere.</param>
+        public void Draw(RenderPassEncoder* renderPass, bool fxaa = true)
         {
-            if (renderPass == null || _combinePipeline == null || _combineBindGroup == null)
+            if (renderPass == null || _combinePipeline == null || _plainPipeline == null || _combineBindGroup == null)
             {
                 return;
             }
 
-            Api.RenderPassEncoderSetPipeline(renderPass, _combinePipeline);
+            if (fxaa)
+            {
+                Api.RenderPassEncoderSetPipeline(renderPass, _combinePipeline);
+            }
+            else
+            {
+                Api.RenderPassEncoderSetPipeline(renderPass, _plainPipeline);
+            }
             Api.RenderPassEncoderSetBindGroup(renderPass, 0, _combineBindGroup, 0, null);
             Api.RenderPassEncoderDraw(renderPass, 3, 1, 0, 0);
         }
@@ -169,6 +179,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             ReleaseSceneTarget();
 
             if (_combinePipeline != null) Api.RenderPipelineRelease(_combinePipeline);
+            if (_plainPipeline != null) Api.RenderPipelineRelease(_plainPipeline);
             if (_blurVPipeline != null) Api.RenderPipelineRelease(_blurVPipeline);
             if (_blurHPipeline != null) Api.RenderPipelineRelease(_blurHPipeline);
             if (_brightPipeline != null) Api.RenderPipelineRelease(_brightPipeline);

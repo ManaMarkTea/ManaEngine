@@ -44,8 +44,14 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             var density = budget < 0 || Requested <= budget ? 1.0 : (double)budget / Requested;
             using (ManaFrameProfiler.Measure(ProfileName))
             {
+                // Its pipeline is built for the scene pass's samples a pixel; a change of anti-aliasing rebuilds it.
+                if (_particles != null && _particles.SampleCount != frame.SampleCount)
+                {
+                    _particles.Dispose();
+                    _particles = null;
+                }
                 _particles ??= new ManaWebGpuParticles(Gpu, _colorFormat, Gpu.DepthFormat,
-                    ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("particles.wgsl")));
+                    ManaWebGpuDevice.ResolveAssetPath(ManaWebGpuDevice.ShaderPath("particles.wgsl")), frame.SampleCount);
                 Drawn = _particles.Draw(pass, emitters, frame.Scene.Camera, frame.Projection, frame.Scene.Wind, density);
             }
         }
