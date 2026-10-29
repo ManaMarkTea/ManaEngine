@@ -429,6 +429,27 @@ namespace Mana.Code.Automation
                 }
             });
 
+            // Scene Inspector > Lighting's sliders: name exposure, ibl or light, and its value.
+            Register("lighting", command =>
+            {
+                var settings = Context.World.IrradianceSettings;
+                var value = command.Value ?? throw new InvalidOperationException("lighting needs a value.");
+                switch (command.Name?.ToLowerInvariant())
+                {
+                    case "exposure":
+                        settings.Exposure = value;
+                        break;
+                    case "ibl":
+                        settings.IblIntensity = value;
+                        break;
+                    case "light":
+                        settings.LightIntensity = value;
+                        break;
+                    default:
+                        throw new InvalidOperationException($"lighting: unknown setting '{command.Name}' (exposure, ibl, light).");
+                }
+            });
+
             Register("profile_reset", _ =>
             {
                 ManaFrameProfiler.Reset();

@@ -99,6 +99,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; drops down the viewport bar's snap options |
 | `emission` | `name`, `position` (rgb), `frames` (strength x100) | Sets emission on every mesh under a node |
 | `dump_environment` | `path` | Saves the reflection cube's six faces as `<path>.face0..5.png` (+X -X +Y -Y +Z -Z) |
+| `lighting` | `name` (`exposure`, `ibl`, `light`), `value` | Sets one of Scene Inspector > Lighting's sliders. Inside a probe volume `ibl` scales only the sky's share of the baked light, not lamps bounced |
 | `material` | `name`, `position` (metallic, roughness) | Sets metallic and roughness on every mesh under a node -- `[1, 0]` is a mirror |
 | `drop_to_floor` | | Drops the selection onto whatever is below it (the End key) |
 | `gizmo_mode` / `scale_box` | `name` / `name`, `position` | Translate, Rotate or Scale; drags a Scale box handle of the selection (`+x`, `-y`, a corner `-x+y`) to a world point and logs the node's position and scale |
