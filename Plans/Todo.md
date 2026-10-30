@@ -1,3 +1,15 @@
+[x] - Contour port (2026-10-30): the 2010 XNA space shooter (GhostTap/OldWork/.../XNA/Source/Contour) as Games/Contour,
+    a level game mode. Its 20 FBX models converted to GLB (Games/Contour/Content/Models), its sounds and the Contour
+    Method track to Audio; every ship, turret, station, rock and the planet is a prefab carrying a ContourUnit script
+    (the old stats XML), the Brigantine a variant of the Sloop, the wormhole now GPU particles; the seven Ryser missions
+    are .manalevel files of those prefabs plus ContourSpawn points, briefed from the design folder's mission briefs.
+    Defend/Attack/Survival/Explore rules, waves, turrets, the four rounds (EMP reworked: 6 s cooldown), aggro AI,
+    HUD/radar/debrief in ManaUI, pad support; ManaTests Contour suite. Games/Contour/README.md.
+    Follow-ups: the store and ship upgrades (StoreData.xml) with pilot credits/XP kept between missions; the galaxy map
+    (Menu_GalaxyView/Menu_System_Ryser) as a mission select; the other music mixes (WAV only, so they need a smaller
+    format first); the unused models (mine, Phoenix, the Battlecruiser/Carrier concepts in the design folder);
+    a web build check of the Games/*/Content/Models catalog path.
+
 [x] - Editable Bistro imports (2026-10-26): keep the glTF hierarchy and Mesh Renderer components in the editor;
     `ManaStaticMeshBatcher` caches compatible geometry in the renderer. `meshParts` saves imported transforms,
     names, materials, components and deletions; `Tools/Automation/Checks/bistro-editable.json` checks the real scene.

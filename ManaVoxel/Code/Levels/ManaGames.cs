@@ -112,6 +112,29 @@ namespace ManaVoxel.Code.Levels
                         .Select(file => $"{RunnerContent.SectionFolder}/{Path.GetRelativePath(folder, file).Replace('\\', '/')}").ToList()
                     : [];
             };
+            // Contour's ships and turrets are prefabs carrying its own scripts, placed while it plays.
+            Contour.ContourContent.Place = RunnerContent.Place;
+            Contour.ContourContent.Destroy = ManaPrefabRuntime.Destroy;
+            ManaLevelComponentScripts.Register(new ManaLevelScriptComponentDefinition
+            {
+                Type = Contour.Scripts.ContourUnitComponent.ScriptType,
+                ComponentType = typeof(Contour.Scripts.ContourUnitComponent),
+                Create = node => new Contour.Scripts.ContourUnitComponent(node)
+            });
+            ManaLevelComponentScripts.Register(new ManaLevelScriptComponentDefinition
+            {
+                Type = Contour.Scripts.ContourSpawnComponent.ScriptType,
+                ComponentType = typeof(Contour.Scripts.ContourSpawnComponent),
+                Create = node => new Contour.Scripts.ContourSpawnComponent(node)
+            });
+            ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
+            {
+                Type = Contour.ContourMode.ModeType,
+                DisplayName = Contour.ContourMode.DisplayName,
+                Description = Contour.ContourMode.Description,
+                ModeType = typeof(Contour.ContourMode),
+                Create = () => new Contour.ContourMode()
+            });
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = RunnerMode.ModeType,

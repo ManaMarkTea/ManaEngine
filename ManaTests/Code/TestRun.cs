@@ -163,6 +163,7 @@ public static class TestRunner
         ("TrainYardWars", "match review regressions", MatchReviewChecks.Run),
         ("TrainYardWars", "train yard wars rules", TrainYardWarsChecks.Run),
         ("YachtJousting", "yacht jousting rules", YachtJoustingChecks.Run),
+        ("Contour", "contour combat, waves and missions", ContourChecks.Run),
         ("CodeScreensaver", "repository sources and history", CodeScreensaverChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),

@@ -27,7 +27,7 @@ namespace ManaVoxel.Code.Levels
 
     internal static class ManaLevelComponentScripts
     {
-        private static readonly IReadOnlyList<ManaLevelScriptComponentDefinition> Definitions =
+        private static readonly List<ManaLevelScriptComponentDefinition> Definitions =
             new List<ManaLevelScriptComponentDefinition>
             {
                 new()
@@ -206,6 +206,13 @@ namespace ManaVoxel.Code.Levels
                     AfterPropertiesApplied = component => ((TrainCarComponent)component).ResetAfterLevelPropertiesApplied()
                 }
             };
+
+        /// <summary>Adds a script a game brings in its own project (ManaGames registers them), saved and loaded like the engine's.</summary>
+        public static void Register(ManaLevelScriptComponentDefinition definition)
+        {
+            Definitions.RemoveAll(existing => existing.Type == definition.Type);
+            Definitions.Add(definition);
+        }
 
         private static ManaComponent? NthOfType(ManaSceneNode node, Type type, int index)
         {

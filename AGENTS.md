@@ -12,7 +12,7 @@ C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (
 | `ManaUI` | Retained-mode MVVM UI framework (no graphics dependency — headless-testable) |
 | `ManaTests` | Headless test suite for all systems; suites live in `Code/<System>/` |
 | `ManaVoxel` | Voxel editor app (the main runnable executable) |
-| `Games/<Name>` | One project per game (`Games/TrainYardWars`): rules, view and level game mode, on the engine only; ManaVoxel references each and registers it (`ManaVoxel/Code/Levels/ManaGames.cs`) |
+| `Games/<Name>` | One project per game (`Games/TrainYardWars`): rules, view and level game mode, on the engine only; ManaVoxel references each and registers it (`ManaVoxel/Code/Levels/ManaGames.cs`), with any level scripts it brings (`ManaLevelComponentScripts.Register`). A game's own models and sounds sit in `Games/<Name>/Content/Models`, `/Audio`, named by repo path (`Games/Contour/Content/Models/phalanx.glb`) |
 | `ManaVoxel.iOS` | The game natively on iPhone/iPad: `VoxelPlayGameMode` on wgpu-native's Metal backend (`Tools/Mobile/build-wgpu-ios.sh` builds the library Silk.NET does not ship), a platform window and touch controls through `IManaWebGpuNativeHost`, and `Game/` in the bundle (`Tools/Mobile/game_assets.py`). Deploy with `-App ManaVoxel.iOS`; `Documents/commands.json` on the phone runs as `--command-file` (`@@DOCUMENTS@@` for paths) |
 | `ManaLidar` / `ManaLidar.Core` | iPhone LiDAR room scanner (`net10.0-ios`, built on the Mac; `ManaLidar/README.md`) and its Apple-free half -- ARKit mesh (or fused ARCore depth) plus keyframe photos to a simplified, textured, unlit GLB that Mana opens |
 
@@ -29,6 +29,9 @@ dotnet run --project ManaVoxel -- --play "Content/Levels/Sample Course.manalevel
 
 # The editor, opened on a level
 dotnet run --project ManaVoxel -- --level "Content/Levels/Sample Course.manalevel"
+
+# Contour (the 2010 XNA space shooter, ported: Games/Contour/README.md) -- seven missions, each a level of prefabs
+dotnet run --project ManaVoxel -- --play "Games/Contour/Content/Levels/Contour 2 - Eps Under Siege.manalevel"
 
 # Train Yard Wars (couch game prototype; Plans/Couch-Co-op-GameDesignDocuments/TrainYardWars.md) -- a level whose game mode
 # builds the world; or open it in the editor and press F5. --command-file works with --play too.
