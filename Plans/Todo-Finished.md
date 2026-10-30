@@ -1,5 +1,13 @@
 # Finished
 
+[x] - Repository tools audit and downloadable scene content (2026-10-29): removed the empty, untracked ManaSceneViewer
+    directory and obsolete Night Sky/Runner initial-authoring generators. Maintained tools and reasons are listed in
+    `Tools/README.md`. Five Bistro levels are checked in under `Content/Levels/Downloaded/Bistro/` without large assets;
+    source-pack declarations survive capture/save and download/import on desktop. Web publishing stages referenced
+    converted assets in the lazy catalog, using existing 512 px DDS mips for browser memory and Pages size limits.
+    Headless checks, desktop clean-open/command sequencing, Release AOT publishing and Chrome exterior/evening renders
+    pass. Added the missing browser SMAA layout-lookup shim; web capture: `DevPhotos/2026-10-29 bistro-downloadable-web.png`.
+
 [x] - Add inset material parallax (2026-10-23): existing PBR materials expose Inset depth in metres, saved with levels and applied to every map in the WebGPU shader. Reference: Content/Levels/Tests/Parallax.manalevel and Tools/Automation/Checks/parallax.json. Flat recess effect; height-map relief remains a possible extension.
 
 [x] - Add audio routing to Diagnostics (2026-10-16): renamed Graphics Diagnostics in the panel menu/tab and About button, preserving its saved dock id. A live Audio section shows the output device, availability, playback unlock and app master volume through IManaAudio. Desktop build, 1796 ManaUI checks and 61 Audio checks pass; in-app capture: DevPhotos/2026-10-16 diagnostics-audio.png.

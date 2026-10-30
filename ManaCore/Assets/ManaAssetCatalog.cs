@@ -81,9 +81,14 @@ public sealed class ManaAssetCatalog
         Models = models;
     }
 
-    private static void ValidatePath(string path, string prefix = "Assets/")
+    private static void ValidatePath(string path, string? prefix = null)
     {
-        if (!path.StartsWith(prefix, StringComparison.Ordinal) || path.Contains('\\') || path.Contains(':')
+        var allowed = path.StartsWith("Assets/", StringComparison.Ordinal) || path.StartsWith("Library/Imported/", StringComparison.Ordinal);
+        if (prefix != null)
+        {
+            allowed = path.StartsWith(prefix, StringComparison.Ordinal);
+        }
+        if (!allowed || path.Contains('\\') || path.Contains(':')
             || path.Split('/').Any(part => part is ".." or "." or ""))
             throw new InvalidDataException($"Invalid catalog path: {path}");
     }

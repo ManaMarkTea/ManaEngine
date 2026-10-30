@@ -70,6 +70,7 @@ namespace ManaGraphics.Code.Graphics.Browser
             ["wgpuRenderPassEncoderSetScissorRect"] = "mana_wgpuRenderPassEncoderSetScissorRect",
             ["wgpuRenderPassEncoderSetVertexBuffer"] = "mana_wgpuRenderPassEncoderSetVertexBuffer",
             ["wgpuRenderPipelineRelease"] = "mana_wgpuRenderPipelineRelease",
+            ["wgpuRenderPipelineGetBindGroupLayout"] = "mana_wgpuRenderPipelineGetBindGroupLayout",
             ["wgpuSamplerRelease"] = "mana_wgpuSamplerRelease",
             ["wgpuShaderModuleRelease"] = "mana_wgpuShaderModuleRelease",
             ["wgpuSurfaceConfigure"] = "mana_wgpuSurfaceConfigure",
@@ -150,6 +151,7 @@ namespace ManaGraphics.Code.Graphics.Browser
                 _ = mana_wgpuRenderPassEncoderSetScissorRect_reg();
                 _ = mana_wgpuRenderPassEncoderSetVertexBuffer_reg();
                 _ = mana_wgpuRenderPipelineRelease_reg();
+                _ = mana_wgpuRenderPipelineGetBindGroupLayout_reg();
                 _ = mana_wgpuSamplerRelease_reg();
                 _ = mana_wgpuShaderModuleRelease_reg();
                 _ = mana_wgpuSurfaceConfigure_reg();
@@ -376,6 +378,9 @@ namespace ManaGraphics.Code.Graphics.Browser
 
         [LibraryImport("mana_webgpu", EntryPoint = "mana_wgpuRenderPipelineRelease")]
         private static partial nint mana_wgpuRenderPipelineRelease_reg();
+
+        [LibraryImport("mana_webgpu", EntryPoint = "mana_wgpuRenderPipelineGetBindGroupLayout")]
+        private static partial nint mana_wgpuRenderPipelineGetBindGroupLayout_reg();
 
         [LibraryImport("mana_webgpu", EntryPoint = "mana_wgpuSamplerRelease")]
         private static partial nint mana_wgpuSamplerRelease_reg();

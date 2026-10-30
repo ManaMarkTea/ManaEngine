@@ -3,6 +3,8 @@
     names, materials, components and deletions; `Tools/Automation/Checks/bistro-editable.json` checks the real scene.
     Follow-up: persist reparenting/duplication and authored nodes nested inside imported parts; improve lighting
     against the ORCA references. Static batching opts in through the mesh root's `mergeParts` flag.
+    Checked-in Bistro variants now live in `Content/Levels/Downloaded/Bistro/`; their download declarations fetch/import
+    source packs on desktop and their converted assets download through the web catalog. See that folder's README.
 
 [] - Foundry factory builder: plan and roadmap in Plans/Foundry.md; game lives in Games/Foundry.
     [x] First playable (2026-10-20): finite mining, belts/backpressure, crafting, power, science goal,

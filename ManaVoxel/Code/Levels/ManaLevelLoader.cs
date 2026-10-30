@@ -131,6 +131,7 @@ namespace ManaVoxel.Code.Levels
             }
 
             scene.Publishing = level.Web?.ToPublishing() ?? new ManaScenePublishing();
+            scene.AuthoredDownloads = level.Downloads;
             scene.GameModes.Clear();
             foreach (var entry in level.GameModes ?? new())
             {

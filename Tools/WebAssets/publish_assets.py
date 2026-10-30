@@ -17,6 +17,30 @@ SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength"
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
 
 
+def web_scene_dds(data, max_size=512):
+    """Drop oversized top mips from imported scene textures without decoding or recompressing BC blocks."""
+    if len(data) < 128 or data[:4] != b'DDS ':
+        raise ValueError('Invalid scene DDS')
+    height, width = struct.unpack_from('<II', data, 12)
+    if max(width, height) <= max_size:
+        return data
+    block = {b'DXT1': 8, b'ATI1': 8, b'BC4U': 8, b'DXT3': 16, b'DXT5': 16, b'ATI2': 16, b'BC5U': 16}.get(data[84:88])
+    if block is None:
+        raise ValueError(f'Unsupported scene DDS format: {data[84:88]!r}')
+    mips = max(1, struct.unpack_from('<I', data, 28)[0])
+    offset = 128
+    while max(width, height) > max_size and mips > 1:
+        offset += max(1, (width + 3) // 4) * max(1, (height + 3) // 4) * block
+        width, height, mips = max(1, width // 2), max(1, height // 2), mips - 1
+    if max(width, height) > max_size or offset >= len(data):
+        raise ValueError('Scene DDS has no usable small mip chain')
+    header = bytearray(data[:128])
+    struct.pack_into('<II', header, 12, height, width)
+    struct.pack_into('<I', header, 20, max(1, (width + 3) // 4) * max(1, (height + 3) // 4) * block)
+    struct.pack_into('<I', header, 28, mips)
+    return bytes(header) + data[offset:]
+
+
 def model_document(source):
     if source.suffix.lower() == '.gltf':
         return json.loads(source.read_text(encoding='utf-8-sig'))
@@ -37,10 +61,43 @@ def dependency_paths(path, document):
             if urlsplit(uri).scheme or uri.startswith(("/", "\\")):
                 raise ValueError(f"External URI in {path}: {uri}")
             target = posixpath.normpath(posixpath.join(posixpath.dirname(path), unquote(uri)))
-            if not target.startswith("Assets/") or "\\" in target:
+            if not target.startswith(("Assets/", "Library/Imported/")) or "\\" in target:
                 raise ValueError(f"Asset dependency escapes library: {path}: {uri}")
             dependencies.add(target)
     return sorted(dependencies)
+
+
+def imported_sources(root):
+    """Only converted files actually named by checked-in levels, plus their glTF sidecars."""
+    paths = set()
+
+    def walk(value):
+        if isinstance(value, dict):
+            for child in value.values():
+                walk(child)
+        elif isinstance(value, list):
+            for child in value:
+                walk(child)
+        elif isinstance(value, str) and value.startswith("Library/Imported/"):
+            if any(part in ("", ".", "..") for part in value.split("/")) or "\\" in value or ":" in value:
+                raise ValueError(f"Invalid imported asset path: {value}")
+            paths.add(value)
+
+    for folder in level_folders(root):
+        for level in sorted(folder.rglob("*.manalevel")):
+            walk(json.loads(level.read_text(encoding="utf-8-sig")))
+    sources = {}
+    while paths:
+        path = paths.pop()
+        if path in sources:
+            continue
+        source = root / path
+        if not source.is_file():
+            raise ValueError(f"Missing imported scene asset: {path}; run dotnet run --project ManaVoxel -- --prepare-level-assets")
+        sources[path] = source
+        if source.suffix.lower() in (".gltf", ".glb"):
+            paths.update(dependency_paths(path, model_document(source)))
+    return sources
 
 
 def publish(root, output):
@@ -56,19 +113,28 @@ def publish(root, output):
                 raise ValueError(f"Duplicate asset path: {path}")
             sources[path] = source
 
+    sources.update(imported_sources(root))
     library = output / "AssetLibrary"
     library.mkdir(parents=True, exist_ok=True)
     files, models = [], []
     documents = {path: model_document(source) for path, source in sources.items()
                  if source.suffix.lower() in ('.gltf', '.glb')}
     for path, source in sources.items():
-        with source.open("rb") as stream:
-            digest = hashlib.file_digest(stream, "sha256").hexdigest()
+        scene_dds = None
+        if path.startswith('Library/Imported/') and source.suffix.lower() == '.dds':
+            scene_dds = web_scene_dds(source.read_bytes())
+            digest = hashlib.sha256(scene_dds).hexdigest()
+        else:
+            with source.open("rb") as stream:
+                digest = hashlib.file_digest(stream, "sha256").hexdigest()
         filename = digest + source.suffix.lower()
         destination = library / filename
         if not destination.exists():
             temporary = destination.with_suffix(destination.suffix + ".tmp")
-            shutil.copyfile(source, temporary)
+            if scene_dds is not None:
+                temporary.write_bytes(scene_dds)
+            else:
+                shutil.copyfile(source, temporary)
             temporary.replace(destination)
         dependencies = []
         if path in documents:
@@ -89,7 +155,7 @@ def publish(root, output):
                 if dependency not in sources:
                     raise ValueError(f"Missing dependency: {path} -> {dependency}")
         files.append(dict(path=path, url="AssetLibrary/" + filename, sha256=digest,
-                          size=source.stat().st_size, dependencies=dependencies))
+                          size=len(scene_dds) if scene_dds is not None else source.stat().st_size, dependencies=dependencies))
         if source.suffix.lower() in (".glb", ".gltf"):
             models.append(dict(path=path))
         elif source.suffix.lower() == ".zip":

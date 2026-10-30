@@ -299,6 +299,15 @@ namespace Mana.Code.GameModes
                 AssetPlacement.CancelMeshPickerPlacementPreview();
                 var level = ManaLevel.Load(path);
                 _viewModel.Levels.SetStatus("Preparing level assets…");
+#if !MANA_BROWSER
+                if (level.Downloads is { Count: > 0 })
+                {
+                    _importProgress = new LatestLine();
+                    var checkout = ManaVoxel.Code.Imports.ManaDownloads.Checkout(ManaLevelLibrary.ResolveFolder())
+                        ?? throw new InvalidOperationException("No checkout to download into.");
+                    await ManaVoxel.Code.Imports.ManaLevelDownloads.EnsureAsync(level, checkout, _importProgress);
+                }
+#endif
                 await ManaVoxel.Code.Assets.ManaLevelAssetPreloader.EnsureAsync(level);
                 AssetPlacement.CancelMeshPickerPlacementPreview();
                 _viewModel.History.Clear();
@@ -357,7 +366,13 @@ namespace Mana.Code.GameModes
                 _viewModel.Levels.SetStatus($"Could not open '{Path.GetFileName(path)}': {exception.Message}");
                 Trace.TraceWarning($"Failed to open level '{path}': {exception}");
             }
-            finally { _openingLevel = false; }
+            finally
+            {
+                _openingLevel = false;
+#if !MANA_BROWSER
+                _importProgress = null;
+#endif
+            }
         }
 
         public void SaveLevel(string path)
@@ -368,7 +383,7 @@ namespace Mana.Code.GameModes
                 _viewModel.Levels.SetStatus(ProjectAssets.Status);
                 return;
             }
-            if (IsLoading)
+            if (IsLoading || _openingLevel)
             {
                 return;
             }
@@ -783,7 +798,7 @@ namespace Mana.Code.GameModes
         /// <summary>Each frame: the import's progress in the status line, and its first level opened once it lands.</summary>
         private void PollImport()
         {
-            if (_import == null || _importProgress == null)
+            if (_importProgress == null)
             {
                 return;
             }
@@ -793,7 +808,7 @@ namespace Mana.Code.GameModes
                 _viewModel.Levels.SetStatus(line);
                 ManaConsole.WriteDiagnostic($"Import: {line}");
             }
-            if (!_import.IsCompleted)
+            if (_import == null || !_import.IsCompleted)
             {
                 return;
             }
@@ -894,7 +909,10 @@ namespace Mana.Code.GameModes
 #endif
             }
 
-            _commandRunner.Tick();
+            if (!_openingLevel)
+            {
+                _commandRunner.Tick();
+            }
         }
 
         // A Scale box handle of the selection dragged to a world point, then where that left the node.

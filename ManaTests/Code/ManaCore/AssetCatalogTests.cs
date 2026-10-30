@@ -89,6 +89,17 @@ public static class AssetCatalogChecks
             catch (InvalidDataException) { rejected = true; }
             check("catalog paths cannot escape the asset root", rejected, "");
 
+            var importedJson = json.Replace("Assets/", "Library/Imported/Test/");
+            var imported = new ManaAssetCatalog(importedJson, directory.FullName,
+                (_, _, _) => Task.FromResult(new byte[3]));
+            await imported.EnsureAsync("Library/Imported/Test/model.gltf");
+            check("prepared scene models download with all their sidecars", imported.IsReady("Library/Imported/Test/model.gltf")
+                && File.Exists(Path.Combine(directory.FullName, "Library/Imported/Test/model.bin")), "");
+            rejected = false;
+            try { _ = new ManaAssetCatalog(importedJson.Replace("Test/model.bin", "../escape.bin"), directory.FullName, (_, _, _) => Task.FromResult(new byte[3])); }
+            catch (InvalidDataException) { rejected = true; }
+            check("imported catalog paths cannot escape their root", rejected, "");
+
             const string trustedHost = "https://example.github.io/repo/web-assets/AssetLibrary/";
             var externalJson = json.Replace("\"AssetLibrary/model.gltf\"", $"\"{trustedHost}model.gltf\"");
             _ = new ManaAssetCatalog(externalJson, directory.FullName, (_, _, _) => Task.FromResult(Array.Empty<byte>()),

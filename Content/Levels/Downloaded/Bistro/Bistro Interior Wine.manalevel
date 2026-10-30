@@ -1,0 +1,739 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Bistro Interior Wine",
+  "camera": {
+    "position": [103.445, 10.258, 97.753],
+    "rotation": [-0.03732129, -1.4556046, 0]
+  },
+  "web": {"publish": true, "description": "Amazon Lumberyard Bistro (ORCA, CC-BY 4.0). Large scene assets download on first open."},
+  "downloads": [
+    {
+      "file": "Bistro_v5_2.zip",
+      "url": "https://developer.nvidia.com/bistro",
+      "sha256": "0d50e3c724c6c5da19f8eb99ad3f53e36fec37ffa2df9621f9ccf0603f3934e1"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "f356e543b0cc4c199f661de3f753f2f0",
+      "name": "Bistro Interior Wine",
+      "kind": "Mesh",
+      "position": [100, 8, 100],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": "Library/Imported/Bistro_v5_2/BistroInterior_Wine/BistroInterior_Wine.gltf",
+      "mergeParts": true
+    },
+    {
+      "id": "afb90ca81b0d19af46a6fb5d08c31d58",
+      "name": "Light Probes",
+      "kind": "Group",
+      "position": [108.466, 13.62, 93.833],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "scripts": [
+        {
+          "id": "99d2f07e230f0ab78b0d4a7257f0deec",
+          "type": "ProbeVolume",
+          "properties": {
+            "size": [24.828, 12.642, 30.362],
+            "probeSpacing": 2,
+            "voxelSize": 1,
+            "bounces": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "d08d6729e285d7eb07d3945acac951c8",
+      "name": "Emissive Lights",
+      "kind": "Group",
+      "position": [100, 8, 100],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "children": [
+        {
+          "id": "af1883218952a70b1f76e334383a4726",
+          "name": "Light 0",
+          "kind": "Group",
+          "position": [8.998, 5.137, -12.387],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "d942decede54ea53436b26e6e3fa499b",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.8947152,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "0d40466b06a89a8b8ea3ba73bbdd4b5b",
+          "name": "Light 1",
+          "kind": "Group",
+          "position": [6.273, 5.35, -7.189],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "369ebdb91d64394b349d6fbcfee51582",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.8947151,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "1402bc7e89cc530beb8543844a44f4f0",
+          "name": "Light 2",
+          "kind": "Group",
+          "position": [7.371, 5.35, -0.717],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "1cdcd8ffe56bb24a8b8ff3479406c9af",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.89471495,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ebac8a7aba7ef6676a5c45aafc70ad04",
+          "name": "Light 3",
+          "kind": "Group",
+          "position": [11.729, 5.35, 1.482],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "54fbf96cbe7597f33d351cc68af56220",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.89471495,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "2e8e16be30388eacbc0892aab8383dc4",
+          "name": "Light 4",
+          "kind": "Group",
+          "position": [6.272, 4.662, -7.187],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "46cca5653a4e56f376ab2efc8b44c17e",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.84513783,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "9ae09d94953362551b70f52bda9df83a",
+          "name": "Light 5",
+          "kind": "Group",
+          "position": [7.37, 4.662, -0.714],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "7fd860c1d7956f3db7a343bc3b01ae86",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.8451375,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "38f03730e08436ed6e39abec9c4f53e7",
+          "name": "Light 6",
+          "kind": "Group",
+          "position": [11.728, 4.662, 1.484],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "a95351648a06fe369aa53fdeec5e0828",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.84513724,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "339933086e03cdea37de4f662db58eaf",
+          "name": "Light 7",
+          "kind": "Group",
+          "position": [8.997, 4.449, -12.385],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "09035d2128f6fc5646466f9b7f91ec33",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.8451372,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "478711e6d89e1f18b9239a13b14fc6c8",
+          "name": "Light 8",
+          "kind": "Group",
+          "position": [5.471, 5.37, -1.973],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "8faaafc2670c342b5fc6d40025a189ce",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.839808,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "893e54114c1cdfaf92bc46d4b3335db9",
+          "name": "Light 9",
+          "kind": "Group",
+          "position": [9.852, 5.37, 0.752],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "9f98c133438d77967acc07da17a9d644",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.8398078,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "7fea6ff42e66a5ab871ebd577799a27a",
+          "name": "Light 10",
+          "kind": "Group",
+          "position": [4.636, 5.37, -2.002],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "2f1f518e91b8729519c6b994c8f47cdf",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.8379905,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "97814954bfd38cf8697c8864464a249b",
+          "name": "Light 11",
+          "kind": "Group",
+          "position": [9.017, 5.37, 0.723],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "8bc7e32e81ef8295c0965b1153a65f33",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.83799016,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "cded5a06eec065c79aa54efa4fd22004",
+          "name": "Light 12",
+          "kind": "Group",
+          "position": [10.083, 5.37, 1.558],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "894aa803afb4faf681085a392770a366",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.8283185,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ed276bfaaaa51b464e645abc4d9ab1a8",
+          "name": "Light 13",
+          "kind": "Group",
+          "position": [5.702, 5.37, -1.166],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "4b80228bee5dd50447f8dc3aa91547ae",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.82831836,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "30a14d5b1b644466c85df3f4ead0c7b2",
+          "name": "Light 14",
+          "kind": "Group",
+          "position": [4.349, 5.37, -1.216],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "bd7a3eadb6a60902d8377180da7e15b1",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.82582235,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "77a76e72de2f245d4785d0ce71753d3d",
+          "name": "Light 15",
+          "kind": "Group",
+          "position": [8.73, 5.37, 1.509],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "23c7466f92e83aeef302570ddeabf273",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.825822,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d1a75b424f95d80a4ff7f57cc554a2f0",
+          "name": "Light 16",
+          "kind": "Group",
+          "position": [5.008, 5.37, -0.699],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "81b61d711422126be507d73a05b2a0ef",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.8141871,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2feb898421e4e2a4441e296d035e10b",
+          "name": "Light 17",
+          "kind": "Group",
+          "position": [9.389, 5.37, 2.025],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "2fcd89f4fe3880c2fb716f0cacef7dd2",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.81418705,
+                "range": 8,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "7b52940346e52ce6b8a95d457a3ae985",
+          "name": "Light 18",
+          "kind": "Group",
+          "position": [5.033, 5.468, -1.412],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "c0d93c9fd765e68fd460b69ad1bdb4e7",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.6611553,
+                "range": 6.6115527,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "3e2a8305e4b57d4cf11b52d8e47ac697",
+          "name": "Light 19",
+          "kind": "Group",
+          "position": [9.414, 5.468, 1.313],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "6d33de439cf8dcf110e1367eaaf5a10f",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.85787517, 0.57031965, 1],
+                "intensity": 0.6611552,
+                "range": 6.6115522,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "67b49e679f245bed089931e8b8194acd",
+          "name": "Light 20",
+          "kind": "Group",
+          "position": [15.503, 4.339, -1.386],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "6a3d2e748315075b666b1c0d1f3212b1",
+              "type": "Light",
+              "properties": {
+                "color": [0.9996366, 1, 0.9996366, 1],
+                "intensity": 0.64343846,
+                "range": 6.4343843,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "10823d47d7de497cc512d7270c33d199",
+          "name": "Light 21",
+          "kind": "Group",
+          "position": [13.154, 4.339, -2.677],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "ff42273250e94fc5b1d7bb728723b101",
+              "type": "Light",
+              "properties": {
+                "color": [0.9996366, 1, 0.9996366, 1],
+                "intensity": 0.64343786,
+                "range": 6.4343786,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "5e8e946a5ddad7e2ce1b6a6e025c76d2",
+          "name": "Light 22",
+          "kind": "Group",
+          "position": [10.798, 4.339, -3.977],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "325c8f6a8a2fea1069eaa08d179dfb97",
+              "type": "Light",
+              "properties": {
+                "color": [0.9996366, 1, 0.9996366, 1],
+                "intensity": 0.6434354,
+                "range": 6.434354,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "924869e98a5b64e0ada96c8d7022c9c2",
+          "name": "Light 23",
+          "kind": "Group",
+          "position": [9.899, 4.339, -6.102],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "bd1c92862544b88645fab29546acf65a",
+              "type": "Light",
+              "properties": {
+                "color": [0.9996366, 1, 0.9996366, 1],
+                "intensity": 0.64343524,
+                "range": 6.434352,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "c5510be588315faeaaa2f6781ee207dc",
+          "name": "Light 24",
+          "kind": "Group",
+          "position": [4.971, 3.744, 2.865],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "73587b97f8106484d90a2b2de5a327cf",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.6374473,
+                "range": 6.374473,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "6873c338bc710625ab2eaf74402e04db",
+          "name": "Light 25",
+          "kind": "Group",
+          "position": [9.085, 3.744, 4.481],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "6455d5aca437ef9bc7979d81dd27ae67",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.6374438,
+                "range": 6.3744373,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "4b157b9834e8d0df534643b42f87b65a",
+          "name": "Light 26",
+          "kind": "Group",
+          "position": [2.866, 3.744, -11.829],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "ad8f5d56627bec7179910e0b13254c1f",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.63731205,
+                "range": 6.3731203,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "35fc6632ef309709a8b52922028d1c5e",
+          "name": "Light 27",
+          "kind": "Group",
+          "position": [0.796, 3.744, -8.031],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "c1c00f78b12f23f432b75eac36023368",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.6373119,
+                "range": 6.373119,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "c90ef47c1848c68d6e17aecfb06518f3",
+          "name": "Light 28",
+          "kind": "Group",
+          "position": [-1.319, 3.744, -4.13],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "00a79d218033fb377ba7ca3f13337928",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.6373118,
+                "range": 6.373118,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "d0041b4e034d69b722fec7a18165ffee",
+          "name": "Light 29",
+          "kind": "Group",
+          "position": [0.664, 3.744, 0.829],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "910f068b90ca6180d833be380e1ac0cb",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9991244, 1, 1],
+                "intensity": 0.63694733,
+                "range": 6.3694735,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "9ae629d2da1481e6e831847584511675",
+          "name": "Light 30",
+          "kind": "Group",
+          "position": [6.273, 6.033, -7.187],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "9ac9700b369e33b52f8546d717b566da",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.5042491,
+                "range": 5.042491,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "fe5cd28076ca43e6a372903c4d56ec42",
+          "name": "Light 31",
+          "kind": "Group",
+          "position": [8.998, 5.82, -12.385],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "db25b72d32523d2ece36ae91d4c23cb2",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.504249,
+                "range": 5.0424895,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "8b8d8e3670918b51bc4cfa57245063a3",
+          "name": "Light 32",
+          "kind": "Group",
+          "position": [11.729, 6.033, 1.484],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "80015e281bed0e2deb53b145a34dea6b",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.504249,
+                "range": 5.0424895,
+                "lightType": "Point"
+              }
+            }
+          ]
+        },
+        {
+          "id": "ad501726bbc28a980f3b8d69c2e4c7d0",
+          "name": "Light 33",
+          "kind": "Group",
+          "position": [7.371, 6.033, -0.715],
+          "rotation": [0, 0, 0],
+          "scale": [1, 1, 1],
+          "scripts": [
+            {
+              "id": "2a40fd41d66eee83911943fef0741f7a",
+              "type": "Light",
+              "properties": {
+                "color": [1, 0.9971725, 1, 1],
+                "intensity": 0.50424886,
+                "range": 5.0424886,
+                "lightType": "Point"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

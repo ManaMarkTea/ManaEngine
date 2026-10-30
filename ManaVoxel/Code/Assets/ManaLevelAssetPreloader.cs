@@ -14,6 +14,10 @@ namespace ManaVoxel.Code.Assets
             {
                 return;
             }
+            if (level.Sky?.Photo is { Length: > 0 } skyPhoto)
+            {
+                await catalog.EnsureAsync(skyPhoto);
+            }
             var nodes = new Queue<ManaLevelNode>(level.Nodes);
             // What the level's game modes build at play time, which no node names. A prefab among them (the runner's
             // track sections) is walked like a placed one, for the models it uses.
@@ -105,6 +109,11 @@ namespace ManaVoxel.Code.Assets
                 }
                 if (!string.IsNullOrWhiteSpace(node.Asset))
                 {
+                    if (OperatingSystem.IsBrowser() && node.Asset.StartsWith("Library/Imported/", StringComparison.Ordinal)
+                        && catalog.LocalFileOf(node.Asset) == null)
+                    {
+                        throw new InvalidDataException($"This web build is missing the prepared scene asset '{node.Asset}'. Prepare level downloads before publishing.");
+                    }
                     await catalog.EnsureAsync(node.Asset);
                 }
                 foreach (var tile in node.GridMap?.Palette ?? [])

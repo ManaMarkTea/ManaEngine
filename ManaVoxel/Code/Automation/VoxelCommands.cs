@@ -69,7 +69,12 @@ namespace ManaVoxel.Code.Automation
                 Console.WriteLine($"Command file: camera {command.Name} at {camera.Owner.Position}, ortho height {camera.OrthographicHeight}");
             });
 
-            runner.Register("open_level", command => openLevel(ManaCommandRunner.RequirePath(command)));
+            runner.Register("open_level", (command, _) =>
+            {
+                openLevel(ManaCommandRunner.RequirePath(command));
+                // Let the host hold the next step while asynchronous downloads/imports finish.
+                return ManaCommandFlow.Pause;
+            });
 
             runner.Register("transform_node", command =>
             {

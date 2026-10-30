@@ -1,0 +1,2257 @@
+{
+ "format": "mana-level",
+ "version": 2,
+ "name": "Bistro Interior Wine Evening",
+ "camera": {
+  "position": [
+   103.445,
+   10.258,
+   97.753
+  ],
+  "rotation": [
+   -0.03732129,
+   -1.4556046,
+   0
+  ]
+ },
+ "web": {"publish": true, "description": "Amazon Lumberyard Bistro (ORCA, CC-BY 4.0). Large scene assets download on first open."},
+ "downloads": [
+  {
+   "file": "Bistro_v5_2.zip",
+   "url": "https://developer.nvidia.com/bistro",
+   "sha256": "0d50e3c724c6c5da19f8eb99ad3f53e36fec37ffa2df9621f9ccf0603f3934e1"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "f356e543b0cc4c199f661de3f753f2f0",
+   "name": "Bistro Interior Wine",
+   "kind": "Mesh",
+   "position": [
+    100,
+    8,
+    100
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "asset": "Library/Imported/Bistro_v5_2/BistroInterior_Wine/BistroInterior_Wine.gltf",
+   "mergeParts": true
+  },
+  {
+   "id": "afb90ca81b0d19af46a6fb5d08c31d58",
+   "name": "Light Probes",
+   "kind": "Group",
+   "position": [
+    108.466,
+    13.62,
+    93.833
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "scripts": [
+    {
+     "id": "99d2f07e230f0ab78b0d4a7257f0deec",
+     "type": "ProbeVolume",
+     "properties": {
+      "size": [
+       24.828,
+       12.642,
+       30.362
+      ],
+      "probeSpacing": 2,
+      "voxelSize": 1,
+      "bounces": 1
+     }
+    }
+   ]
+  },
+  {
+   "id": "d08d6729e285d7eb07d3945acac951c8",
+   "name": "Emissive Lights",
+   "kind": "Group",
+   "position": [
+    100,
+    8,
+    100
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "children": [
+    {
+     "id": "af1883218952a70b1f76e334383a4726",
+     "name": "Light 0",
+     "kind": "Group",
+     "position": [
+      8.998,
+      5.137,
+      -12.387
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "d942decede54ea53436b26e6e3fa499b",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "0d40466b06a89a8b8ea3ba73bbdd4b5b",
+     "name": "Light 1",
+     "kind": "Group",
+     "position": [
+      6.273,
+      5.35,
+      -7.189
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "369ebdb91d64394b349d6fbcfee51582",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "1402bc7e89cc530beb8543844a44f4f0",
+     "name": "Light 2",
+     "kind": "Group",
+     "position": [
+      7.371,
+      5.35,
+      -0.717
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "1cdcd8ffe56bb24a8b8ff3479406c9af",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "ebac8a7aba7ef6676a5c45aafc70ad04",
+     "name": "Light 3",
+     "kind": "Group",
+     "position": [
+      11.729,
+      5.35,
+      1.482
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "54fbf96cbe7597f33d351cc68af56220",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "2e8e16be30388eacbc0892aab8383dc4",
+     "name": "Light 4",
+     "kind": "Group",
+     "position": [
+      6.272,
+      4.662,
+      -7.187
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "46cca5653a4e56f376ab2efc8b44c17e",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 2.0,
+        "range": 7,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "9ae09d94953362551b70f52bda9df83a",
+     "name": "Light 5",
+     "kind": "Group",
+     "position": [
+      7.37,
+      4.662,
+      -0.714
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "7fd860c1d7956f3db7a343bc3b01ae86",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 2.0,
+        "range": 7,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "38f03730e08436ed6e39abec9c4f53e7",
+     "name": "Light 6",
+     "kind": "Group",
+     "position": [
+      11.728,
+      4.662,
+      1.484
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "a95351648a06fe369aa53fdeec5e0828",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 2.0,
+        "range": 7,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "339933086e03cdea37de4f662db58eaf",
+     "name": "Light 7",
+     "kind": "Group",
+     "position": [
+      8.997,
+      4.449,
+      -12.385
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "09035d2128f6fc5646466f9b7f91ec33",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 2.0,
+        "range": 7,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "478711e6d89e1f18b9239a13b14fc6c8",
+     "name": "Light 8",
+     "kind": "Group",
+     "position": [
+      5.471,
+      5.37,
+      -1.973
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "8faaafc2670c342b5fc6d40025a189ce",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "893e54114c1cdfaf92bc46d4b3335db9",
+     "name": "Light 9",
+     "kind": "Group",
+     "position": [
+      9.852,
+      5.37,
+      0.752
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "9f98c133438d77967acc07da17a9d644",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "7fea6ff42e66a5ab871ebd577799a27a",
+     "name": "Light 10",
+     "kind": "Group",
+     "position": [
+      4.636,
+      5.37,
+      -2.002
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "2f1f518e91b8729519c6b994c8f47cdf",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "97814954bfd38cf8697c8864464a249b",
+     "name": "Light 11",
+     "kind": "Group",
+     "position": [
+      9.017,
+      5.37,
+      0.723
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "8bc7e32e81ef8295c0965b1153a65f33",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "cded5a06eec065c79aa54efa4fd22004",
+     "name": "Light 12",
+     "kind": "Group",
+     "position": [
+      10.083,
+      5.37,
+      1.558
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "894aa803afb4faf681085a392770a366",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "ed276bfaaaa51b464e645abc4d9ab1a8",
+     "name": "Light 13",
+     "kind": "Group",
+     "position": [
+      5.702,
+      5.37,
+      -1.166
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "4b80228bee5dd50447f8dc3aa91547ae",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "30a14d5b1b644466c85df3f4ead0c7b2",
+     "name": "Light 14",
+     "kind": "Group",
+     "position": [
+      4.349,
+      5.37,
+      -1.216
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "bd7a3eadb6a60902d8377180da7e15b1",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "77a76e72de2f245d4785d0ce71753d3d",
+     "name": "Light 15",
+     "kind": "Group",
+     "position": [
+      8.73,
+      5.37,
+      1.509
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "23c7466f92e83aeef302570ddeabf273",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "d1a75b424f95d80a4ff7f57cc554a2f0",
+     "name": "Light 16",
+     "kind": "Group",
+     "position": [
+      5.008,
+      5.37,
+      -0.699
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "81b61d711422126be507d73a05b2a0ef",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "b2feb898421e4e2a4441e296d035e10b",
+     "name": "Light 17",
+     "kind": "Group",
+     "position": [
+      9.389,
+      5.37,
+      2.025
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "2fcd89f4fe3880c2fb716f0cacef7dd2",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "7b52940346e52ce6b8a95d457a3ae985",
+     "name": "Light 18",
+     "kind": "Group",
+     "position": [
+      5.033,
+      5.468,
+      -1.412
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "c0d93c9fd765e68fd460b69ad1bdb4e7",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "3e2a8305e4b57d4cf11b52d8e47ac697",
+     "name": "Light 19",
+     "kind": "Group",
+     "position": [
+      9.414,
+      5.468,
+      1.313
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "6d33de439cf8dcf110e1367eaaf5a10f",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.58,
+         0.3,
+         1
+        ],
+        "intensity": 0.3,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "67b49e679f245bed089931e8b8194acd",
+     "name": "Light 20",
+     "kind": "Group",
+     "position": [
+      15.503,
+      4.339,
+      -1.386
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "6a3d2e748315075b666b1c0d1f3212b1",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "10823d47d7de497cc512d7270c33d199",
+     "name": "Light 21",
+     "kind": "Group",
+     "position": [
+      13.154,
+      4.339,
+      -2.677
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "ff42273250e94fc5b1d7bb728723b101",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "5e8e946a5ddad7e2ce1b6a6e025c76d2",
+     "name": "Light 22",
+     "kind": "Group",
+     "position": [
+      10.798,
+      4.339,
+      -3.977
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "325c8f6a8a2fea1069eaa08d179dfb97",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "924869e98a5b64e0ada96c8d7022c9c2",
+     "name": "Light 23",
+     "kind": "Group",
+     "position": [
+      9.899,
+      4.339,
+      -6.102
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "bd1c92862544b88645fab29546acf65a",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "c5510be588315faeaaa2f6781ee207dc",
+     "name": "Light 24",
+     "kind": "Group",
+     "position": [
+      4.971,
+      3.744,
+      2.865
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "73587b97f8106484d90a2b2de5a327cf",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "6873c338bc710625ab2eaf74402e04db",
+     "name": "Light 25",
+     "kind": "Group",
+     "position": [
+      9.085,
+      3.744,
+      4.481
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "6455d5aca437ef9bc7979d81dd27ae67",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "4b157b9834e8d0df534643b42f87b65a",
+     "name": "Light 26",
+     "kind": "Group",
+     "position": [
+      2.866,
+      3.744,
+      -11.829
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "ad8f5d56627bec7179910e0b13254c1f",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "35fc6632ef309709a8b52922028d1c5e",
+     "name": "Light 27",
+     "kind": "Group",
+     "position": [
+      0.796,
+      3.744,
+      -8.031
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "c1c00f78b12f23f432b75eac36023368",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "c90ef47c1848c68d6e17aecfb06518f3",
+     "name": "Light 28",
+     "kind": "Group",
+     "position": [
+      -1.319,
+      3.744,
+      -4.13
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "00a79d218033fb377ba7ca3f13337928",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "d0041b4e034d69b722fec7a18165ffee",
+     "name": "Light 29",
+     "kind": "Group",
+     "position": [
+      0.664,
+      3.744,
+      0.829
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "910f068b90ca6180d833be380e1ac0cb",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.5,
+        "range": 5,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "9ae629d2da1481e6e831847584511675",
+     "name": "Light 30",
+     "kind": "Group",
+     "position": [
+      6.273,
+      6.033,
+      -7.187
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "9ac9700b369e33b52f8546d717b566da",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "fe5cd28076ca43e6a372903c4d56ec42",
+     "name": "Light 31",
+     "kind": "Group",
+     "position": [
+      8.998,
+      5.82,
+      -12.385
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "db25b72d32523d2ece36ae91d4c23cb2",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "8b8d8e3670918b51bc4cfa57245063a3",
+     "name": "Light 32",
+     "kind": "Group",
+     "position": [
+      11.729,
+      6.033,
+      1.484
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "80015e281bed0e2deb53b145a34dea6b",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    },
+    {
+     "id": "ad501726bbc28a980f3b8d69c2e4c7d0",
+     "name": "Light 33",
+     "kind": "Group",
+     "position": [
+      7.371,
+      6.033,
+      -0.715
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "scripts": [
+      {
+       "id": "2a40fd41d66eee83911943fef0741f7a",
+       "type": "Light",
+       "properties": {
+        "color": [
+         1.0,
+         0.68,
+         0.4,
+         1
+        ],
+        "intensity": 0.03,
+        "range": 3,
+        "lightType": "Point",
+        "castsShadows": false
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "d80c45bc990141b489dd37f6a975d2d0",
+   "name": "Table Candles",
+   "kind": "Group",
+   "position": [
+    100,
+    8,
+    100
+   ],
+   "rotation": [
+    0,
+    0,
+    0
+   ],
+   "scale": [
+    1,
+    1,
+    1
+   ],
+   "children": [
+    {
+     "id": "fc0ab10a78f1464880e6bd638396b0b1",
+     "name": "Candle 1",
+     "kind": "Group",
+     "position": [
+      9.044,
+      1.78,
+      -0.01
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "1caa1b2ae4fb4ddaa386f40cf2d60e9e",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "5baf682cb3664af4be2dac6baf91145c",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "d9523f87e0d5484a946f71eeed07fd56",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "c6d0ba76cd18440caf19ca83d34d12d7",
+     "name": "Candle 2",
+     "kind": "Group",
+     "position": [
+      11.707,
+      1.78,
+      1.489
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "dc44f967f64d4de28ff65d56ffedb212",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "9698ddcdbd674f91b111cda1617f1cb1",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "2c49d33df8a34391b964ba57d6debca1",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "cd1cf5f86d1a4be2a9cfa36d9d9cee44",
+     "name": "Candle 3",
+     "kind": "Group",
+     "position": [
+      6.882,
+      1.78,
+      -1.158
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "2a5f6e9a510d4adeab45520ee0d77fba",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "b67d9ea6847e4d539bd46a9d8df066e7",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "f7ef7f74e86e4255b1fb74139cc1dec5",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "2dbcbba75dd44d7e8a294a8944667cdd",
+     "name": "Candle 4",
+     "kind": "Group",
+     "position": [
+      4.738,
+      1.78,
+      -2.281
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "f9b54be0870a401c93a2a50ac0a9ad5d",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "3b19b60390034ca68eb13aa5cd11768e",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "0928dfe5edfe495187c0fe7717ff09e8",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "97b4f311d36749b8abde5c9cbbee8f83",
+     "name": "Candle 5",
+     "kind": "Group",
+     "position": [
+      11.096,
+      1.78,
+      4.084
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "d663fa69c84c4536bec1b634e58257cd",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "b0274ba97d36452c8ab37fb5589f6811",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "7920e33ab8a04510868f7417f893b80d",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "b1d1ab587de242d484b43929ffd6a232",
+     "name": "Candle 6",
+     "kind": "Group",
+     "position": [
+      13.792,
+      1.78,
+      2.912
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "a3ebce305a754f259f613c48298c4b69",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "c7772e588fe242139eef46b5d8e46d8e",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "914b765b83504388b66753c1f255ef51",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "571ff1423bc9493383580ac5ed49d042",
+     "name": "Candle 7",
+     "kind": "Group",
+     "position": [
+      0.238,
+      1.78,
+      -5.646
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "818f20155c8545e89b6799e3a8b7e85f",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "794373f10c244a44be4b307f4619b428",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "15d5b497e8f141f68f2dbfc4ac42fef8",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "9374f03d68ca42e0b25544a79b13680d",
+     "name": "Candle 8",
+     "kind": "Group",
+     "position": [
+      2.943,
+      1.78,
+      -9.805
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "4daa9d948715441fa619434a7ba45886",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "7b96ab47504940868d8d741e79666ceb",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "58ae12a38bac4da081fe317be5412084",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "e8b2361a5a294f1d85dbf9ee7830b3ec",
+     "name": "Candle 9",
+     "kind": "Group",
+     "position": [
+      3.568,
+      1.78,
+      1.598
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "b4dadadb639245ecab38b8382abecbff",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "9d94b3fc89cd4780827b40be4a33a2cf",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "ec78c9245c5e4dcbaee125dabc79365e",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "d95a324de3854e0996ce2e6df93eb725",
+     "name": "Candle 10",
+     "kind": "Group",
+     "position": [
+      7.744,
+      1.78,
+      3.141
+     ],
+     "rotation": [
+      0,
+      0,
+      0
+     ],
+     "scale": [
+      1,
+      1,
+      1
+     ],
+     "children": [
+      {
+       "id": "e4194318a87342f7a0f92adfa5d6c9e6",
+       "name": "Candle",
+       "kind": "Mesh",
+       "position": [
+        0,
+        0,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "asset": "Assets/Models/Kenny/candle.glb"
+      },
+      {
+       "id": "6a8d6fdeb587492eaad045e1958ef07f",
+       "name": "Flame",
+       "kind": "Group",
+       "position": [
+        0,
+        0.17,
+        0
+       ],
+       "rotation": [
+        0,
+        0,
+        0
+       ],
+       "scale": [
+        1,
+        1,
+        1
+       ],
+       "scripts": [
+        {
+         "id": "b440712796ba47aeab48b5a05d7365f6",
+         "type": "Light",
+         "properties": {
+          "color": [
+           1.0,
+           0.52,
+           0.22,
+           1
+          ],
+          "intensity": 0.55,
+          "range": 3.5,
+          "lightType": "Point",
+          "castsShadows": true,
+          "flickerAmount": 0.12,
+          "flickerSpeed": 5
+         }
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "sky": {
+  "mode": "DayNightCycle",
+  "dateTime": "2026-10-29T20:30:00-07:00",
+  "timeSpeed": 0,
+  "exposure": 0.65
+ }
+}

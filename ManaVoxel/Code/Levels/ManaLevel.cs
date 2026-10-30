@@ -43,6 +43,9 @@ namespace ManaVoxel.Code.Levels
 
         public List<ManaLevelNode> Nodes { get; set; } = new();
 
+        /// <summary>Source packs needed by this level; web builds publish their converted assets in the catalog.</summary>
+        public List<ManaLevelDownload>? Downloads { get; set; }
+
         public ManaLevelNode? PlayerStart =>
             FindPlayerStart(Nodes);
 
@@ -122,6 +125,13 @@ namespace ManaVoxel.Code.Levels
         }
 
         public static ManaLevel Load(string path) => FromJson(File.ReadAllText(path));
+    }
+
+    public sealed class ManaLevelDownload
+    {
+        public string File { get; set; } = "";
+        public string Url { get; set; } = "";
+        public string Sha256 { get; set; } = "";
     }
 
     /// <summary>A level's publishing (ManaScenePublishing as saved): read by Tools/WebAssets/publish_assets.py.</summary>

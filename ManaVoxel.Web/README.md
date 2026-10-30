@@ -123,6 +123,13 @@ picked up automatically; no per-level packaging allowlist needs updating.
 
 ## Things that differ from desktop, and why
 
+Downloaded scene levels (including `Content/Levels/Downloaded/Bistro/`) also work in the browser. Before a local web
+publish, run `dotnet run --project ManaVoxel -- --prepare-level-assets` to fetch and import their declared source packs.
+The web publisher includes only referenced `Library/Imported/` files and glTF sidecars in the external asset catalog;
+they download when the level opens, with the usual persistent browser cache. The daily workflow prepares these packs
+automatically. Imported DDS textures start at their existing 512 px mip to fit browser memory and hosting limits;
+desktop keeps full resolution. Neither the ZIP nor the desktop FBX converter is sent to the browser. See `Tools/README.md`.
+
 - **Phones and tablets use mobile rendering automatically** (touch input with a coarse primary pointer).
   Their canvas is capped at one render pixel per CSS pixel. A lightweight sky shader draws day/night
   color gradients, a simple sun and moon, and sparse procedural stars. Both the background and lighting

@@ -130,6 +130,7 @@
     <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetScissorRect" />
     <EmccExportedFunction Include="_mana_wgpuRenderPassEncoderSetVertexBuffer" />
     <EmccExportedFunction Include="_mana_wgpuRenderPipelineRelease" />
+    <EmccExportedFunction Include="_mana_wgpuRenderPipelineGetBindGroupLayout" />
     <EmccExportedFunction Include="_mana_wgpuSamplerRelease" />
     <EmccExportedFunction Include="_mana_wgpuShaderModuleRelease" />
     <EmccExportedFunction Include="_mana_wgpuSurfaceConfigure" />

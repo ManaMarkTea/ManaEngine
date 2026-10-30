@@ -1,0 +1,75 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Bistro Exterior",
+  "camera": {
+    "position": [114.612, 12.293, 58.191],
+    "rotation": [-0.06950034, 2.8170073, 0]
+  },
+  "sky": {
+    "mode": "Photo",
+    "photo": "Library/Imported/Bistro_v5_2/Sky/san_giuseppe_bridge_4k.png",
+    "exposure": 1.6
+  },
+  "web": {"publish": true, "description": "Amazon Lumberyard Bistro (ORCA, CC-BY 4.0). Large scene assets download on first open."},
+  "downloads": [
+    {
+      "file": "Bistro_v5_2.zip",
+      "url": "https://developer.nvidia.com/bistro",
+      "sha256": "0d50e3c724c6c5da19f8eb99ad3f53e36fec37ffa2df9621f9ccf0603f3934e1"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "4da2f42eff8f196073e39e9e85f83276",
+      "name": "Bistro Exterior",
+      "kind": "Mesh",
+      "position": [100, 8, 100],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "asset": "Library/Imported/Bistro_v5_2/BistroExterior/BistroExterior.gltf",
+      "mergeParts": true
+    },
+    {
+      "id": "d3124f9b0d043c32b34de6118375a32f",
+      "name": "Light Probes",
+      "kind": "Group",
+      "position": [124.422, 25.985, 104.272],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "scripts": [
+        {
+          "id": "7aa51ad2081d9777b3bc87d8ad919abf",
+          "type": "ProbeVolume",
+          "properties": {
+            "size": [175.76, 53.094, 186.418],
+            "probeSpacing": 2,
+            "voxelSize": 1,
+            "bounces": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "777305d19f46c594d3a6049fcb9bf7a0",
+      "name": "Sun",
+      "kind": "Group",
+      "position": [124.422, 65.985, 104.272],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1],
+      "scripts": [
+        {
+          "id": "ace1983294f80eac4e05240f48c58ac7",
+          "type": "Light",
+          "properties": {
+            "color": [0.734, 0.5827655, 0.37654203, 1],
+            "intensity": 2.1798365,
+            "lightType": "Directional",
+            "castsShadows": true,
+            "direction": [0, -0.482, 0.876]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -38,6 +38,11 @@ namespace ManaVoxel.Code.Levels
                 {
                     CaptureSceneNodes(scene, level.Nodes);
                     level.Sky ??= scene.AuthoredSky as ManaLevelSky;
+                    if (scene.AuthoredDownloads is List<ManaLevelDownload> downloads)
+                    {
+                        level.Downloads ??= new();
+                        level.Downloads.AddRange(downloads.Where(download => !level.Downloads.Any(existing => existing.File == download.File)));
+                    }
                     level.Web ??= ManaLevelWeb.From(scene.Publishing);
                     CaptureGameModes(scene, level);
                 }
@@ -70,6 +75,7 @@ namespace ManaVoxel.Code.Levels
             {
                 CaptureSceneNodes(scene, level.Nodes);
                 level.Sky = scene.AuthoredSky as ManaLevelSky;
+                level.Downloads = scene.AuthoredDownloads as List<ManaLevelDownload>;
                 level.Web = ManaLevelWeb.From(scene.Publishing);
                 CaptureGameModes(scene, level);
                 if (includeCamera)

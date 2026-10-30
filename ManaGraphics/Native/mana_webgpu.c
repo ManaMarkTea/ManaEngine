@@ -728,6 +728,10 @@ typedef struct {
     uint32_t status;
 } ManaSurfaceTexture;
 
+WGPUBindGroupLayout mana_wgpuRenderPipelineGetBindGroupLayout(WGPURenderPipeline pipeline, uint32_t groupIndex) {
+    return wgpuRenderPipelineGetBindGroupLayout(pipeline, groupIndex);
+}
+
 void mana_wgpuSurfaceConfigure(WGPUSurface surface, ManaSurfaceConfiguration const* config) {
     mana_configure_surface_impl((int)(intptr_t)surface, (int)(intptr_t)config->device, (int)config->format, (int)config->usage);
 }

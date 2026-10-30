@@ -143,6 +143,15 @@ Patterns that work:
 
 ## Benchmarks
 
+Checked-in downloadable levels live in `Content/Levels/Downloaded/` (Bistro has five). A level's optional `downloads`
+array names source ZIPs by `file`, HTTPS `url`, and `sha256`: opening it fetches/verifies the ZIP in `Downloaded/`, imports
+it into `Library/Imported/`, then loads its authored nodes. Capture/save preserves these declarations. Before publishing
+the web build locally, run `dotnet run --project ManaVoxel -- --prepare-level-assets`; the daily workflow does this too.
+The publisher follows referenced imported files and glTF sidecars into the normal hashed asset catalog. The browser
+fetches converted assets on open, never FBX2glTF or the source ZIP. Imported DDS textures start at their existing 512 px
+mip in web output to fit browser memory and Pages hosting; desktop keeps full resolution. `Tools/README.md` inventories
+the maintained tools; retired initial level generators must not be used to overwrite authored content.
+
 Big third-party scenes are downloaded, never committed. **Downloaded scene packs:** zips in `Downloaded/` (gitignored,
 kept as they came) show in the editor's Scenes panel and Level menu under Downloaded; opening one imports it -- in the
 background, progress in the status line -- into `Library/Imported/<zip name>/` (private, regenerable) and opens its

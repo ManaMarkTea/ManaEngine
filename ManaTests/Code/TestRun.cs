@@ -115,6 +115,7 @@ public static class TestRunner
         ("ManaCore", "probe voxelizer", ProbeVoxelizerChecks.Run),
         ("ManaCore", "mip chain", MipChainChecks.Run),
         ("ManaVoxel", "scene import", SceneImportChecks.Run),
+        ("ManaVoxel", "level downloads", LevelDownloadChecks.Run),
         ("ManaCore", "wind", WindChecks.Run),
         ("ManaCore", "json formatting", JsonFormatChecks.Run),
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),

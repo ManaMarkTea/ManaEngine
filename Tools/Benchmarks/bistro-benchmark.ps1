@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
     Benchmarks the Amazon Lumberyard Bistro exterior (2.8M triangles, 400 textures): load time, frame rate per viewpoint,
-    the frame profiler's scopes, and GPU memory. Run Tools/Benchmarks/bistro.py once first to download it; it imports itself.
+    the frame profiler's scopes, and GPU memory. The checked-in level downloads/imports its assets on first open.
 .EXAMPLE
     ./Tools/Benchmarks/bistro-benchmark.ps1
     ./Tools/Benchmarks/bistro-benchmark.ps1 -NoBlockCompression   # DDS decoded to RGBA, for comparison
@@ -20,10 +20,8 @@ param(
     [int] $TimeoutSeconds = 600
 )
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-$pack = Join-Path $repo 'Downloaded/Bistro_v5_2.zip'
-if (-not (Test-Path $pack)) { throw "No Bistro pack; run: python Tools/Benchmarks/bistro.py" }
-$level = 'Library/Imported/Bistro_v5_2/Bistro Exterior.manalevel'
-if ($Night) { $level = 'Library/Imported/Bistro_v5_2/Bistro Exterior Night.manalevel' }
+$level = 'Content/Levels/Downloaded/Bistro/Bistro Exterior.manalevel'
+if ($Night) { $level = 'Content/Levels/Downloaded/Bistro/Bistro Exterior Night.manalevel' }
 $out = Join-Path $repo 'Artifacts/Benchmarks'
 New-Item -ItemType Directory -Force $out | Out-Null
 if (-not $Exe) {
@@ -31,10 +29,6 @@ if (-not $Exe) {
     dotnet build (Join-Path $repo 'ManaVoxel') -c Release -o (Split-Path $Exe) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Benchmark build failed.' }
 }
-# Imports the pack into Library/Imported when it is not already (a few minutes, once); nothing otherwise.
-Push-Location $repo
-try { & $Exe --import $pack | Where-Object { $_ -notmatch '^\[' } } finally { Pop-Location }
-if (-not (Test-Path (Join-Path $repo $level))) { throw "The import made no $level" }
 if ($NoBlockCompression) { $Name = "$Name-rgba" }
 if ($Night) { $Name = "$Name-night" }
 

@@ -310,6 +310,15 @@ namespace Mana.Code.GameModes
             }
 
             var level = ManaLevel.Load(_levelPath);
+#if !MANA_BROWSER
+            if (level.Downloads is { Count: > 0 })
+            {
+                var checkout = ManaVoxel.Code.Imports.ManaDownloads.Checkout(ManaLevelLibrary.ResolveFolder())
+                    ?? throw new InvalidOperationException("No checkout to download into.");
+                ManaVoxel.Code.Imports.ManaLevelDownloads.EnsureAsync(level, checkout,
+                    new Progress<string>(text => ManaConsole.WriteDiagnostic(text))).GetAwaiter().GetResult();
+            }
+#endif
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
 #if !MANA_BROWSER
             _planet = result.Planet;
