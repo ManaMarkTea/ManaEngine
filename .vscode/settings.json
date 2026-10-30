@@ -1,3 +1,6 @@
 {
-  "dotnet.defaultSolution": "ManaRenderer.sln"
+  "dotnet.defaultSolution": "ManaRenderer.sln",
+  "files.exclude": {
+    "obj": true
+  }
 }
