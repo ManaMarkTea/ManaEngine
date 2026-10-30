@@ -83,7 +83,9 @@ public sealed class ManaAssetCatalog
 
     private static void ValidatePath(string path, string? prefix = null)
     {
-        var allowed = path.StartsWith("Assets/", StringComparison.Ordinal) || path.StartsWith("Library/Imported/", StringComparison.Ordinal);
+        // Games/: a game's own models and sounds, published under their repo paths.
+        var allowed = path.StartsWith("Assets/", StringComparison.Ordinal) || path.StartsWith("Library/Imported/", StringComparison.Ordinal)
+            || path.StartsWith("Games/", StringComparison.Ordinal);
         if (prefix != null)
         {
             allowed = path.StartsWith(prefix, StringComparison.Ordinal);

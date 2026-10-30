@@ -17,6 +17,14 @@ Escape while playing opens the pause menu (Resume, Restart level, Choose another
 while it is open and the page keeps its keys and clicks. The menu talks to the game through
 `BrowserGameControls` (JS exports from this assembly).
 
+## Installing a level as an app
+
+Every listed level's page installs as an app that opens straight on that level (Chrome/Edge: the install icon in the
+address bar; Android: Add to Home screen; iPhone: Share > Add to Home Screen). `publish_assets.py` writes a manifest per
+level into `apps/`, and `index.html` links the one for its `?level=` (the selector's own otherwise). The icon is
+`Icons/<level file name>.png` beside the level, 512 px square, or the Mana cube (`mana-icon.png`). There is no service
+worker: it needs a connection to start, and files come from the browser's cache when it has them.
+
 ## Deployment
 
 CI publishes this project once and builds one versioned `app/v/<commit>/` directory.

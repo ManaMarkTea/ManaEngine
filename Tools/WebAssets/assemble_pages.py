@@ -14,6 +14,8 @@ def assemble(bundle: Path, output: Path, build: str):
     destination = output / "app" / "v" / build
     shutil.copytree(bundle, destination)
     shutil.copyfile(bundle / "index.html", output / "app" / "index.html")
+    # Beside index.html, not in v/<build>/: an installed app's manifest address must not change with each deploy.
+    shutil.copytree(bundle / "apps", output / "app" / "apps")
     (output / "app" / "version.json").write_text(json.dumps({"build": build}), encoding="utf-8")
     for mode in ("editor", "play"):
         entry = output / mode

@@ -4,6 +4,40 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ManaVoxel — Web</title>
+  <meta name="theme-color" content="#1E1F22" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <script>
+    // Installs as the level in the URL (apps/, written by publish_assets.py). Absolute, because the <base> a deploy adds
+    // below points into v/<build>/, and the manifest stays put across deploys.
+    (function () {
+        const level = new URLSearchParams(location.search).get('level');
+        let slug = 'mana';
+        if (level) {
+            slug = level.split('/').pop().replace(/\.manalevel$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        }
+        const manifestUrl = new URL(`apps/${slug}.webmanifest`, location.href);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestUrl.href;
+        document.head.appendChild(link);
+        // Safari takes its home screen icon from a tag of its own, not the manifest.
+        fetch(manifestUrl)
+            .then(response => response.ok ? response.json() : null)
+            .then(manifest => {
+                if (!manifest) {
+                    return;
+                }
+                document.title = manifest.name;
+                const icon = document.createElement('link');
+                icon.rel = 'apple-touch-icon';
+                icon.href = new URL(manifest.icons[0].src, manifestUrl).href;
+                document.head.appendChild(icon);
+            })
+            .catch(() => {});
+    })();
+  </script>
   <style>
     /* Colours, metrics and timings below are lifted from ManaUI's dark UiTheme and from
        ManaLoadingScreenManaView/ProgressBar, so the browser build's loading screen and the

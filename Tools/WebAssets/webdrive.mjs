@@ -6,7 +6,8 @@
 //
 // Steps: {go: url}, {wait: ms}, {waitFor: "console text", timeout: ms}, {shot: name}, {press: "KeyW", key: "w", hold: ms},
 // {down: code}, {up: code}, {eval: "javascript"}, {viewport: {width, height, deviceScaleFactor, mobile}},
-// {touch: {type: "touchStart" | "touchMove" | "touchEnd", touchPoints: [{x, y, id}]}}.
+// {touch: {type: "touchStart" | "touchMove" | "touchEnd", touchPoints: [{x, y, id}]}},
+// {cdp: "Page.getInstallabilityErrors", params: {}} (any DevTools method; logs its result).
 import { spawn } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -91,6 +92,9 @@ for (const step of steps) {
         await key(step.down, step.key ?? step.down, 'keyDown');
     } else if (step.up) {
         await key(step.up, step.key ?? step.up, 'keyUp');
+    } else if (step.cdp) {
+        const result = await send(step.cdp, step.params ?? {});
+        note(`cdp ${step.cdp}: ` + JSON.stringify(result.result ?? result.error));
     } else if (step.eval) {
         const result = await send('Runtime.evaluate', { expression: step.eval, returnByValue: true, awaitPromise: true });
         note('eval: ' + JSON.stringify(result.result?.result?.value));

@@ -3,11 +3,12 @@ import argparse
 import hashlib
 import json
 import posixpath
+import re
 import shutil
 import struct
 import zipfile
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
 # Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
@@ -251,6 +252,39 @@ def publish_levels(root, output):
     temporary.write_text(json.dumps(dict(levels=levels), indent=1), encoding="utf-8")
     temporary.replace(output / "levels.json")
     print(f"Level selector: {len(levels)} levels.")
+    publish_apps(root, output, levels)
+
+
+def app_slug(name):
+    """The manifest's file name for a level; index.html works out the same one from ?level=."""
+    return re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-")
+
+
+def publish_apps(root, output, levels):
+    """apps/: a web app manifest per listed level, so a level's page installs as an app that opens on that level, and
+    one for the selector. A level's icon is Icons/<file name>.png beside it (512 px square), otherwise the Mana cube."""
+    apps = output / "apps"
+    shutil.rmtree(apps, ignore_errors=True)
+    apps.mkdir()
+    shutil.copyfile(root / "ManaVoxel.Web" / "mana-icon.png", apps / "mana.png")
+
+    def write(slug, name, description, start, icon):
+        manifest = dict(id=f"mana-app-{slug}", name=name, short_name=name, description=description,
+                        start_url=start, scope="../", display="standalone", orientation="any",
+                        background_color="#1E1F22", theme_color="#1E1F22",
+                        icons=[dict(src=icon, sizes="512x512", type="image/png", purpose="any")])
+        (apps / f"{slug}.webmanifest").write_text(json.dumps(manifest, indent=1), encoding="utf-8")
+
+    write("mana", "Mana Renderer", "Levels and games made with Mana.", "../index.html", "mana.png")
+    for level in levels:
+        source = root / level["file"]
+        slug = app_slug(source.stem)
+        icon = source.parent / "Icons" / f"{source.stem}.png"
+        icon_name = "mana.png"
+        if icon.exists():
+            icon_name = f"{slug}.png"
+            shutil.copyfile(icon, apps / icon_name)
+        write(slug, level["name"], level["description"], f"../index.html?level={quote(level['file'])}", icon_name)
 
 
 if __name__ == "__main__":
