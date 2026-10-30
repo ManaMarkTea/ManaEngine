@@ -369,13 +369,17 @@ namespace Mana
                 return null;
             }
 
-            foreach (var scene in Scenes)
+            // Under the lock: a level loading in the background adds nodes while the render scene is built.
+            lock (SceneLock)
             {
-                foreach (var node in scene.Children)
+                foreach (var scene in Scenes)
                 {
-                    if (Find(node) is { } found)
+                    foreach (var node in scene.Children)
                     {
-                        return found;
+                        if (Find(node) is { } found)
+                        {
+                            return found;
+                        }
                     }
                 }
             }
