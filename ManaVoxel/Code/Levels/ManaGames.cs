@@ -148,6 +148,12 @@ namespace ManaVoxel.Code.Levels
                 ComponentType = typeof(Contour.Scripts.ContourSpawnComponent),
                 Create = node => new Contour.Scripts.ContourSpawnComponent(node)
             });
+            ManaLevelComponentScripts.Register(new ManaLevelScriptComponentDefinition
+            {
+                Type = Contour.Scripts.ContourWaypointComponent.ScriptType,
+                ComponentType = typeof(Contour.Scripts.ContourWaypointComponent),
+                Create = node => new Contour.Scripts.ContourWaypointComponent(node)
+            });
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = Contour.ContourMode.ModeType,

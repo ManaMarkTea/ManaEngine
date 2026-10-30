@@ -1,3 +1,8 @@
+[] - A 2D UI node for HUDs and menus, as Godot's Control / Unity's Canvas: a level (or prefab) node that hosts a
+    ManaUI layout (a .manaui document, edited in the UI Designer) over the viewport while playing, anchored to the
+    screen, bound by name to the running game mode's values and actions (UiMarkupData). Contour's HUD, menus and
+    system-map panel are hand-built ManaUI today (Games/Contour/Code/View/ContourHud.cs) -- the first thing to move.
+
 [x] - Contour port (2026-10-30): the 2010 XNA space shooter (GhostTap/OldWork/.../XNA/Source/Contour) as Games/Contour,
     a level game mode. Its 20 FBX models converted to GLB (Games/Contour/Content/Models), its sounds and the Contour
     Method track to Audio; every ship, turret, station, rock and the planet is a prefab carrying a ContourUnit script
@@ -5,8 +10,11 @@
     are .manalevel files of those prefabs plus ContourSpawn points, briefed from the design folder's mission briefs.
     Defend/Attack/Survival/Explore rules, waves, turrets, the four rounds (EMP reworked: 6 s cooldown), aggro AI,
     HUD/radar/debrief in ManaUI, pad support; ManaTests Contour suite. Games/Contour/README.md.
-    Follow-ups: the store and ship upgrades (StoreData.xml) with pilot credits/XP kept between missions; the galaxy map
-    (Menu_GalaxyView/Menu_System_Ryser) as a mission select; the other music mixes (WAV only, so they need a smaller
+    [x] Linked up (2026-10-30): Contour.manalevel is the whole game -- title over an autopilot battle, menu, the Ryser
+        system map (Ryser System.manalevel, ContourWaypoint bodies on their orbits) and the campaign mission to mission,
+        each loaded behind a fade; progress saved (contour.txt). Health bars over ships you have hit.
+    Follow-ups: the store and ship upgrades (StoreData.xml), spending the credits the campaign now banks; the galaxy
+    view above the system map (Menu_GalaxyView: Ryser and Sol); the other music mixes (WAV only, so they need a smaller
     format first); the unused models (mine, Phoenix, the Battlecruiser/Carrier concepts in the design folder);
     a web build check of the Games/*/Content/Models catalog path.
 

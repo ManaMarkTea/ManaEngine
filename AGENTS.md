@@ -30,8 +30,9 @@ dotnet run --project ManaVoxel -- --play "Content/Levels/Sample Course.manalevel
 # The editor, opened on a level
 dotnet run --project ManaVoxel -- --level "Content/Levels/Sample Course.manalevel"
 
-# Contour (the 2010 XNA space shooter, ported: Games/Contour/README.md) -- seven missions, each a level of prefabs
-dotnet run --project ManaVoxel -- --play "Games/Contour/Content/Levels/Contour 2 - Eps Under Siege.manalevel"
+# Contour (the 2010 XNA space shooter, ported: Games/Contour/README.md) -- title, menu, system map and campaign;
+# each mission is also a level of its own (Contour 1..7)
+dotnet run --project ManaVoxel -- --play "Games/Contour/Content/Levels/Contour.manalevel"
 
 # Train Yard Wars (couch game prototype; Plans/Couch-Co-op-GameDesignDocuments/TrainYardWars.md) -- a level whose game mode
 # builds the world; or open it in the editor and press F5. --command-file works with --play too.
