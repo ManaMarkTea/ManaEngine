@@ -3,6 +3,7 @@ import argparse
 import json
 import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from publish_screensaver import publish as publish_screensaver
 
@@ -27,7 +28,11 @@ def assemble(bundle: Path, output: Path, build: str):
             f'<a href="../app/index.html?mode={mode}">Open {mode}</a></html>',
             encoding="utf-8",
         )
-    shutil.copyfile(Path(__file__).with_name("pages-index.html"), output / "index.html")
+    built_at = datetime.now(timezone.utc)
+    landing = Path(__file__).with_name("pages-index.html").read_text(encoding="utf-8")
+    landing = landing.replace("{{BUILD_TIME}}", built_at.isoformat(timespec="seconds"))
+    landing = landing.replace("{{BUILD_DATE}}", built_at.strftime("%Y-%m-%d %H:%M UTC"))
+    (output / "index.html").write_text(landing, encoding="utf-8")
     publish_screensaver(Path(__file__).resolve().parents[2], output / "code-screensaver")
 
 

@@ -27,6 +27,10 @@ class PagesAssemblyTests(unittest.TestCase):
             self.assertEqual(runtimes, [output / "app/v/abc123/_framework/dotnet.native.wasm"])
             self.assertEqual(json.loads((output / "app/version.json").read_text()), {"build": "abc123"})
             self.assertEqual((library / "model.glb").read_bytes(), b"model")
+            landing = (output / "index.html").read_text(encoding="utf-8")
+            self.assertIn('Last build:', landing)
+            self.assertRegex(landing, r'datetime="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00"')
+            self.assertNotIn('{{BUILD_', landing)
             self.assertTrue((output / "code-screensaver/index.html").is_file())
             self.assertGreater(len(json.loads((output / "code-screensaver/sources.json").read_text())), 0)
             for mode in ("editor", "play"):
