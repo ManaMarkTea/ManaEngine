@@ -289,6 +289,8 @@ namespace Mana.Code.UI.ManaUi
                 SilkKey.Space => UiKey.Space,
                 SilkKey.A => UiKey.A,
                 SilkKey.C => UiKey.C,
+                SilkKey.D => UiKey.D,
+                SilkKey.S => UiKey.S,
                 SilkKey.V => UiKey.V,
                 SilkKey.X => UiKey.X,
                 SilkKey.Z => UiKey.Z,

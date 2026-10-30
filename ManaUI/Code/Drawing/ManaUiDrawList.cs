@@ -38,6 +38,9 @@ namespace ManaUI
             _opacityStack.Clear();
             _clip = UiRect.Infinite;
             _opacity = 1.0f;
+            _scale = 1.0f;
+            _shift = Vector2.Zero;
+            _scaleStack.Clear();
             _currentTextureId = 0;
             _currentBatchStart = 0;
             BackdropRequested = false;
@@ -47,6 +50,60 @@ namespace ManaUI
         public void Finish()
         {
             FlushBatch();
+        }
+
+        // ----- scale ---------------------------------------------------------------------------------
+
+        private float _scale = 1.0f;
+        private Vector2 _shift;
+        private readonly Stack<(float Scale, Vector2 Shift, UiRect Clip)> _scaleStack = new();
+
+        /// <summary>
+        /// Draws what follows at <paramref name="scale"/>, a laid-out point p landing at p * scale + shift: a
+        /// layout designed for a full screen shown fitted to a panel. The clip stays in the coordinates of what is
+        /// drawn, so elements cull against it as usual. Always pair with <see cref="PopScale"/>.
+        /// </summary>
+        public void PushScale(float scale, Vector2 shift)
+        {
+            _scaleStack.Push((_scale, _shift, _clip));
+            var total = _scale * scale;
+            var totalShift = _shift + shift * _scale;
+            if (!_clip.Equals(UiRect.Infinite))
+            {
+                _clip = UiRect.FromEdges(
+                    (_clip.X * _scale + _shift.X - totalShift.X) / total,
+                    (_clip.Y * _scale + _shift.Y - totalShift.Y) / total,
+                    (_clip.Right * _scale + _shift.X - totalShift.X) / total,
+                    (_clip.Bottom * _scale + _shift.Y - totalShift.Y) / total);
+            }
+
+            _scale = total;
+            _shift = totalShift;
+        }
+
+        public void PopScale()
+        {
+            (_scale, _shift, _clip) = _scaleStack.Pop();
+        }
+
+        private UiRect Scaled(UiRect rect)
+        {
+            if (_scale == 1.0f && _shift == Vector2.Zero)
+            {
+                return rect;
+            }
+
+            return UiRect.FromEdges(rect.X * _scale + _shift.X, rect.Y * _scale + _shift.Y, rect.Right * _scale + _shift.X, rect.Bottom * _scale + _shift.Y);
+        }
+
+        private UiRect ScaledClip()
+        {
+            if (_clip.Equals(UiRect.Infinite))
+            {
+                return _clip;
+            }
+
+            return Scaled(_clip);
         }
 
         // ----- clipping ------------------------------------------------------------------------------
@@ -265,7 +322,7 @@ namespace ManaUI
             // Shadow geometry needs the original box, which the shader reconstructs by deflating -- so the
             // inflation above and the shader's must agree. Encoded via Uv to avoid growing the struct.
             ref var instance = ref _instances[_instanceCount - 1];
-            instance.Uv = rect.ToEdgeVector();
+            instance.Uv = Scaled(rect).ToEdgeVector();
         }
 
         /// <summary>A single glyph quad. <paramref name="uv"/> is normalised into the glyph atlas.</summary>
@@ -486,15 +543,15 @@ namespace ManaUI
 
             _instances[_instanceCount++] = new ManaUiInstance
             {
-                Rect = rect.ToEdgeVector(),
+                Rect = Scaled(rect).ToEdgeVector(),
                 Uv = uv,
-                Corners = corners.ToVector4(),
-                Clip = _clip.ToEdgeVector(),
+                Corners = corners.ToVector4() * _scale,
+                Clip = ScaledClip().ToEdgeVector(),
                 Rotation = rotation,
-                BackdropBlur = backdropBlur,
+                BackdropBlur = backdropBlur * _scale,
                 FillColor = UiColor.Pack(fill),
                 BorderColor = UiColor.Pack(border),
-                BorderWidth = borderWidth,
+                BorderWidth = borderWidth * _scale,
                 Flags = (uint)flags,
                 GradientColor = UiColor.Pack(gradient ?? fill)
             };

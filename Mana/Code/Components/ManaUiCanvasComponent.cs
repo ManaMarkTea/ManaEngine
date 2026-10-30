@@ -10,11 +10,18 @@ public sealed class ManaUiCanvasComponent(ManaSceneNode owner) : ManaComponent(o
     [AssetKind(UiMarkup.Extension)]
     public ManaAssetRef Layout { get; set; } = ManaAssetRef.None;
 
-    /// <summary>The game mode type supplying the layout's named values and actions; empty for a static layout.</summary>
+    /// <summary>The game mode whose view model (<c>HudViewModel</c>) the layout binds to; empty for a static layout.</summary>
     public string BindingSource { get; set; } = string.Empty;
     public bool Visible { get; set; } = true;
 
-    public UiMarkupResult Build(UiTheme theme, UiMarkupData? data = null)
+    // Announced each world update: how the play host knows what is alive, without walking every node to find out.
+    public override void UpdateComponent()
+    {
+        base.UpdateComponent();
+        Context.World.NoteUiCanvas(this);
+    }
+
+    public UiMarkupResult Build(UiTheme theme, object? viewModel = null)
     {
         var file = ManaContentAssets.Resolve(Layout, UiMarkup.Extension);
         if (file == null)
@@ -25,7 +32,7 @@ public sealed class ManaUiCanvasComponent(ManaSceneNode owner) : ManaComponent(o
         }
         try
         {
-            return UiMarkup.Load(File.ReadAllText(file), theme, data);
+            return UiMarkup.Load(File.ReadAllText(file), theme, viewModel);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {

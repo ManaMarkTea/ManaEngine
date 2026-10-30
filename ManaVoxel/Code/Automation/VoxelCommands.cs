@@ -140,6 +140,14 @@ namespace ManaVoxel.Code.Automation
                 ProjectAssetViewModel.For(context.World).OpenAsset(Path.GetFullPath(ManaCommandRunner.RequirePath(command)));
             });
 
+            runner.Register("designer_select", command =>
+            {
+                // An element of the layout open in the UI Designer, as a click on it does.
+                var element = ManaVoxel.Code.UI.ManaUi.UiDesignerDocument.FindNamed(command.Name ?? string.Empty);
+                ManaVoxel.Code.UI.ManaUi.UiDesignerDocument.Select(element);
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: designer_select {command.Name}: {element != null}");
+            });
+
             runner.Register("review_changes", command =>
             {
                 // Review Changes on the named prefab instance, as its Actions menu opens it.

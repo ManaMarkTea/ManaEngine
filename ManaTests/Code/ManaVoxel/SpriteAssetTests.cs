@@ -94,6 +94,6 @@ public static class SpriteAssetChecks
             listed.Any(e => e.Kind == "Prefab") && listed.Any(e => e.Kind == "Sprite Sheet" && e.Name == "Green Alien")
             && listed.Any(e => e.Kind == "9-Slice" && e.Name == "Grass Block") && listed.Any(e => e.Kind == "Generator" && e.Name == "Dungeon"),
             string.Join(", ", listed.GroupBy(e => e.Kind).Select(g => $"{g.Key} {g.Count()}")));
-        check("and new ones can be made of the sprite kinds", ManaContentKinds.All.Where(k => k.CanCreate).Select(k => k.Name).SequenceEqual(["Sprite Sheet", "9-Slice"]));
+        check("and new ones can be made of the sprite kinds and UI layouts", ManaContentKinds.All.Where(k => k.CanCreate).Select(k => k.Name).SequenceEqual(["Sprite Sheet", "9-Slice", "UI Layout"]));
     }
 }

@@ -81,7 +81,7 @@ namespace ManaUI
         Home, End, PageUp, PageDown,
         Backspace, Delete, Insert,
         Enter, Escape, Tab, Space,
-        A, C, V, X, Z, Y,
+        A, C, D, S, V, X, Z, Y,
         F2, F4
     }
 }

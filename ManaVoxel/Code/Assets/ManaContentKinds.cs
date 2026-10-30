@@ -26,7 +26,10 @@ namespace ManaVoxel.Code.Assets
         public static readonly ManaContentKind Slice = new("9-Slice", ManaSpriteSlice.Extension, "Sprites", "SLICE", true,
             name => new ManaSpriteSlice { Name = name });
 
-        public static IReadOnlyList<ManaContentKind> All { get; } = [Prefab, SpriteSheet, Slice, GridMapPreset, Generator];
+        public static readonly ManaContentKind UiLayout = new("UI Layout", ManaUI.UiMarkup.Extension, "UI", "UI", false,
+            name => ManaVoxel.Code.UI.ManaUi.UiDesignerDocument.NewDocument(name));
+
+        public static IReadOnlyList<ManaContentKind> All { get; } = [Prefab, SpriteSheet, Slice, GridMapPreset, Generator, UiLayout];
 
         public static ManaContentKind? ForPath(string path) =>
             All.FirstOrDefault(kind => string.Equals(Path.GetExtension(path), kind.Extension, StringComparison.OrdinalIgnoreCase));

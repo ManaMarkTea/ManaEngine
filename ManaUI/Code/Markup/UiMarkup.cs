@@ -5,30 +5,6 @@ using System.Text.Json.Nodes;
 
 namespace ManaUI
 {
-    /// <summary>
-    /// What a markup tree is wired to: values its "bind" entries read each frame, and actions its "on" entries
-    /// run. Keys are free-form -- "score", "menu.play" -- and a key nothing supplies is simply left alone, so a
-    /// layout can be designed before the game behind it exists.
-    /// </summary>
-    public sealed class UiMarkupData
-    {
-        public Dictionary<string, Func<object?>> Values { get; } = new(StringComparer.Ordinal);
-
-        public Dictionary<string, Action> Actions { get; } = new(StringComparer.Ordinal);
-
-        public UiMarkupData Value(string key, Func<object?> read)
-        {
-            Values[key] = read;
-            return this;
-        }
-
-        public UiMarkupData Action(string key, Action run)
-        {
-            Actions[key] = run;
-            return this;
-        }
-    }
-
     /// <summary>A loaded markup tree, with its named elements and whatever could not be applied.</summary>
     public sealed class UiMarkupResult
     {
@@ -53,8 +29,11 @@ namespace ManaUI
     /// <item>"children" (a panel's) or "child" (a border's, a scroller's) nest elements;</item>
     /// <item>"grid": {"row", "column", "rowSpan", "columnSpan"}, "dock" and "canvas": {"left", "top", ...} place a child in its panel;</item>
     /// <item>"columns"/"rows" lay out a Grid ("Auto, *, 2*"), "options" fill a ComboBox;</item>
-    /// <item>"bind": {"text": "score"} re-reads a value from <see cref="UiMarkupData"/> each frame;</item>
-    /// <item>"on": {"click": "play"} runs an action when the element's event fires.</item>
+    /// <item>"bind": {"text": "Score"} follows a property of the view model (MVVM: through INotifyPropertyChanged),
+    /// or the long form {"value": {"path": "Volume", "mode": "TwoWay", "format": "{0:F0}", "invert": false, "trigger": "commit"}};
+    /// "command" binds a Button to an ICommand;</item>
+    /// <item>"on": {"click": "PlayCommand"} runs a command (or method) when the element's event fires;</item>
+    /// <item>"context": "Weapons[2]" makes the paths on this element and below relative to that.</item>
     /// </list>
     /// Colours are "#RRGGBB[AA]", [r, g, b, a], or "@Accent" for a theme colour; thicknesses a number,
     /// [horizontal, vertical] or [left, top, right, bottom].
@@ -66,7 +45,7 @@ namespace ManaUI
         /// <summary>Keys that are not element properties.</summary>
         public static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
         {
-            "type", "name", "children", "child", "grid", "dock", "canvas", "zIndex", "bind", "on", "columns", "rows", "options"
+            "type", "name", "children", "child", "grid", "dock", "canvas", "zIndex", "bind", "on", "columns", "rows", "options", "context"
         };
 
         /// <summary>The element types a document may use, by name: ManaUI's own, and any registered.</summary>
@@ -96,7 +75,9 @@ namespace ManaUI
             TypeTable.Value[type.Name] = type;
         }
 
-        public static UiMarkupResult Load(string json, UiTheme? theme = null, UiMarkupData? data = null)
+        /// <param name="viewModel">What "bind" and "on" entries work against; without one the layout shows as authored.</param>
+        /// <param name="viewModelType">Checks the paths against this type when there is no instance yet (the designer).</param>
+        public static UiMarkupResult Load(string json, UiTheme? theme = null, object? viewModel = null, Type? viewModelType = null)
         {
             JsonNode? node;
             try
@@ -110,10 +91,10 @@ namespace ManaUI
                 return failed;
             }
 
-            return Load(node as JsonObject, theme, data);
+            return Load(node as JsonObject, theme, viewModel, viewModelType);
         }
 
-        public static UiMarkupResult Load(JsonObject? document, UiTheme? theme = null, UiMarkupData? data = null)
+        public static UiMarkupResult Load(JsonObject? document, UiTheme? theme = null, object? viewModel = null, Type? viewModelType = null)
         {
             var problems = new List<string>();
             var named = new Dictionary<string, UiElement>(StringComparer.Ordinal);
@@ -121,7 +102,8 @@ namespace ManaUI
 
             // A document is either the root element itself or {"root": {...}} with room for more beside it.
             var rootNode = document?["root"] as JsonObject ?? document;
-            var root = rootNode == null ? null : Build(rootNode, theme ?? new UiTheme(), data, problems, named, elements);
+            var binding = new BindScope(viewModel, viewModelType ?? viewModel?.GetType());
+            var root = rootNode == null ? null : Build(rootNode, theme ?? new UiTheme(), binding, string.Empty, problems, named, elements);
             var result = new UiMarkupResult { Root = root };
             result.Problems.AddRange(problems);
             foreach (var (name, element) in named)
@@ -137,10 +119,23 @@ namespace ManaUI
             return result;
         }
 
+        private readonly record struct BindScope(object? Instance, Type? Type);
+
+        private static string Scoped(string scope, string path)
+        {
+            if (scope.Length == 0)
+            {
+                return path;
+            }
+
+            return path is "" or "." ? scope : scope + "." + path;
+        }
+
         private static UiElement? Build(
             JsonObject node,
             UiTheme theme,
-            UiMarkupData? data,
+            BindScope binding,
+            string scope,
             List<string> problems,
             Dictionary<string, UiElement> named,
             Dictionary<JsonObject, UiElement> elements)
@@ -172,8 +167,13 @@ namespace ManaUI
 
             ApplySpecials(element, node, problems);
             ApplySlot(element, node, problems);
-            ApplyBindings(element, node, data, theme, problems);
-            ApplyEvents(element, node, data, problems);
+            if (node["context"] is JsonValue context && context.TryGetValue<string>(out var contextPath))
+            {
+                scope = Scoped(scope, contextPath);
+            }
+
+            ApplyBindings(element, node, binding, scope, theme, problems);
+            ApplyEvents(element, node, binding, scope, problems);
 
             if (node["children"] is JsonArray children)
             {
@@ -181,7 +181,7 @@ namespace ManaUI
                 {
                     foreach (var child in children.OfType<JsonObject>())
                     {
-                        if (Build(child, theme, data, problems, named, elements) is { } built)
+                        if (Build(child, theme, binding, scope, problems, named, elements) is { } built)
                         {
                             panel.Children.Add(built);
                         }
@@ -195,7 +195,7 @@ namespace ManaUI
 
             if (node["child"] is JsonObject single)
             {
-                var built = Build(single, theme, data, problems, named, elements);
+                var built = Build(single, theme, binding, scope, problems, named, elements);
                 switch (element)
                 {
                     // Before Decorator: an Expander is one, but its Child is its header and body.
@@ -336,19 +336,33 @@ namespace ManaUI
                 slot.CanvasBottom = Float(canvas, "bottom");
             }
 
-            if (node["zIndex"] is JsonValue z && z.TryGetValue<int>(out var zIndex))
+            if (TryNumber(node["zIndex"], out var zIndex))
             {
-                element.EnsureLayoutSlot().ZIndex = zIndex;
+                element.EnsureLayoutSlot().ZIndex = (int)zIndex;
             }
 
-            static int Int(JsonObject from, string key, int fallback) =>
-                from[key] is JsonValue value && value.TryGetValue<int>(out var number) ? number : fallback;
+            static int Int(JsonObject from, string key, int fallback)
+            {
+                if (TryNumber(from[key], out var number))
+                {
+                    return (int)Math.Round(number);
+                }
 
-            static float Float(JsonObject from, string key) =>
-                from[key] is JsonValue value && value.TryGetValue<float>(out var number) ? number : float.NaN;
+                return fallback;
+            }
+
+            static float Float(JsonObject from, string key)
+            {
+                if (TryNumber(from[key], out var number))
+                {
+                    return (float)number;
+                }
+
+                return float.NaN;
+            }
         }
 
-        private static void ApplyBindings(UiElement element, JsonObject node, UiMarkupData? data, UiTheme theme, List<string> problems)
+        private static void ApplyBindings(UiElement element, JsonObject node, BindScope binding, string scope, UiTheme theme, List<string> problems)
         {
             if (node["bind"] is not JsonObject bindings)
             {
@@ -358,41 +372,87 @@ namespace ManaUI
             foreach (var (key, source) in bindings)
             {
                 var property = element.GetType().GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                if (property is not { CanWrite: true } || source is not JsonValue sourceValue || !sourceValue.TryGetValue<string>(out var sourceKey))
+                if (property is not { CanWrite: true } || !ReadBinding(source, out var spec))
                 {
                     problems.Add($"{element.GetType().Name} cannot bind '{key}'.");
                     continue;
                 }
 
-                if (data == null || !data.Values.TryGetValue(sourceKey, out var read))
+                // Nothing to bind to yet: a designed layout still shows, with the property as authored.
+                if (binding.Type == null)
                 {
-                    // Nothing supplies it yet: a designed layout still shows, with the property as set.
                     continue;
                 }
 
-                var target = property;
-                element.AddPolledBinding(new UiPolledBinding<object?>(read, value =>
+                var path = UiMarkupPathPart.Parse(Scoped(scope, spec.Path));
+                var problem = UiMarkupPathPart.Check(binding.Type, path, out _, out var observable);
+                if (problem != null)
                 {
-                    var converted = Coerce(value, target.PropertyType, theme);
-                    if (converted == null && target.PropertyType.IsValueType && Nullable.GetUnderlyingType(target.PropertyType) == null)
-                    {
-                        return;
-                    }
+                    problems.Add($"{element.GetType().Name}.{property.Name}: {problem}");
+                    continue;
+                }
 
-                    element.BeginBindingApply();
-                    try
-                    {
-                        target.SetValue(element, converted);
-                    }
-                    finally
-                    {
-                        element.EndBindingApply();
-                    }
-                }));
+                if (binding.Instance == null)
+                {
+                    continue;
+                }
+
+                var live = new UiMarkupBinding(element, property, binding.Instance, path, spec.Mode, spec.Format, spec.Invert, theme);
+                if (spec.Mode is BindingMode.TwoWay or BindingMode.OneWayToSource
+                    && !UiMarkupEdits.TryHook(element, property.Name, spec.OnCommit, live.PushToSource))
+                {
+                    problems.Add($"{element.GetType().Name}.{property.Name} cannot write back ({spec.Mode}): it raises no edit event.");
+                }
+
+                // A source that can announce needs no frame-by-frame look.
+                if (observable || spec.Mode is BindingMode.OneTime or BindingMode.OneWayToSource)
+                {
+                    element.AddBinding(live);
+                }
+                else
+                {
+                    element.AddPolledBinding(live);
+                }
             }
         }
 
-        private static void ApplyEvents(UiElement element, JsonObject node, UiMarkupData? data, List<string> problems)
+        private readonly record struct BindingSpec(string Path, BindingMode Mode, string? Format, bool Invert, bool OnCommit);
+
+        // "Score", or {"path": "Volume", "mode": "TwoWay", "format": "{0:F0}", "invert": true, "trigger": "commit"}.
+        private static bool ReadBinding(JsonNode? source, out BindingSpec spec)
+        {
+            spec = default;
+            if (source is JsonValue plain && plain.TryGetValue<string>(out var path))
+            {
+                spec = new BindingSpec(path, BindingMode.OneWay, null, false, false);
+                return true;
+            }
+
+            if (source is not JsonObject full || full["path"] is not JsonValue pathValue || !pathValue.TryGetValue<string>(out var longPath))
+            {
+                return false;
+            }
+
+            var mode = BindingMode.OneWay;
+            if (full["mode"] is JsonValue modeValue && modeValue.TryGetValue<string>(out var modeText) && !Enum.TryParse(modeText, ignoreCase: true, out mode))
+            {
+                return false;
+            }
+
+            string? format = null;
+            if (full["format"] is JsonValue formatValue)
+            {
+                formatValue.TryGetValue(out format);
+            }
+
+            var invert = full["invert"] is JsonValue invertValue && invertValue.TryGetValue<bool>(out var inverted) && inverted;
+            var onCommit = full["trigger"] is JsonValue trigger && trigger.TryGetValue<string>(out var triggerText)
+                && string.Equals(triggerText, "commit", StringComparison.OrdinalIgnoreCase);
+            spec = new BindingSpec(longPath, mode, format, invert, onCommit);
+            return true;
+        }
+
+        private static void ApplyEvents(UiElement element, JsonObject node, BindScope binding, string scope, List<string> problems)
         {
             if (node["on"] is not JsonObject events)
             {
@@ -402,30 +462,65 @@ namespace ManaUI
             foreach (var (key, action) in events)
             {
                 var info = element.GetType().GetEvent(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                if (info?.EventHandlerType is not { } handlerType || action is not JsonValue actionValue || !actionValue.TryGetValue<string>(out var actionKey))
+                string? actionPath = null;
+                JsonNode? parameter = null;
+                if (action is JsonValue plain)
+                {
+                    plain.TryGetValue(out actionPath);
+                }
+                else if (action is JsonObject full && full["command"] is JsonValue command)
+                {
+                    command.TryGetValue(out actionPath);
+                    parameter = full["parameter"];
+                }
+
+                if (info?.EventHandlerType is not { } handlerType || actionPath == null)
                 {
                     problems.Add($"{element.GetType().Name} has no event '{key}'.");
                     continue;
                 }
 
-                // Looked up when it fires, not now, so actions can be supplied after the tree is built.
-                var parameters = handlerType.GetMethod("Invoke")!.GetParameters()
-                    .Select(parameter => System.Linq.Expressions.Expression.Parameter(parameter.ParameterType))
-                    .ToArray();
-                Action run = () =>
+                if (binding.Type == null)
                 {
-                    if (data != null && data.Actions.TryGetValue(actionKey, out var handler))
-                    {
-                        handler();
-                    }
-                };
+                    continue;
+                }
+
+                var path = UiMarkupPathPart.Parse(Scoped(scope, actionPath));
+                if (UiMarkupCommands.Check(binding.Type, path) is { } problem)
+                {
+                    problems.Add($"{element.GetType().Name}.{info.Name}: {problem}");
+                    continue;
+                }
+
+                if (binding.Instance is not { } instance)
+                {
+                    continue;
+                }
+
+                object? argument = null;
+                if (parameter is not null)
+                {
+                    TryConvert(parameter, typeof(object), new UiTheme(), out argument, out _);
+                }
+
+                Action run = () => UiMarkupCommands.Run(instance, path, argument);
+                if (handlerType == typeof(EventHandler))
+                {
+                    // The everyday case needs no generated code, which the ahead-of-time web build has to interpret.
+                    info.AddEventHandler(element, new EventHandler((_, _) => run()));
+                    continue;
+                }
+
+                var parameters = handlerType.GetMethod("Invoke")!.GetParameters()
+                    .Select(item => System.Linq.Expressions.Expression.Parameter(item.ParameterType))
+                    .ToArray();
                 var body = System.Linq.Expressions.Expression.Invoke(System.Linq.Expressions.Expression.Constant(run));
                 info.AddEventHandler(element, System.Linq.Expressions.Expression.Lambda(handlerType, body, parameters).Compile());
             }
         }
 
         /// <summary>A bound value, into the property's type: numbers across numeric types, anything into text.</summary>
-        private static object? Coerce(object? value, Type type, UiTheme theme)
+        internal static object? Coerce(object? value, Type type, UiTheme theme)
         {
             type = Nullable.GetUnderlyingType(type) ?? type;
             if (value == null)
@@ -436,6 +531,28 @@ namespace ManaUI
             if (type.IsInstanceOfType(value))
             {
                 return value;
+            }
+
+            // A view model says whether, not how: no element-type knowledge on its side.
+            if (type == typeof(Visibility) && value is bool visible)
+            {
+                if (visible)
+                {
+                    return Visibility.Visible;
+                }
+
+                return Visibility.Collapsed;
+            }
+
+            // A colour named in text ("#FF0000", "@Accent") works from a bound string as from a document.
+            if (type == typeof(Vector4) && value is string colour)
+            {
+                if (TryColor(JsonValue.Create(colour), theme, out var parsed))
+                {
+                    return parsed;
+                }
+
+                return null;
             }
 
             if (type == typeof(string))
@@ -472,9 +589,32 @@ namespace ManaUI
                     return true;
                 }
 
+                if (type == typeof(object))
+                {
+                    if (TryNumber(value, out var loose))
+                    {
+                        converted = loose;
+                    }
+                    else if (value is JsonValue item && item.TryGetValue<bool>(out var flag))
+                    {
+                        converted = flag;
+                    }
+                    else
+                    {
+                        converted = value is JsonValue words && words.TryGetValue<string>(out var said) ? said : value.ToJsonString();
+                    }
+
+                    return true;
+                }
+
                 if (type == typeof(float) || type == typeof(double) || type == typeof(int))
                 {
-                    var number = value.GetValue<double>();
+                    if (!TryNumber(value, out var number))
+                    {
+                        why = $"'{value.ToJsonString()}' is not a number";
+                        return false;
+                    }
+
                     converted = type == typeof(float) ? (object)(float)number : type == typeof(int) ? (int)Math.Round(number) : number;
                     return true;
                 }
@@ -537,16 +677,54 @@ namespace ManaUI
             return false;
         }
 
+        /// <summary>
+        /// A number however its node came to be: one parsed from a file converts freely, but one an editor made
+        /// holds its CLR type and answers only to that, so a value typed in the designer would read as missing.
+        /// </summary>
+        internal static bool TryNumber(JsonNode? value, out double number)
+        {
+            number = 0;
+            if (value is not JsonValue item)
+            {
+                return false;
+            }
+
+            if (item.TryGetValue(out number))
+            {
+                return true;
+            }
+
+            if (item.TryGetValue<int>(out var whole))
+            {
+                number = whole;
+                return true;
+            }
+
+            if (item.TryGetValue<float>(out var single))
+            {
+                number = single;
+                return true;
+            }
+
+            if (item.TryGetValue<long>(out var big))
+            {
+                number = big;
+                return true;
+            }
+
+            return false;
+        }
+
         private static float[] Numbers(JsonNode value)
         {
             if (value is JsonArray array)
             {
-                return array.Select(item => item?.GetValue<float>() ?? 0.0f).ToArray();
+                return array.Select(item => item != null && TryNumber(item, out var number) ? (float)number : 0.0f).ToArray();
             }
 
-            if (value is JsonValue single && single.TryGetValue<double>(out var number))
+            if (TryNumber(value, out var single))
             {
-                return [(float)number];
+                return [(float)single];
             }
 
             // "4, 2" as text reads the same as [4, 2], which is what a one-line editor field writes.

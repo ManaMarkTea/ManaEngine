@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code.Components;
 using Mana.Code.Content;
 using ManaUI;
+using ManaVoxel.Code.Levels;
 
 namespace ManaVoxel.Code.UI.ManaUi.Inspectors;
 
@@ -20,12 +21,49 @@ public sealed class UiCanvasWidget : InspectorWidget<ManaUiCanvasComponent>
             var file = ManaContentAssets.Resolve(canvas.Layout, UiMarkup.Extension);
             if (file == null)
             {
-                error = "Choose a .manaui layout first.";
+                error = "Choose a .manaui layout first, or make a new one.";
                 return;
             }
+
             if (UiDesignerDocument.TryOpen(file, out error) && context.Engine != null)
             {
+                // A layout that does not yet say what it binds to learns it from the canvas showing it.
+                if (UiDesignerDocument.ViewModelSource.Length == 0 && canvas.BindingSource.Length > 0)
+                {
+                    UiDesignerDocument.ViewModelSource = canvas.BindingSource;
+                }
+
                 EditorWorkspace.RequestPanel(context.Engine.World, UiDesignerManaView.PanelId);
+            }
+        }));
+        rows.Children.Add(new ManaUI.Button().Label("New layout for this canvas").OnClick(() =>
+        {
+            try
+            {
+                var name = "Layout";
+                if (!string.IsNullOrWhiteSpace(canvas.Owner.Name))
+                {
+                    name = canvas.Owner.Name;
+                }
+
+                UiDesignerDocument.Replace(UiDesignerDocument.NewDocument(name), null);
+                if (canvas.BindingSource.Length > 0)
+                {
+                    UiDesignerDocument.ViewModelSource = canvas.BindingSource;
+                }
+
+                var path = UiDesignerDocument.Save(name);
+                var id = UiDesignerDocument.Document["id"]?.GetValue<string>() ?? string.Empty;
+                canvas.Layout = new ManaAssetRef(id, ManaContentMounts.RelativePath(ManaContentAssets.Root, path).Replace('\\', '/'));
+                error = null;
+                if (context.Engine != null)
+                {
+                    EditorWorkspace.RequestPanel(context.Engine.World, UiDesignerManaView.PanelId);
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                error = exception.Message;
             }
         }));
         var status = new TextBlock();

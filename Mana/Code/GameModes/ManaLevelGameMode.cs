@@ -91,7 +91,16 @@ namespace Mana.Code.GameModes
         /// <summary>This mode's on-screen furniture while playing, or null. Built once per play.</summary>
         public virtual UiElement? BuildHud(UiTheme theme) => null;
 
-        public virtual UiMarkupData? HudData => null;
+        /// <summary>
+        /// The view model a UI canvas naming this mode binds to: its properties (raising PropertyChanged) and
+        /// commands are what the layout's "bind" and "on" entries reach. Null when the mode has none.
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]
+        public virtual object? HudViewModel => null;
+
+        /// <summary>The view model's type, known before play: the designer checks a layout's paths and offers them from it.</summary>
+        [System.ComponentModel.Browsable(false)]
+        public virtual Type? HudViewModelType => HudViewModel?.GetType();
 
         public virtual void ConnectHudCanvas(UiMarkupResult layout) { }
 
@@ -170,6 +179,7 @@ namespace Mana.Code.GameModes
         private UiTheme? _theme;
         private ManaPlaySession? _session;
         private readonly Dictionary<ManaUiCanvasComponent, UiElement> _canvases = new();
+        private long _canvasPass;
 
         public IReadOnlyList<ManaLevelGameMode> Running => _running;
 
@@ -230,15 +240,17 @@ namespace Mana.Code.GameModes
                     ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Game mode '{mode.Type}' failed to start: {exception}");
                 }
             }
-            SyncCanvases();
+            FindCanvases();
         }
 
-        private void SyncCanvases()
+        // Everything on the scene graph when play starts, before the world has updated once.
+        private void FindCanvases()
         {
             if (_session == null || _theme == null)
             {
                 return;
             }
+
             IEnumerable<ManaSceneNode> Walk(ManaSceneNode node)
             {
                 yield return node;
@@ -250,29 +262,58 @@ namespace Mana.Code.GameModes
                     }
                 }
             }
-            HashSet<ManaUiCanvasComponent> live;
+
+            List<ManaUiCanvasComponent> live;
             lock (_session.Context.World.SceneLock)
             {
                 live = _session.Context.World.Scenes.SelectMany(scene => scene.Children).SelectMany(Walk)
-                    .SelectMany(node => node.Components.OfType<ManaUiCanvasComponent>()).ToHashSet();
+                    .SelectMany(node => node.Components.OfType<ManaUiCanvasComponent>()).ToList();
             }
+
+            _canvasPass = _session.Context.World.UiCanvasPass;
+            MatchCanvases(live);
+        }
+
+        // Canvases announce themselves as the world updates, so one placed or removed mid-play is noticed for the
+        // price of a short list rather than a walk of every node, every frame.
+        private void SyncCanvases()
+        {
+            if (_session?.Context.World is not { } world || _theme == null || world.UiCanvasPass == _canvasPass)
+            {
+                return;
+            }
+
+            _canvasPass = world.UiCanvasPass;
+            MatchCanvases(world.UiCanvases);
+        }
+
+        private void MatchCanvases(IReadOnlyList<ManaUiCanvasComponent> live)
+        {
+            if (_canvases.Count == live.Count && live.All(_canvases.ContainsKey))
+            {
+                return;
+            }
+
             foreach (var old in _canvases.Keys.Where(canvas => !live.Contains(canvas)).ToArray())
             {
                 _hudLayer.Children.Remove(_canvases[old]);
                 _canvases.Remove(old);
             }
+
             foreach (var canvas in live)
             {
-                if (_canvases.ContainsKey(canvas))
+                if (_canvases.ContainsKey(canvas) || _theme == null)
                 {
                     continue;
                 }
+
                 var mode = _running.FirstOrDefault(mode => string.Equals(mode.Type, canvas.BindingSource, StringComparison.OrdinalIgnoreCase));
-                var layout = canvas.Build(_theme, mode?.HudData);
+                var layout = canvas.Build(_theme, mode?.HudViewModel);
                 foreach (var problem in layout.Problems)
                 {
                     ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"UI canvas '{canvas.Owner.Name}': {problem}");
                 }
+
                 var host = new Border { Child = layout.Root };
                 host.BindPolled(b => b.Visibility, () => canvas.Visible switch
                 {

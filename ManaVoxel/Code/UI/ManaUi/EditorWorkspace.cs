@@ -154,7 +154,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             [GridMapWfcManaView.PanelId] = (null, new Vector2(340.0f, 600.0f)),
             [SpriteAssetManaView.PanelId] = (null, new Vector2(400.0f, 640.0f)),
             [PrefabChangesManaView.PanelId] = (null, new Vector2(480.0f, 320.0f)),
-            [UiDesignerManaView.PanelId] = (null, new Vector2(1120.0f, 640.0f)),
+            [UiDesignerManaView.PanelId] = (null, new Vector2(1480.0f, 860.0f)),
             // Floats over the viewport like the tool windows, so the scan it receives stays in view.
             ["livescan"] = (null, new Vector2(340.0f, 460.0f))
         };

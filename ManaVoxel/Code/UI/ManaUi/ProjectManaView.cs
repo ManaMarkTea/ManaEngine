@@ -193,6 +193,10 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 items.Add(new MenuItem("Open in Generator", () => model.OpenAsset(entry.Path)));
             }
+            else if (entry.Kind == ManaContentKinds.UiLayout.Name)
+            {
+                items.Add(new MenuItem("Open in UI Designer", () => model.OpenAsset(entry.Path)));
+            }
             else
             {
                 items.Add(new MenuItem("Apply to Grid Map", () => model.ApplyGridPreset(entry.Path)).EnabledWhen(() => model.CanEdit));

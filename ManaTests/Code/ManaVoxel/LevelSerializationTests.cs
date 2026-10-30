@@ -706,9 +706,21 @@ public static class LevelSerializationChecks
         canvasRunner.UseTheme(new UiTheme());
         canvasRunner.Begin([], new Mana.Code.GameModes.ManaPlaySession(canvasContext, () => false, () => false, () => { }, false));
         Check("a level canvas is hosted even without a game mode", ((Grid)canvasRunner.HudLayer).Children.Count == 1);
+        canvasRunner.Tick(0);
+        Check("a canvas is not rebuilt while nothing has changed", ((Grid)canvasRunner.HudLayer).Children.Count == 1);
+
+        // One the scene graph no longer holds stops announcing itself as the world updates.
         canvasScene.Children.Clear();
+        canvasWorld.BeginUiCanvasPass();
         canvasRunner.Tick(0);
         Check("removing a UI node removes its screen overlay", ((Grid)canvasRunner.HudLayer).Children.Count == 0);
+
+        var lateNode = new ManaSceneNode(canvasContext, System.Numerics.Matrix4x4.Identity);
+        var lateCanvas = new ManaUiCanvasComponent(lateNode) { Layout = canvas.Layout };
+        canvasWorld.BeginUiCanvasPass();
+        lateCanvas.UpdateComponent();
+        canvasRunner.Tick(0);
+        Check("a UI node that turns up mid-play gets its overlay", ((Grid)canvasRunner.HudLayer).Children.Count == 1);
         canvasRunner.End();
 
         var scriptedWorld = new ManaWorld();

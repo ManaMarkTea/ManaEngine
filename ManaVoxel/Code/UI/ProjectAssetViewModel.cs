@@ -200,6 +200,17 @@ namespace ManaVoxel.Code.UI
             {
                 ManaUi.SpriteAssetEditing.Open(path);
             }
+            else if (kind == ManaContentKinds.UiLayout)
+            {
+                if (ManaUi.UiDesignerDocument.TryOpen(path, out var problem))
+                {
+                    ManaUi.EditorWorkspace.RequestPanel(_world, ManaUi.UiDesignerManaView.PanelId);
+                }
+                else
+                {
+                    Status = $"Could not open {Path.GetFileName(path)}: {problem}";
+                }
+            }
             else if (kind == ManaContentKinds.Generator)
             {
                 if (GridMapWfcEditing.TryOpen(path, out var error))

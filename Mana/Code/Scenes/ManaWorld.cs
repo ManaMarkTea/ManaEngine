@@ -216,8 +216,26 @@ namespace Mana
             }
         }
 
+        private readonly List<Mana.Code.Components.ManaUiCanvasComponent> _uiCanvases = new();
+
+        /// <summary>Counts world updates, so a reader of <see cref="UiCanvases"/> can tell a fresh list from a stale one.</summary>
+        public long UiCanvasPass { get; private set; }
+
+        /// <summary>The UI canvases on live nodes as of the last update.</summary>
+        public IReadOnlyList<Mana.Code.Components.ManaUiCanvasComponent> UiCanvases => _uiCanvases;
+
+        public void NoteUiCanvas(Mana.Code.Components.ManaUiCanvasComponent canvas) => _uiCanvases.Add(canvas);
+
+        /// <summary>A new update starts: canvases announce themselves again as it walks the scenes.</summary>
+        public void BeginUiCanvasPass()
+        {
+            _uiCanvases.Clear();
+            UiCanvasPass++;
+        }
+
         public void Update()
         {
+            BeginUiCanvasPass();
             CameraNode.UpdateTransform();
 
             ViewMatrix = MainCamera._ViewMatrix;

@@ -1,8 +1,13 @@
 [x] - A 2D UI node for HUDs and menus (2026-10-30): `UiCanvas` on level/prefab nodes hosts a `.manaui`
-    layout over the viewport, with named game-mode values/actions (`HudData`) and custom-widget slots.
+    layout over the viewport, bound to the mode's `HudViewModel` (MVVM, see below), with custom-widget slots.
     Inspector opens the layout in the UI Designer. Contour's cockpit, title, briefing/debrief and map overlay
     moved to Games/Contour/Content/UI/Contour HUD.manaui; dynamic menu contents, radar and health bars stay widgets.
     Weapon button edges now survive render frames between simulation ticks, including while firing.
+    Bindings are MVVM now (`UiMarkupBinding`): INotifyPropertyChanged, OneWay/TwoWay/OneTime/OneWayToSource, commands,
+    nested paths, `context`, typos reported. Contour's `ContourHudViewModel` is the example, checked in the web build too.
+    Follow-ups: lists bound to a collection (an ItemsControl; Contour's menus are still built in code), `UiImage` pictures
+    in markup, canvas layouts rebuilding when the theme changes, and a way to see a canvas in the editor's viewport
+    before pressing play (today it shows only in play and in the designer's preview).
 
 [x] - Contour port (2026-10-30): the 2010 XNA space shooter (GhostTap/OldWork/.../XNA/Source/Contour) as Games/Contour,
     a level game mode. Its 20 FBX models converted to GLB (Games/Contour/Content/Models), its sounds and the Contour
@@ -150,9 +155,11 @@
     variety -- tornado, galaxy, black hole, comet, aurora, fireworks, volcano, boats and a Rocket prefab (Plans/GpuParticles.md).
 
 
-[] - UI Editor is not working and not used, needs updating - low priority
-    Claude (2026-10-07): it opens and works headless here (Panels > UI Designer shows Main Menu's outline, live preview and
-    properties; the tests pass), so I don't know what is broken for you. What did you hit?
+[x] - UI Editor is not working and not used, needs updating - low priority
+    Claude (2026-10-30): rebuilt. It could not edit any real layout: it took a file's wrapper for the root element, so
+    Contour's HUD showed one dead row. Now an outline (drag to rearrange), a preview at a chosen screen size (click,
+    drag, handles; hidden elements show while selected), typed properties, bindings and commands picked from the view
+    model, undo, Save As, and layouts as Project panel assets. DevPhotos/2026-10-30 ui-designer.png.
 
 [x] Shadows seem to be slightly off, they don't touch the ground at the same spot that the actor does.
     Claude (2026-10-07): could not reproduce. In play on the Sample Course at a low sun the character's shadow meets its feet,
