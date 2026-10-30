@@ -514,6 +514,8 @@ namespace ManaVoxel.Code.UI.ManaUi
             double number => number.ToString("0.##", CultureInfo.InvariantCulture),
             Thickness t when t.Left == t.Right && t.Top == t.Bottom && t.Left == t.Top => t.Left.ToString("0.##", CultureInfo.InvariantCulture),
             Thickness t => string.Join(", ", new[] { t.Left, t.Top, t.Right, t.Bottom }.Select(v => v.ToString("0.##", CultureInfo.InvariantCulture))),
+            CornerRadius c when c.TopLeft == c.TopRight && c.TopLeft == c.BottomRight && c.TopLeft == c.BottomLeft => c.TopLeft.ToString("0.##", CultureInfo.InvariantCulture),
+            CornerRadius c => string.Join(", ", new[] { c.TopLeft, c.TopRight, c.BottomRight, c.BottomLeft }.Select(v => v.ToString("0.##", CultureInfo.InvariantCulture))),
             Vector4 color => UiColor.ToHex(color, includeAlpha: true),
             string text when text.Length == 0 => "",
             _ => value.ToString() ?? "default"
@@ -663,8 +665,7 @@ namespace ManaVoxel.Code.UI.ManaUi
         private static void Bindings(UiTheme theme, StackPanel list, JsonObject node, Type type)
         {
             Section(theme, list, "Bindings");
-            var viewModel = UiDesignerDocument.ViewModelType;
-            list.Children.Add(Row(theme, "context", PathField(theme, node["context"], viewModel, commands: false, path =>
+            list.Children.Add(Row(theme, "context", PathField(theme, node["context"], node, UiDesignerPathKind.Context, path =>
             {
                 JsonNode? value = null;
                 if (path.Length > 0)
@@ -679,11 +680,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 foreach (var (target, source) in binds.ToList())
                 {
-                    list.Children.Add(BindingRow(theme, node, binds, target, source, viewModel));
+                    list.Children.Add(BindingRow(theme, node, binds, target, source));
                 }
             }
 
-            var targets = UiDesignerBindings.Targets(type);
+            var targets = UiDesignerBindings.Targets(type).Where(target => node["bind"] is not JsonObject bound || !bound.ContainsKey(target)).ToList();
             if (targets.Count > 0)
             {
                 var add = new ComboBox().Options(new[] { "+ bind a property" }.Concat(targets).ToArray());
@@ -709,11 +710,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 foreach (var (name, action) in events.ToList())
                 {
-                    list.Children.Add(EventRow(theme, node, events, name, action, viewModel));
+                    list.Children.Add(EventRow(theme, node, events, name, action));
                 }
             }
 
-            var eventNames = UiDesignerBindings.Events(type);
+            var eventNames = UiDesignerBindings.Events(type).Where(name => node["on"] is not JsonObject taken || !taken.ContainsKey(name)).ToList();
             if (eventNames.Count > 0)
             {
                 var add = new ComboBox().Options(new[] { "+ run a command on an event" }.Concat(eventNames).ToArray());
@@ -736,12 +737,14 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
         }
 
-        private static UiElement BindingRow(UiTheme theme, JsonObject node, JsonObject binds, string target, JsonNode? source, Type? viewModel)
+        private static UiElement BindingRow(UiTheme theme, JsonObject node, JsonObject binds, string target, JsonNode? source)
         {
             var spec = UiDesignerBindings.Read(source);
-            void Write(UiDesignerBindingSpec next)
+
+            // Read afresh: fields edited one after another must not put back what the row was built with.
+            void Write(Func<UiDesignerBindingSpec, UiDesignerBindingSpec> change)
             {
-                binds[target] = UiDesignerBindings.Write(next);
+                binds[target] = UiDesignerBindings.Write(change(UiDesignerBindings.Read(binds[target])));
                 UiDesignerDocument.Touch();
             }
 
@@ -760,7 +763,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             remove.WithTooltip("Remove this binding");
             rows.Children.Add(new Grid().Columns("104, *, Auto", theme.Spacing).Rows("Auto").Children(
                 new TextBlock().Text(target).FontSize(theme.FontSizeSmall).CenterV().Ellipsis().GridColumn(0),
-                PathField(theme, JsonValue.Create(spec.Path), viewModel, isCommand, path => Write(spec with { Path = path })).GridColumn(1),
+                PathField(theme, JsonValue.Create(spec.Path), node, PathKind(isCommand), path => Write(current => current with { Path = path })).GridColumn(1),
                 remove.GridColumn(2)));
             if (!isCommand)
             {
@@ -771,7 +774,8 @@ namespace ManaVoxel.Code.UI.ManaUi
                 {
                     if (index >= 0)
                     {
-                        Write(spec with { Mode = Enum.Parse<BindingMode>(modes[index]) });
+                        var chosen = Enum.Parse<BindingMode>(modes[index]);
+                        Write(current => current with { Mode = chosen });
                     }
                 };
                 mode.WithTooltip("OneWay: the view model drives this. TwoWay: edits here write back. OneTime: read once. OneWayToSource: this drives the view model.");
@@ -784,7 +788,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                         chosen = text;
                     }
 
-                    Write(spec with { Format = chosen });
+                    Write(current => current with { Format = chosen });
                 };
                 rows.Children.Add(new Grid().Columns("104, *", theme.Spacing).Rows("Auto").Children(mode.GridColumn(0), format.GridColumn(1)));
             }
@@ -792,7 +796,17 @@ namespace ManaVoxel.Code.UI.ManaUi
             return rows;
         }
 
-        private static UiElement EventRow(UiTheme theme, JsonObject node, JsonObject events, string name, JsonNode? action, Type? viewModel)
+        private static UiDesignerPathKind PathKind(bool isCommand)
+        {
+            if (isCommand)
+            {
+                return UiDesignerPathKind.Command;
+            }
+
+            return UiDesignerPathKind.Property;
+        }
+
+        private static UiElement EventRow(UiTheme theme, JsonObject node, JsonObject events, string name, JsonNode? action)
         {
             var remove = new ManaUI.Button().Label("x").Variant(ButtonVariant.Subtle).OnClick(() =>
             {
@@ -812,7 +826,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
             return new Grid().Columns("104, *, Auto", theme.Spacing).Rows("Auto").Children(
                 new TextBlock().Text("on " + name).FontSize(theme.FontSizeSmall).CenterV().Ellipsis().GridColumn(0),
-                PathField(theme, JsonValue.Create(path), viewModel, commands: true, chosen =>
+                PathField(theme, JsonValue.Create(path), node, UiDesignerPathKind.Command, chosen =>
                 {
                     events[name] = chosen;
                     UiDesignerDocument.Touch();
@@ -821,10 +835,11 @@ namespace ManaVoxel.Code.UI.ManaUi
         }
 
         // The path as text, and with a view model known, a list of what it has to pick from.
-        private static UiElement PathField(UiTheme theme, JsonNode? value, Type? viewModel, bool commands, Action<string> write)
+        private static UiElement PathField(UiTheme theme, JsonNode? value, JsonObject node, UiDesignerPathKind kind, Action<string> write)
         {
+            var viewModel = UiDesignerDocument.ViewModelType;
             var hint = "Property.Path";
-            if (commands)
+            if (kind == UiDesignerPathKind.Command)
             {
                 hint = "PlayCommand";
             }
@@ -836,20 +851,34 @@ namespace ManaVoxel.Code.UI.ManaUi
                 return field;
             }
 
-            var paths = UiDesignerBindings.Paths(viewModel, commands);
-            var pick = new ComboBox().Options(new[] { "..." }.Concat(paths).ToArray());
-            pick.SelectedIndex = 0;
-            pick.Width = 44.0f;
-            pick.SelectionChanged += (_, index) =>
-            {
-                if (index > 0)
-                {
-                    write(paths[index - 1]);
-                    UiDesignerDocument.Touch(tree: true);
-                }
-            };
-            pick.WithTooltip($"What {viewModel.Name} offers");
+            var pick = new ManaUI.Button().Label("...").Variant(ButtonVariant.Subtle);
+            pick.OnClick(() => OpenPicker(pick, node, kind, field.Text, write));
+            pick.WithTooltip($"Pick from what {viewModel.Name} offers");
             return new Grid().Columns("*, Auto", 2.0f).Rows("Auto").Children(field.GridColumn(0), pick.GridColumn(1));
+        }
+
+        private static void OpenPicker(UiElement anchor, JsonObject node, UiDesignerPathKind kind, string current, Action<string> write)
+        {
+            if (anchor.Root is not { } root || UiDesignerDocument.ViewModelType is not { } viewModel)
+            {
+                return;
+            }
+
+            var scope = UiDesignerBindings.ScopeOf(viewModel, node, includeOwn: kind != UiDesignerPathKind.Context);
+            UiDesignerPathPicker.Show(root, anchor, scope, kind, current, path =>
+            {
+                write(path);
+                UiDesignerDocument.Touch(tree: true);
+            });
+        }
+
+        /// <summary>For scripts: the picker as a path field's "..." opens it, for the selected element.</summary>
+        public static void OpenPickerForSelected(UiElement anchor, UiDesignerPathKind kind)
+        {
+            if (UiDesignerDocument.Selected is { } node)
+            {
+                OpenPicker(anchor, node, kind, string.Empty, _ => { });
+            }
         }
 
         private static UiElement Row(UiTheme theme, string label, UiElement editor)
@@ -932,43 +961,354 @@ namespace ManaVoxel.Code.UI.ManaUi
         public static IReadOnlyList<string> Events(Type type) =>
             type.GetEvents(BindingFlags.Public | BindingFlags.Instance).Select(item => UiMarkup.KeyFor(item.Name)).Order(StringComparer.Ordinal).ToList();
 
-        /// <summary>A view model's properties or commands as paths, into what it holds, with a list's first item as the pattern.</summary>
-        public static IReadOnlyList<string> Paths(Type viewModel, bool commands)
+        /// <summary>
+        /// What a view model offers, one group per view model class it reaches: its own members, then those of what it
+        /// holds, with a list's first item standing for the rest. A context offers only what can be stepped into.
+        /// </summary>
+        public static IReadOnlyList<UiDesignerMemberGroup> Groups(Type viewModel, UiDesignerPathKind kind)
         {
-            var paths = new List<string>();
+            var groups = new List<UiDesignerMemberGroup>();
             void Walk(Type type, string prefix, int depth)
             {
+                var members = new List<UiDesignerMember>();
+                var inside = new List<(Type Type, string Prefix)>();
                 foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance).OrderBy(item => item.Name, StringComparer.Ordinal))
                 {
                     var value = property.PropertyType;
                     var isCommand = typeof(ICommand).IsAssignableFrom(value);
-                    if (isCommand == commands && (isCommand || !IsHolder(value)))
+                    var item = ItemOf(value);
+                    var holder = IsHolder(value);
+                    var itemHolder = item != null && IsHolder(item);
+                    var path = prefix + property.Name;
+                    switch (kind)
                     {
-                        paths.Add(prefix + property.Name);
+                        case UiDesignerPathKind.Command when isCommand:
+                        case UiDesignerPathKind.Property when !isCommand && !holder && !itemHolder:
+                        case UiDesignerPathKind.Context when holder:
+                            members.Add(new UiDesignerMember(path, property.Name, value));
+                            break;
+                        case UiDesignerPathKind.Context when itemHolder && item != null:
+                            members.Add(new UiDesignerMember(path + "[0]", property.Name + "[0]", item));
+                            break;
                     }
 
-                    if (depth <= 0)
+                    if (holder)
                     {
-                        continue;
+                        inside.Add((value, path + "."));
                     }
+                    else if (itemHolder && item != null)
+                    {
+                        inside.Add((item, path + "[0]."));
+                    }
+                }
 
-                    if (value.IsArray && value.GetElementType() is { } item && IsHolder(item))
+                if (members.Count > 0)
+                {
+                    groups.Add(new UiDesignerMemberGroup(type.Name, prefix.TrimEnd('.'), members));
+                }
+
+                if (depth > 0)
+                {
+                    foreach (var (held, heldPrefix) in inside)
                     {
-                        Walk(item, $"{prefix}{property.Name}[0].", depth - 1);
-                    }
-                    else if (IsHolder(value) && !isCommand)
-                    {
-                        Walk(value, prefix + property.Name + ".", depth - 1);
+                        Walk(held, heldPrefix, depth - 1);
                     }
                 }
             }
 
             Walk(viewModel, string.Empty, 2);
-            return paths;
+            return groups;
         }
 
+        /// <summary>
+        /// The view model an element's paths are relative to: the layout's, stepped through the "context" of each
+        /// element above it (and its own, for its bindings). Null when a context leads nowhere.
+        /// </summary>
+        public static Type? ScopeOf(Type viewModel, JsonObject node, bool includeOwn)
+        {
+            var contexts = new List<string>();
+            var at = node;
+            if (!includeOwn)
+            {
+                at = UiDesignerDocument.ParentOf(node);
+            }
+
+            for (; at != null; at = UiDesignerDocument.ParentOf(at))
+            {
+                if (at["context"] is JsonValue value && value.TryGetValue<string>(out var path))
+                {
+                    contexts.Insert(0, path);
+                }
+            }
+
+            Type? scope = viewModel;
+            foreach (var context in contexts)
+            {
+                foreach (var piece in context.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    var open = piece.IndexOf('[');
+                    var name = piece;
+                    if (open > 0)
+                    {
+                        name = piece[..open];
+                    }
+
+                    scope = scope?.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)?.PropertyType;
+                    if (open > 0 && scope != null)
+                    {
+                        scope = ItemOf(scope);
+                    }
+                }
+            }
+
+            return scope;
+        }
+
+        public static string TypeName(Type type)
+        {
+            if (type == typeof(float))
+            {
+                return "float";
+            }
+
+            if (type == typeof(int))
+            {
+                return "int";
+            }
+
+            if (type == typeof(bool))
+            {
+                return "bool";
+            }
+
+            if (type == typeof(string))
+            {
+                return "string";
+            }
+
+            if (type == typeof(double))
+            {
+                return "double";
+            }
+
+            if (typeof(ICommand).IsAssignableFrom(type))
+            {
+                return "command";
+            }
+
+            if (ItemOf(type) is { } item)
+            {
+                return TypeName(item) + "[]";
+            }
+
+            return type.Name;
+        }
+
+        private static Type? ItemOf(Type type)
+        {
+            if (type.IsArray)
+            {
+                return type.GetElementType();
+            }
+
+            if (type == typeof(string))
+            {
+                return null;
+            }
+
+            foreach (var face in type.GetInterfaces().Prepend(type))
+            {
+                if (face.IsGenericType && face.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    return face.GetGenericArguments()[0];
+                }
+            }
+
+            return null;
+        }
+
+        // Something with members of its own to step into, not a value: the framework's types are values here.
         private static bool IsHolder(Type type) =>
-            type.IsClass && type != typeof(string) && !typeof(ICommand).IsAssignableFrom(type) && !type.IsArray;
+            (type.IsClass || type.IsInterface) && ItemOf(type) == null && !typeof(ICommand).IsAssignableFrom(type)
+            && !typeof(Delegate).IsAssignableFrom(type) && type.Namespace?.StartsWith("System", StringComparison.Ordinal) != true;
+    }
+
+    /// <summary>What a path is being picked for.</summary>
+    public enum UiDesignerPathKind
+    {
+        Property,
+        Command,
+        Context
+    }
+
+    public sealed record UiDesignerMember(string Path, string Name, Type Type);
+
+    /// <summary>One view model's members: the class they are on, and the path that reaches it ("" for the layout's own).</summary>
+    public sealed record UiDesignerMemberGroup(string ViewModel, string Prefix, IReadOnlyList<UiDesignerMember> Members);
+
+    /// <summary>
+    /// Picks a path from what the view model offers, grouped by view model: wide enough to read, with a filter,
+    /// since a HUD's view model can have fifty properties.
+    /// </summary>
+    public static class UiDesignerPathPicker
+    {
+        private const float PopupWidth = 360.0f;
+        private const float ListHeight = 380.0f;
+
+        public static UiPopup Show(UiRoot root, UiElement anchor, Type? scope, UiDesignerPathKind kind, string current, Action<string> pick)
+        {
+            var theme = root.Theme;
+            var popup = new UiPopup { Placement = PopupPlacement.Bottom, MaxHeight = ListHeight + 50.0f };
+            var filter = new TextBox().Hint("Filter");
+            var list = new StackPanel().Vertical(0.0f);
+            void Choose(string path)
+            {
+                root.Popups.Close(popup);
+                pick(path);
+            }
+
+            void Fill(string text)
+            {
+                list.Children.Clear();
+                if (kind == UiDesignerPathKind.Context && current.Length > 0)
+                {
+                    list.Children.Add(new UiDesignerMemberRow(theme, "No context", "the layout's own", false, () => Choose(string.Empty)));
+                }
+
+                var groups = Array.Empty<UiDesignerMemberGroup>() as IReadOnlyList<UiDesignerMemberGroup>;
+                if (scope != null)
+                {
+                    groups = UiDesignerBindings.Groups(scope, kind);
+                }
+
+                var shown = 0;
+                foreach (var group in groups)
+                {
+                    var classMatches = group.ViewModel.Contains(text, StringComparison.OrdinalIgnoreCase);
+                    var members = group.Members.Where(member => classMatches || member.Name.Contains(text, StringComparison.OrdinalIgnoreCase)).ToList();
+                    if (members.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    list.Children.Add(Header(theme, group));
+                    foreach (var member in members)
+                    {
+                        list.Children.Add(new UiDesignerMemberRow(theme, member.Name, UiDesignerBindings.TypeName(member.Type), member.Path == current, () => Choose(member.Path)));
+                        shown++;
+                    }
+                }
+
+                if (shown == 0)
+                {
+                    list.Children.Add(new TextBlock().Text(EmptyMessage(scope, kind, text)).FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).Margin(6.0f).Wrap());
+                }
+            }
+
+            filter.TextChanged += (_, text) => Fill(text);
+            Fill(string.Empty);
+
+            var frame = new Border().Fill(theme.SurfaceRaised).Outline(theme.BorderStrong, 1.0f).Rounded(theme.CornerRadius).Shadow(14.0f).PaddingOf(4.0f)
+                .Content(new StackPanel().Vertical(4.0f).Children(filter, list.Scrollable().Configure(viewer => viewer.MaxHeight = ListHeight)));
+            frame.Width = PopupWidth;
+            popup.Child = frame;
+            root.Popups.Show(popup, anchor);
+            filter.Focus();
+            return popup;
+        }
+
+        private static string EmptyMessage(Type? scope, UiDesignerPathKind kind, string filter)
+        {
+            if (filter.Length > 0)
+            {
+                return $"Nothing matches \"{filter}\".";
+            }
+
+            if (scope == null)
+            {
+                return "This element's context does not lead anywhere: fix it above.";
+            }
+
+            if (kind == UiDesignerPathKind.Context)
+            {
+                return $"{scope.Name} holds no view models to step into.";
+            }
+
+            return $"{scope.Name} has none here.";
+        }
+
+        private static UiElement Header(UiTheme theme, UiDesignerMemberGroup group)
+        {
+            var row = new StackPanel().Horizontal(8.0f).Margin(4.0f, 6.0f, 4.0f, 2.0f);
+            row.Children.Add(new TextBlock().Text(group.ViewModel).FontSize(theme.FontSizeSmall).Foreground(theme.Accent));
+            if (group.Prefix.Length > 0)
+            {
+                var note = group.Prefix;
+                if (group.Prefix.Contains('['))
+                {
+                    note += "  (edit the number for another)";
+                }
+
+                row.Children.Add(new TextBlock().Text(note).FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted));
+            }
+
+            return row;
+        }
+    }
+
+    public sealed class UiDesignerMemberRow : Decorator
+    {
+        private readonly UiTheme _theme;
+        private readonly bool _isCurrent;
+        private readonly Action _chosen;
+
+        public UiDesignerMemberRow(UiTheme theme, string name, string detail, bool isCurrent, Action chosen)
+        {
+            _theme = theme;
+            _isCurrent = isCurrent;
+            _chosen = chosen;
+            Label = name;
+            Height = 22.0f;
+            Padding = new Thickness(14.0f, 0.0f, 6.0f, 0.0f);
+            Child = new Grid().Columns("*, Auto", 8.0f).Rows("Auto").Children(
+                new TextBlock().Text(name).FontSize(theme.FontSizeSmall).Foreground(theme.Text).Ellipsis().CenterV().GridColumn(0),
+                new TextBlock().Text(detail).FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted).CenterV().GridColumn(1));
+        }
+
+        public string Label { get; }
+
+        protected override bool IsSelfHitTestVisible => true;
+
+        // The row is the one thing to click: what it shows takes no pointer of its own.
+        public override UiElement? HitTest(Vector2 point)
+        {
+            if (Visibility != Visibility.Visible || !Bounds.Contains(point))
+            {
+                return null;
+            }
+
+            return this;
+        }
+
+        protected override void OnRender(ManaUiDrawList drawList)
+        {
+            if (IsPointerOver)
+            {
+                drawList.FillRect(Bounds, _theme.SurfaceAlt, new CornerRadius(2.0f));
+            }
+            else if (_isCurrent)
+            {
+                var fill = _theme.Accent;
+                fill.W = 0.3f;
+                drawList.FillRect(Bounds, fill, new CornerRadius(2.0f));
+            }
+        }
+
+        protected override void OnPointerPressed(UiPointerEventArgs e)
+        {
+            e.Handled = true;
+            _chosen();
+        }
     }
 
     /// <summary>The file's elements as a tree of rows. Click selects, the arrow folds, and dragging a row moves it.</summary>

@@ -148,6 +148,25 @@ namespace ManaVoxel.Code.Automation
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: designer_select {command.Name}: {element != null}");
             });
 
+            runner.Register("designer_pick", command =>
+            {
+                // The path picker for the selected element, opened under the preview.
+                var kind = Enum.Parse<ManaVoxel.Code.UI.ManaUi.UiDesignerPathKind>(command.Name ?? "Property", ignoreCase: true);
+                IEnumerable<ManaUI.UiElement> Walk(ManaUI.UiElement element)
+                {
+                    yield return element;
+                    foreach (var inner in element.VisualChildren.SelectMany(Walk))
+                    {
+                        yield return inner;
+                    }
+                }
+
+                if (context.GameMode?.ManaUi?.Root is { } uiRoot && Walk(uiRoot).OfType<ManaVoxel.Code.UI.ManaUi.UiDesignerPreview>().FirstOrDefault() is { } preview)
+                {
+                    ManaVoxel.Code.UI.ManaUi.UiDesignerManaView.OpenPickerForSelected(preview, kind);
+                }
+            });
+
             runner.Register("review_changes", command =>
             {
                 // Review Changes on the named prefab instance, as its Actions menu opens it.

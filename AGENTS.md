@@ -101,6 +101,7 @@ dotnet build ManaVoxel -o Artifacts/AutomationBin      # a separate output, so a
 | `open_prefab` / `open_asset` / `review_changes` | `path` / `path` / `name` | Edit Prefab; a sheet or slice in the Sprite Asset window (or rules in the Generator); Review Changes on an instance |
 | `set_theme` | `name` (`Dark`, `Light`, `LCARS`, `Kenney`) | Switches the active ManaUI root theme; available in every ManaUI-enabled app |
 | `designer_select` | `name` | Selects an element by name in the layout the UI Designer has open (`open_asset` opens one) |
+| `designer_pick` | `name` (`Property`, `Command`, `Context`) | Opens the designer's path picker for the selected element, grouped by view model |
 | `open_panel` / `open_tools` | `name` / | Brings up a panel by id; drops down the viewport bar's snap options |
 | `emission` | `name`, `position` (rgb), `frames` (strength x100) | Sets emission on every mesh under a node |
 | `dump_environment` | `path` | Saves the reflection cube's six faces as `<path>.face0..5.png` (+X -X +Y -Y +Z -Z) |

@@ -71,6 +71,7 @@ public static class UiDesignerChecks
         Gestures(root, preview!, Check);
         Files(Check);
         Bindings(Check);
+        Picker(root, Check);
     }
 
     private const string Sample = """
@@ -265,10 +266,55 @@ public static class UiDesignerChecks
         check("a Button offers its command", UiDesignerBindings.Targets(typeof(Button)).Contains("command"), "");
         check("and its click", UiDesignerBindings.Events(typeof(Button)).Contains("click"), string.Join(", ", UiDesignerBindings.Events(typeof(Button))));
 
-        var properties = UiDesignerBindings.Paths(typeof(Contour.View.ContourHudViewModel), commands: false);
-        var commands = UiDesignerBindings.Paths(typeof(Contour.View.ContourHudViewModel), commands: true);
-        check("a view model offers its properties and what it holds", properties.Contains("CameraZoom") && properties.Contains("Weapons[0].Name"), string.Join(", ", properties));
-        check("and its commands, not among the properties", commands.Contains("ResumeCommand") && !properties.Contains("ResumeCommand"), string.Join(", ", commands));
+        var hud = typeof(Contour.View.ContourHudViewModel);
+        var weapon = typeof(Contour.View.ContourWeaponViewModel);
+        var groups = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Property);
+        check("properties are grouped by the view model they are on, its own first", groups.Select(g => g.ViewModel).SequenceEqual([hud.Name, weapon.Name]), string.Join(", ", groups.Select(g => g.ViewModel)));
+        check("a group's members carry the path that reaches them", groups[0].Members.Any(m => m.Path == "CameraZoom") && groups[1].Members.Any(m => m.Path == "Weapons[0].Name" && m.Name == "Name"), "");
+        check("a list of view models is stepped into, not offered as a value", groups[0].Members.All(m => m.Name != "Weapons"), "");
+        var commands = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Command);
+        check("commands are offered apart from properties", commands[0].Members.Any(m => m.Path == "ResumeCommand") && groups.SelectMany(g => g.Members).All(m => m.Name != "ResumeCommand"), "");
+        var contexts = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Context).SelectMany(g => g.Members).ToList();
+        check("a context offers only what can be stepped into", contexts.Count == 1 && contexts[0].Path == "Weapons[0]", string.Join(", ", contexts.Select(m => m.Path)));
+
+        UiDesignerDocument.Replace((JsonObject)JsonNode.Parse("""
+            { "format": "mana-ui", "id": "bb", "root": { "type": "StackPanel", "context": "Weapons[1]", "children": [ { "type": "TextBlock", "name": "inner" }, { "type": "Border", "name": "lost", "context": "AbandonLabel" } ] } }
+            """)!, null);
+        var inner = UiDesignerDocument.FindNamed("inner")!;
+        check("under a context, paths are relative to what it holds", UiDesignerBindings.ScopeOf(hud, inner, includeOwn: true) == weapon, "");
+        check("a context's own path starts from what is above it", UiDesignerBindings.ScopeOf(hud, UiDesignerDocument.Root, includeOwn: false) == hud, "");
+        check("a context that leads nowhere is known to", UiDesignerBindings.ScopeOf(hud, UiDesignerDocument.FindNamed("lost")!, includeOwn: true) == null, "");
+
+        var unset = UiMarkup.Load("""{ "type": "Button", "bind": { "text": "" }, "on": { "click": "" } }""", new UiTheme(), null, hud);
+        check("a binding with no path chosen yet is no problem", unset.Problems.Count == 0, string.Join("; ", unset.Problems));
+    }
+
+    private static void Picker(UiRoot root, Action<string, bool, string> check)
+    {
+        var size = new Vector2(1200, 700);
+        string? picked = null;
+        var anchor = Find<UiDesignerPreview>(root.Content!)[0];
+        var popup = UiDesignerPathPicker.Show(root, anchor, typeof(Contour.View.ContourHudViewModel), UiDesignerPathKind.Property, "CameraZoom", path => picked = path);
+        root.UpdateLayout(size);
+        root.UpdateLayout(size);
+        var rows = Find<UiDesignerMemberRow>(popup);
+        check("the picker is wide enough to read, whatever opened it", popup.Bounds.Width >= 300.0f, $"{popup.Bounds.Width}");
+        check("and heads each view model's members with its name", Find<TextBlock>(popup).Any(text => text.Text == "ContourWeaponViewModel"), "");
+
+        var filter = Find<TextBox>(popup)[0];
+        filter.Text = "credits";
+        root.UpdateLayout(size);
+        root.UpdateLayout(size);
+        rows = Find<UiDesignerMemberRow>(popup);
+        check("typing filters it", rows.Count == 1 && rows[0].Label == "Credits", string.Join(", ", rows.Select(row => row.Label)));
+        if (rows.Count > 0)
+        {
+            root.Input.InjectPointerMoved(rows[0].Bounds.Center);
+            root.Input.InjectPointerPressed(rows[0].Bounds.Center, PointerButton.Left, 0.0);
+            root.Input.InjectPointerReleased(rows[0].Bounds.Center, PointerButton.Left);
+        }
+
+        check("clicking a row picks its path and closes", picked == "Credits" && !popup.IsOpen, $"{picked}");
     }
 
     private static List<T> Find<T>(UiElement element) where T : UiElement

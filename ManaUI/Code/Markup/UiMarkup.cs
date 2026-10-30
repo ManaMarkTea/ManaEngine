@@ -378,8 +378,8 @@ namespace ManaUI
                     continue;
                 }
 
-                // Nothing to bind to yet: a designed layout still shows, with the property as authored.
-                if (binding.Type == null)
+                // Nothing to bind to yet, or no path chosen yet: a designed layout still shows, with the property as authored.
+                if (binding.Type == null || spec.Path.Length == 0)
                 {
                     continue;
                 }
@@ -480,7 +480,7 @@ namespace ManaUI
                     continue;
                 }
 
-                if (binding.Type == null)
+                if (binding.Type == null || actionPath.Length == 0)
                 {
                     continue;
                 }
