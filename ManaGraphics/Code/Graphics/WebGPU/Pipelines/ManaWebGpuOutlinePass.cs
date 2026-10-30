@@ -62,7 +62,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             var renderPass = Api.CommandEncoderBeginRenderPass(frame.Encoder, &descriptor);
             try
             {
-                // The frame and object groups the scene pass already filled; nothing to upload here.
+                // The frame group the scene pass already filled; object uniforms are brought up to date per mesh below.
                 Api.RenderPassEncoderSetPipeline(renderPass, pipeline);
                 Api.RenderPassEncoderSetBindGroup(renderPass, 0, _bindings.FrameGroup, 0, null);
                 DrawOutlined(renderPass, frame, alwaysOnTop: false);
@@ -96,6 +96,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                     continue;
                 }
 
+                // An instanced draw never fills a mesh's own uniform; outlined alone, it needs this frame's.
+                sceneMesh.PrepareObjectUniform(frame.Number);
                 Api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
                 sceneMesh.Mesh.Draw(renderPass);
             }
