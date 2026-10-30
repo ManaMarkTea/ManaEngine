@@ -1,0 +1,15 @@
+{
+  "exclude": [
+    "artifacts",
+    "Artifacts",
+    "Assets",
+    "Content",
+    "DevPhotos",
+    "Downloaded",
+    "Library",
+    "**/bin",
+    "**/obj",
+    "**/node_modules",
+    "**/__pycache__"
+  ]
+}
