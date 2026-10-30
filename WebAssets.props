@@ -37,11 +37,11 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/Levels/**/Pictures/*.jpg;$(MSBuildThisFileDirectory)Content/Levels/**/Pictures/*.png">
       <TargetPath>Content/Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Content/**/*.manasheet;$(MSBuildThisFileDirectory)Content/**/*.manaslice">
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Content/**/*.manasheet;$(MSBuildThisFileDirectory)Content/**/*.manaslice;$(MSBuildThisFileDirectory)Content/**/*.manaui">
       <TargetPath>Content/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <!-- Each game's own content (ManaContentMounts), at the same place beside Content/ as in the repo. -->
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Games/*/Content/**/*.manalevel;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Games/*/Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manasheet;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaslice;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.jpg;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.png">
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Games/*/Content/**/*.manalevel;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Games/*/Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manasheet;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaslice;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaui;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.jpg;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.png">
       <TargetPath>$([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), %(FullPath)).Replace('\', '/'))</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)Tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />

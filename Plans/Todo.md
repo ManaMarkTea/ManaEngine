@@ -1,7 +1,8 @@
-[] - A 2D UI node for HUDs and menus, as Godot's Control / Unity's Canvas: a level (or prefab) node that hosts a
-    ManaUI layout (a .manaui document, edited in the UI Designer) over the viewport while playing, anchored to the
-    screen, bound by name to the running game mode's values and actions (UiMarkupData). Contour's HUD, menus and
-    system-map panel are hand-built ManaUI today (Games/Contour/Code/View/ContourHud.cs) -- the first thing to move.
+[x] - A 2D UI node for HUDs and menus (2026-10-30): `UiCanvas` on level/prefab nodes hosts a `.manaui`
+    layout over the viewport, with named game-mode values/actions (`HudData`) and custom-widget slots.
+    Inspector opens the layout in the UI Designer. Contour's cockpit, title, briefing/debrief and map overlay
+    moved to Games/Contour/Content/UI/Contour HUD.manaui; dynamic menu contents, radar and health bars stay widgets.
+    Weapon button edges now survive render frames between simulation ticks, including while firing.
 
 [x] - Contour port (2026-10-30): the 2010 XNA space shooter (GhostTap/OldWork/.../XNA/Source/Contour) as Games/Contour,
     a level game mode. Its 20 FBX models converted to GLB (Games/Contour/Content/Models), its sounds and the Contour

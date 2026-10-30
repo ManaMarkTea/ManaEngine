@@ -42,7 +42,17 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             {
                 if (ManaContentAssets.Resolve(read(), extension) is { } file)
                 {
-                    OpenInEditor?.Invoke(file);
+                    if (extension == UiMarkup.Extension)
+                    {
+                        if (UiDesignerDocument.TryOpen(file, out _) && slot.Root != null)
+                        {
+                            EditorWorkspace.For(slot.Root).RequestPanel(UiDesignerManaView.PanelId);
+                        }
+                    }
+                    else
+                    {
+                        OpenInEditor?.Invoke(file);
+                    }
                 }
             });
 
@@ -66,9 +76,9 @@ namespace ManaVoxel.Code.UI.ManaUi.Inspectors
             }));
 
             var content = ManaContentAssets.Root;
-            var files = Directory.Exists(content)
-                ? Directory.EnumerateFiles(content, "*" + extension, SearchOption.AllDirectories).Order(StringComparer.OrdinalIgnoreCase).ToList()
-                : [];
+            var files = ManaContentMounts.For(content).Where(mount => Directory.Exists(mount.Root))
+                .SelectMany(mount => Directory.EnumerateFiles(mount.Root, "*" + extension, SearchOption.AllDirectories))
+                .Order(StringComparer.OrdinalIgnoreCase).ToList();
             foreach (var file in files)
             {
                 var chosen = file;

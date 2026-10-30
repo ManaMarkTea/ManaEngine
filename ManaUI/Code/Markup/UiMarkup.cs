@@ -374,7 +374,7 @@ namespace ManaUI
                 element.AddPolledBinding(new UiPolledBinding<object?>(read, value =>
                 {
                     var converted = Coerce(value, target.PropertyType, theme);
-                    if (converted == null && target.PropertyType.IsValueType)
+                    if (converted == null && target.PropertyType.IsValueType && Nullable.GetUnderlyingType(target.PropertyType) == null)
                     {
                         return;
                     }

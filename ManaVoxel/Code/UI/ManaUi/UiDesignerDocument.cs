@@ -64,9 +64,12 @@ namespace ManaVoxel.Code.UI.ManaUi
             try
             {
                 var folder = ResolveFolder();
-                return Directory.Exists(folder)
-                    ? Directory.EnumerateFiles(folder, "*" + UiMarkup.Extension).OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList()
-                    : [];
+                return Mana.Code.Content.ManaContentMounts.For(Mana.Code.Content.ManaContentAssets.Root)
+                    .Select(mount => System.IO.Path.Combine(mount.Root, FolderName))
+                    .Prepend(folder).Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Where(Directory.Exists)
+                    .SelectMany(directory => Directory.EnumerateFiles(directory, "*" + UiMarkup.Extension, SearchOption.AllDirectories))
+                    .Order(StringComparer.OrdinalIgnoreCase).ToList();
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {

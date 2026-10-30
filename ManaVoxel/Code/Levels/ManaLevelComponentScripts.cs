@@ -72,6 +72,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "UiCanvas",
+                    ComponentType = typeof(ManaUiCanvasComponent),
+                    Create = node => new ManaUiCanvasComponent(node)
+                },
+                new()
+                {
                     Type = "Parallax",
                     ComponentType = typeof(Mana.Code.Components.ManaParallaxComponent),
                     Create = node => new Mana.Code.Components.ManaParallaxComponent(node)
@@ -252,6 +258,7 @@ namespace ManaVoxel.Code.Levels
             return scripts;
         }
 
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaUiCanvasComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]

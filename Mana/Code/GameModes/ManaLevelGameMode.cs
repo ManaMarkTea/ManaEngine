@@ -1,5 +1,7 @@
 using Mana.Code.Automation;
 using ManaUI;
+using Mana.Code.Components;
+using Mana.Code.Nodes;
 
 namespace Mana.Code.GameModes
 {
@@ -89,6 +91,11 @@ namespace Mana.Code.GameModes
         /// <summary>This mode's on-screen furniture while playing, or null. Built once per play.</summary>
         public virtual UiElement? BuildHud(UiTheme theme) => null;
 
+        public virtual UiMarkupData? HudData => null;
+
+        public virtual void ConnectHudCanvas(UiMarkupResult layout) { }
+
+
         /// <summary>
         /// The editor has stepped out of the running match to inspect it (F8): the match is frozen and the editor has
         /// the camera and input. Give back anything borrowed that the editor needs; <see cref="Resume"/> takes it again.
@@ -161,6 +168,8 @@ namespace Mana.Code.GameModes
         private readonly List<ManaLevelGameMode> _running = new();
         private readonly Grid _hudLayer = new();
         private UiTheme? _theme;
+        private ManaPlaySession? _session;
+        private readonly Dictionary<ManaUiCanvasComponent, UiElement> _canvases = new();
 
         public IReadOnlyList<ManaLevelGameMode> Running => _running;
 
@@ -204,6 +213,7 @@ namespace Mana.Code.GameModes
         public void Begin(IEnumerable<ManaLevelGameMode> modes, ManaPlaySession session)
         {
             End();
+            _session = session;
             foreach (var mode in modes)
             {
                 try
@@ -220,6 +230,59 @@ namespace Mana.Code.GameModes
                     ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Game mode '{mode.Type}' failed to start: {exception}");
                 }
             }
+            SyncCanvases();
+        }
+
+        private void SyncCanvases()
+        {
+            if (_session == null || _theme == null)
+            {
+                return;
+            }
+            IEnumerable<ManaSceneNode> Walk(ManaSceneNode node)
+            {
+                yield return node;
+                foreach (var child in node.Children)
+                {
+                    foreach (var descendant in Walk(child))
+                    {
+                        yield return descendant;
+                    }
+                }
+            }
+            HashSet<ManaUiCanvasComponent> live;
+            lock (_session.Context.World.SceneLock)
+            {
+                live = _session.Context.World.Scenes.SelectMany(scene => scene.Children).SelectMany(Walk)
+                    .SelectMany(node => node.Components.OfType<ManaUiCanvasComponent>()).ToHashSet();
+            }
+            foreach (var old in _canvases.Keys.Where(canvas => !live.Contains(canvas)).ToArray())
+            {
+                _hudLayer.Children.Remove(_canvases[old]);
+                _canvases.Remove(old);
+            }
+            foreach (var canvas in live)
+            {
+                if (_canvases.ContainsKey(canvas))
+                {
+                    continue;
+                }
+                var mode = _running.FirstOrDefault(mode => string.Equals(mode.Type, canvas.BindingSource, StringComparison.OrdinalIgnoreCase));
+                var layout = canvas.Build(_theme, mode?.HudData);
+                foreach (var problem in layout.Problems)
+                {
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"UI canvas '{canvas.Owner.Name}': {problem}");
+                }
+                var host = new Border { Child = layout.Root };
+                host.BindPolled(b => b.Visibility, () => canvas.Visible switch
+                {
+                    true => Visibility.Visible,
+                    false => Visibility.Collapsed
+                });
+                _canvases.Add(canvas, host);
+                _hudLayer.Children.Add(host);
+                mode?.ConnectHudCanvas(layout);
+            }
         }
 
         public void Tick(float deltaSeconds)
@@ -228,6 +291,7 @@ namespace Mana.Code.GameModes
             {
                 mode.Tick(deltaSeconds);
             }
+            SyncCanvases();
         }
 
         public void Suspend()
@@ -261,6 +325,8 @@ namespace Mana.Code.GameModes
                 }
             }
 
+            _session = null;
+            _canvases.Clear();
             _running.Clear();
             _hudLayer.Children.Clear();
         }

@@ -54,6 +54,16 @@ public static class UiMarkupChecks
         root.Input.InjectPointerReleased(play.Bounds.Center, PointerButton.Left);
         Check("an event runs its action", played == 1, $"{played}");
 
+        float? cooling = 0.5f;
+        var slotLayout = UiMarkup.Load("""{ "type": "ItemSlot", "name": "cannon", "bind": { "progress": "cooling" } }""",
+            theme, new UiMarkupData().Value("cooling", () => cooling));
+        var slotRoot = new UiRoot(fonts) { Content = slotLayout.Root };
+        slotRoot.UpdateLayout(new Vector2(100, 100));
+        Check("a nullable bound value shows weapon cooldown", slotLayout.Find<ItemSlot>("cannon")?.Progress == 0.5f);
+        cooling = null;
+        slotRoot.UpdateLayout(new Vector2(100, 100));
+        Check("a null binding clears the finished cooldown", slotLayout.Find<ItemSlot>("cannon")?.Progress == null);
+
         var broken = UiMarkup.Load("""{ "type": "StackPanel", "children": [ { "type": "Nope" }, { "type": "TextBlock", "colour": "red", "fontSize": "big" } ] }""");
         Check("what cannot be applied is reported, and the rest still builds",
             broken.Root is StackPanel { Children.Count: 1 } && broken.Problems.Count == 3, string.Join("; ", broken.Problems));

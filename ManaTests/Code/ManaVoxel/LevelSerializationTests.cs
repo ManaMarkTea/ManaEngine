@@ -674,6 +674,43 @@ public static class LevelSerializationChecks
         Check("runtime train state is transient",
             capturedScript != null && !capturedScript.Properties.ContainsKey("paused"));
 
+        var canvasWorld = new ManaWorld();
+        var canvasContext = new ManaContext(null!, null!, canvasWorld);
+        var canvasScene = new ManaScene(canvasContext) { Name = "UI Scene" };
+        canvasWorld.Scenes.Add(canvasScene);
+        var canvasLevel = new ManaLevel
+        {
+            Nodes = { new ManaLevelNode
+            {
+                Name = "HUD", Kind = ManaLevelSourceKind.Group,
+                Scripts = [new ManaLevelScript
+                {
+                    Type = "UiCanvas", Properties =
+                    {
+                        ["layout"] = JsonValue(new Mana.Code.Content.ManaAssetRef("", "@Contour/UI/Contour HUD.manaui")),
+                        ["bindingSource"] = JsonValue("Contour"),
+                        ["visible"] = JsonValue(false)
+                    }
+                }]
+            } }
+        };
+        var loadedCanvas = ManaLevelLoader.Load(canvasLevel, canvasContext, canvasScene, replaceAuthoredNodes: false);
+        var canvas = canvasScene.Children.Single().Components.OfType<ManaUiCanvasComponent>().Single();
+        Check("a UI canvas loads as a component on a level node", loadedCanvas.Warnings.Count == 0 && !canvas.Visible && canvas.BindingSource == "Contour");
+        var canvasJson = ManaLevelCapture.CaptureScene(canvasWorld, canvasScene, "UI Scene").ToJson();
+        var savedCanvas = (ManaLevel.FromJson(canvasJson).Nodes.Single().Scripts ?? throw new InvalidDataException("Missing canvas script")).Single();
+        Check("a UI canvas preserves its layout reference and settings on save", savedCanvas.Type == "UiCanvas"
+            && savedCanvas.Properties["layout"].GetProperty("assetPath").GetString() == canvas.Layout.AssetPath
+            && !savedCanvas.Properties["visible"].GetBoolean());
+        var canvasRunner = new Mana.Code.GameModes.ManaGameModeRunner();
+        canvasRunner.UseTheme(new UiTheme());
+        canvasRunner.Begin([], new Mana.Code.GameModes.ManaPlaySession(canvasContext, () => false, () => false, () => { }, false));
+        Check("a level canvas is hosted even without a game mode", ((Grid)canvasRunner.HudLayer).Children.Count == 1);
+        canvasScene.Children.Clear();
+        canvasRunner.Tick(0);
+        Check("removing a UI node removes its screen overlay", ((Grid)canvasRunner.HudLayer).Children.Count == 0);
+        canvasRunner.End();
+
         var scriptedWorld = new ManaWorld();
         var scriptedContext = new ManaContext(null!, null!, scriptedWorld);
         var scriptedScene = new ManaScene(scriptedContext) { Name = "Scripted Scene" };
