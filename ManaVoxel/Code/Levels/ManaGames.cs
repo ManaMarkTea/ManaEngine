@@ -115,6 +115,27 @@ namespace ManaVoxel.Code.Levels
             // Contour's ships and turrets are prefabs carrying its own scripts, placed while it plays.
             Contour.ContourContent.Place = RunnerContent.Place;
             Contour.ContourContent.Destroy = ManaPrefabRuntime.Destroy;
+            Contour.ContourContent.LoadMission = (context, scene, path) =>
+            {
+                var file = Mana.Code.Content.ManaContentMounts.FullPath(Mana.Code.Content.ManaContentAssets.Root, path);
+                if (file == null || !File.Exists(file))
+                {
+                    return null;
+                }
+                var level = ManaLevel.Load(file);
+                var loaded = ManaLevelLoader.Load(level, context, scene, replaceAuthoredNodes: false);
+                foreach (var warning in loaded.Warnings)
+                {
+                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Contour: {Path.GetFileName(file)}: {warning}");
+                }
+                var warnings = new List<string>();
+                var settings = (level.GameModes ?? [])
+                    .Where(entry => entry.Type == Contour.ContourMode.ModeType)
+                    .Select(entry => ManaLevelGameModes.Load(entry, warnings))
+                    .OfType<Contour.ContourMode>()
+                    .FirstOrDefault();
+                return new Contour.ContourMissionLoad(scene.Children.ToList(), settings);
+            };
             ManaLevelComponentScripts.Register(new ManaLevelScriptComponentDefinition
             {
                 Type = Contour.Scripts.ContourUnitComponent.ScriptType,
