@@ -200,7 +200,7 @@ logs the score (`[BrowserPlay] Coins x/y`) for scripts; the HUD itself is ManaUI
 strips reflection metadata (types made by JSON need `DynamicDependency` and parameterless constructors), assets come
 from the catalog rather than a checkout, and files can be locked by Defender mid-build (just build again).
 
-`ManaVoxel.Web` is the combined browser-wasm/WebGPU host: its default page is the play selector, and `?mode=editor` starts the full editor. Publish once with `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1`, serve with `python ManaVoxel.Web/serve.py 8123`, and use the same Chrome driver for both modes. A successful build alone is not enough: Chrome's WebGPU validation catches shader and pipeline issues that the desktop backend can miss.
+`ManaVoxel.Web` is the combined browser-wasm/WebGPU host: its default page is the play selector, and `?mode=editor` starts the full editor. Publish once with `dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1`, serve with `python ManaVoxel.Web/serve.py 8123`, and use the same Chrome driver for both modes. A successful build alone is not enough: Chrome's WebGPU validation catches shader and pipeline issues that the desktop backend can miss. Firefox differs again (its shader compiler, its Web Audio): `node Tools/WebAssets/webdrive-firefox.mjs <out dir> '<steps>'` drives it the same way, in a real window because headless Firefox has no WebGPU adapter.
 
 A slow machine: the console's `[WebGPU] adapter:` line says which GPU the page got (a laptop with two should get the fast
 one -- we ask for `high-performance` -- and "software fallback" means the CPU is drawing). The page's settings go lighter

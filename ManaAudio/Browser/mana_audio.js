@@ -106,6 +106,12 @@ export function stop(id, voice) {
 
 export function listener(id, x, y, z, fx, fy, fz, ux, uy, uz) {
     const l = devices.get(id).context.listener;
+    // Firefox's listener has only the older calls, not the AudioParams.
+    if (!l.positionX) {
+        l.setPosition(x, y, z);
+        l.setOrientation(fx, fy, fz, ux, uy, uz);
+        return;
+    }
     l.positionX.value = x; l.positionY.value = y; l.positionZ.value = z;
     l.forwardX.value = fx; l.forwardY.value = fy; l.forwardZ.value = fz;
     l.upX.value = ux; l.upY.value = uy; l.upZ.value = uz;

@@ -87,7 +87,7 @@ fn probe_uvw(params : ProbeParams, world : vec3<f32>) -> vec3<f32> {
 
 // Light as the probes may carry it: finite, not negative, and short of what a half float holds once summed.
 fn probe_clean(light : vec3<f32>) -> vec3<f32> {
-    let finite = select(light, vec3<f32>(0.0), light != light || abs(light) > vec3<f32>(1e4));
+    let finite = select(light, vec3<f32>(0.0), (light != light) | (abs(light) > vec3<f32>(1e4)));
     return clamp(finite, vec3<f32>(0.0), vec3<f32>(64.0));
 }
 
