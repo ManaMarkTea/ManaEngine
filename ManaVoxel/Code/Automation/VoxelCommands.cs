@@ -167,6 +167,27 @@ namespace ManaVoxel.Code.Automation
                 }
             });
 
+            runner.Register("designer_bind", command =>
+            {
+                // Binds a property of the selected element to `path`; with no path, its bind button's picker opens.
+                IEnumerable<ManaUI.UiElement> Walk(ManaUI.UiElement element)
+                {
+                    yield return element;
+                    foreach (var inner in element.VisualChildren.SelectMany(Walk))
+                    {
+                        yield return inner;
+                    }
+                }
+
+                var key = command.Name ?? string.Empty;
+                if (context.GameMode?.ManaUi?.Root is { } uiRoot && Walk(uiRoot).FirstOrDefault(element => element.Name == "bind:" + key) is { } button)
+                {
+                    ManaVoxel.Code.UI.ManaUi.UiDesignerManaView.BindSelected(button, key, command.Path);
+                }
+
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: designer_bind {key} {command.Path}");
+            });
+
             runner.Register("review_changes", command =>
             {
                 // Review Changes on the named prefab instance, as its Actions menu opens it.

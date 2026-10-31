@@ -34,6 +34,8 @@ namespace ManaUI
     /// "command" binds a Button to an ICommand;</item>
     /// <item>"on": {"click": "PlayCommand"} runs a command (or method) when the element's event fires;</item>
     /// <item>"context": "Weapons[2]" makes the paths on this element and below relative to that.</item>
+    /// <item>"bind" reaches a place in the parent too: "grid.row", "grid.columnSpan", "canvas.left", "dock", "zIndex",
+    /// and a Grid's "columns" and "rows".</item>
     /// </list>
     /// Colours are "#RRGGBB[AA]", [r, g, b, a], or "@Accent" for a theme colour; thicknesses a number,
     /// [horizontal, vertical] or [left, top, right, bottom].
@@ -151,7 +153,7 @@ namespace ManaUI
             elements[node] = element;
             foreach (var (key, value) in node)
             {
-                if (ReservedKeys.Contains(key) || value == null)
+                if (IsReserved(type, key) || value == null)
                 {
                     continue;
                 }
@@ -243,6 +245,97 @@ namespace ManaUI
                 || type.IsEnum || type == typeof(Vector4) || type == typeof(Vector2) || type == typeof(Thickness) || type == typeof(CornerRadius);
         }
 
+        /// <summary>Whether a key means something other than a property of this type; a SlotGrid's "columns" is its own.</summary>
+        public static bool IsReserved(Type type, string key) =>
+            ReservedKeys.Contains(key) && !(typeof(SlotGrid).IsAssignableFrom(type) && key.Equals("columns", StringComparison.OrdinalIgnoreCase));
+
+        /// <summary>
+        /// The properties a binding can drive, wider than what a document can write: a view model can hand over a
+        /// command or a list. Not what only code can supply (templates, child elements), nor a list that has no
+        /// way to show its items until a document can give it a template.
+        /// </summary>
+        public static IReadOnlyList<PropertyInfo> BindableProperties(Type type)
+        {
+            var needsTemplate = type.GetProperties(BindingFlags.Public | BindingFlags.Instance).Any(property =>
+                property.PropertyType.IsGenericType && typeof(Delegate).IsAssignableFrom(property.PropertyType)
+                && property.PropertyType.GetGenericArguments()[^1] == typeof(UiElement));
+            return type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                .Where(property => UiMarkupTarget.CanDrive(property) && property.Name is not ("Name" or "ProfileName")
+                    && !(needsTemplate && typeof(System.Collections.IEnumerable).IsAssignableFrom(property.PropertyType) && property.PropertyType != typeof(string)))
+                .GroupBy(property => property.Name)
+                .Select(group => group.First())
+                .OrderBy(property => property.Name, StringComparer.Ordinal)
+                .ToList();
+        }
+
+        /// <summary>The type a "bind" key drives on an element of this type; null when it drives nothing.</summary>
+        public static Type? BindTargetType(Type type, string key)
+        {
+            var property = type.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (property != null && UiMarkupTarget.CanDrive(property))
+            {
+                return property.PropertyType;
+            }
+
+            return UiMarkupTarget.PlacementType(type, key);
+        }
+
+        /// <summary>Whether edits to this target can flow back to the view model (TwoWay, OneWayToSource).</summary>
+        public static bool CanWriteBack(Type type, string key) => UiMarkupEdits.CanHook(type, key);
+
+        /// <summary>Whether a view model's value of one type can drive a target of another: the conversions <see cref="Coerce"/> makes.</summary>
+        public static bool CanBind(Type source, Type target)
+        {
+            source = Nullable.GetUnderlyingType(source) ?? source;
+            target = Nullable.GetUnderlyingType(target) ?? target;
+            if (source == typeof(object))
+            {
+                // Only the running view model knows.
+                return true;
+            }
+
+            if (target == typeof(string))
+            {
+                return source == typeof(string) || source.IsValueType;
+            }
+
+            if (target.IsAssignableFrom(source))
+            {
+                return source != typeof(string) || target != typeof(System.Collections.IEnumerable);
+            }
+
+            if (IsNumber(target))
+            {
+                return IsNumber(source);
+            }
+
+            if (target == typeof(Visibility))
+            {
+                return source == typeof(bool);
+            }
+
+            if (target.IsEnum)
+            {
+                return source == typeof(string) || source == typeof(int);
+            }
+
+            if (target == typeof(Vector4) || target == typeof(Vector2))
+            {
+                return source == typeof(string);
+            }
+
+            if (target == typeof(Thickness) || target == typeof(CornerRadius))
+            {
+                return source == typeof(string) || IsNumber(source);
+            }
+
+            return false;
+        }
+
+        private static bool IsNumber(Type type) =>
+            type == typeof(float) || type == typeof(double) || type == typeof(int) || type == typeof(long) || type == typeof(uint)
+            || type == typeof(short) || type == typeof(ushort) || type == typeof(byte) || type == typeof(decimal);
+
         /// <summary>The camelCase name a document uses for a property.</summary>
         public static string KeyFor(string propertyName) =>
             propertyName.Length == 0 ? propertyName : char.ToLowerInvariant(propertyName[0]) + propertyName[1..];
@@ -286,7 +379,7 @@ namespace ManaUI
                     grid.SetRows(rowText);
                 }
             }
-            else if (node["columns"] != null || node["rows"] != null)
+            else if (element is not SlotGrid && (node["columns"] != null || node["rows"] != null))
             {
                 problems.Add($"Only a Grid has columns and rows, not {element.GetType().Name}.");
             }
@@ -369,10 +462,11 @@ namespace ManaUI
                 return;
             }
 
-            foreach (var (key, source) in bindings)
+            // A value last, or the range and items bound beside it would not be there yet to hold it.
+            foreach (var (key, source) in bindings.OrderBy(pair => pair.Key.ToLowerInvariant() is "value" or "selectedindex"))
             {
-                var property = element.GetType().GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
-                if (property is not { CanWrite: true } || !ReadBinding(source, out var spec))
+                var target = UiMarkupTarget.Find(element, key);
+                if (target == null || !ReadBinding(source, out var spec))
                 {
                     problems.Add($"{element.GetType().Name} cannot bind '{key}'.");
                     continue;
@@ -385,11 +479,43 @@ namespace ManaUI
                 }
 
                 var path = UiMarkupPathPart.Parse(Scoped(scope, spec.Path));
-                var problem = UiMarkupPathPart.Check(binding.Type, path, out _, out var observable);
+                var problem = UiMarkupPathPart.Check(binding.Type, path, out var end, out var observable);
+                if (problem == null && spec.Format != null)
+                {
+                    end = typeof(string);
+                }
+
+                if (problem == null && end != null && spec.Mode != BindingMode.OneWayToSource && !CanBind(end, target.Type))
+                {
+                    problem = $"a {end.Name} cannot drive a {target.Type.Name}.";
+                }
+
                 if (problem != null)
                 {
-                    problems.Add($"{element.GetType().Name}.{property.Name}: {problem}");
+                    problems.Add($"{element.GetType().Name}.{target.Name}: {problem}");
                     continue;
+                }
+
+                var writesBack = spec.Mode is BindingMode.TwoWay or BindingMode.OneWayToSource;
+                var noWriteBack = string.Empty;
+                if (writesBack && !UiMarkupEdits.CanHook(element.GetType(), key))
+                {
+                    noWriteBack = "it raises no edit event";
+                }
+                else if (writesBack && UiMarkupPathPart.IsReadOnly(binding.Type, path))
+                {
+                    noWriteBack = $"'{spec.Path}' has no setter";
+                }
+
+                if (noWriteBack.Length > 0)
+                {
+                    problems.Add($"{element.GetType().Name}.{target.Name} cannot write back ({spec.Mode}): {noWriteBack}.");
+                    if (spec.Mode == BindingMode.OneWayToSource)
+                    {
+                        continue;
+                    }
+
+                    writesBack = false;
                 }
 
                 if (binding.Instance == null)
@@ -397,11 +523,10 @@ namespace ManaUI
                     continue;
                 }
 
-                var live = new UiMarkupBinding(element, property, binding.Instance, path, spec.Mode, spec.Format, spec.Invert, theme);
-                if (spec.Mode is BindingMode.TwoWay or BindingMode.OneWayToSource
-                    && !UiMarkupEdits.TryHook(element, property.Name, spec.OnCommit, live.PushToSource))
+                var live = new UiMarkupBinding(target, element, binding.Instance, path, spec.Mode, spec.Format, spec.Invert, theme);
+                if (writesBack)
                 {
-                    problems.Add($"{element.GetType().Name}.{property.Name} cannot write back ({spec.Mode}): it raises no edit event.");
+                    UiMarkupEdits.Hook(element, key, spec.OnCommit, live.PushToSource);
                 }
 
                 // A source that can announce needs no frame-by-frame look.
@@ -558,6 +683,27 @@ namespace ManaUI
             if (type == typeof(string))
             {
                 return Convert.ToString(value, CultureInfo.InvariantCulture);
+            }
+
+            // Spacing from one number, or from text as a document writes it ("8, 4").
+            if (type == typeof(Thickness) || type == typeof(CornerRadius) || type == typeof(Vector2))
+            {
+                JsonNode? written = null;
+                if (value is string words)
+                {
+                    written = JsonValue.Create(words);
+                }
+                else if (IsNumber(value.GetType()))
+                {
+                    written = JsonValue.Create(Convert.ToDouble(value, CultureInfo.InvariantCulture));
+                }
+
+                if (written != null && TryConvert(written, type, theme, out var spacing, out _))
+                {
+                    return spacing;
+                }
+
+                return null;
             }
 
             try

@@ -168,7 +168,7 @@ public static class UiMarkupChecks
               { "type": "TextBlock", "bind": { "text": { "path": "Score", "mode": "TwoWay" } } }
             ] }
             """, theme, viewModelType: typeof(MenuModel));
-        Check("a path the view model does not have is reported, from its type alone", wrong.Problems.Count == 2, string.Join("; ", wrong.Problems));
+        Check("a path the view model does not have is reported, from its type alone, and an edit that cannot write back", wrong.Problems.Count == 3, string.Join("; ", wrong.Problems));
 
         var typed = UiMarkup.Load("""{ "type": "Slider", "name": "s", "bind": { "value": { "path": "Volume", "mode": "TwoWay" } } }""");
         Check("with no view model at all, bindings wait", typed.Problems.Count == 0);

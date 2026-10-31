@@ -160,6 +160,8 @@
     Contour's HUD showed one dead row. Now an outline (drag to rearrange), a preview at a chosen screen size (click,
     drag, handles; hidden elements show while selected), typed properties, bindings and commands picked from the view
     model, undo, Save As, and layouts as Project panel assets. DevPhotos/2026-10-30 ui-designer.png.
+    2026-10-31: every property row has its own bind button, placement included. Still code-only: lists that need an item
+    template (ItemsControl, TreeView, VirtualWrapPanel), so those lists are not offered for binding yet.
 
 [x] Shadows seem to be slightly off, they don't touch the ground at the same spot that the actor does.
     Claude (2026-10-07): could not reproduce. In play on the Sample Course at a low sun the character's shadow meets its feet,

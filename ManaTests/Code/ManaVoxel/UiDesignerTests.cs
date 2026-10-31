@@ -72,6 +72,143 @@ public static class UiDesignerChecks
         Files(Check);
         Bindings(Check);
         Picker(root, Check);
+        EveryProperty(Check);
+        BindButton(root, Check);
+    }
+
+    private sealed class EveryTypeViewModel
+    {
+        public string Words { get; set; } = "1";
+        public float Number { get; set; } = 3.0f;
+        public int Whole { get; set; } = 1;
+        public bool Flag { get; set; } = true;
+        public List<string> Names { get; set; } = ["a", "b"];
+        public System.Windows.Input.ICommand Go { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+        public string Fixed => "read only";
+    }
+
+    // Every control's every property: a view model can actually drive it, and the designer offers it something that fits.
+    private static void EveryProperty(Action<string, bool, string> check)
+    {
+        var model = new EveryTypeViewModel();
+        var failed = new List<string>();
+        var driven = 0;
+        foreach (var type in UiMarkup.Types.Values)
+        {
+            foreach (var property in UiMarkup.BindableProperties(type))
+            {
+                var key = UiMarkup.KeyFor(property.Name);
+                var source = typeof(EveryTypeViewModel).GetProperties().FirstOrDefault(item => item.Name != "Fixed" && UiMarkup.CanBind(item.PropertyType, property.PropertyType));
+                if (source == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    var bound = UiMarkup.Load($$"""{ "type": "{{type.Name}}", "bind": { "{{key}}": "{{source.Name}}" } }""", new UiTheme(), model);
+                    if (bound.Root == null || bound.Problems.Count > 0)
+                    {
+                        failed.Add($"{type.Name}.{key}: {string.Join("; ", bound.Problems)}");
+                    }
+
+                    driven++;
+                }
+                catch (Exception exception)
+                {
+                    failed.Add($"{type.Name}.{key} from {source.Name}: {(exception.InnerException ?? exception).Message}");
+                }
+            }
+        }
+
+        check("every property of every control takes a binding", failed.Count == 0 && driven > 200, $"{driven} bound; {string.Join(" | ", failed.Take(12))}");
+        check("a button's text is one of them", UiDesignerBindings.Targets(typeof(Button)).Contains("text"), "");
+        check("so are a button's command and its parameter", UiDesignerBindings.Targets(typeof(Button)).Contains("commandParameter"), "");
+        check("but not what only code can supply", !UiDesignerBindings.Targets(typeof(Button)).Contains("icon"), "");
+
+        var text = UiMarkup.Load("""{ "type": "Button", "bind": { "text": "Words", "isEnabled": "Flag", "margin": "Number" } }""", new UiTheme(), model);
+        var button = text.Root as Button;
+        check("a bound button's text follows the view model", button?.Text == "1" && button.IsEnabled && button.Margin.Left == 3.0f, string.Join("; ", text.Problems));
+
+        var placed = UiMarkup.Load("""{ "type": "Canvas", "children": [ { "type": "Border", "name": "one", "bind": { "canvas.left": "Number", "grid.row": "Whole", "zIndex": "Whole", "dock": "Words" } } ] }""", new UiTheme(), new EveryTypeViewModel { Words = "Top" });
+        var slot = placed.Named["one"].LayoutSlotOrNull;
+        check("a place in the parent can be bound too", slot is { CanvasLeft: 3.0f, GridRow: 1, ZIndex: 1, Dock: Dock.Top }, string.Join("; ", placed.Problems));
+
+        var grid = UiMarkup.Load("""{ "type": "Grid", "bind": { "columns": "Words" } }""", new UiTheme(), new EveryTypeViewModel { Words = "*, *" });
+        check("and a grid's columns", grid.Root is Grid { ColumnDefinitions.Count: 2 }, string.Join("; ", grid.Problems));
+
+        var combo = UiMarkup.Load("""{ "type": "ComboBox", "bind": { "selectedIndex": "Whole", "itemsSource": "Names" } }""", new UiTheme(), model);
+        check("a list fills a ComboBox, and its selection waits for the items", combo.Root is ComboBox { SelectedIndex: 1, Items.Count: 2 }, string.Join("; ", combo.Problems));
+
+        var bad = UiMarkup.Load("""{ "type": "Border", "bind": { "opacity": "Words" } }""", new UiTheme(), model);
+        check("text cannot drive a number, and the layout says so", bad.Problems.Count == 1 && bad.Problems[0].Contains("cannot drive"), string.Join("; ", bad.Problems));
+        var readOnly = UiMarkup.Load("""{ "type": "TextBox", "bind": { "text": { "path": "Fixed", "mode": "TwoWay" } } }""", new UiTheme(), model);
+        check("nor can an edit write back to what has no setter", readOnly.Problems.Count == 1 && readOnly.Problems[0].Contains("no setter"), string.Join("; ", readOnly.Problems));
+        check("a control says which targets flow back", UiMarkup.CanWriteBack(typeof(SliderBox), "value") && UiMarkup.CanWriteBack(typeof(NumericBox), "text") && !UiMarkup.CanWriteBack(typeof(TextBlock), "text"), "");
+
+        var opacity = UiDesignerBindings.Groups(typeof(EveryTypeViewModel), UiDesignerPathKind.Property, typeof(float)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
+        check("the picker lists only what fits the property", opacity.Contains("Number") && opacity.Contains("Whole") && !opacity.Contains("Words") && !opacity.Contains("Flag"), string.Join(", ", opacity));
+        var visible = UiDesignerBindings.Groups(typeof(EveryTypeViewModel), UiDesignerPathKind.Property, typeof(Visibility)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
+        check("visibility takes a flag", visible.Contains("Flag") && !visible.Contains("Number"), string.Join(", ", visible));
+        var hud = UiDesignerBindings.Groups(typeof(Contour.View.ContourHudViewModel), UiDesignerPathKind.Property, typeof(System.Collections.IEnumerable)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
+        check("a list of view models is offered to what takes a list", hud.Contains("Weapons"), string.Join(", ", hud));
+
+        var inverted = UiDesignerBindings.Write(UiDesignerBindings.Read(JsonValue.Create("Flag")) with { Invert = true });
+        check("invert is written in the long form", inverted["invert"]?.GetValue<bool>() == true, inverted.ToJsonString());
+        check("and read back, and removed", UiDesignerBindings.Read(inverted).Invert && UiDesignerBindings.Write(UiDesignerBindings.Read(inverted) with { Invert = false }) is JsonValue, "");
+    }
+
+    // The whole gesture: the row's own button, its picker, the row turned into a binding, and back.
+    private static void BindButton(UiRoot root, Action<string, bool, string> check)
+    {
+        var size = new Vector2(1200, 900);
+        void Layout()
+        {
+            root.UpdateLayout(size);
+            root.UpdateLayout(size);
+        }
+
+        void Click(UiElement element)
+        {
+            root.Input.InjectPointerMoved(element.Bounds.Center);
+            root.Input.InjectPointerPressed(element.Bounds.Center, PointerButton.Left, 0.0);
+            root.Input.InjectPointerReleased(element.Bounds.Center, PointerButton.Left);
+        }
+
+        UiDesignerDocument.Replace((JsonObject)JsonNode.Parse("""
+            { "format": "mana-ui", "id": "cc", "viewModel": "Contour", "root": { "type": "Grid", "children": [ { "type": "Button", "name": "go", "text": "Play" }, { "type": "TextBlock", "name": "blank", "bind": { "text": "Credits" } } ] } }
+            """)!, null);
+        check("the view model comes from the layout's game mode", UiDesignerDocument.ViewModelType == typeof(Contour.View.ContourHudViewModel), $"{UiDesignerDocument.ViewModelType}");
+        UiDesignerDocument.Select(UiDesignerDocument.FindNamed("go"));
+        Layout();
+        var preview = Find<UiDesignerPreview>(root.Content!)[0];
+        check("bound text with no value of its own shows its path in the preview", Find<TextBlock>(preview).Any(text => text.Text == "{Credits}"), "");
+
+        var names = Find<Button>(root.Content!).Select(button => button.Name ?? string.Empty).Where(name => name.StartsWith("bind:")).ToList();
+        check("every row has a bind button: text, placement and all", names.Contains("bind:text") && names.Contains("bind:grid.row") && names.Contains("bind:zIndex") && names.Contains("bind:visibility") && names.Contains("bind:command"), string.Join(", ", names));
+
+        var bind = Find<Button>(root.Content!).First(button => button.Name == "bind:text");
+        Click(bind);
+        Layout();
+        var rows = root.Popups.Open.SelectMany(Find<UiDesignerMemberRow>).ToList();
+        var credits = rows.FirstOrDefault(row => row.Label == "Credits");
+        check("the button opens the picker, and nothing is bound yet", credits != null && UiDesignerDocument.Selected?["bind"] == null, string.Join(", ", rows.Select(row => row.Label)));
+        if (credits == null)
+        {
+            return;
+        }
+
+        Click(credits);
+        Layout();
+        var selected = UiDesignerDocument.Selected!;
+        check("picking binds it", selected["bind"]?["text"]?.GetValue<string>() == "Credits", selected.ToJsonString());
+        check("and leaves the file's text as the design value", selected["text"]?.GetValue<string>() == "Play", "");
+        check("the row no longer offers to bind", !Find<Button>(root.Content!).Any(button => button.Name == "bind:text"), "");
+
+        var remove = Find<Button>(root.Content!).First(button => button.Text == "x");
+        Click(remove);
+        Layout();
+        check("removing it brings the plain row back", selected["bind"] == null && selected["text"]?.GetValue<string>() == "Play" && Find<Button>(root.Content!).Any(button => button.Name == "bind:text"), selected.ToJsonString());
     }
 
     private const string Sample = """

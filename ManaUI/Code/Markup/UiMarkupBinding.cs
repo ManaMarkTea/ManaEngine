@@ -69,6 +69,17 @@ namespace ManaUI
             return null;
         }
 
+        /// <summary>Whether a path ends on something that cannot be written to.</summary>
+        public static bool IsReadOnly(Type root, UiMarkupPathPart[] path)
+        {
+            if (path.Length == 0 || path[^1].Index != null || Check(root, path[..^1], out var owner, out _) != null || owner == null)
+            {
+                return false;
+            }
+
+            return Property(owner, path[^1].Name) is { } property && property.SetMethod is not { IsPublic: true };
+        }
+
         private static Type ItemType(Type list)
         {
             if (list.IsArray)
@@ -88,6 +99,96 @@ namespace ManaUI
         }
     }
 
+    /// <summary>What a "bind" entry drives: an element's property, or its place in its parent, which is not one.</summary>
+    internal sealed record UiMarkupTarget(string Name, Type Type, Func<object?> Get, Action<object?> Set)
+    {
+        /// <summary>A property a view model could hand a value to; templates and child elements come only from code.</summary>
+        public static bool CanDrive(PropertyInfo property) =>
+            property.SetMethod is { IsPublic: true } && property.GetIndexParameters().Length == 0
+            && !typeof(Delegate).IsAssignableFrom(property.PropertyType) && !typeof(UiElement).IsAssignableFrom(property.PropertyType);
+
+        public static Type? PlacementType(Type element, string key)
+        {
+            switch (key.ToLowerInvariant())
+            {
+                case "grid.row" or "grid.column" or "grid.rowspan" or "grid.columnspan" or "zindex":
+                    return typeof(int);
+                case "canvas.left" or "canvas.top" or "canvas.right" or "canvas.bottom":
+                    return typeof(float);
+                case "dock":
+                    return typeof(Dock);
+                case "columns" or "rows" when typeof(Grid).IsAssignableFrom(element):
+                    return typeof(string);
+                default:
+                    return null;
+            }
+        }
+
+        public static UiMarkupTarget? Find(UiElement element, string key)
+        {
+            var property = element.GetType().GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (property != null && CanDrive(property))
+            {
+                return new UiMarkupTarget(property.Name, property.PropertyType, () => property.GetValue(element), value => property.SetValue(element, value));
+            }
+
+            if (PlacementType(element.GetType(), key) is not { } type)
+            {
+                return null;
+            }
+
+            return new UiMarkupTarget(key, type, () => null, value => Place(element, key.ToLowerInvariant(), value));
+        }
+
+        private static void Place(UiElement element, string key, object? value)
+        {
+            var slot = element.EnsureLayoutSlot();
+            switch (key)
+            {
+                case "grid.row":
+                    slot.GridRow = (int)value!;
+                    break;
+                case "grid.column":
+                    slot.GridColumn = (int)value!;
+                    break;
+                case "grid.rowspan":
+                    slot.GridRowSpan = Math.Max(1, (int)value!);
+                    break;
+                case "grid.columnspan":
+                    slot.GridColumnSpan = Math.Max(1, (int)value!);
+                    break;
+                case "canvas.left":
+                    slot.CanvasLeft = (float)value!;
+                    break;
+                case "canvas.top":
+                    slot.CanvasTop = (float)value!;
+                    break;
+                case "canvas.right":
+                    slot.CanvasRight = (float)value!;
+                    break;
+                case "canvas.bottom":
+                    slot.CanvasBottom = (float)value!;
+                    break;
+                case "dock":
+                    slot.Dock = (Dock)value!;
+                    break;
+                case "zindex":
+                    element.ZIndex((int)value!);
+                    break;
+                case "columns" when value is string columns:
+                    ((Grid)element).SetColumns(columns);
+                    break;
+                case "rows" when value is string rows:
+                    ((Grid)element).SetRows(rows);
+                    break;
+            }
+
+            // A slot holds plain fields, so its parent has to be told it has more to lay out.
+            element.InvalidateMeasure();
+            element.Parent?.InvalidateMeasure();
+        }
+    }
+
     /// <summary>
     /// A document's "bind" entry, live: a target property kept up with a view-model path. The source announces
     /// its changes through <see cref="INotifyPropertyChanged"/>, every level of the path watched, so replacing
@@ -96,8 +197,8 @@ namespace ManaUI
     /// </summary>
     internal sealed class UiMarkupBinding : IUiBinding
     {
+        private readonly UiMarkupTarget _target;
         private readonly UiElement _element;
-        private readonly PropertyInfo _target;
         private readonly object _root;
         private readonly UiMarkupPathPart[] _path;
         private readonly BindingMode _mode;
@@ -112,7 +213,7 @@ namespace ManaUI
         private bool _disposed;
         private bool _applying;
 
-        public UiMarkupBinding(UiElement element, PropertyInfo target, object root, UiMarkupPathPart[] path, BindingMode mode, string? format, bool invert, UiTheme theme)
+        public UiMarkupBinding(UiMarkupTarget target, UiElement element, object root, UiMarkupPathPart[] path, BindingMode mode, string? format, bool invert, UiTheme theme)
         {
             _element = element;
             _target = target;
@@ -263,13 +364,13 @@ namespace ManaUI
 
             _last = value;
             _hasValue = true;
-            var converted = UiMarkup.Coerce(value, _target.PropertyType, _theme);
-            if (converted == null && _target.PropertyType.IsValueType && Nullable.GetUnderlyingType(_target.PropertyType) == null)
+            var converted = UiMarkup.Coerce(value, _target.Type, _theme);
+            if (converted == null && _target.Type.IsValueType && Nullable.GetUnderlyingType(_target.Type) == null)
             {
                 return;
             }
 
-            if (converted == null && _target.PropertyType == typeof(string))
+            if (converted == null && _target.Type == typeof(string))
             {
                 converted = string.Empty;
             }
@@ -278,7 +379,7 @@ namespace ManaUI
             _element.BeginBindingApply();
             try
             {
-                _target.SetValue(_element, converted);
+                _target.Set(converted);
             }
             finally
             {
@@ -302,7 +403,7 @@ namespace ManaUI
                 return;
             }
 
-            var value = _target.GetValue(_element);
+            var value = _target.Get();
             if (_invert && value is bool flag)
             {
                 value = !flag;
@@ -399,37 +500,49 @@ namespace ManaUI
     /// </summary>
     internal static class UiMarkupEdits
     {
-        public static bool TryHook(UiElement element, string property, bool onCommit, Action changed)
+        private sealed record Edit(Type Control, string Property, Action<UiElement, Action> Attach);
+
+        private static Edit On<T>(string property, Action<T, Action> attach) where T : UiElement =>
+            new(typeof(T), property, (element, changed) => attach((T)element, changed));
+
+        private static readonly Edit[] Edits =
+        [
+            On<Slider>("value", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<NumericBox>("value", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<SliderBox>("value", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<CheckBox>("ischecked", (control, changed) => control.CheckedChanged += (_, _) => changed()),
+            On<ComboBox>("selectedindex", (control, changed) => control.SelectionChanged += (_, _) => changed()),
+            On<TabView>("selectedindex", (control, changed) => control.SelectionChanged += (_, _) => changed()),
+            On<Expander>("isexpanded", (control, changed) => control.ExpandedChanged += (_, _) => changed()),
+            On<ColorField>("color", (control, changed) => control.ColorChanged += (_, _) => changed()),
+            On<ColorPicker>("color", (control, changed) => control.ColorChanged += (_, _) => changed()),
+            On<ColorSpectrum>("color", (control, changed) => control.ColorChanged += (_, _) => changed()),
+            On<VectorBox>("vector", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<VectorBox>("value", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<VectorBox>("value2", (control, changed) => control.ValueChanged += (_, _) => changed()),
+            On<ScrollViewer>("offset", (control, changed) => control.ScrollChanged += (_, _) => changed()),
+            On<ResizablePanel>("size", (control, changed) => control.SizeChanged += (_, _) => changed()),
+            On<UiWindow>("position", (control, changed) => control.Dragging += (_, _) => changed()),
+            On<TextBox>("text", (control, changed) => control.TextChanged += (_, _) => changed())
+        ];
+
+        private static Edit? Find(Type type, string property)
         {
-            switch (element, property.ToLowerInvariant())
+            var key = property.ToLowerInvariant();
+            return Edits.FirstOrDefault(edit => edit.Property == key && edit.Control.IsAssignableFrom(type));
+        }
+
+        public static bool CanHook(Type type, string property) => Find(type, property) != null;
+
+        public static void Hook(UiElement element, string property, bool onCommit, Action changed)
+        {
+            if (onCommit && element is TextBox text && property.Equals("text", StringComparison.OrdinalIgnoreCase))
             {
-                case (Slider slider, "value"):
-                    slider.ValueChanged += (_, _) => changed();
-                    return true;
-                case (NumericBox box, "value"):
-                    box.ValueChanged += (_, _) => changed();
-                    return true;
-                case (CheckBox check, "ischecked"):
-                    check.CheckedChanged += (_, _) => changed();
-                    return true;
-                case (ComboBox combo, "selectedindex"):
-                    combo.SelectionChanged += (_, _) => changed();
-                    return true;
-                case (Expander expander, "isexpanded"):
-                    expander.ExpandedChanged += (_, _) => changed();
-                    return true;
-                case (ColorField field, "color"):
-                    field.ColorChanged += (_, _) => changed();
-                    return true;
-                case (TextBox text, "text") when onCommit:
-                    text.TextCommitted += (_, _) => changed();
-                    return true;
-                case (TextBox text, "text"):
-                    text.TextChanged += (_, _) => changed();
-                    return true;
-                default:
-                    return false;
+                text.TextCommitted += (_, _) => changed();
+                return;
             }
+
+            Find(element.GetType(), property)?.Attach(element, changed);
         }
     }
 }
