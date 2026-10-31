@@ -339,9 +339,9 @@ namespace ManaUI
         /// <summary>Device pixels to a logical one, set by the root each frame; nine-slices snap their seams to it.</summary>
         public float PixelScale { get; set; } = 1.0f;
 
-        public void DrawImage(UiRect rect, Vector4 uv, Vector4 tint, CornerRadius corners)
+        public void DrawImage(UiRect rect, Vector4 uv, Vector4 tint, CornerRadius corners, float rotation = 0.0f)
         {
-            Add(rect, corners, tint, UiColor.Transparent, 0.0f, uv, ManaUiInstanceFlags.Texture);
+            Add(rect, corners, tint, UiColor.Transparent, 0.0f, uv, ManaUiInstanceFlags.Texture, gradientTo: null, rotation: rotation);
         }
 
         /// <summary>

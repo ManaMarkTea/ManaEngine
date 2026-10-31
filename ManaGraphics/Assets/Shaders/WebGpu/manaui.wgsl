@@ -132,6 +132,15 @@ fn vs_main(
 
     output.local_position = position;
     output.uv = mix(instance.uv.xy, instance.uv.zw, corner);
+
+    // A turned picture turns with its box: where this corner of the larger quad falls in the box's own frame.
+    // Past the box's edge the uv runs off the picture, but the box's coverage is zero there.
+    if (instance.rotation != 0.0) {
+        let offset = position - centre;
+        let in_box = vec2<f32>(offset.x * cos_r + offset.y * sin_r, offset.y * cos_r - offset.x * sin_r);
+        let across = in_box / max(half_extent * 2.0, vec2<f32>(0.0001)) + vec2<f32>(0.5);
+        output.uv = mix(instance.uv.xy, instance.uv.zw, across);
+    }
     output.rect = instance.rect;
     output.corners = instance.corners;
     output.clip = instance.clip;

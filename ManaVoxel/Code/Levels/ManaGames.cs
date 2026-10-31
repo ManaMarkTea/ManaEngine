@@ -46,7 +46,7 @@ namespace ManaVoxel.Code.Levels
                 return ManaGridMapNode.LoadAsset(ManaGridMapNode.AssetOf(asset), context.World, into);
             };
             // Building pictures for the Foundry hotbar: the editor's own CPU thumbnail renderer, on a throwaway world.
-            Foundry.View.FoundryIcons.Renderer = asset =>
+            Func<string, byte[]?> renderThumbnail = asset =>
             {
                 var world = new Mana.ManaWorld();
                 var context = new Mana.Code.ManaContext(null!, null!, world) { DeferGpuUploads = true };
@@ -56,6 +56,14 @@ namespace ManaVoxel.Code.Levels
                     : asset;
                 return MeshThumbnailCache.GenerateViaCpuStandalone(context, path);
             };
+            Foundry.View.FoundryIcons.Renderer = renderThumbnail;
+
+            // Not in the browser, whose one thread would stall in the middle of a fight to draw it.
+            if (!OperatingSystem.IsBrowser())
+            {
+                Contour.View.ContourPortrait.Renderer = renderThumbnail;
+            }
+
             ManaLevelGameModes.Register(new ManaLevelGameModes.Definition
             {
                 Type = FoundryMode.ModeType,

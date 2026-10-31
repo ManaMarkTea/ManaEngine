@@ -28,6 +28,32 @@ namespace ManaUI
         private UiImageFit _fit = UiImageFit.Contain;
         private Vector4 _tint = UiColor.White;
         private CornerRadius _corners;
+        private string? _picture;
+        private float _rotation;
+
+        /// <summary>A picture by path, as a layout file names one; found through <see cref="UiPictures"/>.</summary>
+        public string? Picture
+        {
+            get => _picture;
+            set
+            {
+                if (_picture == value)
+                {
+                    return;
+                }
+
+                _picture = value;
+                SourceSize = Vector2.Zero;
+                InvalidateVisual();
+            }
+        }
+
+        /// <summary>Turned about its centre, in radians, clockwise.</summary>
+        public float Rotation
+        {
+            get => _rotation;
+            set => SetVisualProperty(ref _rotation, value);
+        }
 
         /// <summary>Region of the atlas to draw, as u0, v0, u1, v1.</summary>
         public Vector4 SourceUv
@@ -85,8 +111,18 @@ namespace ManaUI
             return this;
         }
 
+        // Looked for whenever it is needed: the atlas can be reset, and a picture may not be ready the first time.
+        private void FindPicture()
+        {
+            if (UiPictures.Get(this, _picture) is { } found)
+            {
+                SetSource(found.Uv, found.Size);
+            }
+        }
+
         protected override Vector2 MeasureOverride(Vector2 availableSize)
         {
+            FindPicture();
             if (!HasSource)
             {
                 return Vector2.Zero;
@@ -123,6 +159,7 @@ namespace ManaUI
 
         protected override void OnRender(ManaUiDrawList drawList)
         {
+            FindPicture();
             if (!HasSource)
             {
                 return;
@@ -135,7 +172,7 @@ namespace ManaUI
                 drawList.PushClip(Bounds);
             }
 
-            drawList.DrawImage(DestinationRect(), _sourceUv, _tint, _corners);
+            drawList.DrawImage(DestinationRect(), _sourceUv, _tint, _corners, _rotation);
 
             if (clipped)
             {

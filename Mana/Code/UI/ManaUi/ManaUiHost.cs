@@ -23,6 +23,7 @@ namespace Mana.Code.UI.ManaUi
             ArgumentNullException.ThrowIfNull(window);
 
             _window = window;
+            ManaUiPictures.Install();
 
             Fonts = new ManaFontManager(images: images);
             foreach (var directory in GetFontDirectories())

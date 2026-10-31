@@ -114,8 +114,8 @@ def publish(root, output):
                 raise ValueError(f"Duplicate asset path: {path}")
             sources[path] = source
 
-    # A game's own models and sounds (Games/<Name>/Content/Models, /Audio) are referenced by their repo path, as on desktop.
-    for folder in ("Models", "Audio"):
+    # A game's own models, sounds and HUD pictures (Games/<Name>/Content/Models, /Audio, /UI/Pictures) are referenced by their repo path, as on desktop.
+    for folder in ("Models", "Audio", "UI/Pictures"):
         for source in sorted(root.glob(f"Games/*/Content/{folder}/**/*")):
             if source.is_file():
                 sources[source.relative_to(root).as_posix()] = source

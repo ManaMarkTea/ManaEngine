@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
@@ -53,18 +54,19 @@ namespace ManaUI
         /// <summary>The element types a document may use, by name: ManaUI's own, and any registered.</summary>
         public static IReadOnlyDictionary<string, Type> Types => TypeTable.Value;
 
-        private static readonly Lazy<Dictionary<string, Type>> TypeTable = new(() =>
+        // Concurrent: a game registers its own elements as its assembly loads, whenever that is.
+        private static readonly Lazy<ConcurrentDictionary<string, Type>> TypeTable = new(() => new ConcurrentDictionary<string, Type>(
             typeof(UiElement).Assembly.GetTypes()
                 .Where(type => typeof(UiElement).IsAssignableFrom(type) && !type.IsAbstract && type.IsPublic
                     && type.GetConstructor(Type.EmptyTypes) != null)
                 .GroupBy(type => type.Name)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase));
+                .ToDictionary(group => group.Key, group => group.First()), StringComparer.OrdinalIgnoreCase));
 
         /// <summary>The types offered for new elements in an editor: the everyday ones, containers first.</summary>
         public static readonly string[] CommonTypes =
         [
-            "StackPanel", "Grid", "WrapPanel", "DockPanel", "Canvas", "Border", "ScrollViewer",
-            "TextBlock", "Button", "CheckBox", "TextBox", "NumericBox", "Slider", "ComboBox", "ProgressBar", "Expander"
+            "StackPanel", "Grid", "WrapPanel", "DockPanel", "Canvas", "Border", "PictureFrame", "ScrollViewer",
+            "TextBlock", "UiImage", "Button", "CheckBox", "TextBox", "NumericBox", "Slider", "ComboBox", "ProgressBar", "Expander"
         ];
 
         public static void Register(Type type)
