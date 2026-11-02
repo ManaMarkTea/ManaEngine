@@ -44,7 +44,20 @@ namespace Mana.Code.GameModes
         public virtual bool DrivesPlayerCharacter => false;
 
         /// <summary>The on-screen controls a touch device shows while this mode runs.</summary>
-        public virtual ManaTouchControls TouchControls => ManaTouchControls.Stick;
+        public virtual ManaTouchControls TouchControls
+        {
+            get
+            {
+                if (WantsPlayerCharacter)
+                {
+                    return ManaTouchControls.Stick;
+                }
+                return ManaTouchControls.Pointer;
+            }
+        }
+
+        /// <summary>The window this mode's HUD was laid out for; smaller ones draw it scaled to fit. Null lays it out at any size.</summary>
+        public virtual Vector2? UiDesignSize => null;
 
         /// <summary>
         /// Whether the editor's floor stays while playing in the editor. A level built on it keeps it; a mode that
@@ -136,7 +149,13 @@ namespace Mana.Code.GameModes
         Stick,
 
         /// <summary>Nothing on screen: swipes left, right, up and down press the arrow keys -- a runner's lanes, jump and duck.</summary>
-        Swipe
+        Swipe,
+
+        /// <summary>Nothing on screen: a finger is the mouse and a pinch the wheel -- boards and menus.</summary>
+        Pointer,
+
+        /// <summary>A stick to move, a stick that aims and fires (<see cref="ManaPlaySession.TouchAim"/>) and buttons -- a twin-stick shooter.</summary>
+        TwinStick
     }
 
     /// <summary>What a running mode is given: the world, the host's view of input, and a way out.</summary>
@@ -163,6 +182,9 @@ namespace Mana.Code.GameModes
 
         /// <summary>Running as the game on its own (<c>--play</c>) rather than inside the editor.</summary>
         public bool Standalone { get; }
+
+        /// <summary>The aiming stick of <see cref="ManaTouchControls.TwinStick"/>, up to length 1 in screen directions; zero when not held.</summary>
+        public Vector2 TouchAim { get; set; }
 
         /// <summary>The script runner when a <c>--command-file</c> is driving the run, for a mode's own commands.</summary>
         public ManaCommandRunner? Commands { get; set; }
@@ -191,10 +213,29 @@ namespace Mana.Code.GameModes
         /// <summary>A mode moves the character itself: the host leaves it unpossessed.</summary>
         public static bool AnyDrivesPlayerCharacter(IEnumerable<ManaLevelGameMode> modes) => modes.Any(mode => mode.DrivesPlayerCharacter);
 
-        /// <summary>The touch controls the running modes want: swipes if any asks for them.</summary>
-        public ManaTouchControls TouchControls => _running.Any(mode => mode.TouchControls == ManaTouchControls.Swipe)
-            ? ManaTouchControls.Swipe
-            : ManaTouchControls.Stick;
+        /// <summary>The touch controls the running modes want.</summary>
+        public ManaTouchControls TouchControls => TouchControlsFor(_running);
+
+        /// <summary>The most specific any mode asks for; with no mode at all, the stick that flies the free camera.</summary>
+        public static ManaTouchControls TouchControlsFor(IReadOnlyCollection<ManaLevelGameMode> modes)
+        {
+            foreach (var scheme in new[] { ManaTouchControls.Swipe, ManaTouchControls.TwinStick, ManaTouchControls.Stick })
+            {
+                if (modes.Any(mode => mode.TouchControls == scheme))
+                {
+                    return scheme;
+                }
+            }
+
+            if (modes.Count == 0)
+            {
+                return ManaTouchControls.Stick;
+            }
+
+            return ManaTouchControls.Pointer;
+        }
+
+        public Vector2? UiDesignSize => _running.Select(mode => mode.UiDesignSize).FirstOrDefault(size => size != null);
 
         /// <summary>Asks the running modes to start over; true when one did, so the host need not.</summary>
         public bool Restart()

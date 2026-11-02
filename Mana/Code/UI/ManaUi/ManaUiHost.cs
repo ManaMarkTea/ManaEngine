@@ -99,6 +99,9 @@ namespace Mana.Code.UI.ManaUi
 
         private double _scaleCheckedAt = double.NegativeInfinity;
 
+        /// <summary>The window a layout was made for: smaller windows, phones above all, draw it scaled down to fit rather than overlapping itself.</summary>
+        public Vector2? DesignSize { get; set; }
+
         // The display's scale (150% on Windows -> 1.5; Retina is already covered by the framebuffer ratio), asked
         // of GLFW a few times a second rather than every frame, so dragging to another monitor follows it.
         private void UpdateScreenScale()
@@ -111,6 +114,11 @@ namespace Mana.Code.UI.ManaUi
 
             _scaleCheckedAt = now;
             var scale = Math.Clamp(QueryDisplayScale() * UserScale, 0.5f, 4.0f);
+            if (DesignSize is { } design && _window.Size.X > 0 && _window.Size.Y > 0)
+            {
+                scale = Math.Min(scale, Math.Min(_window.Size.X / design.X, _window.Size.Y / design.Y));
+            }
+
             if (MathF.Abs(scale - Root.ScreenScale) > 0.01f)
             {
                 Root.ScreenScale = scale;

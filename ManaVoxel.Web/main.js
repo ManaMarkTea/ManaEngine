@@ -206,7 +206,7 @@ function installPauseMenu(game, graphics) {
     const menu = document.getElementById('manaMenu');
     const hint = document.getElementById('manaHint');
     let ready = false;
-    const touchReady = installTouchControls(graphics, () => setOpen(true));
+    const touchReady = installTouchControls(graphics, () => setOpen(true), game);
 
     // Playable once the loading screen has gone; before that there is nothing to pause.
     const hide = globalThis.ManaLoading.hide;

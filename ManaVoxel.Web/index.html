@@ -282,6 +282,34 @@
       user-select: none; -webkit-user-select: none;
     }
     #manaTouch button, #manaLook { pointer-events: auto; touch-action: none; }
+    /* What each scheme puts up; touch-controls.js has the list. Menu is always there. */
+    #manaTouch #manaMove, #manaTouch #manaLook, #manaTouch #manaAim, #manaTouch #manaTouchActions, #manaTouch #manaTwinButtons, #manaTouch #manaTouchCamera { display: none; }
+    #manaTouch[data-scheme="stick"] #manaMove, #manaTouch[data-scheme="stick"] #manaTouchCamera { display: block; }
+    #manaTouch[data-scheme="stick"] #manaLook { display: grid; }
+    #manaTouch[data-scheme="stick"] #manaTouchActions { display: flex; }
+    #manaTouch[data-scheme="twin"] #manaMove, #manaTouch[data-scheme="twin"] #manaAim { display: block; bottom: 104px; }
+    #manaTouch[data-scheme="twin"] #manaTwinButtons { display: grid; }
+    #manaAim {
+      position: absolute; right: max(20px, env(safe-area-inset-right)); width: 128px; height: 128px;
+      border-radius: 50% !important; border-color: rgba(255, 150, 120, 0.6) !important;
+    }
+    #manaAimKnob {
+      position: absolute; width: 44px; height: 44px; top: 41px; left: 41px;
+      border-radius: 50%; background: rgba(255, 150, 120, 0.45); pointer-events: none;
+    }
+    #manaTwinButtons {
+      position: absolute; right: calc(max(20px, env(safe-area-inset-right)) + 140px); bottom: 104px;
+      grid-template-columns: repeat(2, auto); gap: 6px;
+    }
+    #manaTwinButtons button { min-height: 40px; min-width: 62px; }
+    /* Games with their own panels in the top right corner keep Menu clear of them, and a phone has no room for the build stamp. */
+    #manaTouch:not([data-scheme="stick"]) #manaTouchTop { right: auto; left: max(12px, env(safe-area-inset-left)); top: 90px; }
+    .mana-touch-play #manaEngineVersion, .mana-touch-play #manaGpuInfo { display: none !important; }
+    #manaRotate[hidden] { display: none; }
+    #manaRotate {
+      position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; text-align: center; padding: 24px;
+      color: #DFE1E5; background: #0A0C14; font: 600 20px/1.4 system-ui, sans-serif;
+    }
     #manaTouch button {
       color: #DFE1E5; background: rgba(25, 28, 36, 0.7);
       border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 24px;
@@ -425,8 +453,15 @@
     <button id="manaMove" aria-label="Move: drag in the direction you want to walk"><span id="manaMoveKnob"></span></button>
     <div id="manaLook" aria-label="Drag to look around">Drag to look</div>
     <div id="manaTouchActions"><button id="manaTouchRun">Run</button><button id="manaTouchJump">Jump</button></div>
+    <button id="manaAim" aria-label="Aim and fire: drag in the direction you want to shoot"><span id="manaAimKnob"></span></button>
+    <div id="manaTwinButtons">
+      <button data-key="ShiftLeft">Boost</button><button data-key="Space">Lock</button>
+      <button data-key="KeyE">Weapon</button><button data-key="KeyT">Turret</button>
+      <button data-key="Enter">Launch</button>
+    </div>
     <div id="manaTouchTop"><button id="manaTouchCamera">Camera</button><button id="manaTouchMenu">Menu</button></div>
   </div>
+  <div id="manaRotate" hidden>Turn your phone sideways to play</div>
 
   <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
     <div class="mana-card">

@@ -27,6 +27,26 @@ namespace ManaVoxel.Web
 
         /// <summary>A running mode takes Escape for itself (its own pause), so the page's menu leaves it alone.</summary>
         public bool ModeHandlesEscape => _gameModes.HandlesExitKeys;
+
+        public string TouchControlsName => _gameModes.TouchControls switch
+        {
+            Mana.Code.GameModes.ManaTouchControls.Swipe => "swipe",
+            Mana.Code.GameModes.ManaTouchControls.Pointer => "pointer",
+            Mana.Code.GameModes.ManaTouchControls.TwinStick => "twin",
+            _ => "stick"
+        };
+
+        public bool PrefersLandscape => _gameModes.UiDesignSize != null;
+
+        public void SetTouchAim(Vector2 aim)
+        {
+            if (_playSession != null)
+            {
+                _playSession.TouchAim = aim;
+            }
+        }
+
+        private Mana.Code.GameModes.ManaPlaySession? _playSession;
         private ManaPawnController? _pawnController;
         private ManaPawnNode? _player;
 
@@ -332,8 +352,9 @@ namespace ManaVoxel.Web
             }
 
             // A mode's Quit goes back to the level selector: there is no window to close.
-            _gameModes.Begin(modes, new Mana.Code.GameModes.ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard,
-                () => _exitRequested = true, standalone: true));
+            _playSession = new Mana.Code.GameModes.ManaPlaySession(Context, () => UiWantsMouse, () => UiWantsKeyboard,
+                () => _exitRequested = true, standalone: true);
+            _gameModes.Begin(modes, _playSession);
         }
 
         private bool _dismissedLoadingScreen;
@@ -362,6 +383,10 @@ namespace ManaVoxel.Web
         public override void Update(double deltaTime)
         {
             _gameModes.Tick((float)deltaTime);
+            if (ManaUi != null)
+            {
+                ManaUi.DesignSize = _gameModes.UiDesignSize;
+            }
             if (_exitRequested)
             {
                 _exitRequested = false;

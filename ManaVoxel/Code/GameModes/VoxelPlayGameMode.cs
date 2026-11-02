@@ -651,6 +651,10 @@ namespace Mana.Code.GameModes
             EnsureCommandRunner();
             _commandRunner?.Tick();
             _gameModes.Tick((float)deltaTime);
+            if (ManaUi != null)
+            {
+                ManaUi.DesignSize = _gameModes.UiDesignSize;
+            }
             if (_exitRequested)
             {
                 Context.Window.Close();

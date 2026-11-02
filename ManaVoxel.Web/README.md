@@ -100,9 +100,12 @@ and a stack trace in a console nobody had open.
 
 ## Controls
 
-Phones show a movement stick, a drag-to-look pad, and Jump, Run, Camera, and Menu buttons.
-Movement, looking, and actions support separate fingers at the same time. Pausing, rotating,
-or backgrounding the page releases held controls. FPS appears at the upper left during play.
+Phones show what the level's game modes ask for (`ManaLevelGameMode.TouchControls`, `touch-controls.js`), with a Menu
+button always: a movement stick, a drag-to-look pad, and Jump, Run and Camera for a character walking about; nothing but
+swipes for arrow keys and taps for clicks for a runner; a finger as the mouse and a pinch as the wheel for boards and menus;
+a move stick, an aim-and-fire stick and the game's buttons for a twin-stick game (Contour). A mode can change scheme as it
+goes, and `UiDesignSize` scales its HUD down to fit a small screen. Movement, looking, and actions support separate fingers
+at the same time. Pausing, rotating, or backgrounding the page releases held controls. FPS appears at the upper left during play.
 
 | Input | Action |
 |---|---|
