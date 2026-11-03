@@ -619,6 +619,9 @@ namespace ManaPixelFx.Core
         /// <summary>Where it has been, for a smoke trail.</summary>
         public List<TrailPoint>? Pts;
 
+        /// <summary>A faceted rock's outline: a radius per vertex (impacts' rockShape).</summary>
+        public double[]? Shape;
+
         /// <summary>Anything else an effect keeps on a piece.</summary>
         public object? Tag;
     }

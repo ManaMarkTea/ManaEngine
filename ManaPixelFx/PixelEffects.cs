@@ -1,6 +1,7 @@
 using ManaPixelFx.Core;
 using ManaPixelFx.Effects.Explosions;
 using ManaPixelFx.Effects.Fire;
+using ManaPixelFx.Effects.Impacts;
 
 namespace ManaPixelFx
 {
@@ -26,6 +27,14 @@ namespace ManaPixelFx
             new PlasmaExplosion(),
             new Nuke(),
             new SmokeBomb(),
+            new HitSpark(),
+            new BluntHit(),
+            new BulletImpact(),
+            new CritHit(),
+            new ImpactFrame(),
+            new GroundSlam(),
+            new Parry(),
+            new Ricochet(),
         }.ToDictionary(effect => effect.Meta.Id, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The effects in id order (category, then name).</summary>
