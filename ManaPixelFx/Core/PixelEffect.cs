@@ -5,6 +5,9 @@ namespace ManaPixelFx.Core
     {
         public required string Id { get; init; }
         public required string Name { get; init; }
+
+        /// <summary>What it looks like and how it moves, in pixelfx's words.</summary>
+        public string Description { get; init; } = string.Empty;
         public required (int W, int H) Size { get; init; }
 
         /// <summary>The effect's origin on its canvas, from the top left: usually where it stands on the floor.</summary>

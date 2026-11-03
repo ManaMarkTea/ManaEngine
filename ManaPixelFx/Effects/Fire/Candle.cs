@@ -28,6 +28,7 @@ namespace ManaPixelFx.Effects.Fire
         {
             Id = "fire/candle",
             Name = "Candle",
+            Description = "A wax candle in a brass dish: a calm flame with a blue root that sways and stretches, a halo of light, motes drifting in it, a bead of wax running down a drip.",
             Size = (56, 76),
             Origin = (28, 64),
             Duration = D,

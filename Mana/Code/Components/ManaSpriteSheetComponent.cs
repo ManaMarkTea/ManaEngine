@@ -31,6 +31,8 @@ namespace Mana.Code.Components
 
         private double _seconds;
         private string? _playedAnimation;
+        private MeshRendererComponent? _light;
+        private string? _lightKey;
 
         public ManaSpriteSheetComponent(ManaSceneNode owner) : base(owner)
         {
@@ -44,10 +46,84 @@ namespace Mana.Code.Components
 
         protected override int CurrentFrame => PlayingFrame ?? Frame;
 
+        // A sheet with a light layer is soft art -- glow, smoke -- so it blends rather than cutting out at half.
+        protected override ManaCore.Graphics.ManaOpacityMode OpacityMode
+        {
+            get
+            {
+                if (Asset is { Light.Length: > 0 })
+                {
+                    return ManaCore.Graphics.ManaOpacityMode.Blend;
+                }
+                return ManaCore.Graphics.ManaOpacityMode.Cutout;
+            }
+        }
+
         public override void UpdateComponent()
         {
             Advance(ManaTime.GlobalTime.DeltaTime.TotalSeconds);
             base.UpdateComponent();
+            SyncLight();
+        }
+
+        /// <summary>
+        /// The sheet's light (a baked pixel effect's glow) as a second quad added over the picture, on the same frame:
+        /// the GPU blends the colour and adds the light, as a live effect's are.
+        /// </summary>
+        private void SyncLight()
+        {
+            var quad = SpriteQuad;
+            var sheet = Asset;
+            string? picture = null;
+            if (quad != null && sheet is { Light.Length: > 0 })
+            {
+                picture = ManaSpritePictures.Resolve(sheet.Light);
+            }
+            if (picture == null || sheet == null || quad == null)
+            {
+                RemoveLight();
+                return;
+            }
+
+            var key = $"{picture}|{sheet.Columns}|{sheet.Rows}|{sheet.PixelsPerUnit}|{sheet.PivotPoint}|{Tint}|{PixelArt}";
+            if (key != _lightKey || _light == null)
+            {
+                RemoveLight();
+                var columns = Math.Max(1, sheet.Columns);
+                var rows = Math.Max(1, sheet.Rows);
+                // A millimetre nearer the camera, so the light sorts after the colour it lands on.
+                var mesh = new Shapes.ManaSpriteMesh(Owner.Context, picture, null, FrameSize(picture, columns, rows, sheet.PixelsPerUnit), sheet.PivotPoint, Tint, PixelArt, 0.001f);
+                mesh.Materials[0].Unlit = true;
+                mesh.Materials[0].OpacityMode = ManaCore.Graphics.ManaOpacityMode.Additive;
+                _light = new MeshRendererComponent(Owner, mesh);
+                lock (Owner.Context.World.SceneLock)
+                {
+                    Owner.Components.Add(_light);
+                }
+                _lightKey = key;
+            }
+            _light.Material.UvScale = quad.Material.UvScale;
+            _light.Material.UvOffset = quad.Material.UvOffset;
+        }
+
+        public override void OnRemoved()
+        {
+            base.OnRemoved();
+            RemoveLight();
+        }
+
+        private void RemoveLight()
+        {
+            if (_light == null)
+            {
+                return;
+            }
+            lock (Owner.Context.World.SceneLock)
+            {
+                Owner.Components.Remove(_light);
+            }
+            _light = null;
+            _lightKey = null;
         }
 
         /// <summary>Steps the animation on; restarted whenever a different one is asked for.</summary>

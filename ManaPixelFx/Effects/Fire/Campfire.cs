@@ -44,6 +44,7 @@ namespace ManaPixelFx.Effects.Fire
         {
             Id = "fire/campfire",
             Name = "Campfire",
+            Description = "Crossed logs on a bed of coals and a lively fire: tongues that lick and leap, popping sparks, embers drifting up, smoke curling off, a warm pool of light.",
             Size = (128, 128),
             Origin = (64, 112),
             Duration = D,

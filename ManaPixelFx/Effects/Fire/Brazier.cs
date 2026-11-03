@@ -36,6 +36,7 @@ namespace ManaPixelFx.Effects.Fire
         {
             Id = "fire/brazier",
             Name = "Brazier",
+            Description = "An iron bowl on a tripod heaped with glowing coals and a big roaring fire, sparks and embers streaming up off it, light on the iron and the floor.",
             Size = (112, 148),
             Origin = (56, 136),
             Duration = D,

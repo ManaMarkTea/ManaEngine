@@ -1,22 +1,62 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
-using Mana.Code.Content;
+using System.Text.Json;
 using Mana.Code.Nodes;
 using ManaPixelFx;
 using ManaPixelFx.Core;
 
 namespace Mana.Code.Components
 {
-    /// <summary>
-    /// Plays a pixel art effect -- a torch, an explosion, a pickup sparkle -- from the pixelfx library. An effect
-    /// ported to C# (ManaPixelFx) is drawn live, so each one can have its own seed, palette and glow; the rest play
-    /// from the sheet Tools/PixelFx/import_pixelfx.mjs made of them (Content/Sprites/PixelFx/). Loops play on and on;
-    /// a one-shot plays, waits <see cref="RepeatDelay"/> and plays again, or once when <see cref="Repeat"/> is off.
-    /// <see cref="ManaPixelFxSpawner.Spawn"/> puts one in the world from code and takes it away when it is done.
-    /// </summary>
-    public sealed class ManaPixelFxComponent : ManaSpriteBase
+    /// <summary>Which point of a pixel effect sits on its node.</summary>
+    public enum PixelFxAnchor
     {
-        [AssetKind(ManaSpriteSheet.Extension), Category("Effect")]
-        public ManaAssetRef Effect { get; set; } = ManaAssetRef.None;
+        /// <summary>The lowest pixel it draws over a whole run: a torch, a brazier or a candle stands on the node.</summary>
+        Bottom,
+
+        /// <summary>pixelfx's own origin: the floor under a ground effect, a wall torch's bracket, an explosion's heart.</summary>
+        Origin,
+    }
+
+    /// <summary>
+    /// Plays a pixel art effect from the pixelfx library, ported to C# (ManaPixelFx) and drawn live: its options --
+    /// palette ramps, seed, sizes -- are the effect's own, changed per instance in <see cref="Options"/>. Loops play on
+    /// and on; a one-shot plays, waits <see cref="RepeatDelay"/> and plays again, or once when <see cref="Repeat"/> is
+    /// off. The Inspector bakes one into a sprite sheet. <see cref="ManaPixelFxSpawner.Spawn"/> plays one from code.
+    /// </summary>
+    public sealed class ManaPixelFxComponent : ManaComponent
+    {
+        // A run's measured bounds, per effect and shape-changing options: drawing a run to measure it costs a few
+        // dozen milliseconds, and recolouring never moves a pixel.
+        private static readonly ConcurrentDictionary<string, (PixelBounds Color, PixelBounds All)> Bounds = new();
+
+        private Dictionary<string, JsonElement> _options = new(StringComparer.Ordinal);
+        private int _optionsRevision;
+        private double _seconds;
+        private bool _removing;
+        private bool _facing;
+        private ManaPixelFxLive? _live;
+        private string? _liveKey;
+
+        public ManaPixelFxComponent(ManaSceneNode owner) : base(owner)
+        {
+            Name = "Pixel FX";
+        }
+
+        /// <summary>The effect, by its pixelfx id: "fire/torch". <see cref="PixelEffects"/> lists them.</summary>
+        [Category("Effect")]
+        public string Effect { get; set; } = "fire/torch";
+
+        /// <summary>The effect's own options changed on this one (palette, seed, height...); the rest keep their defaults.</summary>
+        [Category("Effect"), Browsable(false)]
+        public Dictionary<string, JsonElement> Options
+        {
+            get => _options;
+            set
+            {
+                _options = new Dictionary<string, JsonElement>(value ?? new Dictionary<string, JsonElement>(), StringComparer.Ordinal);
+                _optionsRevision++;
+            }
+        }
 
         [Category("Effect")]
         public bool Playing { get; set; } = true;
@@ -36,24 +76,27 @@ namespace Mana.Code.Components
         [Category("Effect")]
         public float Delay { get; set; }
 
-        /// <summary>Turn about the up axis to face the camera, as flat effects in a 3D world should; side-on 2D faces it anyway.</summary>
-        [Category("Effect")]
+        /// <summary>Which of its points stands on the node.</summary>
+        [Category("Placement")]
+        public PixelFxAnchor Anchor { get; set; } = PixelFxAnchor.Bottom;
+
+        /// <summary>Turn about the up axis to face the camera, as flat effects in a 3D world should; off, the node's own turn.</summary>
+        [Category("Placement")]
         public bool FaceCamera { get; set; } = true;
 
-        /// <summary>Draw a ported effect live rather than from its sheet; off, or not ported yet, plays the sheet.</summary>
-        [Category("Live")]
-        public bool Live { get; set; } = true;
+        /// <summary>Its pixels a metre: 20 stands pixelfx's 38 px character about 1.9 m tall.</summary>
+        [Category("Placement")]
+        public float PixelsPerUnit { get; set; } = 20.0f;
 
-        /// <summary>A different take on a live effect; 0 keeps the effect's own.</summary>
-        [Category("Live")]
-        public int Seed { get; set; }
+        /// <summary>Mirror it left to right: a directional effect facing left.</summary>
+        [Category("Look")]
+        public bool FlipX { get; set; }
 
-        /// <summary>Recolours a live effect: a pixelfx ramp by name (ice, arcane, holy, poison, neon...); empty keeps its own.</summary>
-        [Category("Live")]
-        public string Palette { get; set; } = string.Empty;
+        [Category("Look")]
+        public Vector4 Tint { get; set; } = Vector4.One;
 
-        /// <summary>How strongly a live effect's light shines (pixelfx's light option); above 1 blooms more.</summary>
-        [Category("Live")]
+        /// <summary>How strongly its light shines (pixelfx's light option); above 1 blooms more.</summary>
+        [Category("Look")]
         public float Glow { get; set; } = 1.0f;
 
         /// <summary>Take the node away once a one-shot is over -- for effects spawned in play. Never saved.</summary>
@@ -64,36 +107,83 @@ namespace Mana.Code.Components
         [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
         public bool Done { get; private set; }
 
-        /// <summary>The ported effect drawing this one live, or null while it plays from its sheet.</summary>
+        /// <summary>Seconds into the effect it shows now, or null while nothing shows (waiting to start, between repeats, over).</summary>
         [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
-        public PixelEffect? LiveEffect => _live?.Effect;
+        public double? ShownAt { get; private set; }
 
-        private double _seconds;
-        private int _frame;
-        private bool _removing;
-        private ManaPixelFxLive? _live;
-        private string? _liveKey;
-        private MeshRendererComponent? _sheetLight;
-        private string? _sheetLightKey;
-
-        public ManaPixelFxComponent(ManaSceneNode owner) : base(owner)
-        {
-            Name = "Pixel FX";
-            PixelArt = true;
-        }
-
-        public ManaSpriteSheet? Asset => ManaContentAssets.Load<ManaSpriteSheet>(Effect, ManaSpriteSheet.Extension);
-
-        public override int FrameCount => Asset?.FrameCount ?? 1;
-
-        protected override int CurrentFrame => _frame;
-
-        // Soft glow and smoke: blended, not cut out at half.
-        protected override ManaCore.Graphics.ManaOpacityMode OpacityMode => ManaCore.Graphics.ManaOpacityMode.Blend;
+        /// <summary>The ported effect it names, or null for an id the library does not have.</summary>
+        [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
+        public PixelEffect? Definition => PixelEffects.Find(Effect);
 
         // Before the node's world transform, so turning to the camera lands in this frame's.
-        public override bool UpdatesBeforeNodeTransform => FaceCamera;
+        public override bool UpdatesBeforeNodeTransform => FaceCamera || _facing;
 
+        // ---- options
+        /// <summary>An option's value now: this one's own when changed, else the effect's default (null when it has none).</summary>
+        public object? OptionValue(string name)
+        {
+            if (_options.TryGetValue(name, out var value))
+            {
+                return FromJson(value);
+            }
+            if (Definition is { } effect && effect.Meta.Options.TryGetValue(name, out var fallback))
+            {
+                return fallback;
+            }
+            return null;
+        }
+
+        public bool IsOptionChanged(string name) => _options.ContainsKey(name);
+
+        /// <summary>Changes one of the effect's options on this one; null puts it back to the effect's default.</summary>
+        public void SetOption(string name, object? value)
+        {
+            if (value == null)
+            {
+                _options.Remove(name);
+            }
+            else
+            {
+                _options[name] = JsonSerializer.SerializeToElement(value, value.GetType());
+            }
+            _optionsRevision++;
+        }
+
+        /// <summary>The options handed to the effect: what this one changed, and its glow.</summary>
+        public Dictionary<string, object> EffectOptions()
+        {
+            var options = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var (key, value) in _options)
+            {
+                if (FromJson(value) is { } converted)
+                {
+                    options[key] = converted;
+                }
+            }
+            options["light"] = (double)Glow;
+            return options;
+        }
+
+        private static object? FromJson(JsonElement value)
+        {
+            switch (value.ValueKind)
+            {
+                case JsonValueKind.Array:
+                    return value.EnumerateArray().Select(item => item.GetString() ?? string.Empty).ToArray();
+                case JsonValueKind.Number:
+                    return value.GetDouble();
+                case JsonValueKind.True:
+                    return true;
+                case JsonValueKind.False:
+                    return false;
+                case JsonValueKind.String:
+                    return value.GetString();
+                default:
+                    return null;
+            }
+        }
+
+        // ---- playing
         /// <summary>Plays it again from the start.</summary>
         public void Restart()
         {
@@ -107,19 +197,12 @@ namespace Mana.Code.Components
             {
                 Advance(ManaTime.GlobalTime.DeltaTime.TotalSeconds * Speed);
             }
-            if (FaceCamera && Owner.Context.World.CameraNode is { } camera)
-            {
-                Owner.LocalTransform = FacingCamera(camera.WorldTransform.Translation);
-            }
+            Turn();
 
-            if (SyncLive() is { } live)
+            var live = SyncLive();
+            if (live != null)
             {
-                live.Show(Phase(live.Effect.Meta.Duration, live.Effect.Meta.Loop), FlipX);
-            }
-            else
-            {
-                base.UpdateComponent();
-                SyncSheetLight();
+                live.Show(ShownAt, FlipX);
             }
 
             if (Done && RemoveWhenDone && !_removing && Owner.Parent is { } parent)
@@ -137,31 +220,21 @@ namespace Mana.Code.Components
             }
         }
 
-        /// <summary>Steps the effect on, and works out the sheet frame it shows.</summary>
+        /// <summary>Steps the effect on and works out the moment it shows.</summary>
         public void Advance(double seconds)
         {
             _seconds += Math.Max(seconds, 0.0);
-            var animation = Asset?.Animations.FirstOrDefault();
-            if (animation == null || animation.Frames.Count == 0)
+            if (Definition is not { } effect)
             {
-                _frame = 0;
+                ShownAt = null;
                 return;
             }
-            var length = animation.Frames.Count / (double)Math.Max(animation.FramesPerSecond, 0.01f);
-            // A one-shot ends empty, so its last frame stands in for nothing shown -- before it starts and between plays.
-            if (Phase(length, animation.Loop) is { } time)
-            {
-                _frame = animation.FrameAt(time);
-            }
-            else
-            {
-                _frame = animation.Frames[^1];
-            }
+            ShownAt = Phase(effect.Meta.Duration, effect.Meta.Loop);
         }
 
         /// <summary>
-        /// Seconds into the effect now, for one <paramref name="length"/> long, or null while nothing shows: before the
-        /// delay is up, between repeats, and once a one-shot is over (which marks it done).
+        /// Seconds into an effect <paramref name="length"/> long, or null while nothing shows: before the delay is up,
+        /// between repeats, and once a one-shot is over (which marks it done).
         /// </summary>
         private double? Phase(double length, bool loop)
         {
@@ -193,110 +266,25 @@ namespace Mana.Code.Components
             return null;
         }
 
-        /// <summary>Builds, rebuilds or drops the live drawing as the settings ask; null while it plays from the sheet.</summary>
-        private ManaPixelFxLive? SyncLive()
+        // Faces the camera while asked to; let go, the node goes back to the turn it was placed with.
+        private void Turn()
         {
-            PixelEffect? effect = null;
-            if (Live && Asset is { IsPixelFx: true } sheet)
+            if (FaceCamera && Owner.Context.World.CameraNode is { } camera)
             {
-                effect = PixelEffects.Find(sheet.Source[ManaSpriteSheet.PixelFxSource.Length..]);
-            }
-            var key = $"{effect?.Meta.Id}|{Seed}|{Palette}|{Glow}|{Tint}|{Asset?.PixelsPerUnit}";
-            if (effect == null || key != _liveKey)
-            {
-                _live?.Remove();
-                _live = null;
-                _liveKey = null;
-            }
-            if (effect == null)
-            {
-                return null;
-            }
-            if (_live == null)
-            {
-                // Coming off the sheet: its quads go, the live pair takes their place.
-                if (SpriteQuad is { } sheetQuad)
-                {
-                    lock (Owner.Context.World.SceneLock)
-                    {
-                        Owner.Components.Remove(sheetQuad);
-                    }
-                    ForgetQuad();
-                }
-                RemoveSheetLight();
-                _live = new ManaPixelFxLive(Owner, effect, Options(), Asset?.PixelsPerUnit ?? 20.0f, Tint);
-                _liveKey = key;
-            }
-            return _live;
-        }
-
-        /// <summary>
-        /// The sheet's light (pixelfx's glow) as a second quad added over the picture, on the same frame -- the GPU
-        /// blends the colour and adds the light, as a live effect's are.
-        /// </summary>
-        private void SyncSheetLight()
-        {
-            var quad = SpriteQuad;
-            var sheet = Asset;
-            string? picture = null;
-            if (quad != null && sheet != null && sheet.Light.Length > 0)
-            {
-                picture = ManaSpritePictures.Resolve(sheet.Light);
-            }
-            if (picture == null || sheet == null || quad == null)
-            {
-                RemoveSheetLight();
+                Owner.LocalTransform = FacingCamera(camera.WorldTransform.Translation);
+                _facing = true;
                 return;
             }
-
-            var key = $"{picture}|{sheet.Columns}|{sheet.Rows}|{sheet.PixelsPerUnit}|{sheet.PivotPoint}|{Tint}|{PixelArt}";
-            if (key != _sheetLightKey || _sheetLight == null)
+            if (_facing)
             {
-                RemoveSheetLight();
-                var columns = Math.Max(1, sheet.Columns);
-                var rows = Math.Max(1, sheet.Rows);
-                // A millimetre nearer the camera, so the light sorts after the colour it lands on.
-                var mesh = new Mana.Code.Shapes.ManaSpriteMesh(Owner.Context, picture, null, FrameSize(picture, columns, rows, sheet.PixelsPerUnit), sheet.PivotPoint, Tint, PixelArt, 0.001f);
-                mesh.Materials[0].Unlit = true;
-                mesh.Materials[0].OpacityMode = ManaCore.Graphics.ManaOpacityMode.Additive;
-                _sheetLight = new MeshRendererComponent(Owner, mesh);
-                lock (Owner.Context.World.SceneLock)
-                {
-                    Owner.Components.Add(_sheetLight);
-                }
-                _sheetLightKey = key;
+                _facing = false;
+                Owner.LocalTransform = PlacedTransform();
             }
-            _sheetLight.Material.UvScale = quad.Material.UvScale;
-            _sheetLight.Material.UvOffset = quad.Material.UvOffset;
         }
 
-        private void RemoveSheetLight()
-        {
-            if (_sheetLight == null)
-            {
-                return;
-            }
-            lock (Owner.Context.World.SceneLock)
-            {
-                Owner.Components.Remove(_sheetLight);
-            }
-            _sheetLight = null;
-            _sheetLightKey = null;
-        }
-
-        private Dictionary<string, object> Options()
-        {
-            var options = new Dictionary<string, object> { ["light"] = (double)Glow };
-            if (Seed != 0)
-            {
-                options["seed"] = (double)Seed;
-            }
-            if (Palette.Length > 0 && PixelColor.Pal.TryGetValue(Palette.Trim().ToLowerInvariant(), out var ramp))
-            {
-                options["palette"] = ramp;
-            }
-            return options;
-        }
+        // The node as it was placed: its own scale, turn and position.
+        private Matrix4x4 PlacedTransform() =>
+            Matrix4x4.CreateScale(Owner.Scale) * Matrix4x4.CreateFromQuaternion(Owner.Rotation.ToQuaternionFromEuler()) * Matrix4x4.CreateTranslation(Owner.Position);
 
         /// <summary>The node's local transform turned about the world's up so its face (+Z) looks at <paramref name="camera"/>.</summary>
         public Matrix4x4 FacingCamera(Vector3 camera)
@@ -321,17 +309,76 @@ namespace Mana.Code.Components
                 * Matrix4x4.CreateTranslation(Owner.Position);
         }
 
-        protected override string LayoutKey() => $"{Effect.AssetId}|{Effect.AssetPath}|{(Asset is { } asset ? System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(asset) : 0)}";
-
-        protected override SpriteLayout? BuildLayout()
+        /// <summary>Where the node sits on the effect's canvas, in pixels from its top left.</summary>
+        public (double X, double Y) AnchorPixel()
         {
-            if (Asset is not { } sheet || ManaSpritePictures.Resolve(sheet.Texture) is not { } picture)
+            if (Definition is not { } effect)
+            {
+                return (0, 0);
+            }
+            var (ox, oy) = effect.Meta.Origin;
+            if (Anchor == PixelFxAnchor.Origin)
+            {
+                return (ox, oy);
+            }
+            var drawn = MeasureRun().Color;
+            if (drawn.IsEmpty)
+            {
+                return (ox, oy);
+            }
+            return (ox, drawn.Y1 + 1);
+        }
+
+        /// <summary>What one run of the effect, with this one's options, draws -- measured once and kept.</summary>
+        public (PixelBounds Color, PixelBounds All) MeasureRun()
+        {
+            if (Definition is not { } effect)
+            {
+                return (PixelBounds.Empty, PixelBounds.Empty);
+            }
+            var options = EffectOptions();
+            var shape = string.Join(";", options.Where(pair => pair.Value is not string[]).OrderBy(pair => pair.Key, StringComparer.Ordinal).Select(pair => $"{pair.Key}={pair.Value}"));
+            return Bounds.GetOrAdd($"{effect.Meta.Id}|{shape}", _ => PixelFxRun.Measure(effect, options));
+        }
+
+        /// <summary>Builds, or rebuilds when a setting it depends on changed, the live drawing.</summary>
+        private ManaPixelFxLive? SyncLive()
+        {
+            var effect = Definition;
+            var key = $"{effect?.Meta.Id}|{_optionsRevision}|{Glow}|{Tint}|{PixelsPerUnit}|{Anchor}";
+            if (effect == null || key != _liveKey)
+            {
+                _live?.Remove();
+                _live = null;
+                _liveKey = null;
+            }
+            if (effect == null)
             {
                 return null;
             }
-            var columns = Math.Max(1, sheet.Columns);
-            var rows = Math.Max(1, sheet.Rows);
-            return new SpriteLayout(picture, null, columns, rows, FrameSize(picture, columns, rows, sheet.PixelsPerUnit), sheet.PivotPoint, Vector2.One);
+            if (_live == null)
+            {
+                var (w, h) = effect.Meta.Size;
+                var (ax, ay) = AnchorPixel();
+                // A sprite's pivot runs 0..1 across and up from its bottom left.
+                var pivot = new Vector2((float)(ax / w), (float)((h - ay) / h));
+                _live = new ManaPixelFxLive(Owner, effect, EffectOptions(), PixelsPerUnit, pivot, Tint);
+                _liveKey = key;
+            }
+            return _live;
+        }
+
+        /// <summary>Takes the live drawing off the node and gives it back its own turn -- removed, or baked.</summary>
+        public override void OnRemoved()
+        {
+            _live?.Remove();
+            _live = null;
+            _liveKey = null;
+            if (_facing)
+            {
+                _facing = false;
+                Owner.LocalTransform = PlacedTransform();
+            }
         }
     }
 
@@ -339,10 +386,11 @@ namespace Mana.Code.Components
     public static class ManaPixelFxSpawner
     {
         /// <summary>
-        /// Plays <paramref name="effect"/> once at <paramref name="position"/> under <paramref name="parent"/> (in its
-        /// frame) and removes it when it ends. Added after this frame's scene walk, so it is safe to call from any update.
+        /// Plays the effect with pixelfx id <paramref name="effect"/> once with its origin at <paramref name="position"/>
+        /// under <paramref name="parent"/> (in its frame), and removes it when it ends. Added after this frame's scene
+        /// walk, so it is safe to call from any update.
         /// </summary>
-        public static ManaPixelFxComponent Spawn(ManaSceneNode parent, ManaAssetRef effect, Vector3 position, bool flip = false, float scale = 1.0f)
+        public static ManaPixelFxComponent Spawn(ManaSceneNode parent, string effect, Vector3 position, bool flip = false, float scale = 1.0f)
         {
             var node = new ManaSceneNode(parent.Context, Matrix4x4.Identity)
             {
@@ -351,7 +399,7 @@ namespace Mana.Code.Components
                 Position = position,
                 Scale = new Vector3(scale),
             };
-            var fx = new ManaPixelFxComponent(node) { Effect = effect, Repeat = false, RemoveWhenDone = true, FlipX = flip };
+            var fx = new ManaPixelFxComponent(node) { Effect = effect, Repeat = false, RemoveWhenDone = true, FlipX = flip, Anchor = PixelFxAnchor.Origin };
             node.Components.Add(fx);
             var world = parent.Context.World;
             world.PostUpdateFutures.Add(() =>

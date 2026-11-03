@@ -41,6 +41,12 @@ namespace Mana
         /// <summary>Called once when the owning world leaves play.</summary>
         public virtual void EndPlay() { }
 
+        /// <summary>
+        /// Called when the component is taken off its node (removed, or swapped for another): it lets go of what it
+        /// added there -- a sprite's quad. Undo puts it back and it builds them again on its next update.
+        /// </summary>
+        public virtual void OnRemoved() { }
+
         public virtual void UpdateComponent() { }
         public virtual void DrawComponent() { }
     }

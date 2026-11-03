@@ -228,6 +228,7 @@ namespace Mana.Code.UI
             {
                 return false;
             }
+            component.OnRemoved();
 
             if (selection != null)
             {

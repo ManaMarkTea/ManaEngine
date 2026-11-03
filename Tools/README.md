@@ -14,7 +14,7 @@ These are development tools, not runtime dependencies unless a build explicitly 
 | `ManaLidar` | Windows-to-Mac deployment, device installation and signing setup. |
 | `Materials` | Downloads/rebuilds compact licensed material packs using the source manifest. |
 | `Mobile` | iOS wgpu-native build, mobile asset selection and app-icon generation. |
-| `PixelFx` | Imports pixelfx effects (a checkout at `../pixelfx`) as sprite sheets in `Content/Sprites/PixelFx/`, played by the `PixelFx` script. |
+| `PixelFx` | `parity.mjs` writes pixelfx's own per-frame hashes of each ported effect (a checkout at `../pixelfx`) for `PixelFxParityChecks`. |
 | `Profiling` | Collects desktop .NET performance traces. |
 | `Sky` | Generates the constellation data shared by shaders and C#. |
 | `Sprites` | Reproduces the bow/arrow sprite assets. |

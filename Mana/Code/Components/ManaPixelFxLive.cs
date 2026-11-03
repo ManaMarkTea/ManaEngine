@@ -24,7 +24,7 @@ namespace Mana.Code.Components
         private long _drawnStep = long.MinValue;
         private bool _blank;
 
-        public ManaPixelFxLive(ManaSceneNode owner, PixelEffect effect, Dictionary<string, object> options, float pixelsPerUnit, Vector4 tint)
+        public ManaPixelFxLive(ManaSceneNode owner, PixelEffect effect, Dictionary<string, object> options, float pixelsPerUnit, Vector2 pivot, Vector4 tint)
         {
             _owner = owner;
             Effect = effect;
@@ -40,8 +40,6 @@ namespace Mana.Code.Components
 
             var ppu = MathF.Max(pixelsPerUnit, 0.01f);
             var size = new Vector2(w / ppu, h / ppu);
-            // pixelfx's origin is a pixel from the top left; a sprite's pivot runs 0..1 across and up.
-            var pivot = new Vector2(ox / (float)w, (h - oy) / (float)h);
             _colorRenderer = Quad(new ManaSpriteMesh(owner.Context, _color, $"Pixel FX {effect.Meta.Id}", size, pivot, tint, true), ManaOpacityMode.Blend);
             // A millimetre nearer the camera, so the light sorts after the colour it lands on.
             _lightRenderer = Quad(new ManaSpriteMesh(owner.Context, _light, $"Pixel FX {effect.Meta.Id} light", size, pivot, tint, true, 0.001f), ManaOpacityMode.Additive);
@@ -80,7 +78,10 @@ namespace Mana.Code.Components
             _frame.Clear();
             _instance.Draw(_frame);
             // Light cut off at the canvas edge shows as a box: eased out over the last pixels, as pixelfx's sheets are.
-            _frame.EdgeFade();
+            if (!PixelFxRun.IsScreen(Effect.Meta))
+            {
+                _frame.EdgeFade();
+            }
             Upload();
             Flip(_colorRenderer, flip);
             Flip(_lightRenderer, flip);

@@ -89,6 +89,24 @@ namespace ManaVoxel.Code.UI.ManaUi
                 GridMapEditing.Begin(gridMap);
             }).WithTooltip("A grid of tiles painted from a palette of models -- roads, dungeon rooms. Select it to paint."));
 
+            // pixelfx's effects, drawn live: a node standing on the point, the effect's options in the Inspector.
+            var effects = new MenuItem("Pixel Effect");
+            foreach (var effect in ManaPixelFx.PixelEffects.All.Where(effect => !effect.Meta.Id.StartsWith("test/", StringComparison.Ordinal)))
+            {
+                var id = effect.Meta.Id;
+                effects.Items.Add(new MenuItem(effect.Meta.Name, () =>
+                {
+                    var node = new ManaSceneNode(scene().Context, Matrix4x4.CreateTranslation(position))
+                    {
+                        Name = effect.Meta.Name,
+                        LevelSource = ManaLevelSource.Group
+                    };
+                    node.Components.Add(new Mana.Code.Components.ManaPixelFxComponent(node) { Effect = id });
+                    Add(selection, scene(), parent, node);
+                }).WithTooltip(effect.Meta.Description));
+            }
+            items.Add(effects);
+
             foreach (var (label, build) in CoursePieceFactory.Pieces)
             {
                 items.Add(new MenuItem($"Course: {label}", () => Built(selection, scene(), parent, build(new ManaShapeFactory(scene().Context, scene()), position)))

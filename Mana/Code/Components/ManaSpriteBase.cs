@@ -127,9 +127,15 @@ namespace Mana.Code.Components
         /// <summary>The quad drawing the picture, once built -- for a kind that lays a second one over it in step.</summary>
         protected MeshRendererComponent? SpriteQuad => _renderer;
 
-        /// <summary>Lets go of the quad (a kind that took it off the node to draw another way), so the next refresh builds it again.</summary>
-        protected void ForgetQuad()
+        public override void OnRemoved()
         {
+            if (_renderer != null)
+            {
+                lock (Owner.Context.World.SceneLock)
+                {
+                    Owner.Components.Remove(_renderer);
+                }
+            }
             _renderer = null;
             _builtKey = null;
         }

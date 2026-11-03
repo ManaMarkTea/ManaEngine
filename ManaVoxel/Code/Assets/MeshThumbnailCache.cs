@@ -540,8 +540,6 @@ namespace ManaVoxel.Code.Assets
             {
                 "SpriteSheet" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(Asset("sheet"), Mana.Code.Content.ManaSpriteSheet.Extension) is { } sheet
                     ? SheetIcon(sheet) : null,
-                "PixelFx" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(Asset("effect"), Mana.Code.Content.ManaSpriteSheet.Extension) is { } effect
-                    ? SheetIcon(effect) : null,
                 "Sprite9Slice" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSlice>(Asset("slice"), Mana.Code.Content.ManaSpriteSlice.Extension) is { } slice
                     ? SliceIcon(slice) : null,
                 _ => ManaSpritePictures.Resolve(Text("texture")) is { } file ? PictureIcon(file, 1, 1, 0) : null
@@ -597,7 +595,7 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
-        private static readonly string[] SpriteScripts = ["Sprite", "SpriteSheet", "Sprite9Slice", "PixelFx"];
+        private static readonly string[] SpriteScripts = ["Sprite", "SpriteSheet", "Sprite9Slice"];
 
         private static Levels.ManaLevelScript? FindSprite(Levels.ManaLevelNode node)
         {

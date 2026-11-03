@@ -53,9 +53,6 @@ public static class ManaSpriteAssetDependencies
             case "SPRITESHEET":
                 Sheet(Reference(nameof(ManaSpriteSheetComponent.Sheet), ManaAssetRef.None));
                 break;
-            case "PIXELFX":
-                Sheet(Reference(nameof(ManaPixelFxComponent.Effect), ManaAssetRef.None));
-                break;
             case "PLATFORMER2D":
                 Sheet(Reference(nameof(ManaPlatformer2DComponent.Sheet), ManaPlatformer2DComponent.GreenAlien));
                 break;

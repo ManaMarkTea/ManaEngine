@@ -28,6 +28,7 @@ namespace ManaPixelFx.Effects.Fire
         {
             Id = "fire/torch",
             Name = "Torch",
+            Description = "A wall torch on an iron bracket: a licking flame leaping off a pitch-soaked wrap, licks and puffs torn off its tips, smoke, embers, a flickering light on the wall.",
             Size = (72, 120),
             Origin = (36, 94),
             Duration = D,

@@ -1,8 +1,10 @@
-# pixelfx effects
+# pixelfx
 
-The sheets in this folder are rendered from [pixelfx](https://github.com/patch-gg/pixelfx) by Patch by
-`Tools/PixelFx/import_pixelfx.mjs` (each sheet's `source` names its effect). pixelfx adapts parts of Hugo Duprez's
-Sprite Fusion pixel art VFX and of Hollow Crown, both MIT; see pixelfx's NOTICE.md. Its licence:
+This project ports [pixelfx](https://github.com/patch-gg/pixelfx) by Patch from JavaScript to C#: its core
+(`src/core`) and its effects (`src/fx`), each file here translated from the one named in its summary.
+pixelfx adapts parts of Hugo Duprez's Sprite Fusion pixel art VFX (https://www.spritefusion.com/pixel-art-vfx, MIT,
+Copyright (c) 2026 Hugo Duprez) and of Hollow Crown (https://github.com/rehan-remade/hollow-crown, MIT); the effects that
+do say so in their summaries. pixelfx's licence:
 
     MIT License
     

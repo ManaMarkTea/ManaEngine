@@ -3,88 +3,114 @@ using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Content;
 using Mana.Code.Nodes;
-using Mana.Code.Shapes;
+using Mana.Code.UI;
+using ManaCore.Graphics;
+using ManaCore.Imaging;
+using ManaPixelFx;
+using ManaPixelFx.Core;
 using ManaUI;
 
 namespace ManaTests;
 
 /// <summary>
-/// Pixel FX: sheets imported from pixelfx (Tools/PixelFx) played by the PixelFx script -- loops loop, one-shots play
-/// once or again after a pause and show nothing between, the quad turns to face the camera, and a spawned one is
-/// put in the world and taken away when it ends.
+/// The PixelFx script: a ported pixelfx effect drawn live as two pictures (colour blended, light added), its options
+/// changed per instance, loops looping and one-shots playing once or again after a pause, standing on its node by
+/// its lowest pixel, facing the camera and letting go of it, baked into a sprite sheet, and spawned from code.
 /// </summary>
 public static class PixelFxChecks
 {
-    private static readonly ManaAssetRef Torch = new("b6f7a5a209c1489c9187cadb49e987b5", "Sprites/PixelFx/fire/torch.manasheet");
-    private static readonly ManaAssetRef HitFlash = new("81afcd18cc9c482ab3f80310fbbc5690", "Sprites/PixelFx/impacts/hit-flash.manasheet");
+    // A one-shot to time against: half a second of a 4 x 4 square at the origin.
+    private sealed class Flash : PixelEffect
+    {
+        public override PixelEffectMeta Meta { get; } = new()
+        {
+            Id = "test/flash", Name = "Flash", Size = (16, 16), Origin = (8, 12), Duration = 16 / 30.0, Fps = 30,
+            Options = new Dictionary<string, object> { ["seed"] = 1.0 },
+        };
+
+        public override void Draw(PixelPainter p, double t, PixelFxOptions o) => p.Rect(-2, -4, 4, 4, PixelColor.White);
+    }
 
     public static void Run(ManaFontManager fonts, Action<string, bool, string> report)
     {
         void check(string what, bool ok, string detail = "") => report(what, ok, detail);
 
+        PixelEffects.Register(new Flash());
         var context = new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true };
         context.World.Context = context;
         context.Physics = new ManaPhysics(context);
         context.World.DefaultScene = new ManaScene(context) { Name = "Default Scene" };
         context.World.Scenes.Add(context.World.DefaultScene);
 
-        ManaPixelFxComponent Fx(string name, ManaAssetRef effect)
+        ManaPixelFxComponent Fx(string name, string effect)
         {
             var node = new ManaSceneNode(context, Matrix4x4.Identity) { Name = name };
             context.World.DefaultScene.Children.Add(node);
-            var fx = new ManaPixelFxComponent(node) { Effect = effect };
+            var fx = new ManaPixelFxComponent(node) { Effect = effect, FaceCamera = false };
             node.Components.Add(fx);
             return fx;
         }
+        List<MeshRendererComponent> Quads(ManaPixelFxComponent fx) => fx.Owner.Components.OfType<MeshRendererComponent>().ToList();
 
-        // ---- The imported sheets ------------------------------------------------------------------------------------
-        var torch = Fx("Torch", Torch);
-        var torchSheet = torch.Asset;
-        check("an imported sheet says which pixelfx effect it came from", torchSheet is { IsPixelFx: true, Source: "pixelfx:fire/torch" }, torchSheet?.Source ?? "no sheet");
-        check("with one animation at the effect's rate, looping as the effect does",
-            torchSheet?.Animations is [{ FramesPerSecond: 30, Loop: true, Frames.Count: 60 }], $"{torchSheet?.Animations.Count}");
+        // ---- drawn live ---------------------------------------------------------------------------------------------
+        var torch = Fx("Torch", "fire/torch");
+        torch.UpdateComponent();
+        var quads = Quads(torch);
+        check("a pixel effect is drawn live, from its code", torch.Definition?.Meta.Name == "Torch");
+        check("as two live pictures: colour blended, light added over it",
+            quads.Count == 2 && quads.All(q => q.Mesh.GetOrCreateCpuData().AlbedoDynamicTexture != null)
+            && quads[0].Material.OpacityMode == ManaOpacityMode.Blend && quads[1].Material.OpacityMode == ManaOpacityMode.Additive,
+            string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
+        var colour = quads[0].Mesh.GetOrCreateCpuData().AlbedoDynamicTexture;
+        check("its picture is drawn (some of the torch is opaque)", colour != null && Enumerable.Range(0, colour.Pixels.Length / 4).Any(i => colour.Pixels[i * 4 + 3] == 255));
 
-        torch.Refresh();
-        var mesh = torch.Owner.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh;
-        check("draws as a pixel-art sprite: nearest sampling, unlit", mesh?.GetOrCreateCpuData().NearestFiltering == true && mesh.Materials[0].Unlit);
-        check("sized at 20 pixels a metre: a 72 x 113 frame is 3.6 x 5.65 m", mesh != null && Near(mesh.Size, new Vector2(3.6f, 5.65f)), $"{mesh?.Size}");
+        // ---- standing on its node -----------------------------------------------------------------------------------
+        var (_, anchorY) = torch.AnchorPixel();
+        check("it stands on its lowest pixel, not pixelfx's origin (a wall torch's is its bracket)", anchorY > torch.Definition!.Meta.Origin.Y + 5, $"anchor row {anchorY}, origin {torch.Definition.Meta.Origin.Y}");
+        torch.Anchor = PixelFxAnchor.Origin;
+        check("or on pixelfx's origin when asked", torch.AnchorPixel() == (36, 94), $"{torch.AnchorPixel()}");
+        torch.Anchor = PixelFxAnchor.Bottom;
 
-        // ---- Loops and one-shots ------------------------------------------------------------------------------------
-        torch.Advance(0.5);
-        check("a loop steps through its frames", Shown(torch) == 15, $"{Shown(torch)}");
-        torch.Advance(2.0);
-        check("and wraps round (2.5 s of a 2 s loop is frame 15 again)", Shown(torch) == 15 && !torch.Done, $"{Shown(torch)}");
+        // ---- options ------------------------------------------------------------------------------------------------
+        check("its options are the effect's own until changed", torch.OptionValue("seed") is 4.0 && !torch.IsOptionChanged("seed"), $"{torch.OptionValue("seed")}");
+        var before = Quads(torch)[0];
+        torch.SetOption("palette", PixelColor.Fit(PixelColor.Pal["ice"], 9).Select(PixelColor.ToHex).ToArray());
+        torch.SetOption("seed", 9.0);
+        torch.UpdateComponent();
+        check("changed, they go to the effect and it is drawn again",
+            torch.IsOptionChanged("seed") && torch.EffectOptions()["seed"] is 9.0 && !ReferenceEquals(before, Quads(torch)[0]) && Quads(torch).Count == 2);
+        check("changes save as plain JSON", torch.Options["palette"].ValueKind == System.Text.Json.JsonValueKind.Array && torch.Options["seed"].GetDouble() == 9.0);
+        torch.SetOption("seed", null);
+        check("and reset to the effect's own", !torch.IsOptionChanged("seed") && torch.OptionValue("seed") is 4.0);
 
-        var flash = Fx("Hit", HitFlash);
-        var flashFrames = flash.Asset?.Animations[0].Frames.Count ?? 0;
-        var last = flashFrames - 1;
-        check("a one-shot imports as one", flash.Asset?.Animations[0].Loop == false && flashFrames == 16, $"{flashFrames} frames");
-        flash.Repeat = false;
-        flash.Advance(0.2);
-        check("plays its frames", Shown(flash) == 6 && !flash.Done, $"{Shown(flash)}");
-        flash.Advance(1.0);
-        check("once over, done, holding its empty last frame", flash.Done && Shown(flash) == last, $"{Shown(flash)}");
+        // ---- timing -------------------------------------------------------------------------------------------------
+        var once = Fx("Once", "test/flash");
+        once.Repeat = false;
+        once.Advance(0.2);
+        check("a one-shot plays", once.ShownAt is { } at && Math.Abs(at - 0.2) < 1e-9 && !once.Done, $"{once.ShownAt}");
+        once.Advance(1.0);
+        check("once over, it is done and shows nothing", once.Done && once.ShownAt == null);
 
-        var again = Fx("Hit Again", HitFlash);
+        var again = Fx("Again", "test/flash");
         again.RepeatDelay = 1.0f;
-        var length = 16.0 / 30.0;
+        var length = 16 / 30.0;
         again.Advance(length + 0.5);
-        check("a repeating one-shot shows nothing while it waits", Shown(again) == last && !again.Done, $"{Shown(again)}");
+        check("a repeating one-shot shows nothing while it waits", again.ShownAt == null && !again.Done);
         again.Advance(0.6);
-        check("then plays again", Shown(again) == 3, $"{Shown(again)}");
+        check("then plays again", again.ShownAt is { } next && Math.Abs(next - (length + 1.1 - (length + 1.0))) < 1e-6, $"{again.ShownAt}");
 
-        var late = Fx("Late", HitFlash);
+        var late = Fx("Late", "test/flash");
         late.Delay = 0.5f;
         late.Advance(0.25);
-        check("a delayed one-shot shows nothing before it starts", Shown(late) == last, $"{Shown(late)}");
-        late.Advance(0.37);
-        check("and starts on time", Shown(late) == 3, $"{Shown(late)}");
+        check("a delayed one-shot shows nothing before it starts", late.ShownAt == null);
+        late.Advance(0.35);
+        check("and starts on time", late.ShownAt is { } started && Math.Abs(started - 0.1) < 1e-6, $"{late.ShownAt}");
         late.Restart();
         late.Advance(0.1);
-        check("Restart plays it from the beginning, delay and all", Shown(late) == last, $"{Shown(late)}");
+        check("Restart plays it from the beginning, delay and all", late.ShownAt == null);
 
-        // ---- Facing the camera --------------------------------------------------------------------------------------
-        var face = Fx("Facing", Torch);
+        // ---- facing the camera, and letting go ----------------------------------------------------------------------
+        var face = Fx("Facing", "fire/torch");
         face.Owner.Position = new Vector3(2, 0, 0);
         var facing = face.FacingCamera(new Vector3(12, 5, 0));
         check("turns about up so its face (+Z) looks at the camera", Near(Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, facing)), Vector3.UnitX),
@@ -95,53 +121,81 @@ public static class PixelFxChecks
         turned.WorldTransform = Matrix4x4.CreateRotationY(MathF.PI / 2);
         var child = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child" };
         turned.AddChild(child);
-        var childFx = new ManaPixelFxComponent(child) { Effect = Torch };
+        var childFx = new ManaPixelFxComponent(child) { Effect = "fire/torch" };
         var world = childFx.FacingCamera(new Vector3(0, 0, -10)) * turned.WorldTransform;
         check("under a turned parent it still faces the camera in the world", Near(Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, world)), -Vector3.UnitZ),
             $"{Vector3.TransformNormal(Vector3.UnitZ, world)}");
 
-        // ---- Spawned from code --------------------------------------------------------------------------------------
+        context.World.CameraNode = new ManaSceneNode(context, Matrix4x4.CreateTranslation(20, 1, 0)) { Name = "Camera" };
+        context.World.CameraNode.WorldTransform = Matrix4x4.CreateTranslation(20, 1, 0);
+        face.Owner.Rotation = new Vector3(0, 0.5f, 0);
+        face.FaceCamera = true;
+        face.UpdateComponent();
+        var faced = Vector3.TransformNormal(Vector3.UnitZ, face.Owner.LocalTransform);
+        face.FaceCamera = false;
+        face.UpdateComponent();
+        var own = Vector3.TransformNormal(Vector3.UnitZ, face.Owner.LocalTransform);
+        var placed = Vector3.TransformNormal(Vector3.UnitZ, Matrix4x4.CreateFromQuaternion(face.Owner.Rotation.ToQuaternionFromEuler()));
+        check("turned off, it goes back to the turn it was placed with", Near(Vector3.Normalize(faced), Vector3.UnitX) && Near(own, placed), $"faced {faced}, now {own}, placed {placed}");
+
+        // ---- removed ------------------------------------------------------------------------------------------------
+        var removed = Fx("Removed", "fire/candle");
+        removed.UpdateComponent();
+        SceneEditorOperations.RemoveComponent(null, removed);
+        check("removed, it takes its pictures with it", Quads(removed).Count == 0 && removed.Owner.Components.Count == 0, $"{removed.Owner.Components.Count} left");
+
+        // ---- baked --------------------------------------------------------------------------------------------------
+        check("a bake keeps every frame while the sheet fits", ManaPixelFxBaker.Layout(60, 72, 113, 30) is (1, _, _));
+        check("drops every other one rather than make a sheet past 2048", ManaPixelFxBaker.Layout(163, 217, 226, 30) is (2, var c, var r) && c * 217 <= 4096 && r * 226 <= 4096,
+            $"{ManaPixelFxBaker.Layout(163, 217, 226, 30)}");
+        var folder = Path.Combine(Path.GetTempPath(), "mana-pixelfx-bake-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var baking = Fx("Baked Torch", "fire/torch");
+            baking.SetOption("seed", 7.0);
+            baking.UpdateComponent();
+            var file = ManaPixelFxBaker.Bake(baking, folder, ManaPixelFxBaker.FreeName(folder, "Torch"));
+            var sheet = ManaContentAssets.Load<ManaSpriteSheet>(file);
+            var picture = ManaImageCodec.Load(Path.Combine(folder, "Torch.png"));
+            check("baking writes the picture, its light and a sheet playing them at the effect's rate",
+                sheet is { Source: "pixelfx:fire/torch", Animations: [{ FramesPerSecond: 30, Loop: true, Frames.Count: 60 }] }
+                && File.Exists(Path.Combine(folder, "Torch.light.png")) && sheet.Light.EndsWith("Torch.light.png", StringComparison.Ordinal),
+                sheet?.Light ?? "no sheet");
+            check("cropped to what the effect draws", picture.Width / sheet!.Columns < 72 || picture.Height / sheet.Rows < 120, $"{picture.Width / sheet.Columns} x {picture.Height / sheet.Rows}");
+            check("a second bake of the same name does not overwrite the first", ManaPixelFxBaker.FreeName(folder, "Torch") == "Torch 2");
+
+            var replacement = ManaPixelFxBaker.SheetFor(baking, file);
+            ManaPixelFxBaker.Swap(baking, replacement);
+            var node = baking.Owner;
+            check("and swaps the script for a Sprite Sheet playing it, taking the live pictures off",
+                node.Components.Contains(replacement) && !node.Components.Contains(baking) && Quads(baking).Count == 0 && replacement.Animation == "play");
+            ManaPixelFxBaker.Swap(replacement, baking);
+            baking.UpdateComponent();
+            check("which swaps back (undo), live again", node.Components.Contains(baking) && !node.Components.Contains(replacement) && Quads(baking).Count == 2);
+        }
+        finally
+        {
+            if (Directory.Exists(folder))
+            {
+                Directory.Delete(folder, recursive: true);
+            }
+        }
+
+        // ---- spawned from code --------------------------------------------------------------------------------------
         var holder = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Holder" };
         context.World.DefaultScene.Children.Add(holder);
-        var spawned = ManaPixelFxSpawner.Spawn(holder, HitFlash, new Vector3(1, 2, 3), flip: true);
+        var spawned = ManaPixelFxSpawner.Spawn(holder, "test/flash", new Vector3(1, 2, 3), flip: true);
         check("a spawned effect waits for the end of the scene walk to join", holder.Children.Count == 0);
         RunPostUpdate(context.World);
-        check("then joins its parent where it was asked, once, flipped and never saved",
-            holder.Children.Count == 1 && spawned.Owner.Position == new Vector3(1, 2, 3) && spawned is { Repeat: false, FlipX: true } && spawned.Owner.IsEditorTransient);
+        check("then joins its parent where it was asked, once, by its origin, flipped and never saved",
+            holder.Children.Count == 1 && spawned.Owner.Position == new Vector3(1, 2, 3) && spawned is { Repeat: false, FlipX: true, Anchor: PixelFxAnchor.Origin } && spawned.Owner.IsEditorTransient);
         spawned.FaceCamera = false;
         spawned.Advance(1.0);
         spawned.UpdateComponent();
         check("and once over is taken away after the walk", holder.Children.Count == 1 && spawned.Done);
         RunPostUpdate(context.World);
         check("and is gone", holder.Children.Count == 0 && spawned.Owner.Parent == null);
-
-        // ---- Drawn live, or from the sheet ---------------------------------------------------------------------------
-        var live = Fx("Live Torch", Torch);
-        live.FaceCamera = false;
-        live.UpdateComponent();
-        var quads = live.Owner.Components.OfType<MeshRendererComponent>().ToList();
-        check("a ported effect draws live", live.LiveEffect?.Meta.Id == "fire/torch", live.LiveEffect?.Meta.Id ?? "from the sheet");
-        check("as two live pictures: colour blended, light added over it",
-            quads.Count == 2 && quads.All(q => q.Mesh.GetOrCreateCpuData().AlbedoDynamicTexture != null)
-            && quads[0].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Blend && quads[1].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Additive,
-            string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
-        var colour = quads[0].Mesh.GetOrCreateCpuData().AlbedoDynamicTexture;
-        check("its picture is drawn (some of the torch is opaque)", colour != null && Enumerable.Range(0, colour.Pixels.Length / 4).Any(i => colour.Pixels[i * 4 + 3] == 255));
-        live.Live = false;
-        live.UpdateComponent();
-        quads = live.Owner.Components.OfType<MeshRendererComponent>().ToList();
-        check("off, it plays the sheet: its picture blended and its light added on the same frame",
-            live.LiveEffect == null && quads.Count == 2 && quads[0].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Blend
-            && quads[1].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Additive && quads[1].Material.UvOffset == quads[0].Material.UvOffset,
-            string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
-        live.Live = true;
-        live.Palette = "ice";
-        live.UpdateComponent();
-        check("and back live, recoloured", live.LiveEffect != null && live.Owner.Components.OfType<MeshRendererComponent>().Count() == 2);
     }
-
-    private static int Shown(ManaPixelFxComponent fx) =>
-        (int)typeof(ManaPixelFxComponent).GetProperty("CurrentFrame", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(fx)!;
 
     private static void RunPostUpdate(ManaWorld world)
     {
@@ -152,8 +206,6 @@ public static class PixelFxChecks
             future();
         }
     }
-
-    private static bool Near(Vector2 a, Vector2 b) => Vector2.Distance(a, b) < 1e-3f;
 
     private static bool Near(Vector3 a, Vector3 b) => Vector3.Distance(a, b) < 1e-3f;
 }
