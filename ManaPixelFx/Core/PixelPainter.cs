@@ -96,6 +96,17 @@ namespace ManaPixelFx.Core
             return this;
         }
 
+        // ---- placement, for shapes that walk screen pixels themselves (pixelfx reads these straight off the painter)
+        public double Tx => _tx;
+        public double Ty => _ty;
+        public double Fx => _fx;
+        public double Cs => _cs;
+        public double Sn => _sn;
+        public int Ox => _ox;
+        public int Oy => _oy;
+        public int W => _w;
+        public int H => _h;
+
         // ---- local (effect) space <-> screen (frame) space
         public double ToX(double x, double y) => _tx + x * _fx * _cs - y * _sn;
         public double ToY(double x, double y) => _ty + x * _fx * _sn + y * _cs;

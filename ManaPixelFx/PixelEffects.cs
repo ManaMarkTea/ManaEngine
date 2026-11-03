@@ -1,4 +1,5 @@
 using ManaPixelFx.Core;
+using ManaPixelFx.Effects.Explosions;
 using ManaPixelFx.Effects.Fire;
 
 namespace ManaPixelFx
@@ -14,6 +15,10 @@ namespace ManaPixelFx
             new Campfire(),
             new Candle(),
             new Brazier(),
+            new SmallExplosion(),
+            new BigExplosion(),
+            new DirtExplosion(),
+            new Implosion(),
         }.ToDictionary(effect => effect.Meta.Id, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The effects in id order (category, then name).</summary>

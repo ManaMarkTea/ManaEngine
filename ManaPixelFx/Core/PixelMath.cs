@@ -22,7 +22,29 @@ namespace ManaPixelFx.Core
         /// <summary>JavaScript's Math.round: halves go up, not to even.</summary>
         public static double Round(double x) => Math.Floor(x + 0.5);
 
-        public static double Hypot(double x, double y) => Math.Sqrt(x * x + y * y);
+        /// <summary>JavaScript's Math.hypot as V8 computes it: scaled by the larger, Kahan-summed, so it rounds the same.</summary>
+        public static double Hypot(double x, double y)
+        {
+            if (double.IsInfinity(x) || double.IsInfinity(y))
+            {
+                return double.PositiveInfinity;
+            }
+            if (double.IsNaN(x) || double.IsNaN(y))
+            {
+                return double.NaN;
+            }
+            var ax = Math.Abs(x);
+            var ay = Math.Abs(y);
+            var max = Math.Max(ax, ay);
+            if (max == 0)
+            {
+                return 0;
+            }
+            // V8's Kahan loop over two arguments: the compensation is zero after the first, so it is this, in this order.
+            var n0 = ax / max;
+            var n1 = ay / max;
+            return Math.Sqrt(n0 * n0 + n1 * n1) * max;
+        }
 
         public static double Clamp(double x, double a = 0, double b = 1)
         {

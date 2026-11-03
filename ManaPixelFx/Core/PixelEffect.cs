@@ -45,6 +45,19 @@ namespace ManaPixelFx.Core
         public virtual IPixelSimulation? Create(PixelFxOptions o) => null;
     }
 
+    /// <summary>A simulation's state with nothing behind a character unless it says so.</summary>
+    public abstract class PixelSimulation : IPixelSimulation
+    {
+        public abstract void Update(double dt, PixelFxOptions o);
+        public virtual bool HasBack => false;
+
+        public virtual void DrawBack(PixelPainter p, double t, PixelFxOptions o)
+        {
+        }
+
+        public abstract void Draw(PixelPainter p, double t, PixelFxOptions o);
+    }
+
     /// <summary>A simulated effect's live state: stepped at 120 Hz or finer, drawn from what it holds.</summary>
     public interface IPixelSimulation
     {
@@ -116,6 +129,9 @@ namespace ManaPixelFx.Core
             }
             return fallback;
         }
+
+        /// <summary>A single colour option ("#4a3f69").</summary>
+        public uint Color(string name) => PixelColor.Hex(Text(name, "#ffffff"));
 
         /// <summary>A colour ramp option as hex strings, dark to bright.</summary>
         public string[] Ramp(string name)
