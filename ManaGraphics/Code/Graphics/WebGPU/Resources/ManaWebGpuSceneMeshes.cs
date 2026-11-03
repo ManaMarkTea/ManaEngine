@@ -272,6 +272,7 @@ namespace ManaGraphics.Code.Graphics.Resources
         private static bool SameMaterialMaps(ManaMeshCpuData current, ManaMeshCpuData incoming)
         {
             return string.Equals(current.AlbedoTexturePath, incoming.AlbedoTexturePath, StringComparison.Ordinal)
+                && ReferenceEquals(current.AlbedoDynamicTexture, incoming.AlbedoDynamicTexture)
                 && string.Equals(current.NormalTexturePath, incoming.NormalTexturePath, StringComparison.Ordinal)
                 && string.Equals(current.EmissionTexturePath, incoming.EmissionTexturePath, StringComparison.Ordinal)
                 && string.Equals(current.MetallicTexturePath, incoming.MetallicTexturePath, StringComparison.Ordinal)

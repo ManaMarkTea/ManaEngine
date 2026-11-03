@@ -6,6 +6,7 @@
   "source": "pixelfx:arcane/portal",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/arcane/portal.png",
+  "light": "Content/Sprites/PixelFx/arcane/portal.light.png",
   "columns": 8,
   "rows": 9,
   "normalMap": "",

@@ -102,6 +102,7 @@ public static class TestRunner
         ("Mana", "texture library", TextureLibraryChecks.Run),
         ("Mana", "sprites", SpriteChecks.Run),
         ("Mana", "pixel fx", PixelFxChecks.Run),
+        ("ManaPixelFx", "parity with pixelfx", PixelFxParityChecks.Run),
         ("Mana", "moving colliders", MovingColliderChecks.Run),
         ("Mana", "box collider geometry", BoxColliderGeometryChecks.Run),
         ("Mana", "platformer 2D", Platformer2DChecks.Run),

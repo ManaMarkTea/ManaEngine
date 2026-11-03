@@ -6,6 +6,7 @@
   "source": "pixelfx:explosions/firework-burst",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/explosions/firework-burst.png",
+  "light": "Content/Sprites/PixelFx/explosions/firework-burst.light.png",
   "columns": 8,
   "rows": 7,
   "normalMap": "",

@@ -117,15 +117,29 @@ for (const id of resolved) {
       throw new Error(`${b.w}x${b.h} frames do not fit a ${maxSide} px sheet`);
     }
     const kept = r.frames.filter((_, i) => i % step === 0);
-    const sheet = canvas(grid.cols * b.w, grid.rows * b.h, [0, 0, 0, 0]);
-    kept.forEach((f, i) => sheet.paste(crop(f.clear, r.w, b), b.w, b.h, (i % grid.cols) * b.w, Math.floor(i / grid.cols) * b.h));
+    // pixelfx's two buffers as two sheets, colour and light, kept apart so the GPU can blend one and add the other:
+    // light baked into alpha is right blended in sRGB, as a canvas does, but glares blended in linear light.
+    // Copied, not pasted: paste blends onto the empty sheet, multiplying colour by alpha a second time.
+    const sheetOf = (buffer) => {
+      const sheet = canvas(grid.cols * b.w, grid.rows * b.h, [0, 0, 0, 0]);
+      kept.forEach((f, i) => {
+        const x0 = (i % grid.cols) * b.w, y0 = Math.floor(i / grid.cols) * b.h;
+        const src = crop(new Uint8ClampedArray(f[buffer].buffer.slice(0)), r.w, b);
+        for (let y = 0; y < b.h; y++) {
+          sheet.data.set(src.subarray(y * b.w * 4, (y + 1) * b.w * 4), ((y0 + y) * sheet.w + x0) * 4);
+        }
+      });
+      return sheet;
+    };
+    const sheet = sheetOf("raw"), light = sheetOf("light");
 
     const [category, effect] = id.split("/");
     const name = flags.as ?? effect;
     const dir = join(outRoot, category);
     mkdirSync(dir, { recursive: true });
-    const png = join(dir, `${name}.png`), file = join(dir, `${name}.manasheet`);
+    const png = join(dir, `${name}.png`), lightPng = join(dir, `${name}.light.png`), file = join(dir, `${name}.manasheet`);
     writeFileSync(png, sheet.png());
+    writeFileSync(lightPng, light.png());
 
     let assetId = randomUUID().replaceAll("-", "");
     if (existsSync(file)) {
@@ -141,6 +155,7 @@ for (const id of resolved) {
       source: `pixelfx:${id}`,
       frames: [],
       texture: relative(REPO, png).replaceAll("\\", "/"),
+      light: relative(REPO, lightPng).replaceAll("\\", "/"),
       columns: grid.cols,
       rows: grid.rows,
       normalMap: "",
@@ -150,7 +165,7 @@ for (const id of resolved) {
       animations: [{ name: "play", frames: kept.map((_, i) => i), framesPerSecond: r.fps / step, loop: !!fx.meta.loop }],
     };
     writeFileSync(file, JSON.stringify(manasheet, null, 2) + "\n");
-    const kb = Math.round(readFileSync(png).length / 1024);
+    const kb = Math.round((readFileSync(png).length + readFileSync(lightPng).length) / 1024);
     console.log(`${id}  ${kept.length} frames ${b.w}x${b.h} @${r.fps / step}  ${fx.meta.loop ? "loop" : "one-shot"}  ->  ${relative(REPO, file)} (${sheet.w}x${sheet.h}, ${kb} KB)`);
   } catch (e) {
     failed++;

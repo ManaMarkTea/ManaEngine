@@ -6,6 +6,7 @@
   "source": "pixelfx:critters/wisp",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/critters/wisp.png",
+  "light": "Content/Sprites/PixelFx/critters/wisp.light.png",
   "columns": 9,
   "rows": 11,
   "normalMap": "",

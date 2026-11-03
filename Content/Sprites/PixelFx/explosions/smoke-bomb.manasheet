@@ -6,6 +6,7 @@
   "source": "pixelfx:explosions/smoke-bomb",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/explosions/smoke-bomb.png",
+  "light": "Content/Sprites/PixelFx/explosions/smoke-bomb.light.png",
   "columns": 10,
   "rows": 16,
   "normalMap": "",

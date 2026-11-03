@@ -6,6 +6,7 @@
   "source": "pixelfx:pickups/collect-burst",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/pickups/collect-burst.png",
+  "light": "Content/Sprites/PixelFx/pickups/collect-burst.light.png",
   "columns": 7,
   "rows": 6,
   "normalMap": "",

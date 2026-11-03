@@ -53,6 +53,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ManaAudio\ManaAudio.csproj" />
     <ProjectReference Include="..\ManaCore\ManaCore.csproj" />
+    <ProjectReference Include="..\ManaPixelFx\ManaPixelFx.csproj" />
     <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
   </ItemGroup>
 

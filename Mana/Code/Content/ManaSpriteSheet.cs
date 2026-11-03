@@ -33,6 +33,9 @@ namespace Mana.Code.Content
         /// <summary>Optional normal map, laid out the same way as <see cref="Texture"/>.</summary>
         public string NormalMap { get; set; } = string.Empty;
 
+        /// <summary>Optional light, laid out as <see cref="Texture"/> and added over it: a pixelfx effect's glow.</summary>
+        public string Light { get; set; } = string.Empty;
+
         public float PixelsPerUnit { get; set; } = 64.0f;
 
         /// <summary>Where the node stands on a frame, 0..1 across and up: [0.5, 0] is the bottom middle -- a character's feet.</summary>

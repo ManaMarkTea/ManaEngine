@@ -6,6 +6,7 @@
   "source": "pixelfx:lightning/plasma-ball",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/lightning/plasma-ball.png",
+  "light": "Content/Sprites/PixelFx/lightning/plasma-ball.light.png",
   "columns": 10,
   "rows": 9,
   "normalMap": "",

@@ -6,6 +6,7 @@
   "source": "pixelfx:fire/fireball",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/fire/fireball.png",
+  "light": "Content/Sprites/PixelFx/fire/fireball.light.png",
   "columns": 4,
   "rows": 9,
   "normalMap": "",

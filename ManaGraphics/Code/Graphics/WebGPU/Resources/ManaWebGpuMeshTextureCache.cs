@@ -21,6 +21,77 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         public int Count => _cache.Count;
 
+        // Pictures redrawn as the game runs, with the revision last uploaded.
+        private readonly Dictionary<string, (ManaDynamicTexture Source, ManaWebGpuMeshTexture Texture, int Uploaded)> _dynamic = new();
+
+        /// <summary>Uploads every live picture that changed since the last frame; once a frame, before the scene draws.</summary>
+        public void UploadDynamic()
+        {
+            foreach (var (key, entry) in _dynamic.ToArray())
+            {
+                var revision = entry.Source.Revision;
+                if (revision == entry.Uploaded || entry.Texture.Texture == null)
+                {
+                    continue;
+                }
+                WriteDynamic(entry.Source, entry.Texture.Texture);
+                _dynamic[key] = (entry.Source, entry.Texture, revision);
+            }
+        }
+
+        // One level, no mips: a live picture is pixel art seen up close, and remaking a chain every frame is waste.
+        private ManaWebGpuMeshTexture CreateDynamicTexture(ManaDynamicTexture source, string key)
+        {
+            var width = (uint)Math.Max(1, source.Width);
+            var height = (uint)Math.Max(1, source.Height);
+            var textureDescriptor = new TextureDescriptor
+            {
+                Usage = TextureUsage.TextureBinding | TextureUsage.CopyDst,
+                Dimension = TextureDimension.Dimension2D,
+                Size = new Extent3D { Width = width, Height = height, DepthOrArrayLayers = 1 },
+                Format = TextureFormat.Rgba8UnormSrgb,
+                MipLevelCount = 1,
+                SampleCount = 1
+            };
+            var texture = Api.DeviceCreateTexture(Device, &textureDescriptor);
+            if (texture == null)
+            {
+                throw new InvalidOperationException("Failed to create WebGPU dynamic texture.");
+            }
+            var viewDescriptor = new TextureViewDescriptor
+            {
+                Format = TextureFormat.Rgba8UnormSrgb,
+                Dimension = TextureViewDimension.Dimension2D,
+                MipLevelCount = 1,
+                ArrayLayerCount = 1,
+                Aspect = TextureAspect.All
+            };
+            var view = Api.TextureCreateView(texture, &viewDescriptor);
+            if (view == null)
+            {
+                Api.TextureRelease(texture);
+                throw new InvalidOperationException("Failed to create WebGPU dynamic texture view.");
+            }
+            WriteDynamic(source, texture);
+            var resource = new ManaWebGpuMeshTexture(key, texture, view) { RefCount = 1 };
+            _dynamic[key] = (source, resource, source.Revision);
+            return resource;
+        }
+
+        private void WriteDynamic(ManaDynamicTexture source, Texture* texture)
+        {
+            lock (source.Sync)
+            {
+                fixed (byte* pixels = source.Pixels)
+                {
+                    var destination = new ImageCopyTexture { Texture = texture, MipLevel = 0, Origin = new Origin3D(), Aspect = TextureAspect.All };
+                    var layout = new TextureDataLayout { Offset = 0, BytesPerRow = (uint)source.Width * 4, RowsPerImage = (uint)source.Height };
+                    var size = new Extent3D { Width = (uint)source.Width, Height = (uint)source.Height, DepthOrArrayLayers = 1 };
+                    Api.QueueWriteTexture(Queue, &destination, pixels, (nuint)source.Pixels.Length, &layout, &size);
+                }
+            }
+        }
+
         public ManaWebGpuMeshTexture AcquireMeshTexture(ManaMeshCpuData cpuData)
         {
             var textureKey = GetMeshTextureKey(cpuData);
@@ -28,6 +99,13 @@ namespace ManaGraphics.Code.Graphics.Resources
             {
                 cachedTexture.RefCount++;
                 return cachedTexture;
+            }
+
+            if (cpuData.AlbedoDynamicTexture is { } dynamic)
+            {
+                var live = CreateDynamicTexture(dynamic, textureKey);
+                _cache[textureKey] = live;
+                return live;
             }
 
             CreateMeshTexture(cpuData, out var texture, out var textureView);
@@ -79,6 +157,7 @@ namespace ManaGraphics.Code.Graphics.Resources
             }
 
             _cache.Remove(textureResource.Key);
+            _dynamic.Remove(textureResource.Key);
             if (textureResource.TextureView != null)
             {
                 Api.TextureViewRelease(textureResource.TextureView);
@@ -430,6 +509,11 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         private static string GetMeshTextureKey(ManaMeshCpuData cpuData)
         {
+            if (cpuData.AlbedoDynamicTexture is { } dynamic)
+            {
+                return $"dynamic:{dynamic.Id}";
+            }
+
             if (!string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath))
             {
                 return $"file:{Path.GetFullPath(cpuData.AlbedoTexturePath)}";

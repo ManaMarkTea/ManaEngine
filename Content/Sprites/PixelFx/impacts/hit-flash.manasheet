@@ -6,6 +6,7 @@
   "source": "pixelfx:impacts/hit-flash",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/impacts/hit-flash.png",
+  "light": "Content/Sprites/PixelFx/impacts/hit-flash.light.png",
   "columns": 4,
   "rows": 4,
   "normalMap": "",

@@ -1,14 +1,17 @@
 using System.ComponentModel;
 using Mana.Code.Content;
 using Mana.Code.Nodes;
+using ManaPixelFx;
+using ManaPixelFx.Core;
 
 namespace Mana.Code.Components
 {
     /// <summary>
-    /// Plays a pixel art effect -- a torch, an explosion, a pickup sparkle -- from a sheet made by
-    /// Tools/PixelFx/import_pixelfx.mjs out of the pixelfx library (Content/Sprites/PixelFx/). Loops play on and on;
+    /// Plays a pixel art effect -- a torch, an explosion, a pickup sparkle -- from the pixelfx library. An effect
+    /// ported to C# (ManaPixelFx) is drawn live, so each one can have its own seed, palette and glow; the rest play
+    /// from the sheet Tools/PixelFx/import_pixelfx.mjs made of them (Content/Sprites/PixelFx/). Loops play on and on;
     /// a one-shot plays, waits <see cref="RepeatDelay"/> and plays again, or once when <see cref="Repeat"/> is off.
-    /// <see cref="ManaPixelFx.Spawn"/> puts one in the world from code and takes it away when it is done.
+    /// <see cref="ManaPixelFxSpawner.Spawn"/> puts one in the world from code and takes it away when it is done.
     /// </summary>
     public sealed class ManaPixelFxComponent : ManaSpriteBase
     {
@@ -37,6 +40,22 @@ namespace Mana.Code.Components
         [Category("Effect")]
         public bool FaceCamera { get; set; } = true;
 
+        /// <summary>Draw a ported effect live rather than from its sheet; off, or not ported yet, plays the sheet.</summary>
+        [Category("Live")]
+        public bool Live { get; set; } = true;
+
+        /// <summary>A different take on a live effect; 0 keeps the effect's own.</summary>
+        [Category("Live")]
+        public int Seed { get; set; }
+
+        /// <summary>Recolours a live effect: a pixelfx ramp by name (ice, arcane, holy, poison, neon...); empty keeps its own.</summary>
+        [Category("Live")]
+        public string Palette { get; set; } = string.Empty;
+
+        /// <summary>How strongly a live effect's light shines (pixelfx's light option); above 1 blooms more.</summary>
+        [Category("Live")]
+        public float Glow { get; set; } = 1.0f;
+
         /// <summary>Take the node away once a one-shot is over -- for effects spawned in play. Never saved.</summary>
         [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
         public bool RemoveWhenDone { get; set; }
@@ -45,9 +64,17 @@ namespace Mana.Code.Components
         [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
         public bool Done { get; private set; }
 
+        /// <summary>The ported effect drawing this one live, or null while it plays from its sheet.</summary>
+        [System.Text.Json.Serialization.JsonIgnore, Browsable(false)]
+        public PixelEffect? LiveEffect => _live?.Effect;
+
         private double _seconds;
         private int _frame;
         private bool _removing;
+        private ManaPixelFxLive? _live;
+        private string? _liveKey;
+        private MeshRendererComponent? _sheetLight;
+        private string? _sheetLightKey;
 
         public ManaPixelFxComponent(ManaSceneNode owner) : base(owner)
         {
@@ -60,6 +87,9 @@ namespace Mana.Code.Components
         public override int FrameCount => Asset?.FrameCount ?? 1;
 
         protected override int CurrentFrame => _frame;
+
+        // Soft glow and smoke: blended, not cut out at half.
+        protected override ManaCore.Graphics.ManaOpacityMode OpacityMode => ManaCore.Graphics.ManaOpacityMode.Blend;
 
         // Before the node's world transform, so turning to the camera lands in this frame's.
         public override bool UpdatesBeforeNodeTransform => FaceCamera;
@@ -81,7 +111,16 @@ namespace Mana.Code.Components
             {
                 Owner.LocalTransform = FacingCamera(camera.WorldTransform.Translation);
             }
-            base.UpdateComponent();
+
+            if (SyncLive() is { } live)
+            {
+                live.Show(Phase(live.Effect.Meta.Duration, live.Effect.Meta.Loop), FlipX);
+            }
+            else
+            {
+                base.UpdateComponent();
+                SyncSheetLight();
+            }
 
             if (Done && RemoveWhenDone && !_removing && Owner.Parent is { } parent)
             {
@@ -98,7 +137,7 @@ namespace Mana.Code.Components
             }
         }
 
-        /// <summary>Steps the effect on, and works out the frame it shows.</summary>
+        /// <summary>Steps the effect on, and works out the sheet frame it shows.</summary>
         public void Advance(double seconds)
         {
             _seconds += Math.Max(seconds, 0.0);
@@ -108,31 +147,155 @@ namespace Mana.Code.Components
                 _frame = 0;
                 return;
             }
-
             var length = animation.Frames.Count / (double)Math.Max(animation.FramesPerSecond, 0.01f);
-            var time = _seconds - Delay;
             // A one-shot ends empty, so its last frame stands in for nothing shown -- before it starts and between plays.
-            var last = animation.Frames[^1];
-            if (time < 0.0)
-            {
-                _frame = animation.Loop ? animation.FrameAt(time + length * Math.Ceiling(-time / length)) : last;
-                return;
-            }
-            if (animation.Loop)
+            if (Phase(length, animation.Loop) is { } time)
             {
                 _frame = animation.FrameAt(time);
-                return;
+            }
+            else
+            {
+                _frame = animation.Frames[^1];
+            }
+        }
+
+        /// <summary>
+        /// Seconds into the effect now, for one <paramref name="length"/> long, or null while nothing shows: before the
+        /// delay is up, between repeats, and once a one-shot is over (which marks it done).
+        /// </summary>
+        private double? Phase(double length, bool loop)
+        {
+            var time = _seconds - Delay;
+            if (time < 0.0)
+            {
+                if (loop)
+                {
+                    return time + length * Math.Ceiling(-time / length);
+                }
+                return null;
+            }
+            if (loop)
+            {
+                return time;
             }
             if (Repeat)
             {
-                var period = length + Math.Max(RepeatDelay, 0.0f);
-                time %= period;
+                time %= length + Math.Max(RepeatDelay, 0.0f);
             }
             else if (time >= length)
             {
                 Done = true;
             }
-            _frame = time < length ? animation.FrameAt(time) : last;
+            if (time < length)
+            {
+                return time;
+            }
+            return null;
+        }
+
+        /// <summary>Builds, rebuilds or drops the live drawing as the settings ask; null while it plays from the sheet.</summary>
+        private ManaPixelFxLive? SyncLive()
+        {
+            PixelEffect? effect = null;
+            if (Live && Asset is { IsPixelFx: true } sheet)
+            {
+                effect = PixelEffects.Find(sheet.Source[ManaSpriteSheet.PixelFxSource.Length..]);
+            }
+            var key = $"{effect?.Meta.Id}|{Seed}|{Palette}|{Glow}|{Tint}|{Asset?.PixelsPerUnit}";
+            if (effect == null || key != _liveKey)
+            {
+                _live?.Remove();
+                _live = null;
+                _liveKey = null;
+            }
+            if (effect == null)
+            {
+                return null;
+            }
+            if (_live == null)
+            {
+                // Coming off the sheet: its quads go, the live pair takes their place.
+                if (SpriteQuad is { } sheetQuad)
+                {
+                    lock (Owner.Context.World.SceneLock)
+                    {
+                        Owner.Components.Remove(sheetQuad);
+                    }
+                    ForgetQuad();
+                }
+                RemoveSheetLight();
+                _live = new ManaPixelFxLive(Owner, effect, Options(), Asset?.PixelsPerUnit ?? 20.0f, Tint);
+                _liveKey = key;
+            }
+            return _live;
+        }
+
+        /// <summary>
+        /// The sheet's light (pixelfx's glow) as a second quad added over the picture, on the same frame -- the GPU
+        /// blends the colour and adds the light, as a live effect's are.
+        /// </summary>
+        private void SyncSheetLight()
+        {
+            var quad = SpriteQuad;
+            var sheet = Asset;
+            string? picture = null;
+            if (quad != null && sheet != null && sheet.Light.Length > 0)
+            {
+                picture = ManaSpritePictures.Resolve(sheet.Light);
+            }
+            if (picture == null || sheet == null || quad == null)
+            {
+                RemoveSheetLight();
+                return;
+            }
+
+            var key = $"{picture}|{sheet.Columns}|{sheet.Rows}|{sheet.PixelsPerUnit}|{sheet.PivotPoint}|{Tint}|{PixelArt}";
+            if (key != _sheetLightKey || _sheetLight == null)
+            {
+                RemoveSheetLight();
+                var columns = Math.Max(1, sheet.Columns);
+                var rows = Math.Max(1, sheet.Rows);
+                // A millimetre nearer the camera, so the light sorts after the colour it lands on.
+                var mesh = new Mana.Code.Shapes.ManaSpriteMesh(Owner.Context, picture, null, FrameSize(picture, columns, rows, sheet.PixelsPerUnit), sheet.PivotPoint, Tint, PixelArt, 0.001f);
+                mesh.Materials[0].Unlit = true;
+                mesh.Materials[0].OpacityMode = ManaCore.Graphics.ManaOpacityMode.Additive;
+                _sheetLight = new MeshRendererComponent(Owner, mesh);
+                lock (Owner.Context.World.SceneLock)
+                {
+                    Owner.Components.Add(_sheetLight);
+                }
+                _sheetLightKey = key;
+            }
+            _sheetLight.Material.UvScale = quad.Material.UvScale;
+            _sheetLight.Material.UvOffset = quad.Material.UvOffset;
+        }
+
+        private void RemoveSheetLight()
+        {
+            if (_sheetLight == null)
+            {
+                return;
+            }
+            lock (Owner.Context.World.SceneLock)
+            {
+                Owner.Components.Remove(_sheetLight);
+            }
+            _sheetLight = null;
+            _sheetLightKey = null;
+        }
+
+        private Dictionary<string, object> Options()
+        {
+            var options = new Dictionary<string, object> { ["light"] = (double)Glow };
+            if (Seed != 0)
+            {
+                options["seed"] = (double)Seed;
+            }
+            if (Palette.Length > 0 && PixelColor.Pal.TryGetValue(Palette.Trim().ToLowerInvariant(), out var ramp))
+            {
+                options["palette"] = ramp;
+            }
+            return options;
         }
 
         /// <summary>The node's local transform turned about the world's up so its face (+Z) looks at <paramref name="camera"/>.</summary>
@@ -173,7 +336,7 @@ namespace Mana.Code.Components
     }
 
     /// <summary>Pixel effects put in the world from code: an explosion where a crate broke, a sparkle on a pickup.</summary>
-    public static class ManaPixelFx
+    public static class ManaPixelFxSpawner
     {
         /// <summary>
         /// Plays <paramref name="effect"/> once at <paramref name="position"/> under <paramref name="parent"/> (in its

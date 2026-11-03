@@ -6,6 +6,7 @@
   "source": "pixelfx:critters/butterfly",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/critters/butterfly.png",
+  "light": "Content/Sprites/PixelFx/critters/butterfly.light.png",
   "columns": 8,
   "rows": 12,
   "normalMap": "",

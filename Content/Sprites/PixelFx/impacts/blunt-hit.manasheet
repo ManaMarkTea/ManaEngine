@@ -6,6 +6,7 @@
   "source": "pixelfx:impacts/blunt-hit",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/impacts/blunt-hit.png",
+  "light": "Content/Sprites/PixelFx/impacts/blunt-hit.light.png",
   "columns": 5,
   "rows": 6,
   "normalMap": "",

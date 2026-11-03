@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Foundry", "Games\Foundry\Fo
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Contour", "Games\Contour\Contour.csproj", "{EA49BF95-D04A-4483-85C5-EC71BC81807A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaPixelFx", "ManaPixelFx\ManaPixelFx.csproj", "{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -235,6 +237,18 @@ Global
 		{EA49BF95-D04A-4483-85C5-EC71BC81807A}.Release|x64.Build.0 = Release|Any CPU
 		{EA49BF95-D04A-4483-85C5-EC71BC81807A}.Release|x86.ActiveCfg = Release|Any CPU
 		{EA49BF95-D04A-4483-85C5-EC71BC81807A}.Release|x86.Build.0 = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|x64.Build.0 = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Debug|x86.Build.0 = Debug|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x64.ActiveCfg = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x64.Build.0 = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x86.ActiveCfg = Release|Any CPU
+		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

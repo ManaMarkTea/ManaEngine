@@ -6,6 +6,7 @@
   "source": "pixelfx:fire/torch",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/fire/torch.png",
+  "light": "Content/Sprites/PixelFx/fire/torch.light.png",
   "columns": 10,
   "rows": 6,
   "normalMap": "",

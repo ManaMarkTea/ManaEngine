@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- pixelfx (https://github.com/patch-gg/pixelfx, MIT) ported to C#: its painter, particles and effects, drawn
+       live at runtime. No graphics dependency: an effect paints two pixel buffers, which the engine uploads. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ManaPixelFx</RootNamespace>
+  </PropertyGroup>
+
+</Project>

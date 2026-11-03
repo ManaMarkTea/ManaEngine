@@ -6,6 +6,7 @@
   "source": "pixelfx:pickups/coin-spin",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/pickups/coin-spin.png",
+  "light": "Content/Sprites/PixelFx/pickups/coin-spin.light.png",
   "columns": 7,
   "rows": 7,
   "normalMap": "",

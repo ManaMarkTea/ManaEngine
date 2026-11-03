@@ -6,6 +6,7 @@
   "source": "pixelfx:explosions/small-explosion",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/explosions/small-explosion.png",
+  "light": "Content/Sprites/PixelFx/explosions/small-explosion.light.png",
   "columns": 10,
   "rows": 9,
   "normalMap": "",

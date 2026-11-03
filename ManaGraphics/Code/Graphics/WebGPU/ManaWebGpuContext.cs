@@ -413,6 +413,7 @@ namespace ManaGraphics.Code.Graphics
                 }
 
                 var seconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+                _meshTextures?.UploadDynamic();
                 if (_scene != null && _activeRenderScene != null)
                 {
                     _scene.UpdateFrame(_activeRenderScene, seconds);

@@ -6,6 +6,7 @@
   "source": "pixelfx:fire/brazier",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/fire/brazier.png",
+  "light": "Content/Sprites/PixelFx/fire/brazier.light.png",
   "columns": 10,
   "rows": 9,
   "normalMap": "",

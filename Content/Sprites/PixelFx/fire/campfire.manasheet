@@ -6,6 +6,7 @@
   "source": "pixelfx:fire/campfire",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/fire/campfire.png",
+  "light": "Content/Sprites/PixelFx/fire/campfire.light.png",
   "columns": 9,
   "rows": 10,
   "normalMap": "",

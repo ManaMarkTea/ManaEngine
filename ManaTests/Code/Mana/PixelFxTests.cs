@@ -103,7 +103,7 @@ public static class PixelFxChecks
         // ---- Spawned from code --------------------------------------------------------------------------------------
         var holder = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Holder" };
         context.World.DefaultScene.Children.Add(holder);
-        var spawned = ManaPixelFx.Spawn(holder, HitFlash, new Vector3(1, 2, 3), flip: true);
+        var spawned = ManaPixelFxSpawner.Spawn(holder, HitFlash, new Vector3(1, 2, 3), flip: true);
         check("a spawned effect waits for the end of the scene walk to join", holder.Children.Count == 0);
         RunPostUpdate(context.World);
         check("then joins its parent where it was asked, once, flipped and never saved",
@@ -114,6 +114,30 @@ public static class PixelFxChecks
         check("and once over is taken away after the walk", holder.Children.Count == 1 && spawned.Done);
         RunPostUpdate(context.World);
         check("and is gone", holder.Children.Count == 0 && spawned.Owner.Parent == null);
+
+        // ---- Drawn live, or from the sheet ---------------------------------------------------------------------------
+        var live = Fx("Live Torch", Torch);
+        live.FaceCamera = false;
+        live.UpdateComponent();
+        var quads = live.Owner.Components.OfType<MeshRendererComponent>().ToList();
+        check("a ported effect draws live", live.LiveEffect?.Meta.Id == "fire/torch", live.LiveEffect?.Meta.Id ?? "from the sheet");
+        check("as two live pictures: colour blended, light added over it",
+            quads.Count == 2 && quads.All(q => q.Mesh.GetOrCreateCpuData().AlbedoDynamicTexture != null)
+            && quads[0].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Blend && quads[1].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Additive,
+            string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
+        var colour = quads[0].Mesh.GetOrCreateCpuData().AlbedoDynamicTexture;
+        check("its picture is drawn (some of the torch is opaque)", colour != null && Enumerable.Range(0, colour.Pixels.Length / 4).Any(i => colour.Pixels[i * 4 + 3] == 255));
+        live.Live = false;
+        live.UpdateComponent();
+        quads = live.Owner.Components.OfType<MeshRendererComponent>().ToList();
+        check("off, it plays the sheet: its picture blended and its light added on the same frame",
+            live.LiveEffect == null && quads.Count == 2 && quads[0].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Blend
+            && quads[1].Material.OpacityMode == ManaCore.Graphics.ManaOpacityMode.Additive && quads[1].Material.UvOffset == quads[0].Material.UvOffset,
+            string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
+        live.Live = true;
+        live.Palette = "ice";
+        live.UpdateComponent();
+        check("and back live, recoloured", live.LiveEffect != null && live.Owner.Components.OfType<MeshRendererComponent>().Count() == 2);
     }
 
     private static int Shown(ManaPixelFxComponent fx) =>

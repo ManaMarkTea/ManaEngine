@@ -6,6 +6,7 @@
   "source": "pixelfx:spawn/poof",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/spawn/poof.png",
+  "light": "Content/Sprites/PixelFx/spawn/poof.light.png",
   "columns": 7,
   "rows": 7,
   "normalMap": "",

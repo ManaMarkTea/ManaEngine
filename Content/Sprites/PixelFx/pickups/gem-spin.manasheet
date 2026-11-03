@@ -6,6 +6,7 @@
   "source": "pixelfx:pickups/gem-spin",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/pickups/gem-spin.png",
+  "light": "Content/Sprites/PixelFx/pickups/gem-spin.light.png",
   "columns": 9,
   "rows": 8,
   "normalMap": "",

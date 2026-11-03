@@ -6,6 +6,7 @@
   "source": "pixelfx:holy/heal",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/holy/heal.png",
+  "light": "Content/Sprites/PixelFx/holy/heal.light.png",
   "columns": 10,
   "rows": 6,
   "normalMap": "",

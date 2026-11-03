@@ -6,6 +6,7 @@
   "source": "pixelfx:ice/frost-nova",
   "frames": [],
   "texture": "Content/Sprites/PixelFx/ice/frost-nova.png",
+  "light": "Content/Sprites/PixelFx/ice/frost-nova.light.png",
   "columns": 6,
   "rows": 9,
   "normalMap": "",

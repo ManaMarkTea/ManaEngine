@@ -18,6 +18,9 @@ namespace ManaCore.Graphics
         public required Vector2[] TextureCoordinates1 { get; init; }
         public string? AlbedoTexturePath { get; init; }
         public byte[]? AlbedoTextureBytes { get; init; }
+
+        /// <summary>A picture redrawn as the game runs, used over the path and bytes when set (a live pixel effect).</summary>
+        public ManaDynamicTexture? AlbedoDynamicTexture { get; init; }
         public Vector4? AlbedoFactor { get; init; }
 
         // The rest of the PBR maps. Separate paths rather than one packed texture, because that is how a

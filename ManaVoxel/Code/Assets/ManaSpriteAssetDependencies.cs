@@ -41,6 +41,7 @@ public static class ManaSpriteAssetDependencies
                 pictures.AddRange(sheet.Frames);
                 pictures.Add(sheet.Texture);
                 pictures.Add(sheet.NormalMap);
+                pictures.Add(sheet.Light);
             }
         }
         switch (script.Type.ToUpperInvariant())

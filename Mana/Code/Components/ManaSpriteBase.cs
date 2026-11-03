@@ -65,6 +65,9 @@ namespace Mana.Code.Components
         /// <summary>The frame to show now, counted across then down.</summary>
         protected virtual int CurrentFrame => 0;
 
+        /// <summary>How the picture's alpha is used: cut out at half by default; soft art (a glow, smoke) blends instead.</summary>
+        protected virtual ManaCore.Graphics.ManaOpacityMode OpacityMode => ManaCore.Graphics.ManaOpacityMode.Cutout;
+
         /// <summary>Everything the picture depends on, cheaply -- checked every frame; a change rebuilds the quad.</summary>
         protected abstract string LayoutKey();
 
@@ -121,6 +124,16 @@ namespace Mana.Code.Components
             material.UvOffset = new Vector2(FlipX ? corner.X + cell.X : corner.X, corner.Y);
         }
 
+        /// <summary>The quad drawing the picture, once built -- for a kind that lays a second one over it in step.</summary>
+        protected MeshRendererComponent? SpriteQuad => _renderer;
+
+        /// <summary>Lets go of the quad (a kind that took it off the node to draw another way), so the next refresh builds it again.</summary>
+        protected void ForgetQuad()
+        {
+            _renderer = null;
+            _builtKey = null;
+        }
+
         /// <summary>The size of one frame in metres, from the picture's pixels -- for a kind working out its layout.</summary>
         protected static Vector2 FrameSize(string picture, int columns, int rows, float pixelsPerUnit)
         {
@@ -140,6 +153,7 @@ namespace Mana.Code.Components
             }
             var mesh = new ManaSpriteMesh(Owner.Context, layout.Picture, normal, layout.Size, layout.Pivot, Tint, PixelArt);
             mesh.Materials[0].Unlit = Unlit;
+            mesh.Materials[0].OpacityMode = OpacityMode;
             lock (Owner.Context.World.SceneLock)
             {
                 if (_renderer != null)

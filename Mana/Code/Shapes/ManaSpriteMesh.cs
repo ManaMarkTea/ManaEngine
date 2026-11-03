@@ -15,13 +15,30 @@ namespace Mana.Code.Shapes
         public Vector2 Size { get; }
         public Vector2 Pivot { get; }
 
-        public ManaSpriteMesh(ManaContext context, string texturePath, string? normalMapPath, Vector2 size, Vector2 pivot, Vector4 tint, bool pixelArt = false)
+        public ManaSpriteMesh(ManaContext context, string texturePath, string? normalMapPath, Vector2 size, Vector2 pivot, Vector4 tint, bool pixelArt = false, float lift = 0.0f)
             : base(context)
         {
             Size = size;
             Pivot = pivot;
             Name = $"Sprite {Path.GetFileNameWithoutExtension(texturePath)}";
+            Build(texturePath, null, normalMapPath, tint, pixelArt, lift);
+        }
 
+        /// <summary>A quad showing a picture redrawn as the game runs (a live pixel effect), lifted <paramref name="lift"/> towards +Z.</summary>
+        public ManaSpriteMesh(ManaContext context, ManaDynamicTexture texture, string name, Vector2 size, Vector2 pivot, Vector4 tint, bool pixelArt, float lift = 0.0f)
+            : base(context)
+        {
+            Size = size;
+            Pivot = pivot;
+            Name = name;
+            Build(null, texture, null, tint, pixelArt, lift);
+        }
+
+        private void Build(string? texturePath, ManaDynamicTexture? dynamic, string? normalMapPath, Vector4 tint, bool pixelArt, float lift)
+        {
+            var size = Size;
+            var pivot = Pivot;
+            var context = Context;
             var left = -pivot.X * size.X;
             var bottom = -pivot.Y * size.Y;
             var right = left + size.X;
@@ -30,13 +47,14 @@ namespace Mana.Code.Shapes
             // Pictures load flipped, bottom row first (OpenGL's way round), so the bottom edge reads v = 0.
             SetCpuData(new ManaMeshCpuData
             {
-                Positions = [new(left, bottom, 0), new(right, bottom, 0), new(right, top, 0), new(left, top, 0)],
+                Positions = [new(left, bottom, lift), new(right, bottom, lift), new(right, top, lift), new(left, top, lift)],
                 Normals = [Vector3.UnitZ, Vector3.UnitZ, Vector3.UnitZ, Vector3.UnitZ],
                 Colors = [Vector4.One, Vector4.One, Vector4.One, Vector4.One],
                 TextureCoordinates0 = [new(0, 0), new(1, 0), new(1, 1), new(0, 1)],
                 TextureCoordinates1 = [new(0, 0), new(1, 0), new(1, 1), new(0, 1)],
                 Indexes = [0, 1, 2, 0, 2, 3],
                 AlbedoTexturePath = texturePath,
+                AlbedoDynamicTexture = dynamic,
                 NormalTexturePath = normalMapPath,
                 NearestFiltering = pixelArt
             });
