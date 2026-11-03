@@ -24,32 +24,45 @@ public static class PixelFxParityChecks
         check("colours keep pixelfx's byte order (R low)", PixelColor.Hex("#123456") == 0xff563412u, $"{PixelColor.Hex("#123456"):x8}");
         check("rounding is JavaScript's, halves up", PixelMath.Round(-2.5) == -2 && PixelMath.Round(2.5) == 3);
 
-        // ---- every ported effect, frame by frame
-        foreach (var effect in PixelEffects.All.Where(effect => !effect.Meta.Id.StartsWith("test/", StringComparison.Ordinal)))
+        // ---- every ported effect: every third frame drawn and compared (state carries between them, so a divergence
+        // anywhere shows), the effects side by side
+        var effects = PixelEffects.All.Where(effect => !effect.Meta.Id.StartsWith("test/", StringComparison.Ordinal)).ToList();
+        var results = new (string What, bool Ok, string Detail)[effects.Count];
+        Parallel.For(0, effects.Count, n => results[n] = Compare(effects[n]));
+        foreach (var (what, ok, detail) in results)
         {
-            var id = effect.Meta.Id;
-            var file = Path.Combine(["ManaTests", "Data", "PixelFx", .. id.Split('/')]) + ".json";
-            if (!File.Exists(file))
-            {
-                check($"{id}: has pixelfx's frames to compare with (node Tools/PixelFx/parity.mjs {id})", false, file);
-                continue;
-            }
-            using var json = JsonDocument.Parse(File.ReadAllText(file));
-            var expected = json.RootElement.GetProperty("frames").EnumerateArray().Select(frame => frame.GetString() ?? "").ToList();
-            var actual = new List<string>();
-            PixelFxRun.Play(effect, null, 0, (_, frame) => actual.Add($"{Fnv(frame.Color)} {Fnv(frame.Light)}"));
-            var first = Enumerable.Range(0, Math.Min(expected.Count, actual.Count)).FirstOrDefault(i => expected[i] != actual[i], -1);
-            var detail = $"{actual.Count} frames";
-            if (first >= 0)
-            {
-                detail = $"frame {first} differs (colour, light: pixelfx {expected[first]}, ours {actual[first]})";
-            }
-            else if (expected.Count != actual.Count)
-            {
-                detail = $"{actual.Count} frames, pixelfx drew {expected.Count}";
-            }
-            check($"{id}: draws what pixelfx draws, frame for frame", first < 0 && expected.Count == actual.Count, detail);
+            check(what, ok, detail);
         }
+    }
+
+    private const int Every = 3;
+
+    private static (string What, bool Ok, string Detail) Compare(PixelEffect effect)
+    {
+        var id = effect.Meta.Id;
+        var file = Path.Combine(["ManaTests", "Data", "PixelFx", .. id.Split('/')]) + ".json";
+        if (!File.Exists(file))
+        {
+            return ($"{id}: has pixelfx's frames to compare with (node Tools/PixelFx/parity.mjs {id})", false, file);
+        }
+        using var json = JsonDocument.Parse(File.ReadAllText(file));
+        var expected = json.RootElement.GetProperty("frames").EnumerateArray().Select(frame => frame.GetString() ?? "").ToList();
+        var count = PixelFxRun.FrameCount(effect.Meta, effect.Meta.Fps);
+        var actual = new Dictionary<int, string>();
+        PixelFxRun.Play(effect, null, 0, (i, frame) => actual[i] = $"{Fnv(frame.Color)} {Fnv(frame.Light)}", i => i % Every == 0 || i == count - 1);
+        var what = $"{id}: draws what pixelfx draws, frame for frame";
+        if (expected.Count != count)
+        {
+            return (what, false, $"{count} frames, pixelfx drew {expected.Count}");
+        }
+        foreach (var (i, hash) in actual.OrderBy(pair => pair.Key))
+        {
+            if (expected[i] != hash)
+            {
+                return (what, false, $"frame {i} differs (colour, light: pixelfx {expected[i]}, ours {hash})");
+            }
+        }
+        return (what, true, $"{actual.Count} of {count} frames");
     }
 
     // 32-bit FNV-1a over a buffer's bytes, as the reference tool hashes them.

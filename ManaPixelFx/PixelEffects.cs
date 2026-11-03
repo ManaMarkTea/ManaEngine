@@ -19,6 +19,13 @@ namespace ManaPixelFx
             new BigExplosion(),
             new DirtExplosion(),
             new Implosion(),
+            new BarrelExplosion(),
+            new Grenade(),
+            new FireworkBurst(),
+            new FireworkRocket(),
+            new PlasmaExplosion(),
+            new Nuke(),
+            new SmokeBomb(),
         }.ToDictionary(effect => effect.Meta.Id, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The effects in id order (category, then name).</summary>

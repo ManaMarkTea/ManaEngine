@@ -142,6 +142,14 @@ public sealed class PixelFxWidget : InspectorWidget<ManaPixelFxComponent>
                 box.BindPolled(b => b.IsChecked, () => fx.OptionValue(name) is true);
                 return box;
             }
+            case string colour when colour.StartsWith('#'):
+            {
+                var field = InspectorControls.Colour(
+                    () => ToColour(fx.OptionValue(name) as string ?? colour),
+                    value => Change(fx, name, ToHex(value), context));
+                field.ShowAlpha = false;
+                return field;
+            }
             case string:
             {
                 var text = new TextBox { Text = fx.OptionValue(name) as string ?? string.Empty };

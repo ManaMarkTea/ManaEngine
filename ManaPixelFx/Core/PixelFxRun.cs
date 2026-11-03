@@ -33,8 +33,11 @@ namespace ManaPixelFx.Core
         public static bool IsScreen(PixelEffectMeta meta) =>
             meta.Size.W >= 320 && Math.Abs(meta.Size.W / (double)meta.Size.H - 16.0 / 9.0) < 0.05;
 
-        /// <summary>Plays one run at <paramref name="fps"/> (the effect's own when 0), handing each drawn frame to <paramref name="each"/>.</summary>
-        public static void Play(PixelEffect effect, IReadOnlyDictionary<string, object>? options, int fps, Action<int, PixelFrame> each)
+        /// <summary>
+        /// Plays one run at <paramref name="fps"/> (the effect's own when 0), handing each drawn frame to
+        /// <paramref name="each"/>; with <paramref name="drawn"/>, only the frames it picks are drawn (the rest are stepped).
+        /// </summary>
+        public static void Play(PixelEffect effect, IReadOnlyDictionary<string, object>? options, int fps, Action<int, PixelFrame> each, Func<int, bool>? drawn = null)
         {
             var meta = effect.Meta;
             if (fps <= 0)
@@ -62,6 +65,10 @@ namespace ManaPixelFx.Core
                 if (i > 0)
                 {
                     fx.Update(1.0 / fps);
+                }
+                if (drawn != null && !drawn(i))
+                {
+                    continue;
                 }
                 frame.Clear();
                 fx.Draw(frame);
