@@ -1,0 +1,28 @@
+{
+ "id": "projectiles/bullet-tracer",
+ "fps": 30,
+ "size": [
+  200,
+  40
+ ],
+ "frames": [
+  "6a50d123 11cd42b5",
+  "4e701d45 ae1def8d",
+  "06265dcd 6412cc11",
+  "ac93fb08 3f361efd",
+  "84babd3c 7d3b3bac",
+  "0b827fff 59aa64c2",
+  "bc48f144 d356f758",
+  "ae2a81d0 f7f10cbb",
+  "2360300e 37128395",
+  "3dc13a11 795d79ed",
+  "23ff7b5e 133a4c9c",
+  "ddd1c912 b41ae546",
+  "8c9e0e70 8d66bad5",
+  "5de6e66a a8eb50b1",
+  "a590da1d d42a0f09",
+  "545aa409 d0583717",
+  "1f405098 e732b32f",
+  "238f5925 26f88b74"
+ ]
+}

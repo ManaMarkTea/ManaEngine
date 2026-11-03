@@ -1,0 +1,25 @@
+{
+ "id": "projectiles/energy-disc",
+ "fps": 30,
+ "size": [
+  120,
+  52
+ ],
+ "frames": [
+  "35e04b7d 35ef7004",
+  "8006255d 62c288f0",
+  "11337ef0 d2b9a1ab",
+  "c85607de edf68a91",
+  "66c3abe5 f3219b1d",
+  "b7f7c299 d7dfea41",
+  "b82be17a a04123e1",
+  "6c26482d 7d9c8601",
+  "70fb57b4 fe8b7d57",
+  "b4129837 23389c05",
+  "d845a4c7 d6d0bde8",
+  "45c79997 bebb2bc7",
+  "834d28d8 8ba8b578",
+  "1fbe7bbe db1315df",
+  "f4d168d3 9e956578"
+ ]
+}

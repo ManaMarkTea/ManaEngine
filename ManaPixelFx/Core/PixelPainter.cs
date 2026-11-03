@@ -316,6 +316,7 @@ namespace ManaPixelFx.Core
         public void Line(double x0, double y0, double x1, double y1, uint c, double a = 1) => Line(x0, y0, x1, y1, null, c, null, a);
         public void Line(double x0, double y0, double x1, double y1, Func<double, uint> c, double a = 1) => Line(x0, y0, x1, y1, c, 0, null, a);
         public void Line(double x0, double y0, double x1, double y1, uint c, Func<double, double> a) => Line(x0, y0, x1, y1, null, c, a, 1);
+        public void Line(double x0, double y0, double x1, double y1, Func<double, uint> c, Func<double, double> a) => Line(x0, y0, x1, y1, c, 0, a, 1);
 
         private void Line(double x0, double y0, double x1, double y1, Func<double, uint>? cf, uint c, Func<double, double>? af, double a)
         {
@@ -721,6 +722,62 @@ namespace ManaPixelFx.Core
                     }
                     var f = 1 - d;
                     Add(sx, sy, c, f * f * k);
+                }
+            }
+        }
+
+        // ---- sprites
+        /// <summary>
+        /// A little sprite from strings: rows like "..##..", pal mapping characters to colours; '.' and ' ' are empty.
+        /// Top left at (x, y); flip mirrors it, flipY turns it upside down, tint draws every pixel in one colour.
+        /// </summary>
+        public void Sprite(IReadOnlyList<string> rows, IReadOnlyDictionary<char, uint> pal, double x, double y, double scale = 1, double a = 1, bool flip = false, bool flipY = false, uint? tint = null)
+        {
+            var w = 0;
+            if (rows.Count > 0)
+            {
+                w = rows[0].Length;
+            }
+            for (var r = 0; r < rows.Count; r++)
+            {
+                for (var q = 0; q < rows[r].Length; q++)
+                {
+                    var ch = rows[r][q];
+                    if (ch == '.' || ch == ' ')
+                    {
+                        continue;
+                    }
+                    uint c = 0;
+                    if (tint is { } single)
+                    {
+                        c = single;
+                    }
+                    else if (pal.TryGetValue(ch, out var mapped))
+                    {
+                        c = mapped;
+                    }
+                    if (c == 0)
+                    {
+                        continue;
+                    }
+                    var col = q;
+                    if (flip)
+                    {
+                        col = w - 1 - q;
+                    }
+                    var row = r;
+                    if (flipY)
+                    {
+                        row = rows.Count - 1 - r;
+                    }
+                    if (scale == 1)
+                    {
+                        Dot(x + col, y + row, c, a);
+                    }
+                    else
+                    {
+                        Rect(x + col * scale, y + row * scale, scale, scale, c, a);
+                    }
                 }
             }
         }

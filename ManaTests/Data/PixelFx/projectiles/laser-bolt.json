@@ -1,0 +1,25 @@
+{
+ "id": "projectiles/laser-bolt",
+ "fps": 30,
+ "size": [
+  128,
+  32
+ ],
+ "frames": [
+  "42f50430 bf60af82",
+  "540e367f 43c67339",
+  "21754184 c4375692",
+  "ee2f9fdc ce771ee4",
+  "a302d2a8 f13d74ca",
+  "2655cd53 74ebfe2b",
+  "66722fbc 6b65eec5",
+  "f4edb2d4 66235f36",
+  "c26e93fc c4e31d71",
+  "2c6a1949 a81c7f01",
+  "fa61b9ac b5348b13",
+  "f2916990 1dc52444",
+  "ca70e9a1 0ddb7dae",
+  "408fb5e0 9955c6a2",
+  "58299584 503f2d2d"
+ ]
+}

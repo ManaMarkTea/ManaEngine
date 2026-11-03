@@ -1,0 +1,28 @@
+{
+ "id": "projectiles/arrow",
+ "fps": 30,
+ "size": [
+  112,
+  32
+ ],
+ "frames": [
+  "0a5946e4 7157fd05",
+  "04094f60 79c57f85",
+  "85ef2e8c a79d823d",
+  "e3f486b3 9b7ffdc5",
+  "eda296da 9b7ffdc5",
+  "bf0d6e8d 9b7ffdc5",
+  "30368b3c 9b7ffdc5",
+  "90b56bfb 9b7ffdc5",
+  "19e0f843 9b7ffdc5",
+  "8bde88e1 7157fd05",
+  "fa495b39 79c57f85",
+  "a0f7e933 a79d823d",
+  "aa0877cd 9b7ffdc5",
+  "46729747 9b7ffdc5",
+  "5488b228 9b7ffdc5",
+  "10952002 9b7ffdc5",
+  "7c3f0e34 9b7ffdc5",
+  "49992d76 9b7ffdc5"
+ ]
+}

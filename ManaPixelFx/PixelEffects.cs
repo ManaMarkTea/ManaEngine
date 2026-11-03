@@ -2,6 +2,7 @@ using ManaPixelFx.Core;
 using ManaPixelFx.Effects.Explosions;
 using ManaPixelFx.Effects.Fire;
 using ManaPixelFx.Effects.Impacts;
+using ManaPixelFx.Effects.Projectiles;
 
 namespace ManaPixelFx
 {
@@ -35,6 +36,19 @@ namespace ManaPixelFx
             new GroundSlam(),
             new Parry(),
             new Ricochet(),
+            new Arrow(),
+            new LaserBolt(),
+            new EnergyDisc(),
+            new BulletTracer(),
+            new MuzzleSmg(),
+            new PlasmaShot(),
+            new Rocket(),
+            new MuzzlePistol(),
+            new Cannonball(),
+            new SignalFlare(),
+            new MagicMissile(),
+            new MuzzleShotgun(),
+            new HomingMissile(),
         }.ToDictionary(effect => effect.Meta.Id, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>The effects in id order (category, then name).</summary>

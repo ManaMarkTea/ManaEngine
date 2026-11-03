@@ -122,6 +122,7 @@ namespace ManaPixelFx.Core
         public static PixelRng Rng(double a) => new(Hash(a));
         public static PixelRng Rng(double a, double b) => new(Hash(a, b));
         public static PixelRng Rng(double a, double b, double c) => new(Hash(a, b, c));
+        public static PixelRng Rng(double a, double b, double c, double d) => new(Hash(a, b, c, d));
 
         // ---- noise
         /// <summary>Smooth 1D value noise in [-1, 1].</summary>
