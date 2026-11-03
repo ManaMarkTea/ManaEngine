@@ -218,8 +218,10 @@ namespace Mana.Code.Nodes
         // ManaSkeletalActorNode, which poses bones before the walk and skins after it.
         public virtual void UpdateTransform()
         {
-            foreach (ManaComponent component in Components)
+            // By index: one of these may add a component to its node (a camera-facing sprite its mesh renderer).
+            for (var i = 0; i < Components.Count; i++)
             {
+                var component = Components[i];
                 if (component.UpdatesBeforeNodeTransform)
                 {
                     component.UpdateComponent();

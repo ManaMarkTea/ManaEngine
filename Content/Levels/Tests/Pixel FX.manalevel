@@ -1,0 +1,450 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Pixel FX",
+  "camera": {
+    "position": [
+      62,
+      5,
+      72
+    ],
+    "rotation": [
+      -0.12,
+      0,
+      0
+    ]
+  },
+  "sky": {
+    "mode": "Day"
+  },
+  "nodes": [
+    {
+      "id": "c232f5b15cbe445bb9383f0d049a04fb",
+      "name": "Ground",
+      "kind": "Shape",
+      "position": [
+        62,
+        -0.05,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.32,
+        0.34,
+        0.38,
+        1
+      ],
+      "size": [
+        60,
+        0.1,
+        24
+      ]
+    },
+    {
+      "id": "a17e71e953f64e60b7b0f2ceac2c4766",
+      "name": "Torch",
+      "kind": "Group",
+      "position": [
+        40,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "7288a95641734b1fba74dcf9616253e4",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "b6f7a5a209c1489c9187cadb49e987b5",
+              "assetPath": "Sprites/PixelFx/fire/torch.manasheet"
+            },
+            "delay": 0.0
+          }
+        }
+      ]
+    },
+    {
+      "id": "9a66656127e14dd2a91f43c90fd25493",
+      "name": "Campfire",
+      "kind": "Group",
+      "position": [
+        44,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "67be4d0d2a2645ac8a27a61c6d742752",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "f0ccd41b8ab54c7e8ea031187b062bf9",
+              "assetPath": "Sprites/PixelFx/fire/campfire.manasheet"
+            },
+            "delay": 0.15
+          }
+        }
+      ]
+    },
+    {
+      "id": "a430b0362d5d429984ffd760361cc386",
+      "name": "Brazier",
+      "kind": "Group",
+      "position": [
+        48,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "f03bc53e9d294f3a8f298959b25f02fe",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "f2cc0906e76944db97e6c79e9d0fdc48",
+              "assetPath": "Sprites/PixelFx/fire/brazier.manasheet"
+            },
+            "delay": 0.3
+          }
+        }
+      ]
+    },
+    {
+      "id": "a4aa0b6001ee4c10a935c2038a70440a",
+      "name": "Portal",
+      "kind": "Group",
+      "position": [
+        52,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "f5476c9068f44067b243c583d244dd7d",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "53489cef9d6245599822c7063edd0f8b",
+              "assetPath": "Sprites/PixelFx/arcane/portal.manasheet"
+            },
+            "delay": 0.45
+          }
+        }
+      ]
+    },
+    {
+      "id": "3a6c928b610d4ab4874d724929410abe",
+      "name": "Plasma ball",
+      "kind": "Group",
+      "position": [
+        56,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "0c0735bcabf14bd3a0ae72c01f779c07",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "af29031d6dc5437199b6fe0331945d65",
+              "assetPath": "Sprites/PixelFx/lightning/plasma-ball.manasheet"
+            },
+            "delay": 0.6
+          }
+        }
+      ]
+    },
+    {
+      "id": "f60f012f16774a29832f11560be64416",
+      "name": "Fountain",
+      "kind": "Group",
+      "position": [
+        60,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "4bc486c7f04b44278de6a03932337c5d",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "2dbd82bce1c3418cb090de98727b941f",
+              "assetPath": "Sprites/PixelFx/water/fountain.manasheet"
+            },
+            "delay": 0.75
+          }
+        }
+      ]
+    },
+    {
+      "id": "65261089982841dfa7d862924874e9d1",
+      "name": "Explosion",
+      "kind": "Group",
+      "position": [
+        64,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "ad4bb7afcf00424e8214fa0973053e55",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "96ab5cae2487479fa9db7e464245915c",
+              "assetPath": "Sprites/PixelFx/explosions/small-explosion.manasheet"
+            },
+            "delay": 0.9
+          }
+        }
+      ]
+    },
+    {
+      "id": "59505af0140143c2abf5824995bdc2bd",
+      "name": "Frost nova",
+      "kind": "Group",
+      "position": [
+        68,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "5acad2f90f5943da97eae0b9fc892b6c",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "def31a11630c4e369cf91643080799f1",
+              "assetPath": "Sprites/PixelFx/ice/frost-nova.manasheet"
+            },
+            "delay": 1.05
+          }
+        }
+      ]
+    },
+    {
+      "id": "a49d82f438534f8789049004a5eb7c77",
+      "name": "Firework burst",
+      "kind": "Group",
+      "position": [
+        72,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "ed0c0608731340cc8c98005659460659",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "f722c98314ed4c3e9a819af928c7e417",
+              "assetPath": "Sprites/PixelFx/explosions/firework-burst.manasheet"
+            },
+            "delay": 1.2
+          }
+        }
+      ]
+    },
+    {
+      "id": "a8cd3338eecb426dabf1d68fc17e3e56",
+      "name": "Coin spin",
+      "kind": "Group",
+      "position": [
+        76,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "5be0bb11bc144d16840717bce099f28b",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "b6249dc4dd784016b6831a8bff3ab970",
+              "assetPath": "Sprites/PixelFx/pickups/coin-spin.manasheet"
+            },
+            "delay": 1.35
+          }
+        }
+      ]
+    },
+    {
+      "id": "080d28dbb6e24e0ea557d6c0f9959187",
+      "name": "Heart pickup",
+      "kind": "Group",
+      "position": [
+        80,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "3d1fe7c49ec147a38eb9141fdb822203",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "23a05818ba0c48e88ea3bc2a228ba251",
+              "assetPath": "Sprites/PixelFx/pickups/heart-pickup.manasheet"
+            },
+            "delay": 1.5
+          }
+        }
+      ]
+    },
+    {
+      "id": "c698409afde74ba9ad68870bd54be01b",
+      "name": "Wisp",
+      "kind": "Group",
+      "position": [
+        84,
+        0,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "scripts": [
+        {
+          "id": "5fd60d583ab34ce99b55e1e559328823",
+          "type": "PixelFx",
+          "properties": {
+            "effect": {
+              "assetId": "de2b974aa72e4b1386191c2d7ad2b6b0",
+              "assetPath": "Sprites/PixelFx/critters/wisp.manasheet"
+            },
+            "delay": 1.65
+          }
+        }
+      ]
+    }
+  ]
+}

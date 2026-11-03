@@ -489,10 +489,17 @@ public ManaSceneNode? PreviewNode => _meshPickerPreviewNode;
             {
                 node = Node(Path.GetFileNameWithoutExtension(assetReference));
                 var sheet = Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(assetReference);
-                node.Components.Add(new ManaSpriteSheetComponent(node)
+                if (sheet is { IsPixelFx: true })
                 {
-                    Sheet = Mana.Code.Content.ManaContentAssets.Reference(assetReference), Animation = sheet?.Animations.FirstOrDefault()?.Name ?? string.Empty
-                });
+                    node.Components.Add(new ManaPixelFxComponent(node) { Effect = Mana.Code.Content.ManaContentAssets.Reference(assetReference) });
+                }
+                else
+                {
+                    node.Components.Add(new ManaSpriteSheetComponent(node)
+                    {
+                        Sheet = Mana.Code.Content.ManaContentAssets.Reference(assetReference), Animation = sheet?.Animations.FirstOrDefault()?.Name ?? string.Empty
+                    });
+                }
             }
             else if (extension == Mana.Code.Content.ManaSpriteSlice.Extension)
             {

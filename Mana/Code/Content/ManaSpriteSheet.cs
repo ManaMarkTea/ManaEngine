@@ -15,6 +15,13 @@ namespace Mana.Code.Content
         public string Id { get; set; } = ManaContentAssets.NewId();
         public string Name { get; set; } = "Sprite Sheet";
 
+        /// <summary>What it was made from, to make it again: "pixelfx:fire/torch" for a pixelfx effect (Tools/PixelFx). Empty for a sheet drawn by hand.</summary>
+        public string Source { get; set; } = string.Empty;
+
+        public const string PixelFxSource = "pixelfx:";
+
+        public bool IsPixelFx => Source.StartsWith(PixelFxSource, StringComparison.OrdinalIgnoreCase);
+
         /// <summary>One picture per frame, in order -- how packs like Kenney's ship animation. Used over <see cref="Texture"/> when set.</summary>
         public List<string> Frames { get; set; } = [];
 

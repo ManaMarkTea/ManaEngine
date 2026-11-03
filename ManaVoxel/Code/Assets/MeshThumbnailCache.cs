@@ -540,6 +540,8 @@ namespace ManaVoxel.Code.Assets
             {
                 "SpriteSheet" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(Asset("sheet"), Mana.Code.Content.ManaSpriteSheet.Extension) is { } sheet
                     ? SheetIcon(sheet) : null,
+                "PixelFx" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSheet>(Asset("effect"), Mana.Code.Content.ManaSpriteSheet.Extension) is { } effect
+                    ? SheetIcon(effect) : null,
                 "Sprite9Slice" => Mana.Code.Content.ManaContentAssets.Load<Mana.Code.Content.ManaSpriteSlice>(Asset("slice"), Mana.Code.Content.ManaSpriteSlice.Extension) is { } slice
                     ? SliceIcon(slice) : null,
                 _ => ManaSpritePictures.Resolve(Text("texture")) is { } file ? PictureIcon(file, 1, 1, 0) : null
@@ -549,7 +551,13 @@ namespace ManaVoxel.Code.Assets
         /// <summary>A sheet's thumbnail: the first frame of its idle animation, or its first frame.</summary>
         public static byte[]? SheetIcon(Mana.Code.Content.ManaSpriteSheet sheet)
         {
-            var frame = (sheet.Animation("idle") ?? sheet.Animations.FirstOrDefault())?.Frames.FirstOrDefault() ?? 0;
+            var animation = sheet.Animation("idle") ?? sheet.Animations.FirstOrDefault();
+            var frame = animation?.Frames.FirstOrDefault() ?? 0;
+            // An effect starts from nothing (an explosion's first frame is a dot): a third of the way in shows it.
+            if (sheet.IsPixelFx && animation is { Frames.Count: > 0 })
+            {
+                frame = animation.Frames[animation.Frames.Count / 3];
+            }
             if (sheet.Frames.Count > 0)
             {
                 return ManaSpritePictures.Resolve(sheet.Frames[Math.Clamp(frame, 0, sheet.Frames.Count - 1)]) is { } file ? PictureIcon(file, 1, 1, 0) : null;
@@ -589,7 +597,7 @@ namespace ManaVoxel.Code.Assets
             }
         }
 
-        private static readonly string[] SpriteScripts = ["Sprite", "SpriteSheet", "Sprite9Slice"];
+        private static readonly string[] SpriteScripts = ["Sprite", "SpriteSheet", "Sprite9Slice", "PixelFx"];
 
         private static Levels.ManaLevelScript? FindSprite(Levels.ManaLevelNode node)
         {

@@ -66,6 +66,12 @@ namespace ManaVoxel.Code.Levels
                 },
                 new()
                 {
+                    Type = "PixelFx",
+                    ComponentType = typeof(Mana.Code.Components.ManaPixelFxComponent),
+                    Create = node => new Mana.Code.Components.ManaPixelFxComponent(node)
+                },
+                new()
+                {
                     Type = "PolygonCollider",
                     ComponentType = typeof(Mana.Code.Components.ManaPolygonColliderComponent),
                     Create = node => new Mana.Code.Components.ManaPolygonColliderComponent(node)
@@ -271,6 +277,7 @@ namespace ManaVoxel.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSpriteSheetComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaSprite9SliceComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPixelFxComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(Mana.Code.Components.ManaPolygonColliderComponent))]
         /// <param name="occurrence">
         /// Which of its kind this script is on the node, counting from zero. For a type a node may only have one of,

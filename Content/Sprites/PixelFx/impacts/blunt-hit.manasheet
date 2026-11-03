@@ -1,0 +1,54 @@
+{
+  "format": "mana-sprite-sheet",
+  "version": 1,
+  "id": "c5dff372f7014f06984cd946b0923aac",
+  "name": "Blunt hit",
+  "source": "pixelfx:impacts/blunt-hit",
+  "frames": [],
+  "texture": "Content/Sprites/PixelFx/impacts/blunt-hit.png",
+  "columns": 5,
+  "rows": 6,
+  "normalMap": "",
+  "pixelsPerUnit": 20,
+  "pivot": [
+    0.5161,
+    0.1928
+  ],
+  "animations": [
+    {
+      "name": "play",
+      "frames": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "framesPerSecond": 30,
+      "loop": false
+    }
+  ]
+}
