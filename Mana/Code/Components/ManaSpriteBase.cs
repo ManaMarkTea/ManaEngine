@@ -49,6 +49,7 @@ namespace Mana.Code.Components
         protected readonly record struct SpriteLayout(string Picture, string? NormalMap, int Columns, int Rows, Vector2 Size, Vector2 Pivot, Vector2 Repeats);
 
         private MeshRendererComponent? _renderer;
+        private readonly ManaDrawingNode _drawing;
         private string? _builtKey;
         private string? _missingKey;
         private long _retryAt;
@@ -57,6 +58,7 @@ namespace Mana.Code.Components
 
         protected ManaSpriteBase(ManaSceneNode owner) : base(owner)
         {
+            _drawing = new ManaDrawingNode(owner, "Sprite");
         }
 
         /// <summary>How many frames the picture has; one unless it is a sheet.</summary>
@@ -127,15 +129,12 @@ namespace Mana.Code.Components
         /// <summary>The quad drawing the picture, once built -- for a kind that lays a second one over it in step.</summary>
         protected MeshRendererComponent? SpriteQuad => _renderer;
 
+        /// <summary>The hidden child the quads are drawn on -- for a kind that adds one of its own.</summary>
+        protected ManaDrawingNode Drawing => _drawing;
+
         public override void OnRemoved()
         {
-            if (_renderer != null)
-            {
-                lock (Owner.Context.World.SceneLock)
-                {
-                    Owner.Components.Remove(_renderer);
-                }
-            }
+            _drawing.Clear();
             _renderer = null;
             _builtKey = null;
         }
@@ -160,15 +159,8 @@ namespace Mana.Code.Components
             var mesh = new ManaSpriteMesh(Owner.Context, layout.Picture, normal, layout.Size, layout.Pivot, Tint, PixelArt);
             mesh.Materials[0].Unlit = Unlit;
             mesh.Materials[0].OpacityMode = OpacityMode;
-            lock (Owner.Context.World.SceneLock)
-            {
-                if (_renderer != null)
-                {
-                    Owner.Components.Remove(_renderer);
-                }
-                _renderer = new MeshRendererComponent(Owner, mesh);
-                Owner.Components.Add(_renderer);
-            }
+            _drawing.Remove(_renderer);
+            _renderer = _drawing.Add(mesh);
         }
 
         /// <summary>A PNG's pixel size, read from its header, or null when it is not one.</summary>

@@ -13,7 +13,7 @@ namespace Mana.Code.Components
     /// </summary>
     internal sealed class ManaPixelFxLive
     {
-        private readonly ManaSceneNode _owner;
+        private readonly ManaDrawingNode _drawing;
         private readonly PixelFrame _frame;
         private readonly ManaDynamicTexture _color;
         private readonly ManaDynamicTexture _light;
@@ -24,9 +24,11 @@ namespace Mana.Code.Components
         private long _drawnStep = long.MinValue;
         private bool _blank;
 
-        public ManaPixelFxLive(ManaSceneNode owner, PixelEffect effect, Dictionary<string, object> options, float pixelsPerUnit, Vector2 pivot, Vector4 tint)
+        /// <param name="anchor">Where the node sits on the effect's canvas, in pixels from its top left.</param>
+        /// <param name="drawn">Everything one run draws, in canvas pixels: the quads cover only that.</param>
+        public ManaPixelFxLive(ManaSceneNode owner, PixelEffect effect, Dictionary<string, object> options, float pixelsPerUnit, (double X, double Y) anchor, PixelBounds drawn, bool flip, Vector4 tint)
         {
-            _owner = owner;
+            _drawing = new ManaDrawingNode(owner, "Pixel FX");
             Effect = effect;
             _options = options;
             var (w, h) = effect.Meta.Size;
@@ -38,17 +40,29 @@ namespace Mana.Code.Components
             _color = new ManaDynamicTexture(w, h);
             _light = new ManaDynamicTexture(w, h);
 
+            if (drawn.IsEmpty)
+            {
+                drawn = new PixelBounds(0, 0, w - 1, h - 1);
+            }
             var ppu = MathF.Max(pixelsPerUnit, 0.01f);
-            var size = new Vector2(w / ppu, h / ppu);
+            var size = new Vector2(drawn.Width / ppu, drawn.Height / ppu);
+            // A sprite's pivot runs 0..1 across and up from its bottom left; flipped, the art mirrors about the anchor.
+            var pivot = new Vector2((float)((anchor.X - drawn.X0) / drawn.Width), (float)((drawn.Y1 + 1 - anchor.Y) / drawn.Height));
+            if (flip)
+            {
+                pivot.X = 1.0f - pivot.X;
+            }
             _colorRenderer = Quad(new ManaSpriteMesh(owner.Context, _color, $"Pixel FX {effect.Meta.Id}", size, pivot, tint, true), ManaOpacityMode.Blend);
             // A millimetre nearer the camera, so the light sorts after the colour it lands on.
             _lightRenderer = Quad(new ManaSpriteMesh(owner.Context, _light, $"Pixel FX {effect.Meta.Id} light", size, pivot, tint, true, 0.001f), ManaOpacityMode.Additive);
+            Crop(_colorRenderer, drawn, w, h, flip);
+            Crop(_lightRenderer, drawn, w, h, flip);
         }
 
         public PixelEffect Effect { get; }
 
         /// <summary>Shows the effect <paramref name="seconds"/> in, or nothing when null; redrawn only when its own clock ticks.</summary>
-        public void Show(double? seconds, bool flip)
+        public void Show(double? seconds)
         {
             if (seconds is not { } t)
             {
@@ -83,44 +97,30 @@ namespace Mana.Code.Components
                 _frame.EdgeFade();
             }
             Upload();
-            Flip(_colorRenderer, flip);
-            Flip(_lightRenderer, flip);
         }
 
         /// <summary>Takes the two quads off the node.</summary>
-        public void Remove()
-        {
-            lock (_owner.Context.World.SceneLock)
-            {
-                _owner.Components.Remove(_colorRenderer);
-                _owner.Components.Remove(_lightRenderer);
-            }
-        }
+        public void Remove() => _drawing.Clear();
 
         private MeshRendererComponent Quad(ManaSpriteMesh mesh, ManaOpacityMode mode)
         {
             mesh.Materials[0].Unlit = true;
             mesh.Materials[0].OpacityMode = mode;
-            var renderer = new MeshRendererComponent(_owner, mesh);
-            lock (_owner.Context.World.SceneLock)
-            {
-                _owner.Components.Add(renderer);
-            }
-            return renderer;
+            return _drawing.Add(mesh);
         }
 
-        private static void Flip(MeshRendererComponent renderer, bool flip)
+        // The quad shows only the drawn part of the canvas, whose rows go up bottom first (see Upload).
+        private static void Crop(MeshRendererComponent renderer, PixelBounds drawn, int w, int h, bool flip)
         {
+            var scale = new Vector2((float)drawn.Width / w, (float)drawn.Height / h);
+            var offset = new Vector2((float)drawn.X0 / w, (float)(h - 1 - drawn.Y1) / h);
             if (flip)
             {
-                renderer.Material.UvScale = new Vector2(-1, 1);
-                renderer.Material.UvOffset = new Vector2(1, 0);
+                scale.X = -scale.X;
+                offset.X = (float)(drawn.X1 + 1) / w;
             }
-            else
-            {
-                renderer.Material.UvScale = Vector2.One;
-                renderer.Material.UvOffset = Vector2.Zero;
-            }
+            renderer.Material.UvScale = scale;
+            renderer.Material.UvOffset = offset;
         }
 
         // Rows go up bottom first, as textures are uploaded.

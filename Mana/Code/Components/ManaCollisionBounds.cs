@@ -152,7 +152,7 @@ namespace Mana.Code.Components
             }
 
             // Editor-only children -- a moving platform's destination ghost, selection helpers -- are not the model.
-            foreach (var child in node.Children.Where(child => !child.IsEditorTransient))
+            foreach (var child in node.Children.Where(ManaSceneNode.IsPartOfLook))
             {
                 CollectVisualBounds(child, rootWorldToLocal, ref hasBounds, ref localMin, ref localMax);
             }

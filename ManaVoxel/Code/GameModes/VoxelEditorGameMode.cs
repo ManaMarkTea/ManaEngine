@@ -1107,7 +1107,8 @@ namespace Mana.Code.GameModes
             }
             else if (selectedNode != null && selectedNode != activeNode)
             {
-                targetOutlinedComponents = new HashSet<MeshRendererComponent>(selectedNode.Components.OfType<MeshRendererComponent>());
+                targetOutlinedComponents = new HashSet<MeshRendererComponent>(selectedNode.Components.OfType<MeshRendererComponent>()
+                    .Concat(Mana.Code.Components.ManaDrawingNode.RenderersOf(selectedNode)));
             }
             else
             {

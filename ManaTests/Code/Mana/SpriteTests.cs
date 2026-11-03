@@ -40,7 +40,7 @@ public static class SpriteChecks
         var picture = new ManaSpriteComponent(ledgeNode) { Texture = "Content/Sprites/platform.png", NormalMap = "Content/Sprites/platform_n.png", PixelsPerUnit = 32 };
         ledgeNode.Components.Add(picture);
         picture.Refresh();
-        var pictureRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
+        var pictureRenderer = ManaDrawingNode.RenderersOf(ledgeNode).FirstOrDefault();
         var pictureMesh = pictureRenderer?.Mesh as ManaSpriteMesh;
         check("a sprite draws with a mesh renderer on its own node", pictureRenderer != null && pictureMesh != null);
         check("sized from its picture: 128 x 32 pixels at 32 a metre is 4 x 1 m", pictureMesh != null && Near(pictureMesh.Size, new Vector2(4, 1)), $"{pictureMesh?.Size}");
@@ -50,11 +50,11 @@ public static class SpriteChecks
         check("smooth by default; pixel art is asked for", pictureMesh?.GetOrCreateCpuData().NearestFiltering == false);
         picture.PixelArt = true;
         picture.Refresh();
-        check("and then sampled nearest, so pixels stay square", (ledgeNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NearestFiltering == true);
+        check("and then sampled nearest, so pixels stay square", (ManaDrawingNode.RenderersOf(ledgeNode).FirstOrDefault()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NearestFiltering == true);
 
         picture.RepeatSize = new Vector2(12, 1);
         picture.Refresh();
-        pictureRenderer = ledgeNode.GetComponent<MeshRendererComponent>();
+        pictureRenderer = ManaDrawingNode.RenderersOf(ledgeNode).FirstOrDefault();
         check("repeated across a size: the 4 m picture three times across 12 m",
             pictureRenderer?.Mesh is ManaSpriteMesh { } repeated && Near(repeated.Size, new Vector2(12, 1)) && Near(pictureRenderer.Material.UvScale, new Vector2(3, 1)),
             $"{(pictureRenderer?.Mesh as ManaSpriteMesh)?.Size} uv {pictureRenderer?.Material.UvScale}");
@@ -101,14 +101,14 @@ public static class SpriteChecks
             var lit = new ManaSpriteComponent(coinNode) { Texture = Pack + "Tiles/Default/coin_gold.png", Unlit = false, AutoNormalMap = true };
             coinNode.Components.Add(lit);
             lit.Refresh();
-            var litNormal = (coinNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath;
+            var litNormal = (ManaDrawingNode.RenderersOf(coinNode).FirstOrDefault()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath;
             check("a lit sprite with no normal map is given one", litNormal != null && File.Exists(litNormal), litNormal ?? "none");
             check("and draws with it at full strength (the selector's default ignores it)",
-                coinNode.GetComponent<MeshRendererComponent>()?.Material.NormalSelector == 0.0);
+                ManaDrawingNode.RenderersOf(coinNode).FirstOrDefault()?.Material.NormalSelector == 0.0);
             lit.Unlit = true;
             lit.Refresh();
             check("an unlit one is not -- it would ignore it",
-                (coinNode.GetComponent<MeshRendererComponent>()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath == null);
+                (ManaDrawingNode.RenderersOf(coinNode).FirstOrDefault()?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().NormalTexturePath == null);
         }
 
         // ---- Sprite Sheet: a grid cut from one picture ------------------------------------------------------------
@@ -121,7 +121,7 @@ public static class SpriteChecks
         var sheet = new ManaSpriteSheetComponent(blobNode) { Sheet = blob, Frame = 2, PixelArt = true };
         blobNode.Components.Add(sheet);
         sheet.Refresh();
-        var sheetRenderer = blobNode.GetComponent<MeshRendererComponent>();
+        var sheetRenderer = ManaDrawingNode.RenderersOf(blobNode).FirstOrDefault();
         check("a sheet sprite is one frame big: 32 pixels at 32 a metre is 1 m",
             sheetRenderer?.Mesh is ManaSpriteMesh { } frameMesh && Near(frameMesh.Size, new Vector2(1, 1)), $"{(sheetRenderer?.Mesh as ManaSpriteMesh)?.Size}");
         check("frame 2 shows the third quarter of the sheet", sheetRenderer != null && Near(sheetRenderer.Material.UvScale, new Vector2(0.25f, 1)) && Near(sheetRenderer.Material.UvOffset, new Vector2(0.5f, 0)),
@@ -151,7 +151,7 @@ public static class SpriteChecks
         var alien = new ManaSpriteSheetComponent(alienNode) { Sheet = ManaPlatformer2DComponent.GreenAlien, Animation = "walk" };
         alienNode.Components.Add(alien);
         alien.Refresh();
-        var alienRenderer = alienNode.GetComponent<MeshRendererComponent>();
+        var alienRenderer = ManaDrawingNode.RenderersOf(alienNode).FirstOrDefault();
         var strip = (alienRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
         check("a sheet of separate pictures becomes one strip, a frame each",
             strip != null && ManaSpriteBase.PngSize(strip) == new Vector2(9 * 128, 128) && alien.FrameCount == 9,
@@ -178,7 +178,7 @@ public static class SpriteChecks
         };
         groundNode.Components.Add(ground);
         ground.Refresh();
-        var groundRenderer = groundNode.GetComponent<MeshRendererComponent>();
+        var groundRenderer = ManaDrawingNode.RenderersOf(groundNode).FirstOrDefault();
         var groundPicture = (groundRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
         check("a 9-slice is drawn as one picture of whole tiles, the size asked for",
             groundPicture != null && ManaSpriteBase.PngSize(groundPicture) == new Vector2(6 * 64, 2 * 64)
@@ -188,7 +188,7 @@ public static class SpriteChecks
         groundNode.Scale = new Vector3(2.0f, 1.4f, 1.0f);
         ground.Size = new Vector2(6.0f, 2.2f);
         ground.Refresh();
-        groundRenderer = groundNode.GetComponent<MeshRendererComponent>();
+        groundRenderer = ManaDrawingNode.RenderersOf(groundNode).FirstOrDefault();
         groundPicture = (groundRenderer?.Mesh as ManaSpriteMesh)?.GetOrCreateCpuData().AlbedoTexturePath;
         // 12 x 3 tiles in the world; the quad is divided back by the scale so none of them stretch.
         check("scaling a 9-slice adds whole tiles instead of stretching them",

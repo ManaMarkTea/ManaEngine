@@ -3,6 +3,7 @@ using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Content;
 using Mana.Code.Nodes;
+using Mana.Code.Shapes;
 using Mana.Code.UI;
 using ManaCore.Graphics;
 using ManaCore.Imaging;
@@ -50,7 +51,7 @@ public static class PixelFxChecks
             node.Components.Add(fx);
             return fx;
         }
-        List<MeshRendererComponent> Quads(ManaPixelFxComponent fx) => fx.Owner.Components.OfType<MeshRendererComponent>().ToList();
+        List<MeshRendererComponent> Quads(ManaPixelFxComponent fx) => ManaDrawingNode.RenderersOf(fx.Owner).ToList();
 
         // ---- drawn live ---------------------------------------------------------------------------------------------
         var torch = Fx("Torch", "fire/torch");
@@ -63,6 +64,14 @@ public static class PixelFxChecks
             string.Join(", ", quads.Select(q => q.Material.OpacityMode)));
         var colour = quads[0].Mesh.GetOrCreateCpuData().AlbedoDynamicTexture;
         check("its picture is drawn (some of the torch is opaque)", colour != null && Enumerable.Range(0, colour.Pixels.Length / 4).Any(i => colour.Pixels[i * 4 + 3] == 255));
+        check("the quads are the effect's own, on a hidden child -- not mesh renderers on the node to delete",
+            !torch.Owner.Components.OfType<MeshRendererComponent>().Any() && torch.Owner.Children.All(child => child.IsEditorTransient && child.DrawsParent));
+        var drawn = torch.MeasureRun().All;
+        var quadSize = ((ManaSpriteMesh)quads[0].Mesh).Size;
+        check("and cover only what the effect draws, not its whole canvas (so the selection box fits it)",
+            Math.Abs(quadSize.X - drawn.Width / torch.PixelsPerUnit) < 1e-4f && Math.Abs(quadSize.Y - drawn.Height / torch.PixelsPerUnit) < 1e-4f
+            && drawn.Width < torch.Definition!.Meta.Size.W,
+            $"quad {quadSize}, drawn {drawn.Width}x{drawn.Height}, canvas {torch.Definition!.Meta.Size}");
 
         // ---- standing on its node -----------------------------------------------------------------------------------
         var (_, anchorY) = torch.AnchorPixel();

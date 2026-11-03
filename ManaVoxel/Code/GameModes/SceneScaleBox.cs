@@ -82,7 +82,7 @@ namespace Mana.Code.GameModes
 
                 foreach (var child in current.Children)
                 {
-                    if (!child.IsEditorTransient)
+                    if (ManaSceneNode.IsPartOfLook(child))
                     {
                         Include(child);
                     }

@@ -202,7 +202,7 @@ namespace Mana.Code.Components
             var live = SyncLive();
             if (live != null)
             {
-                live.Show(ShownAt, FlipX);
+                live.Show(ShownAt);
             }
 
             if (Done && RemoveWhenDone && !_removing && Owner.Parent is { } parent)
@@ -345,7 +345,7 @@ namespace Mana.Code.Components
         private ManaPixelFxLive? SyncLive()
         {
             var effect = Definition;
-            var key = $"{effect?.Meta.Id}|{_optionsRevision}|{Glow}|{Tint}|{PixelsPerUnit}|{Anchor}";
+            var key = $"{effect?.Meta.Id}|{_optionsRevision}|{Glow}|{Tint}|{PixelsPerUnit}|{Anchor}|{FlipX}";
             if (effect == null || key != _liveKey)
             {
                 _live?.Remove();
@@ -358,11 +358,7 @@ namespace Mana.Code.Components
             }
             if (_live == null)
             {
-                var (w, h) = effect.Meta.Size;
-                var (ax, ay) = AnchorPixel();
-                // A sprite's pivot runs 0..1 across and up from its bottom left.
-                var pivot = new Vector2((float)(ax / w), (float)((h - ay) / h));
-                _live = new ManaPixelFxLive(Owner, effect, EffectOptions(), PixelsPerUnit, pivot, Tint);
+                _live = new ManaPixelFxLive(Owner, effect, EffectOptions(), PixelsPerUnit, AnchorPixel(), MeasureRun().All, FlipX, Tint);
                 _liveKey = key;
             }
             return _live;

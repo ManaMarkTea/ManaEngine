@@ -111,6 +111,15 @@ namespace Mana.Code.Nodes
         public bool IsEditorTransient { get; set; }
 
         /// <summary>
+        /// A transient child that draws one of its parent's components (a sprite's quad): part of the parent's look --
+        /// its bounds, its glow -- though, like any transient node, never listed or saved.
+        /// </summary>
+        public bool DrawsParent { get; set; }
+
+        /// <summary>A child that is part of this node's look: anything placed, and what its components draw.</summary>
+        public static bool IsPartOfLook(ManaSceneNode child) => !child.IsEditorTransient || child.DrawsParent;
+
+        /// <summary>
         /// How this node was authored, or null for scenery the game mode builds in code. Saving a level
         /// keeps the nodes that have one and skips the rest -- see <see cref="Levels.ManaLevelSource"/>.
         /// </summary>
@@ -380,7 +389,8 @@ namespace Mana.Code.Nodes
 
             foreach (var child in Children)
             {
-                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, child.IsEditorTransient ? null : glow, child.IsEditorTransient ? null : staticBatchKey);
+                var part = IsPartOfLook(child);
+                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, part ? glow : null, part ? staticBatchKey : null);
             }
         }
 

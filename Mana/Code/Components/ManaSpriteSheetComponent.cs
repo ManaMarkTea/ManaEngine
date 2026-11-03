@@ -95,11 +95,7 @@ namespace Mana.Code.Components
                 var mesh = new Shapes.ManaSpriteMesh(Owner.Context, picture, null, FrameSize(picture, columns, rows, sheet.PixelsPerUnit), sheet.PivotPoint, Tint, PixelArt, 0.001f);
                 mesh.Materials[0].Unlit = true;
                 mesh.Materials[0].OpacityMode = ManaCore.Graphics.ManaOpacityMode.Additive;
-                _light = new MeshRendererComponent(Owner, mesh);
-                lock (Owner.Context.World.SceneLock)
-                {
-                    Owner.Components.Add(_light);
-                }
+                _light = Drawing.Add(mesh);
                 _lightKey = key;
             }
             _light.Material.UvScale = quad.Material.UvScale;
@@ -118,10 +114,7 @@ namespace Mana.Code.Components
             {
                 return;
             }
-            lock (Owner.Context.World.SceneLock)
-            {
-                Owner.Components.Remove(_light);
-            }
+            Drawing.Remove(_light);
             _light = null;
             _lightKey = null;
         }

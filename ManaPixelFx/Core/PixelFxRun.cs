@@ -100,7 +100,7 @@ namespace ManaPixelFx.Core
                             color = color.Include(x, y);
                             all = all.Include(x, y);
                         }
-                        else if ((frame.Light[i] & 0xffffffu) != 0)
+                        else if (Visible(frame.Light[i]))
                         {
                             all = all.Include(x, y);
                         }
@@ -109,5 +109,8 @@ namespace ManaPixelFx.Core
             });
             return (color, all);
         }
+
+        // Light of 1/255 added over anything is invisible; leaving it out keeps the measured box to what shows.
+        private static bool Visible(uint light) => (light & 0xff) > 1 || ((light >> 8) & 0xff) > 1 || ((light >> 16) & 0xff) > 1;
     }
 }
