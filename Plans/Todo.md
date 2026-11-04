@@ -20,7 +20,8 @@
     [x] Linked up (2026-10-30): Contour.manalevel is the whole game -- title over an autopilot battle, menu, the Ryser
         system map (Ryser System.manalevel, ContourWaypoint bodies on their orbits) and the campaign mission to mission,
         each loaded behind a fade; progress saved (contour.txt). Health bars over ships you have hit.
-    Follow-ups: the store and ship upgrades (StoreData.xml), spending the credits the campaign now banks; the galaxy
+    [x] Store (2026-11-04): hull, shields, engines and turret-rack upgrades bought with credits (ContourUpgrades).
+    Follow-ups: the rest of the store's stock (weapons, skills, crew); the galaxy
     view above the system map (Menu_GalaxyView: Ryser and Sol); the other music mixes (WAV only, so they need a smaller
     format first); the unused models (mine, Phoenix, the Battlecruiser/Carrier concepts in the design folder);
     a web build check of the Games/*/Content/Models catalog path.
