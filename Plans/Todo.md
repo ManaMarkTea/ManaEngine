@@ -5,7 +5,8 @@
     Weapon button edges now survive render frames between simulation ticks, including while firing.
     Bindings are MVVM now (`UiMarkupBinding`): INotifyPropertyChanged, OneWay/TwoWay/OneTime/OneWayToSource, commands,
     nested paths, `context`, typos reported. Contour's `ContourHudViewModel` is the example, checked in the web build too.
-    Follow-ups: lists bound to a collection (an ItemsControl; Contour's menus are still built in code), `UiImage` pictures
+    [x] Lists (2026-11-04): `ItemsControl` + `itemTemplate` in markup; Contour's menu and mission list are now in the layout.
+    Follow-ups: `UiImage` pictures
     in markup, canvas layouts rebuilding when the theme changes, and a way to see a canvas in the editor's viewport
     before pressing play (today it shows only in play and in the designer's preview).
 
