@@ -376,12 +376,23 @@ namespace ManaVoxel.Code.UI.ManaUi
             return null;
         }
 
-        public static bool HoldsChildren(JsonObject node) => TypeOf(node) is { } type && typeof(Panel).IsAssignableFrom(type);
+        public static bool HoldsChildren(JsonObject node) => TypeOf(node) is { } type && typeof(Panel).IsAssignableFrom(type) && !typeof(ItemsControl).IsAssignableFrom(type);
 
         // A border, a scroller or an expander. Controls are decorators too, but their child is their own
         // insides -- a text box's editor -- and not somewhere to put more layout.
         public static bool HoldsChild(JsonObject node) =>
-            TypeOf(node) is { } type && typeof(Decorator).IsAssignableFrom(type) && !typeof(Control).IsAssignableFrom(type);
+            TypeOf(node) is { } type && (typeof(ItemsControl).IsAssignableFrom(type) || typeof(Decorator).IsAssignableFrom(type) && !typeof(Control).IsAssignableFrom(type));
+
+        /// <summary>Where a single child lives: a list's row template, or a decorator's child.</summary>
+        public static string SlotKey(JsonObject node)
+        {
+            if (TypeOf(node) is { } type && typeof(ItemsControl).IsAssignableFrom(type))
+            {
+                return "itemTemplate";
+            }
+
+            return "child";
+        }
 
         /// <summary>The element a node sits in, or null for the root.</summary>
         public static JsonObject? ParentOf(JsonObject node)
@@ -426,9 +437,9 @@ namespace ManaVoxel.Code.UI.ManaUi
             {
                 ChildrenOf(at).Add(node);
             }
-            else if (HoldsChild(at) && at["child"] == null)
+            else if (HoldsChild(at) && at[SlotKey(at)] == null)
             {
-                at["child"] = node;
+                at[SlotKey(at)] = node;
             }
             else if (ParentOf(at) != null && at.Parent is JsonArray siblings)
             {
@@ -478,7 +489,7 @@ namespace ManaVoxel.Code.UI.ManaUi
                     array.Remove(node);
                     break;
                 case JsonObject owner:
-                    owner.Remove("child");
+                    owner.Remove(SlotKey(owner));
                     break;
             }
         }
@@ -543,7 +554,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
 
             var panel = HoldsChildren(parent);
-            if (!panel && !(HoldsChild(parent) && (parent["child"] == null || ReferenceEquals(parent["child"], node))))
+            if (!panel && !(HoldsChild(parent) && (parent[SlotKey(parent)] == null || ReferenceEquals(parent[SlotKey(parent)], node))))
             {
                 return false;
             }
@@ -570,7 +581,7 @@ namespace ManaVoxel.Code.UI.ManaUi
             }
             else
             {
-                parent["child"] = node;
+                parent[SlotKey(parent)] = node;
             }
 
             Selected = node;
@@ -629,6 +640,11 @@ namespace ManaVoxel.Code.UI.ManaUi
             if (node["child"] is JsonObject single)
             {
                 yield return single;
+            }
+
+            if (node["itemTemplate"] is JsonObject template)
+            {
+                yield return template;
             }
         }
     }

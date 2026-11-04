@@ -1541,7 +1541,7 @@ namespace ManaVoxel.Code.UI.ManaUi
 
                 var share = (point.Y - row.Bounds.Y) / MathF.Max(row.Bounds.Height, 1);
                 var holds = UiDesignerDocument.HoldsChildren(row.Node)
-                    || (UiDesignerDocument.HoldsChild(row.Node) && row.Node["child"] == null);
+                    || (UiDesignerDocument.HoldsChild(row.Node) && row.Node[UiDesignerDocument.SlotKey(row.Node)] == null);
                 if (holds && share is > 0.25f and < 0.75f)
                 {
                     return (row, UiDesignerDropKind.Into);

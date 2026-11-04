@@ -422,6 +422,15 @@ public static class UiDesignerChecks
         check("a context's own path starts from what is above it", UiDesignerBindings.ScopeOf(hud, UiDesignerDocument.Root, includeOwn: false) == hud, "");
         check("a context that leads nowhere is known to", UiDesignerBindings.ScopeOf(hud, UiDesignerDocument.FindNamed("lost")!, includeOwn: true) == null, "");
 
+        UiDesignerDocument.Replace((JsonObject)JsonNode.Parse("""
+            { "format": "mana-ui", "id": "cc", "root": { "type": "StackPanel", "children": [ { "type": "ItemsControl", "name": "rows", "itemTemplate": { "type": "TextBlock", "name": "row", "text": "Row" } } ] } }
+            """)!, null);
+        var rowsNode = UiDesignerDocument.FindNamed("rows")!;
+        check("a list's row template is its child in the outline, and where an added element goes",
+            UiDesignerDocument.Nested(rowsNode).Select(n => n["name"]?.GetValue<string>()).SequenceEqual(["row"]) && UiDesignerDocument.HoldsChild(rowsNode) && !UiDesignerDocument.HoldsChildren(rowsNode), "");
+        var sample = UiMarkup.Load(UiDesignerDocument.Document, new UiTheme(), viewModelType: hud);
+        check("the designer's preview shows one sample row, selectable like the rest", sample.Find<ItemsControl>("rows") is { Children.Count: 1 } && sample.Find<TextBlock>("row") != null, string.Join("; ", sample.Problems));
+
         var unset = UiMarkup.Load("""{ "type": "Button", "bind": { "text": "" }, "on": { "click": "" } }""", new UiTheme(), null, hud);
         check("a binding with no path chosen yet is no problem", unset.Problems.Count == 0, string.Join("; ", unset.Problems));
     }

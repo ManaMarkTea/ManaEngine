@@ -179,7 +179,7 @@ namespace ManaUI
             }
 
             // Before the bindings, so a bound list builds its rows once.
-            ApplyItemTemplate(element, node, theme, problems);
+            ApplyItemTemplate(element, node, theme, binding, problems, named, elements);
             ApplyBindings(element, node, binding, scope, theme, problems);
             ApplyEvents(element, node, binding, scope, problems);
 
@@ -235,7 +235,16 @@ namespace ManaUI
         }
 
         // An ItemsControl's "itemTemplate" is an element tree built once per item, with the item as its view model.
-        private static void ApplyItemTemplate(UiElement element, JsonObject node, UiTheme theme, List<string> problems)
+        // With no view model (the designer) it shows one sample row as authored, and that row's elements are the
+        // document's, so they can be selected like any others.
+        private static void ApplyItemTemplate(
+            UiElement element,
+            JsonObject node,
+            UiTheme theme,
+            BindScope binding,
+            List<string> problems,
+            Dictionary<string, UiElement> named,
+            Dictionary<JsonObject, UiElement> elements)
         {
             if (node["itemTemplate"] is not JsonObject template)
             {
@@ -245,6 +254,13 @@ namespace ManaUI
             if (element is not ItemsControl items)
             {
                 problems.Add($"Only an ItemsControl has an itemTemplate, not {element.GetType().Name}.");
+                return;
+            }
+
+            if (binding.Instance == null)
+            {
+                items.ItemTemplate = _ => Build(template, theme, new BindScope(null, null), string.Empty, problems, named, elements) ?? new Border();
+                items.ItemsSource = new object[1];
                 return;
             }
 
