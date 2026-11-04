@@ -35,6 +35,8 @@ namespace ManaUI
     /// "command" binds a Button to an ICommand;</item>
     /// <item>"on": {"click": "PlayCommand"} runs a command (or method) when the element's event fires;</item>
     /// <item>"context": "Weapons[2]" makes the paths on this element and below relative to that.</item>
+    /// <item>An ItemsControl's "itemTemplate" is an element built per item, with the item as its view model:
+    /// {"type": "ItemsControl", "bind": {"itemsSource": "Missions"}, "itemTemplate": {"type": "TextBlock", "bind": {"text": "Name"}}}.</item>
     /// <item>"bind" reaches a place in the parent too: "grid.row", "grid.columnSpan", "canvas.left", "dock", "zIndex",
     /// and a Grid's "columns" and "rows".</item>
     /// </list>
@@ -48,7 +50,7 @@ namespace ManaUI
         /// <summary>Keys that are not element properties.</summary>
         public static readonly HashSet<string> ReservedKeys = new(StringComparer.OrdinalIgnoreCase)
         {
-            "type", "name", "children", "child", "grid", "dock", "canvas", "zIndex", "bind", "on", "columns", "rows", "options", "context"
+            "type", "name", "children", "child", "grid", "dock", "canvas", "zIndex", "bind", "on", "columns", "rows", "options", "context", "itemTemplate"
         };
 
         /// <summary>The element types a document may use, by name: ManaUI's own, and any registered.</summary>
@@ -66,7 +68,7 @@ namespace ManaUI
         public static readonly string[] CommonTypes =
         [
             "StackPanel", "Grid", "WrapPanel", "DockPanel", "Canvas", "Border", "PictureFrame", "ScrollViewer",
-            "TextBlock", "UiImage", "Button", "CheckBox", "TextBox", "NumericBox", "Slider", "ComboBox", "ProgressBar", "Expander"
+            "TextBlock", "UiImage", "Button", "CheckBox", "TextBox", "NumericBox", "Slider", "ComboBox", "ProgressBar", "Expander", "ItemsControl"
         ];
 
         public static void Register(Type type)
@@ -176,6 +178,8 @@ namespace ManaUI
                 scope = Scoped(scope, contextPath);
             }
 
+            // Before the bindings, so a bound list builds its rows once.
+            ApplyItemTemplate(element, node, theme, problems);
             ApplyBindings(element, node, binding, scope, theme, problems);
             ApplyEvents(element, node, binding, scope, problems);
 
@@ -228,6 +232,37 @@ namespace ManaUI
             }
 
             return element;
+        }
+
+        // An ItemsControl's "itemTemplate" is an element tree built once per item, with the item as its view model.
+        private static void ApplyItemTemplate(UiElement element, JsonObject node, UiTheme theme, List<string> problems)
+        {
+            if (node["itemTemplate"] is not JsonObject template)
+            {
+                return;
+            }
+
+            if (element is not ItemsControl items)
+            {
+                problems.Add($"Only an ItemsControl has an itemTemplate, not {element.GetType().Name}.");
+                return;
+            }
+
+            var reported = false;
+            items.ItemTemplate = item =>
+            {
+                var rowProblems = new List<string>();
+                var row = Build(template, theme, new BindScope(item, item?.GetType()), string.Empty, rowProblems,
+                    new Dictionary<string, UiElement>(StringComparer.Ordinal), new Dictionary<JsonObject, UiElement>(ReferenceEqualityComparer.Instance));
+                if (!reported && rowProblems.Count > 0)
+                {
+                    // Every row repeats the same mistakes; the first one's are enough.
+                    reported = true;
+                    problems.AddRange(rowProblems);
+                }
+
+                return row ?? new Border();
+            };
         }
 
         /// <summary>The writable properties a document can set on a type, by the name it uses for them.</summary>

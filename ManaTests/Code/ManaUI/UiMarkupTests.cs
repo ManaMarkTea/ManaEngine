@@ -96,6 +96,19 @@ public static class UiMarkupChecks
         root.Input.InjectPointerReleased(play.Bounds.Center, PointerButton.Left);
         Check("an event runs its command", model.Played == 1, $"{model.Played}");
 
+        var listed = UiMarkup.Load("""
+            { "type": "ItemsControl", "name": "list", "bind": { "itemsSource": "Items" },
+              "itemTemplate": { "type": "TextBlock", "bind": { "text": "Label" } } }
+            """, theme, model);
+        var list = listed.Find<ItemsControl>("list");
+        Check("an ItemsControl builds a row from its template for each item",
+            list is { Children.Count: 2 } && list.Children[0] is TextBlock { Text: "a" } && list.Children[1] is TextBlock { Text: "b" }
+            && listed.Problems.Count == 0, string.Join("; ", listed.Problems));
+        model.Items[1].Label = "c";
+        Check("and each row follows its own item", list?.Children[1] is TextBlock { Text: "c" });
+        Check("an itemTemplate anywhere else is reported",
+            UiMarkup.Load("""{ "type": "Border", "itemTemplate": { "type": "TextBlock" } }""").Problems.Count == 1);
+
         var slotModel = new MenuModel { Cooling = 0.5f };
         var slotLayout = UiMarkup.Load("""{ "type": "ItemSlot", "name": "cannon", "bind": { "progress": "Cooling" } }""", theme, slotModel);
         var slotRoot = new UiRoot(fonts) { Content = slotLayout.Root };

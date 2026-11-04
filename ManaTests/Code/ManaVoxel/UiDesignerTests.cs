@@ -406,13 +406,13 @@ public static class UiDesignerChecks
         var hud = typeof(Contour.View.ContourHudViewModel);
         var weapon = typeof(Contour.View.ContourWeaponViewModel);
         var groups = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Property);
-        check("properties are grouped by the view model they are on, its own first", groups.Select(g => g.ViewModel).SequenceEqual([hud.Name, weapon.Name]), string.Join(", ", groups.Select(g => g.ViewModel)));
-        check("a group's members carry the path that reaches them", groups[0].Members.Any(m => m.Path == "CameraZoom") && groups[1].Members.Any(m => m.Path == "Weapons[0].Name" && m.Name == "Name"), "");
+        check("properties are grouped by the view model they are on, its own first", groups.Select(g => g.ViewModel).SequenceEqual([hud.Name, nameof(Contour.View.ContourMenu), nameof(Contour.View.ContourMenuRow), weapon.Name]), string.Join(", ", groups.Select(g => g.ViewModel)));
+        check("a group's members carry the path that reaches them", groups[0].Members.Any(m => m.Path == "CameraZoom") && groups[3].Members.Any(m => m.Path == "Weapons[0].Name" && m.Name == "Name"), "");
         check("a list of view models is stepped into, not offered as a value", groups[0].Members.All(m => m.Name != "Weapons"), "");
         var commands = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Command);
         check("commands are offered apart from properties", commands[0].Members.Any(m => m.Path == "ResumeCommand") && groups.SelectMany(g => g.Members).All(m => m.Name != "ResumeCommand"), "");
         var contexts = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Context).SelectMany(g => g.Members).ToList();
-        check("a context offers only what can be stepped into", contexts.Count == 1 && contexts[0].Path == "Weapons[0]", string.Join(", ", contexts.Select(m => m.Path)));
+        check("a context offers only what can be stepped into", contexts.Select(m => m.Path).Order().SequenceEqual(["Menu", "Menu.Rows[0]", "Weapons[0]"]), string.Join(", ", contexts.Select(m => m.Path)));
 
         UiDesignerDocument.Replace((JsonObject)JsonNode.Parse("""
             { "format": "mana-ui", "id": "bb", "root": { "type": "StackPanel", "context": "Weapons[1]", "children": [ { "type": "TextBlock", "name": "inner" }, { "type": "Border", "name": "lost", "context": "AbandonLabel" } ] } }
