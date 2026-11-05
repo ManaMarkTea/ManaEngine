@@ -155,6 +155,16 @@ public static class TextAreaChecks
         Check("a brace already alone on its line just indents the block", area.Text == "{\n    ", area.Text.Replace("\n", "|"));
         area.BraceOnNewLine = false;
 
+        Reset("size");
+        var heightBefore = area.CaretBounds!.Value.Height;
+        area.EditorFontSize = 30.0f;
+        root.UpdateLayout(new Vector2(600, 400));
+        Check("EditorFontSize sets the editor's own text size", area.CaretBounds!.Value.Height > heightBefore + 5.0f, $"{heightBefore} -> {area.CaretBounds!.Value.Height}");
+        area.EditorFontFamily = "NoSuchFontAnywhere";
+        Check("a font that is not there falls back instead of failing", area.CaretBounds != null);
+        area.EditorFontSize = null;
+        area.EditorFontFamily = null;
+
         Reset("find the needle here");
         area.Select(9, 6);
         Check("Select makes a selection with the caret at its end", area.SelectedText == "needle" && area.CaretIndex == 15, $"'{area.SelectedText}' {area.CaretIndex}");

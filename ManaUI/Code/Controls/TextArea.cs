@@ -90,6 +90,31 @@ namespace ManaUI
         /// </summary>
         public bool BraceOnNewLine { get; set; }
 
+        private string? _editorFontFamily;
+        private float? _editorFontSize;
+
+        /// <summary>The editor's own font (a family name or a path to a font file) instead of the theme's monospace face; null uses the theme's.</summary>
+        public string? EditorFontFamily
+        {
+            get => _editorFontFamily;
+            set
+            {
+                _editorFontFamily = value;
+                InvalidateVisual();
+            }
+        }
+
+        /// <summary>The editor's own text size in logical pixels instead of the theme's; null uses the theme's.</summary>
+        public float? EditorFontSize
+        {
+            get => _editorFontSize;
+            set
+            {
+                _editorFontSize = value;
+                InvalidateVisual();
+            }
+        }
+
         public int TabSize
         {
             get => _tabSize;
@@ -697,14 +722,27 @@ namespace ManaUI
                 return null;
             }
 
+            var size = _editorFontSize ?? root.Theme.FontSize;
+            if (_editorFontFamily != null)
+            {
+                try
+                {
+                    return root.Fonts.Get(_editorFontFamily, size, root.Scale);
+                }
+                catch (Exception)
+                {
+                    // The font asked for is not on this machine: fall back to the theme's.
+                }
+            }
+
             try
             {
-                return root.Fonts.Get(root.Theme.FontFamilyMono, root.Theme.FontSize, root.Scale);
+                return root.Fonts.Get(root.Theme.FontFamilyMono, size, root.Scale);
             }
             catch (Exception)
             {
                 // A machine without the mono face still gets an editor, just not an aligned one.
-                return root.Fonts.Get(root.Theme.FontFamily, root.Theme.FontSize, root.Scale);
+                return root.Fonts.Get(root.Theme.FontFamily, size, root.Scale);
             }
         }
 
