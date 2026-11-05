@@ -135,6 +135,12 @@ public static class TextAreaChecks
         Key(UiKey.Z, UiModifiers.Control);
         Check("undo reaches the original", area.Text == "keep", area.Text);
 
+        Reset("let a = ra");
+        area.ReplaceRange(8, 2, "radial");
+        Check("ReplaceRange swaps a span and puts the caret after it", area.Text == "let a = radial" && area.CaretIndex == 14, $"{area.Text} {area.CaretIndex}");
+        Key(UiKey.Z, UiModifiers.Control);
+        Check("and is a single undo step", area.Text == "let a = ra", area.Text);
+
         // -------------------------------------------------------------- host hooks
         var changed = 0;
         area.TextChanged += (_, _) => changed++;

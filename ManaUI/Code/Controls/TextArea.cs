@@ -256,6 +256,18 @@ namespace ManaUI
             Edit(SelectionStart, SelectionLength, text, SelectionStart + text.Length, kind);
         }
 
+        /// <summary>
+        /// Replaces <paramref name="length"/> characters from <paramref name="start"/> and leaves the caret after the new text --
+        /// for a host that completes the word being typed. One undo step.
+        /// </summary>
+        public void ReplaceRange(int start, int length, string text)
+        {
+            start = Math.Clamp(start, 0, _text.Length);
+            length = Math.Clamp(length, 0, _text.Length - start);
+            text = Normalize(text);
+            Edit(start, length, text, start + text.Length);
+        }
+
         private void DeleteSelection()
         {
             Edit(SelectionStart, SelectionLength, string.Empty, SelectionStart);
