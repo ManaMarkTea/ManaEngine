@@ -135,6 +135,17 @@ public static class TextAreaChecks
         Key(UiKey.Z, UiModifiers.Control);
         Check("undo reaches the original", area.Text == "keep", area.Text);
 
+        Reset("find the needle here");
+        area.Select(9, 6);
+        Check("Select makes a selection with the caret at its end", area.SelectedText == "needle" && area.CaretIndex == 15, $"'{area.SelectedText}' {area.CaretIndex}");
+        area.Select(-5, 999);
+        Check("Select clamps to the text", area.SelectedText == area.Text, area.SelectedText);
+        area.Highlights = new[] { new TextHighlight(0, 4, false), new TextHighlight(9, 6, true) };
+        root.UpdateLayout(new Vector2(600, 400));
+        Check("highlights can be set and cleared without disturbing the text", area.Highlights!.Count == 2 && area.Text == "find the needle here");
+        area.Highlights = null;
+        Check("and cleared", area.Highlights == null);
+
         Reset("let a = ra");
         area.ReplaceRange(8, 2, "radial");
         Check("ReplaceRange swaps a span and puts the caret after it", area.Text == "let a = radial" && area.CaretIndex == 14, $"{area.Text} {area.CaretIndex}");

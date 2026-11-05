@@ -8,6 +8,9 @@ namespace ManaUI
     /// <summary>A small coloured box drawn inline after <see cref="Column"/> of a line (a colour literal's preview, say).</summary>
     public readonly record struct TextSwatch(int Column, Vector4 Color);
 
+    /// <summary>A span of the text to tint (a find match, say); <see cref="Active"/> marks the current one.</summary>
+    public readonly record struct TextHighlight(int Start, int Length, bool Active);
+
     /// <summary>A click on a swatch: which line, the text index it follows, its colour, and where it is on screen (for placing a picker).</summary>
     public readonly record struct TextSwatchClick(int Line, int Index, Vector4 Color, UiRect Bounds);
 
@@ -240,6 +243,29 @@ namespace ManaUI
         }
         private int SelectionStart => Math.Min(_caret, _anchor);
         private int SelectionLength => Math.Abs(_caret - _anchor);
+
+        /// <summary>Selects a span (caret at its end) and scrolls to it.</summary>
+        public void Select(int start, int length)
+        {
+            _anchor = Math.Clamp(start, 0, _text.Length);
+            _caret = Math.Clamp(start + length, 0, _text.Length);
+            _desiredX = -1.0f;
+            _revealCaret = true;
+            InvalidateVisual();
+        }
+
+        private IReadOnlyList<TextHighlight>? _highlights;
+
+        /// <summary>Spans drawn with a tint behind the text, shown even when the editor is not focused (a find box has the focus).</summary>
+        public IReadOnlyList<TextHighlight>? Highlights
+        {
+            get => _highlights;
+            set
+            {
+                _highlights = value;
+                InvalidateVisual();
+            }
+        }
 
         public void SelectAll()
         {
@@ -791,9 +817,22 @@ namespace ManaUI
             drawList.PushClip(area);
             var originX = area.X - _scrollX;
 
+            if (_highlights != null)
+            {
+                foreach (var highlight in _highlights)
+                {
+                    var tint = Theme.Accent.WithAlpha(0.22f);
+                    if (highlight.Active)
+                    {
+                        tint = Theme.Accent.WithAlpha(0.55f);
+                    }
+                    DrawSpan(drawList, font, firstLine, lastLine, area, lineHeight, originX, highlight.Start, highlight.Start + highlight.Length, tint);
+                }
+            }
+
             if (HasSelection && IsFocused)
             {
-                DrawSelection(drawList, font, firstLine, lastLine, area, lineHeight, originX);
+                DrawSpan(drawList, font, firstLine, lastLine, area, lineHeight, originX, SelectionStart, SelectionStart + SelectionLength, Theme.Selected);
             }
 
             for (var line = firstLine; line <= lastLine; line++)
@@ -844,10 +883,8 @@ namespace ManaUI
             _layout.Render(drawList, new UiRect(Bounds.X + gutter - 10.0f - width, y, width + 2.0f, font.LineHeight), color);
         }
 
-        private void DrawSelection(ManaUiDrawList drawList, ManaFont font, int firstLine, int lastLine, UiRect area, float lineHeight, float originX)
+        private void DrawSpan(ManaUiDrawList drawList, ManaFont font, int firstLine, int lastLine, UiRect area, float lineHeight, float originX, int start, int end, Vector4 color)
         {
-            var start = SelectionStart;
-            var end = SelectionStart + SelectionLength;
             var newlineWidth = font.GetGlyph(' ').Advance;
 
             for (var line = firstLine; line <= lastLine; line++)
@@ -876,7 +913,7 @@ namespace ManaUI
 
                 drawList.FillRect(
                     new UiRect(originX + x0, area.Y + line * lineHeight - _scrollY, x1 - x0, lineHeight),
-                    Theme.Selected);
+                    color);
             }
         }
 
