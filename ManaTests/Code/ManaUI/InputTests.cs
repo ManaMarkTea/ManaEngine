@@ -42,6 +42,23 @@ public static class InputChecks
         root.UpdateLayout(new Vector2(400, 300));
         Check("a newline in rich text starts a new line", broken.LineCount == 2, $"{broken.LineCount} lines");
 
+        // Runs that touch are one word: no gap between them, and they wrap together.
+        var glued = new RichTextBlock("[good]fit[/][bad](x,[/] y");
+        Check("runs with no space between them are one word, the rest are separate",
+            glued.Children.Count == 2 && glued.Children[0] is StackPanel { Children.Count: 2 } && glued.Children[1] is TextBlock { Text: "y" },
+            string.Join(" | ", glued.Children.Select(c => c.GetType().Name)));
+        var plain = new TextBlock { Text = "fit(x," };
+        var splitPlain = new RichTextBlock("[good]fit[/][bad](x,[/]");
+        var measureRoot = new StackPanel().Children(plain, splitPlain);
+        root.Content = measureRoot;
+        root.UpdateLayout(new Vector2(400, 300));
+        Check("a word cut into coloured pieces is as wide as the same word in one colour, with no gap",
+            MathF.Abs(splitPlain.DesiredSize.X - plain.DesiredSize.X) <= 2.5f, $"{splitPlain.DesiredSize.X} vs {plain.DesiredSize.X}");
+        var spaced = new RichTextBlock("[good]fit[/] [bad](x,[/]");
+        root.Content = new StackPanel().Children(spaced);
+        root.UpdateLayout(new Vector2(400, 300));
+        Check("a real space between runs still leaves a gap", spaced.DesiredSize.X > splitPlain.DesiredSize.X + 2.0f, $"{spaced.DesiredSize.X} vs {splitPlain.DesiredSize.X}");
+
         // -------------------------------------------------------------- hover + click
         var button = new Button("Click me") { Width = 120, Height = 30 };
         var canvas = new Canvas();

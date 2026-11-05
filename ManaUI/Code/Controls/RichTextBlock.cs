@@ -90,17 +90,28 @@ namespace ManaUI
         /// <summary>The words as styled runs: text, bold, colour (null for the default). Exposed for tests.</summary>
         public static List<(string Text, bool Bold, Vector4? Color)> Parse(string markup)
         {
-            var runs = new List<(string, bool, Vector4?)>();
+            return ParseRuns(markup).Select(run => (run.Text, run.Bold, run.Color)).ToList();
+        }
+
+        /// <summary>
+        /// The same runs, each also saying whether it directly follows the one before with no space between: a word cut into
+        /// differently coloured pieces, as in <c>[a]fit[/][b](x)[/]</c>, which must be drawn without a gap and kept together.
+        /// </summary>
+        private static List<(string Text, bool Bold, Vector4? Color, bool Glued)> ParseRuns(string markup)
+        {
+            var runs = new List<(string, bool, Vector4?, bool)>();
             var colors = new Stack<Vector4?>();
             var bold = false;
             var word = new System.Text.StringBuilder();
+            var separated = true;
 
             void Flush()
             {
                 if (word.Length > 0)
                 {
-                    runs.Add((word.ToString(), bold, colors.Count > 0 ? colors.Peek() : null));
+                    runs.Add((word.ToString(), bold, colors.Count > 0 ? colors.Peek() : null, !separated));
                     word.Clear();
+                    separated = false;
                 }
             }
 
@@ -140,12 +151,14 @@ namespace ManaUI
                 else if (c == ' ')
                 {
                     Flush();
+                    separated = true;
                 }
                 else if (c == '\n')
                 {
                     // A line break is a run of its own.
                     Flush();
-                    runs.Add(("\n", false, null));
+                    runs.Add(("\n", false, null, false));
+                    separated = true;
                 }
                 else
                 {
@@ -183,11 +196,17 @@ namespace ManaUI
         {
             Children.Clear();
             _runs.Clear();
-            foreach (var (text, bold, color) in Parse(_markup))
+            // Runs that touch (no space between) are one word: they sit in a row with no gap and wrap together. Only the
+            // gaps between words are spaces.
+            StackPanel? word = null;
+            TextBlock? lone = null;
+            foreach (var (text, bold, color, glued) in ParseRuns(_markup))
             {
                 if (text == "\n")
                 {
                     Children.Add(new WrapBreak());
+                    word = null;
+                    lone = null;
                     continue;
                 }
 
@@ -196,9 +215,29 @@ namespace ManaUI
                 {
                     block.FontSize = _fontSize;
                 }
-
-                Children.Add(block);
                 _runs.Add((block, bold));
+
+                if (glued && lone != null)
+                {
+                    // The word turns out to be more than one run: swap its lone block for a row holding both.
+                    var index = Children.IndexOf(lone);
+                    Children.Remove(lone);
+                    word = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 0.0f };
+                    word.Children.Add(lone);
+                    word.Children.Add(block);
+                    Children.Insert(index, word);
+                    lone = null;
+                }
+                else if (glued && word != null)
+                {
+                    word.Children.Add(block);
+                }
+                else
+                {
+                    Children.Add(block);
+                    lone = block;
+                    word = null;
+                }
             }
 
             InvalidateMeasure();
