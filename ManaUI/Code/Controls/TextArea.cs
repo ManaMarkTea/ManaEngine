@@ -8,8 +8,8 @@ namespace ManaUI
     /// <summary>A small coloured box drawn inline after <see cref="Column"/> of a line (a colour literal's preview, say).</summary>
     public readonly record struct TextSwatch(int Column, Vector4 Color);
 
-    /// <summary>A click on a swatch: which line, the text index it follows, and its colour.</summary>
-    public readonly record struct TextSwatchClick(int Line, int Index, Vector4 Color);
+    /// <summary>A click on a swatch: which line, the text index it follows, its colour, and where it is on screen (for placing a picker).</summary>
+    public readonly record struct TextSwatchClick(int Line, int Index, Vector4 Color, UiRect Bounds);
 
     /// <summary>
     /// A multi-line code/text editor: monospace, line numbers, caret and selection across lines, undo and redo,
@@ -1028,9 +1028,10 @@ namespace ManaUI
             var y = area.Y + line * font.LineHeight - _scrollY;
             foreach (var swatch in SwatchesFor(text))
             {
-                if (SwatchRect(font, text, swatch, originX, y).Contains(position))
+                var rect = SwatchRect(font, text, swatch, originX, y);
+                if (rect.Contains(position))
                 {
-                    return new TextSwatchClick(line, _lineStarts[line] + swatch.Column, swatch.Color);
+                    return new TextSwatchClick(line, _lineStarts[line] + swatch.Column, swatch.Color, rect);
                 }
             }
             return null;
