@@ -206,6 +206,23 @@ namespace ManaUI
         }
 
         /// <summary>
+        /// A horizontal gradient, left colour to right: the vertical one turned a quarter turn about the box's centre,
+        /// so it is still one instance and has no seams to show.
+        /// </summary>
+        public void FillRectHorizontal(UiRect rect, Vector4 left, Vector4 right)
+        {
+            if (left.W <= 0.0f && right.W <= 0.0f)
+            {
+                return;
+            }
+
+            var centre = rect.Center;
+            var turned = new UiRect(centre.X - rect.Height * 0.5f, centre.Y - rect.Width * 0.5f, rect.Height, rect.Width);
+            Add(turned, CornerRadius.Zero, right, UiColor.Transparent, 0.0f, Vector4.Zero, ManaUiInstanceFlags.None,
+                gradientTo: left, rotation: MathF.PI * 0.5f);
+        }
+
+        /// <summary>
         /// The largest blur radius a backend can actually deliver.
         /// <para>
         /// The blur is a mip chain and the radius selects a level as log2 of it, so this is 2^(levels - 1).

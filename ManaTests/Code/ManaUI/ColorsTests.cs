@@ -149,7 +149,7 @@ public static class ColorChecks
         root.Input.InjectPointerReleased(new Vector2(square.Right - 1.0f, square.Y + 1.0f), PointerButton.Left);
 
         Check("the spectrum raised changes while dragging", changes > 3, $"{changes} changes");
-        Check("the spectrum renders", root.Render().InstanceCount > 100,
+        Check("the spectrum renders", root.Render().InstanceCount > 20,
             $"{root.Render().InstanceCount} instances");
         Check("still one draw call", root.Render().Batches.Count == 1,
             $"{root.Render().Batches.Count} batches");
@@ -226,7 +226,7 @@ public static class ColorChecks
         root.UpdateLayout(new Vector2(400, 300));
 
         Check("clicking opens the picker", field.IsOpen);
-        Check("the popup renders over the field", root.Render().InstanceCount > 100,
+        Check("the popup renders over the field", root.Render().InstanceCount > 60,
             $"{root.Render().InstanceCount} instances");
 
         var popupSpectrum = FindAll<ColorSpectrum>(root).FirstOrDefault();

@@ -839,7 +839,17 @@ namespace ManaUI
             // characters, and a layout pass per field per frame is not worth it in a panel full of them.
             var font = root.Fonts.Get(theme.FontFamilyMedium, theme.FontSizeSmall, root.Scale);
             var width = font.MeasureWidth(ChipText);
-            var color = enabled ? theme.TextOnAccent : theme.TextDisabled;
+
+            // White-on-accent only suits a chip the caller coloured; on the default raised surface it vanishes in a light theme.
+            var color = theme.TextDisabled;
+            if (enabled)
+            {
+                color = theme.Text;
+                if (ChipColor.W > 0.0f)
+                {
+                    color = theme.TextOnAccent;
+                }
+            }
 
             new TextLayout
             {

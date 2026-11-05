@@ -17,12 +17,6 @@ namespace ManaUI
     /// </summary>
     public class ColorSpectrum : Control
     {
-        /// <summary>Tiles per axis in the square. Enough that the banding reads as a gradient.</summary>
-        private const int SquareSteps = 24;
-
-        /// <summary>Slices along the hue and alpha strips.</summary>
-        private const int StripSteps = 48;
-
         private const float StripHeight = 14.0f;
         private const float StripGap = 6.0f;
         private const float MarkerRadius = 5.0f;
@@ -154,8 +148,9 @@ namespace ManaUI
         }
 
         /// <summary>
-        /// Saturation left to right, value top to bottom. Tiles overlap by a fraction of a pixel so the
-        /// seams between them never show as a grid of hairlines.
+        /// Saturation left to right, value top to bottom, drawn the way every colour picker does: white to the pure hue
+        /// across, then transparent to black down. Two gradient boxes instead of a grid of tiles, so there are no seams
+        /// and no banding.
         /// </summary>
         private void RenderSquare(ManaUiDrawList drawList)
         {
@@ -165,28 +160,8 @@ namespace ManaUI
                 return;
             }
 
-            var cellWidth = square.Width / SquareSteps;
-            var cellHeight = square.Height / SquareSteps;
-
-            for (var y = 0; y < SquareSteps; y++)
-            {
-                // Sampled at the cell's centre rather than its corner, so the tiled approximation is
-                // centred on the true gradient instead of biased towards one edge.
-                var value = 1.0f - (y + 0.5f) / SquareSteps;
-
-                for (var x = 0; x < SquareSteps; x++)
-                {
-                    var saturation = (x + 0.5f) / SquareSteps;
-
-                    drawList.FillRect(
-                        new UiRect(
-                            square.X + x * cellWidth,
-                            square.Y + y * cellHeight,
-                            cellWidth + 0.5f,
-                            cellHeight + 0.5f),
-                        UiColor.FromHsv(_hue, saturation, value));
-                }
-            }
+            drawList.FillRectHorizontal(square, UiColor.White, UiColor.FromHsv(_hue, 1.0f, 1.0f));
+            drawList.FillRect(square, new Vector4(0.0f, 0.0f, 0.0f, 0.0f), UiColor.Black, CornerRadius.Zero);
 
             var marker = new Vector2(
                 square.X + square.Width * _saturation,
@@ -203,12 +178,21 @@ namespace ManaUI
                 return;
             }
 
-            var sliceWidth = strip.Width / StripSteps;
-            for (var i = 0; i < StripSteps; i++)
+            // Six smooth runs between the primary and secondary colours. Each is drawn a pixel long into the next, which
+            // is drawn over it, so the join cannot show a hairline.
+            var run = strip.Width / 6.0f;
+            for (var i = 0; i < 6; i++)
             {
-                drawList.FillRect(
-                    new UiRect(strip.X + i * sliceWidth, strip.Y, sliceWidth + 0.5f, strip.Height),
-                    UiColor.FromHsv((i + 0.5f) / StripSteps * 360.0f, 1.0f, 1.0f));
+                var overlap = 0.0f;
+                if (i < 5)
+                {
+                    overlap = 1.0f;
+                }
+
+                drawList.FillRectHorizontal(
+                    new UiRect(strip.X + i * run, strip.Y, run + overlap, strip.Height),
+                    UiColor.FromHsv(i * 60.0f, 1.0f, 1.0f),
+                    UiColor.FromHsv((i + 1) * 60.0f, 1.0f, 1.0f));
             }
 
             RenderMarker(drawList, new Vector2(strip.X + strip.Width * (_hue / 360.0f), strip.Center.Y));
@@ -226,25 +210,25 @@ namespace ManaUI
                 return;
             }
 
-            var opaque = UiColor.FromHsv(_hue, _saturation, _value);
-            var sliceWidth = strip.Width / StripSteps;
-            var half = strip.Height * 0.5f;
-
-            for (var i = 0; i < StripSteps; i++)
+            // White, then grey squares on top: a chequer made only of boxes that never touch an edge of another colour.
+            var grey = new Vector4(0.65f, 0.65f, 0.65f, 1.0f);
+            var cell = strip.Height * 0.5f;
+            drawList.FillRect(strip, UiColor.White);
+            var columns = (int)MathF.Ceiling(strip.Width / cell);
+            for (var column = 0; column < columns; column++)
             {
-                var alpha = (i + 0.5f) / StripSteps;
-                var x = strip.X + i * sliceWidth;
-
-                var top = i % 2 == 0 ? UiColor.White : new Vector4(0.65f, 0.65f, 0.65f, 1.0f);
-                var bottom = i % 2 == 0 ? new Vector4(0.65f, 0.65f, 0.65f, 1.0f) : UiColor.White;
-
-                drawList.FillRect(new UiRect(x, strip.Y, sliceWidth + 0.5f, half), top);
-                drawList.FillRect(new UiRect(x, strip.Y + half, sliceWidth + 0.5f, half), bottom);
-
-                drawList.FillRect(
-                    new UiRect(x, strip.Y, sliceWidth + 0.5f, strip.Height),
-                    opaque.WithAlpha(alpha));
+                var x = strip.X + column * cell;
+                var width = MathF.Min(cell, strip.Right - x);
+                var y = strip.Y;
+                if (column % 2 == 1)
+                {
+                    y = strip.Y + cell;
+                }
+                drawList.FillRect(new UiRect(x, y, width, cell), grey);
             }
+
+            var opaque = UiColor.FromHsv(_hue, _saturation, _value);
+            drawList.FillRectHorizontal(strip, opaque.WithAlpha(0.0f), opaque.WithAlpha(1.0f));
 
             RenderMarker(drawList, new Vector2(strip.X + strip.Width * _alpha, strip.Center.Y));
         }
