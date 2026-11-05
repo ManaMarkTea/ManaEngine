@@ -82,6 +82,7 @@ namespace ManaUI
         Backspace, Delete, Insert,
         Enter, Escape, Tab, Space,
         A, C, D, S, V, X, Z, Y, N, O,
-        F2, F4
+        F2, F4,
+        F, H, F3
     }
 }
