@@ -295,6 +295,8 @@ namespace Mana.Code.UI.ManaUi
                 SilkKey.X => UiKey.X,
                 SilkKey.Z => UiKey.Z,
                 SilkKey.Y => UiKey.Y,
+                SilkKey.N => UiKey.N,
+                SilkKey.O => UiKey.O,
                 SilkKey.F2 => UiKey.F2,
                 SilkKey.F4 => UiKey.F4,
                 _ => UiKey.None
