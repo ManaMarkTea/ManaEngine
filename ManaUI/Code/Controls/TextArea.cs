@@ -99,6 +99,33 @@ namespace ManaUI
 
         public override bool WantsAllKeyboardInput => true;
 
+        /// <summary>
+        /// False to keep the background still while the pointer is over the editor. A code editor that flashes whenever the
+        /// mouse crosses it is distracting; the default stays true so the control matches TextBox.
+        /// </summary>
+        public bool ShowHoverTint { get; set; } = true;
+
+        /// <summary>
+        /// The caret's rectangle in root coordinates (where a completion popup belongs), or null before the first layout.
+        /// Follows scrolling; the caret may be outside <see cref="UiElement.Bounds"/> if scrolled out of view.
+        /// </summary>
+        public UiRect? CaretBounds
+        {
+            get
+            {
+                if (ResolveFont() is not { } font)
+                {
+                    return null;
+                }
+
+                var area = TextRect(font);
+                var line = LineOf(_caret);
+                var x = area.X - _scrollX + XOf(font, line, _caret - _lineStarts[line]);
+                var y = area.Y + line * font.LineHeight - _scrollY;
+                return new UiRect(x, y, 1.0f, font.LineHeight);
+            }
+        }
+
         public int LineCount => _lineStarts.Count;
 
         public int CaretIndex
@@ -248,6 +275,46 @@ namespace ManaUI
             InvalidateVisual();
             TextChanged?.Invoke(this, _text);
         }
+
+        public void Copy()
+        {
+            if (HasSelection)
+            {
+                Clipboard.Text = SelectedText;
+            }
+        }
+
+        public void Cut()
+        {
+            if (HasSelection && !IsReadOnly)
+            {
+                Clipboard.Text = SelectedText;
+                DeleteSelection();
+            }
+        }
+
+        public void Paste()
+        {
+            var pasted = Clipboard.Text;
+            if (!IsReadOnly && !string.IsNullOrEmpty(pasted))
+            {
+                InsertText(pasted);
+            }
+        }
+
+        public void Undo()
+        {
+            RestoreFrom(_undo, _redo);
+        }
+
+        public void Redo()
+        {
+            RestoreFrom(_redo, _undo);
+        }
+
+        public bool CanUndo => _undo.Count > 0 && !IsReadOnly;
+
+        public bool CanRedo => _redo.Count > 0 && !IsReadOnly;
 
         /// <summary>Types text over the selection.</summary>
         public void InsertText(string text, string? kind = null)
@@ -578,7 +645,7 @@ namespace ManaUI
 
             drawList.DrawBox(
                 Bounds,
-                ApplyStateOverlay(enabled ? theme.SurfaceAlt : theme.Surface),
+                BackgroundColor(enabled),
                 IsFocused ? theme.Accent : theme.Border,
                 theme.BorderThickness,
                 theme.CornerRadius);
@@ -644,6 +711,20 @@ namespace ManaUI
             }
 
             drawList.PopClip();
+        }
+
+        private Vector4 BackgroundColor(bool enabled)
+        {
+            var color = Theme.Surface;
+            if (enabled)
+            {
+                color = Theme.SurfaceAlt;
+            }
+            if (!ShowHoverTint)
+            {
+                return color;
+            }
+            return ApplyStateOverlay(color);
         }
 
         private void DrawLineNumber(ManaUiDrawList drawList, ManaFont font, int line, float y, float gutter, bool isError)
@@ -1043,34 +1124,23 @@ namespace ManaUI
                     SelectAll();
                     break;
                 case UiKey.C when control:
-                    if (HasSelection)
-                    {
-                        Clipboard.Text = SelectedText;
-                    }
+                    Copy();
                     break;
                 case UiKey.X when control && !IsReadOnly:
-                    if (HasSelection)
-                    {
-                        Clipboard.Text = SelectedText;
-                        DeleteSelection();
-                    }
+                    Cut();
                     break;
                 case UiKey.V when control && !IsReadOnly:
-                    var pasted = Clipboard.Text;
-                    if (!string.IsNullOrEmpty(pasted))
-                    {
-                        InsertText(pasted);
-                    }
+                    Paste();
                     break;
 
                 case UiKey.Z when control && shift:
-                    RestoreFrom(_redo, _undo);
+                    Redo();
                     break;
                 case UiKey.Z when control:
-                    RestoreFrom(_undo, _redo);
+                    Undo();
                     break;
                 case UiKey.Y when control:
-                    RestoreFrom(_redo, _undo);
+                    Redo();
                     break;
 
                 case UiKey.Enter when !IsReadOnly:

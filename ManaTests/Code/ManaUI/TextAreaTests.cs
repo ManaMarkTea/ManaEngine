@@ -141,6 +141,47 @@ public static class TextAreaChecks
         Key(UiKey.Z, UiModifiers.Control);
         Check("and is a single undo step", area.Text == "let a = ra", area.Text);
 
+        // The commands a menu calls, which are the same ones the shortcuts reach.
+        Reset("one two");
+        area.CaretIndex = 0;
+        Key(UiKey.Right, UiModifiers.Shift);
+        Key(UiKey.Right, UiModifiers.Shift);
+        Key(UiKey.Right, UiModifiers.Shift);
+        area.Cut();
+        Check("Cut removes the selection", area.Text == " two", area.Text);
+        area.CaretIndex = area.Text.Length;
+        area.Paste();
+        Check("Paste inserts what Cut took", area.Text == " twoone", area.Text);
+        Check("an edit makes Undo available", area.CanUndo);
+        area.Undo();
+        area.Undo();
+        Check("Undo steps back through the edits", area.Text == "one two", area.Text);
+        Check("and Redo becomes available", area.CanRedo);
+        area.Redo();
+        Check("Redo replays them", area.Text == " two", area.Text);
+        area.SelectAll();
+        area.Copy();
+        Check("Copy puts the selection on the clipboard", TextArea.Clipboard.Text == " two", TextArea.Clipboard.Text);
+
+        // -------------------------------------------------------------- caret position and hover
+        Reset("abc\ndef");
+        root.UpdateLayout(new Vector2(600, 400));
+        root.Render();
+        area.CaretIndex = 0;
+        var topLeft = area.CaretBounds;
+        area.CaretIndex = 4;
+        var lineTwoStart = area.CaretBounds;
+        area.CaretIndex = 7;
+        var lineTwoEnd = area.CaretBounds;
+        Check("CaretBounds follows the caret across and down",
+            topLeft != null && lineTwoStart != null && lineTwoEnd != null
+            && lineTwoStart.Value.Y > topLeft.Value.Y && lineTwoEnd.Value.X > lineTwoStart.Value.X && lineTwoEnd.Value.Y == lineTwoStart.Value.Y,
+            $"{topLeft} {lineTwoStart} {lineTwoEnd}");
+        Check("the hover tint is on by default and can be switched off", area.ShowHoverTint);
+        area.ShowHoverTint = false;
+        Check("switching the hover tint off sticks", !area.ShowHoverTint);
+        area.ShowHoverTint = true;
+
         // -------------------------------------------------------------- host hooks
         var changed = 0;
         area.TextChanged += (_, _) => changed++;
