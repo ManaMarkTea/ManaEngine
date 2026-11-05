@@ -45,7 +45,14 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// <summary>A texture batches can draw from by id (ManaUiDrawList.SetTexture); kept until the renderer exists.</summary>
         public void SetTexture(int id, TextureView* view)
         {
-            _textures[id] = (nint)view;
+            if (view == null)
+            {
+                _textures.Remove(id);
+            }
+            else
+            {
+                _textures[id] = (nint)view;
+            }
             _renderer?.SetTexture(id, view);
         }
 

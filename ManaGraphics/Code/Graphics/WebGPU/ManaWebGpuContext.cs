@@ -70,6 +70,7 @@ namespace ManaGraphics.Code.Graphics
         public ManaCore.Loading.ManaLoadingViewModel EnvironmentLoading { get; } = new();
         public bool IsEnvironmentInitializationPending => _environment?.IsInitializationPending ?? true;
         private ManaWebGpuUiCompositor? _ui;
+        private ManaWebGpuUiSurfaces? _uiSurfaces;
 
         /// <summary>
         /// The ManaUI tree to draw over the scene, or null. The app records its draw list; this only submits it, so a UI
@@ -152,6 +153,7 @@ namespace ManaGraphics.Code.Graphics
             _meshes = new ManaWebGpuSceneMeshes(_gpu, _meshTextures, _environment);
             _frameCapture = new ManaWebGpuFrameCapture(_gpu, _readbackRegistry);
             _ui = new ManaWebGpuUiCompositor(_gpu);
+            _uiSurfaces = new ManaWebGpuUiSurfaces(_gpu, _ui);
             HeightSampler = new ManaWebGpuHeightSampleCompute(_gpu, _readbackRegistry, _renderThread);
             _windowSurface = new ManaWebGpuWindowSurface(_gpu, native.Surface);
             _windowSurface.Configure(window.FramebufferSize);
@@ -440,6 +442,12 @@ namespace ManaGraphics.Code.Graphics
                     }
                 }
 
+                // Pictures the application owns (a canvas): uploaded only when drawn and changed.
+                if (UiRoot is { } surfaceRoot)
+                {
+                    _uiSurfaces?.Sync(surfaceRoot);
+                }
+
                 var surfaceAttachment = new RenderPassColorAttachment
                 {
                     View = surfaceView,
@@ -568,6 +576,7 @@ namespace ManaGraphics.Code.Graphics
             _meshes?.DrainDeferred(force: true);
 
             UiRoot = null;
+            _uiSurfaces?.Dispose();
             _ui?.Dispose();
 
             ReleaseScenePipelines();

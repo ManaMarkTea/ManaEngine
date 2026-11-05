@@ -343,6 +343,12 @@ namespace ManaUI
         public ManaUiDrawList DrawList => _drawList;
 
         /// <summary>
+        /// Application-owned pictures on screen, by id: a <see cref="UiSurfaceImage"/> adds its picture as it draws, and
+        /// the graphics backend uploads the ones a batch draws from. Entries go when the picture is disposed.
+        /// </summary>
+        public Dictionary<int, ManaUiSurface> Surfaces { get; } = new();
+
+        /// <summary>
         /// Adds a floating window and raises it. Placement defaults to a cascade from the top-left so two
         /// windows opened in a row do not land exactly on top of each other.
         /// </summary>

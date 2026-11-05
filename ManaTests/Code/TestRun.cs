@@ -65,6 +65,7 @@ public static class TestRunner
         ("ManaUI", "paint order", PaintOrderChecks.Run),
         ("ManaUI", "input", InputChecks.Run),
         ("ManaUI", "text area", TextAreaChecks.Run),
+        ("ManaUI", "surfaces", SurfaceChecks.Run),
         ("ManaUI", "bindings", BindingChecks.Run),
         ("ManaUI", "markup", UiMarkupChecks.Run),
         ("ManaUI", "scrolling and text editing", ScrollAndTextChecks.Run),
