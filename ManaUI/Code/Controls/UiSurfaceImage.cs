@@ -15,6 +15,26 @@ namespace ManaUI
         private UiImageFit _fit = UiImageFit.Stretch;
         private Vector4 _tint = UiColor.White;
         private bool _captured;
+        private bool _hasDrawn;
+
+        // The draw list is retained: new pixels need no re-record once the picture is in it, but the first ones (or a
+        // new size) do, or nothing would ask for the batch.
+        private void OnSurfaceChanged()
+        {
+            if (!_hasDrawn || _surface is not { HasPixels: true })
+            {
+                InvalidateVisual();
+                return;
+            }
+
+            if (_surface.Width != _drawnWidth || _surface.Height != _drawnHeight)
+            {
+                InvalidateVisual();
+            }
+        }
+
+        private int _drawnWidth;
+        private int _drawnHeight;
 
         public ManaUiSurface? Surface
         {
@@ -26,7 +46,16 @@ namespace ManaUI
                     return;
                 }
 
+                if (_surface != null)
+                {
+                    _surface.Changed -= OnSurfaceChanged;
+                }
                 _surface = value;
+                _hasDrawn = false;
+                if (_surface != null)
+                {
+                    _surface.Changed += OnSurfaceChanged;
+                }
                 InvalidateMeasure();
                 InvalidateVisual();
             }
@@ -113,6 +142,9 @@ namespace ManaUI
 
             // The backend finds the pixels through the root, and only uploads pictures a batch draws from.
             Root.Surfaces[surface.Id] = surface;
+            _hasDrawn = true;
+            _drawnWidth = surface.Width;
+            _drawnHeight = surface.Height;
 
             var clipped = _fit == UiImageFit.Cover;
             if (clipped)

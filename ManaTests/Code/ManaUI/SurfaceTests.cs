@@ -51,6 +51,18 @@ public static class SurfaceChecks
         root.UpdateLayout(new Vector2(400, 300));
         Check("an empty element draws nothing", !root.Render().DrawsTexture(surface.Id));
 
+        // A picture that arrives after the first frame must appear without anything else prodding the tree.
+        var late = new ManaUiSurface();
+        image.Surface = late;
+        root.UpdateLayout(new Vector2(400, 300));
+        Check("an empty surface draws nothing yet", !root.Render().DrawsTexture(late.Id));
+        late.Update(2, 2, red);
+        Check("its first pixels make the element draw, with no other invalidation", root.Render().DrawsTexture(late.Id));
+        late.Update(2, 2, red);
+        Check("a same-size update leaves the recorded draw list alone", root.Render().DrawsTexture(late.Id));
+        late.Update(4, 4, new byte[64]);
+        Check("a new size is drawn too", root.Render().DrawsTexture(late.Id) && late.Width == 4);
+
         // Contain letterboxes; Stretch fills.
         image.Surface = surface;
         image.Fit = UiImageFit.Contain;

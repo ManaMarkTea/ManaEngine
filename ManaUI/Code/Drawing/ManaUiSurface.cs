@@ -38,6 +38,9 @@ namespace ManaUI
 
         public ReadOnlySpan<byte> Pixels => _pixels.AsSpan(0, Width * Height * 4);
 
+        /// <summary>Raised after every <see cref="Update"/> and on <see cref="Dispose"/>.</summary>
+        public event Action? Changed;
+
         /// <summary>Replaces the picture. <paramref name="rgba"/> is <paramref name="width"/> x <paramref name="height"/> x 4 bytes, rows top to bottom.</summary>
         public void Update(int width, int height, ReadOnlySpan<byte> rgba)
         {
@@ -59,6 +62,7 @@ namespace ManaUI
             Width = width;
             Height = height;
             Revision++;
+            Changed?.Invoke();
         }
 
         public void Dispose()
@@ -67,6 +71,7 @@ namespace ManaUI
             _pixels = Array.Empty<byte>();
             Width = 0;
             Height = 0;
+            Changed?.Invoke();
         }
     }
 }
