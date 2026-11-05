@@ -177,6 +177,35 @@ public static class TextAreaChecks
             topLeft != null && lineTwoStart != null && lineTwoEnd != null
             && lineTwoStart.Value.Y > topLeft.Value.Y && lineTwoEnd.Value.X > lineTwoStart.Value.X && lineTwoEnd.Value.Y == lineTwoStart.Value.Y,
             $"{topLeft} {lineTwoStart} {lineTwoEnd}");
+        // -------------------------------------------------------------- inline swatches
+        Reset("c = #fff end");
+        root.UpdateLayout(new Vector2(600, 400));
+        root.Render();
+        area.CaretIndex = 12;
+        var plainEnd = area.CaretBounds!.Value.X;
+        area.CaretIndex = 7;
+        var plainBeforeSwatch = area.CaretBounds!.Value.X;
+        area.LineSwatches = line => line.Contains("#fff") ? new[] { new TextSwatch(8, new Vector4(1, 1, 1, 1)) } : Array.Empty<TextSwatch>();
+        root.UpdateLayout(new Vector2(600, 400));
+        root.Render();
+        area.CaretIndex = 12;
+        var swatchedEnd = area.CaretBounds!.Value.X;
+        area.CaretIndex = 7;
+        var swatchedBefore = area.CaretBounds!.Value.X;
+        Check("a swatch pushes the rest of the line along", swatchedEnd > plainEnd + 8.0f, $"{plainEnd} -> {swatchedEnd}");
+        Check("and leaves what comes before it where it was", Math.Abs(swatchedBefore - plainBeforeSwatch) < 0.01f);
+
+        var clicks = new List<TextSwatchClick>();
+        area.SwatchClicked += (_, click) => clicks.Add(click);
+        var lineY = area.Bounds.Y + 12;
+        var swatchX = area.Bounds.X + (plainBeforeSwatch - area.Bounds.X) + 4.0f + 14.0f;
+        area.CaretIndex = 0;
+        root.Input.InjectPointerMoved(new Vector2(swatchX, lineY));
+        root.Input.InjectPointerPressed(new Vector2(swatchX, lineY), PointerButton.Left, 100.0);
+        root.Input.InjectPointerReleased(new Vector2(swatchX, lineY), PointerButton.Left);
+        Check("clicking a swatch reports it instead of moving the caret", clicks.Count == 1 && clicks[0].Index == 8 && clicks[0].Line == 0 && area.CaretIndex == 0, $"{clicks.Count} caret {area.CaretIndex}");
+        area.LineSwatches = null;
+
         Check("the hover tint is on by default and can be switched off", area.ShowHoverTint);
         area.ShowHoverTint = false;
         Check("switching the hover tint off sticks", !area.ShowHoverTint);

@@ -5,6 +5,12 @@ namespace ManaUI
     /// <summary>A coloured stretch of one line, as a <see cref="TextArea.LineColorizer"/> returns it.</summary>
     public readonly record struct TextSpanColor(int Start, int Length, Vector4 Color);
 
+    /// <summary>A small coloured box drawn inline after <see cref="Column"/> of a line (a colour literal's preview, say).</summary>
+    public readonly record struct TextSwatch(int Column, Vector4 Color);
+
+    /// <summary>A click on a swatch: which line, the text index it follows, and its colour.</summary>
+    public readonly record struct TextSwatchClick(int Line, int Index, Vector4 Color);
+
     /// <summary>
     /// A multi-line code/text editor: monospace, line numbers, caret and selection across lines, undo and redo,
     /// auto-indent (braces open and close tidily), Tab indenting and scrolling.
@@ -96,6 +102,79 @@ namespace ManaUI
 
         /// <summary>Optional: the coloured spans of one line (its text without the line end). Uncovered text uses the theme's colour.</summary>
         public Func<string, IReadOnlyList<TextSpanColor>>? LineColorizer { get; set; }
+
+        private Func<string, IReadOnlyList<TextSwatch>>? _lineSwatches;
+        private readonly Dictionary<string, IReadOnlyList<TextSwatch>> _swatchCache = new();
+
+        /// <summary>
+        /// Optional: inline swatches of one line, drawn after the given column and pushing the rest of the line along, so
+        /// the caret, selection and clicks stay in step with what is seen. Results are cached per line text; set the
+        /// property again to drop the cache when the rule itself changes.
+        /// </summary>
+        public Func<string, IReadOnlyList<TextSwatch>>? LineSwatches
+        {
+            get => _lineSwatches;
+            set
+            {
+                _lineSwatches = value;
+                _swatchCache.Clear();
+                InvalidateVisual();
+            }
+        }
+
+        /// <summary>Raised when a swatch is clicked, instead of the click moving the caret.</summary>
+        public event EventHandler<TextSwatchClick>? SwatchClicked;
+
+        private IReadOnlyList<TextSwatch> SwatchesFor(string text)
+        {
+            if (_lineSwatches == null || text.Length == 0)
+            {
+                return Array.Empty<TextSwatch>();
+            }
+            if (!_swatchCache.TryGetValue(text, out var found))
+            {
+                if (_swatchCache.Count > 4000)
+                {
+                    _swatchCache.Clear();
+                }
+                found = _lineSwatches(text).Where(sw => sw.Column >= 0 && sw.Column <= text.Length).OrderBy(sw => sw.Column).ToArray();
+                _swatchCache[text] = found;
+            }
+            return found;
+        }
+
+        private static float SwatchSlot(ManaFont font)
+        {
+            return MathF.Round(font.LineHeight * 0.7f) + 8.0f;
+        }
+
+        // Width added before a column by the swatches on its line. A caret at a swatch's own column sits before it
+        // (inclusive false); text that starts at that column is drawn after it (inclusive true).
+        private float ExtraWidth(ManaFont font, string text, int column, bool inclusive)
+        {
+            var swatches = SwatchesFor(text);
+            if (swatches.Count == 0)
+            {
+                return 0.0f;
+            }
+
+            var count = 0;
+            foreach (var swatch in swatches)
+            {
+                if (swatch.Column < column || (inclusive && swatch.Column == column))
+                {
+                    count++;
+                }
+            }
+            return count * SwatchSlot(font);
+        }
+
+        private UiRect SwatchRect(ManaFont font, string text, TextSwatch swatch, float originX, float y)
+        {
+            var size = MathF.Round(font.LineHeight * 0.7f);
+            var x = originX + font.MeasureWidth(text.AsSpan(0, swatch.Column)) + ExtraWidth(font, text, swatch.Column, inclusive: false) + 4.0f;
+            return new UiRect(x, y + (font.LineHeight - size) / 2.0f, size, size);
+        }
 
         public override bool WantsAllKeyboardInput => true;
 
@@ -327,12 +406,12 @@ namespace ManaUI
         /// Replaces <paramref name="length"/> characters from <paramref name="start"/> and leaves the caret after the new text --
         /// for a host that completes the word being typed. One undo step.
         /// </summary>
-        public void ReplaceRange(int start, int length, string text)
+        public void ReplaceRange(int start, int length, string text, string? kind = null)
         {
             start = Math.Clamp(start, 0, _text.Length);
             length = Math.Clamp(length, 0, _text.Length - start);
             text = Normalize(text);
-            Edit(start, length, text, start + text.Length);
+            Edit(start, length, text, start + text.Length, kind);
         }
 
         private void DeleteSelection()
@@ -582,16 +661,35 @@ namespace ManaUI
         private float XOf(ManaFont font, int line, int column)
         {
             var text = LineText(line);
-            return font.MeasureWidth(text.AsSpan(0, Math.Clamp(column, 0, text.Length)));
+            column = Math.Clamp(column, 0, text.Length);
+            return font.MeasureWidth(text.AsSpan(0, column)) + ExtraWidth(font, text, column, inclusive: false);
         }
 
         // The column whose boundary is nearest x; past a glyph's midpoint the caret belongs after it.
         private int ColumnAt(ManaFont font, int line, float x)
         {
             var text = LineText(line);
+            var swatches = SwatchesFor(text);
+            var slot = SwatchSlot(font);
+            var next = 0;
             var width = 0.0f;
-            for (var i = 0; i < text.Length; i++)
+            for (var i = 0; i <= text.Length; i++)
             {
+                // A swatch after column i sits between the caret positions i and i + 1.
+                while (next < swatches.Count && swatches[next].Column == i)
+                {
+                    if (x < width + slot * 0.5f)
+                    {
+                        return i;
+                    }
+                    width += slot;
+                    next++;
+                }
+
+                if (i == text.Length)
+                {
+                    break;
+                }
                 var advance = font.GetGlyph(text[i]).Advance;
                 if (x < width + advance * 0.5f)
                 {
@@ -784,6 +882,17 @@ namespace ManaUI
 
         private void DrawLineText(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled)
         {
+            DrawLineRuns(drawList, font, line, originX, y, lineHeight, enabled);
+
+            var swatchLine = LineText(line);
+            foreach (var swatch in SwatchesFor(swatchLine))
+            {
+                drawList.DrawBox(SwatchRect(font, swatchLine, swatch, originX, y), swatch.Color, Theme.Border, 1.0f, new CornerRadius(2.0f));
+            }
+        }
+
+        private void DrawLineRuns(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled)
+        {
             var text = LineText(line);
             if (text.Length == 0)
             {
@@ -828,7 +937,7 @@ namespace ManaUI
 
         private void DrawRun(ManaUiDrawList drawList, ManaFont font, string line, int start, int end, float originX, float y, float lineHeight, Vector4 color)
         {
-            var x = originX + font.MeasureWidth(line.AsSpan(0, start));
+            var x = originX + font.MeasureWidth(line.AsSpan(0, start)) + ExtraWidth(font, line, start, inclusive: true);
             _layout.Font = font;
             _layout.Text = line.Substring(start, end - start);
             _layout.Render(drawList, new UiRect(x, y, float.MaxValue / 4.0f, lineHeight), color);
@@ -900,6 +1009,33 @@ namespace ManaUI
             return _lineStarts[line] + ColumnAt(font, line, position.X - area.X + _scrollX);
         }
 
+        private TextSwatchClick? HitSwatch(Vector2 position)
+        {
+            if (_lineSwatches == null || ResolveFont() is not { } font)
+            {
+                return null;
+            }
+
+            var area = TextRect(font);
+            var line = (int)MathF.Floor((position.Y - area.Y + _scrollY) / font.LineHeight);
+            if (line < 0 || line >= _lineStarts.Count)
+            {
+                return null;
+            }
+
+            var text = LineText(line);
+            var originX = area.X - _scrollX;
+            var y = area.Y + line * font.LineHeight - _scrollY;
+            foreach (var swatch in SwatchesFor(text))
+            {
+                if (SwatchRect(font, text, swatch, originX, y).Contains(position))
+                {
+                    return new TextSwatchClick(line, _lineStarts[line] + swatch.Column, swatch.Color);
+                }
+            }
+            return null;
+        }
+
         protected override void OnPointerPressed(UiPointerEventArgs e)
         {
             if (e.Button != PointerButton.Left || !IsEffectivelyEnabled)
@@ -908,6 +1044,11 @@ namespace ManaUI
             }
 
             Focus();
+            if (HitSwatch(e.Position) is { } clicked)
+            {
+                SwatchClicked?.Invoke(this, clicked);
+                return;
+            }
             var index = IndexAt(e.Position);
 
             if (e.ClickCount >= 3)
