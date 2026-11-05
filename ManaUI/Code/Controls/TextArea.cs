@@ -84,6 +84,12 @@ namespace ManaUI
 
         public bool IsReadOnly { get; set; }
 
+        /// <summary>
+        /// When true, pressing Enter after a <c>{</c> that follows other text on its line moves the brace to a line of its own (Allman
+        /// style), indented like the line it came from, and opens the block below it.
+        /// </summary>
+        public bool BraceOnNewLine { get; set; }
+
         public int TabSize
         {
             get => _tabSize;
@@ -485,6 +491,24 @@ namespace ManaUI
             if (before.EndsWith('{'))
             {
                 var inner = indent + new string(' ', _tabSize);
+
+                // Brace on its own line: a brace that follows code on its line moves down, so the line keeps only the code.
+                var lineStart = _lineStarts[line];
+                var lineBefore = _text.Substring(lineStart, SelectionStart - lineStart).TrimEnd(' ');
+                var code = lineBefore.Substring(0, lineBefore.Length - 1).TrimEnd(' ');
+                if (BraceOnNewLine && code.Trim().Length > 0)
+                {
+                    var from = lineStart + code.Length;
+                    var opened = "\n" + indent + "{\n" + inner;
+                    var caretAt = from + opened.Length;
+                    if (after.StartsWith('}'))
+                    {
+                        opened += "\n" + indent;
+                    }
+                    Edit(from, SelectionStart + SelectionLength - from, opened, caretAt);
+                    return;
+                }
+
                 if (after.StartsWith('}'))
                 {
                     var insert = "\n" + inner + "\n" + indent;

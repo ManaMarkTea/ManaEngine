@@ -135,6 +135,26 @@ public static class TextAreaChecks
         Key(UiKey.Z, UiModifiers.Control);
         Check("undo reaches the original", area.Text == "keep", area.Text);
 
+        // -------------------------------------------------------------- brace style
+        Reset("for i in 0..3 {");
+        Key(UiKey.Enter);
+        Check("by default Enter after a brace keeps it on the line and indents the block", area.Text == "for i in 0..3 {\n    ", area.Text.Replace("\n", "|"));
+
+        area.BraceOnNewLine = true;
+        Reset("for i in 0..3 {");
+        Key(UiKey.Enter);
+        Check("with BraceOnNewLine the brace moves to its own line and the block opens below it", area.Text == "for i in 0..3\n{\n    " && area.CaretIndex == area.Text.Length, area.Text.Replace("\n", "|"));
+
+        Reset("  if x {}");
+        area.CaretIndex = 8;
+        Key(UiKey.Enter);
+        Check("an empty pair is opened onto three lines, indented like the line it was on", area.Text == "  if x\n  {\n      \n  }" && area.CaretIndex == 17, area.Text.Replace("\n", "|") + " " + area.CaretIndex);
+
+        Reset("{");
+        Key(UiKey.Enter);
+        Check("a brace already alone on its line just indents the block", area.Text == "{\n    ", area.Text.Replace("\n", "|"));
+        area.BraceOnNewLine = false;
+
         Reset("find the needle here");
         area.Select(9, 6);
         Check("Select makes a selection with the caret at its end", area.SelectedText == "needle" && area.CaretIndex == 15, $"'{area.SelectedText}' {area.CaretIndex}");
