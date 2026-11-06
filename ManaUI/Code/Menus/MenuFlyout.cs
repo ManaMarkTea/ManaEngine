@@ -71,8 +71,49 @@ namespace ManaUI
                 list.Children.Add(new MenuRow(root, popup, item, hasCheckColumn, hasSubmenus));
             }
 
+            LimitHeight(root, popup, list);
             show(popup);
             return popup;
+        }
+
+        /// <summary>
+        /// A menu taller than the window (a long list of examples) scrolls instead of running off the screen,
+        /// where its last rows could not be clicked. Wrapped only when needed: a scroll viewer takes all the
+        /// room it is offered, so wrapping every menu would stretch the short ones.
+        /// </summary>
+        private static void LimitHeight(UiRoot root, UiPopup popup, StackPanel list)
+        {
+            // Border outline and padding take 8, and a margin is left for the bar the menu hangs from.
+            var limit = root.Size.Y - 60.0f;
+            if (limit < 80.0f)
+            {
+                return;
+            }
+
+            list.Measure(new Vector2(LayoutHelper.Infinity, LayoutHelper.Infinity));
+            if (list.DesiredSize.Y <= limit)
+            {
+                return;
+            }
+
+            var theme = root.Theme;
+            var gutter = theme.ScrollBarThickness + theme.ScrollBarGap;
+            if (popup.Child is not Border border)
+            {
+                return;
+            }
+
+            var scroller = new ScrollViewer
+            {
+                HorizontalScrollBar = ScrollBarVisibility.Disabled,
+                WheelStep = 40.0f
+            };
+
+            border.Child = null;
+            scroller.Content(list);
+            scroller.Width = list.DesiredSize.X + gutter;
+            scroller.Height = limit;
+            border.Content(scroller);
         }
 
         /// <summary>

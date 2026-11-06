@@ -255,6 +255,35 @@ public static class MenuChecks
         var drawn = root.Render();
         Check("menus render", drawn.InstanceCount > 5, $"{drawn.InstanceCount} instances");
         Check("still one draw call", drawn.Batches.Count == 1, $"{drawn.Batches.Count} batches");
+
+        // A menu taller than the window scrolls instead of running off the bottom (a long Examples list).
+        root.Popups.CloseAll();
+        var longItems = new List<MenuItem>();
+        for (var i = 0; i < 60; i++)
+        {
+            var index = i;
+            longItems.Add(new MenuItem("Example " + i, () => opened.Add("long" + index)));
+        }
+        MenuFlyout.ShowAt(root, new Vector2(100, 40), longItems);
+        root.UpdateLayout(new Vector2(1000, 700));
+        var longMenu = root.Popups.Topmost!;
+        Check("a menu taller than the window is capped to it",
+            longMenu.Bounds.Bottom <= 700.01f && longMenu.Bounds.Y >= 0.0f, longMenu.Bounds.ToString());
+        var scroller = FindAll<ScrollViewer>(longMenu).FirstOrDefault();
+        Check("a menu taller than the window scrolls", scroller != null && scroller.CanScrollVertically);
+        if (scroller != null)
+        {
+            scroller.ScrollToBottom();
+            root.UpdateLayout(new Vector2(1000, 700));
+            var last = FindAll<Control>(longMenu).Where(IsMenuRow).Last();
+            Check("the last row can be scrolled into reach", last.Bounds.Bottom <= longMenu.Bounds.Bottom,
+                $"{last.Bounds.Bottom} vs {longMenu.Bounds.Bottom}");
+        }
+        root.Popups.CloseAll();
+        MenuFlyout.ShowAt(root, new Vector2(100, 40), longItems.Take(3).ToList());
+        root.UpdateLayout(new Vector2(1000, 700));
+        Check("a short menu is not wrapped in a scroller", !FindAll<ScrollViewer>(root.Popups.Topmost!).Any());
+        root.Popups.CloseAll();
         root.Popups.CloseAll();
     }
 
