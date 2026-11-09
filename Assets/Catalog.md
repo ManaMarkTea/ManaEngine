@@ -7,8 +7,6 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 
 ## Packs
 
-- [kenney_animated-characters-protagonists](#kenney_animated-characters-protagonists) -- 4 pictures
-- [kenney_animated-characters-survivors](#kenney_animated-characters-survivors) -- 5 pictures
 - [kenney_blocky-characters_20](#kenney_blocky-characters_20) -- 18 models
 - [kenney_city-kit-roads](#kenney_city-kit-roads) -- 72 models, 1 picture
 - [kenney_cube-pets_1.0](#kenney_cube-pets_10) -- 24 models
@@ -19,7 +17,6 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 - [kenney_hexagon-kit](#kenney_hexagon-kit) -- 72 models, 1 picture
 - [kenney_hexagon-pack](#kenney_hexagon-pack) -- 317 pictures
 - [kenney_input-prompts_1.5](#kenney_input-prompts_15) -- 3042 pictures
-- [kenney_light-masks-1.0](#kenney_light-masks-10) -- 456 pictures
 - [kenney_mini-arena](#kenney_mini-arena) -- 22 models, 1 picture
 - [kenney_mini-characters](#kenney_mini-characters) -- 26 models
 - [kenney_mini-dungeon](#kenney_mini-dungeon) -- 30 models, 1 picture
@@ -37,23 +34,6 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 - [kenney_watercraft-pack](#kenney_watercraft-pack) -- 46 models
 - [Loose models](#loose-models)
 - [The project's own assets](#the-projects-own-assets)
-
-## kenney_animated-characters-protagonists
-
-4 pictures, as `zip:kenney_animated-characters-protagonists.zip/<folder>/<picture>.png`.
-
-| Folder | Pictures | Examples |
-|---|---:|---|
-| `Skins/` | 4 | criminalMaleA, cyborgFemaleA, skaterFemaleA, skaterMaleA |
-
-## kenney_animated-characters-survivors
-
-5 pictures, as `zip:kenney_animated-characters-survivors.zip/<folder>/<picture>.png`.
-
-| Folder | Pictures | Examples |
-|---|---:|---|
-| `./` | 1 | Sample |
-| `Skins/` | 4 | survivorFemaleA, survivorMaleB, zombieA, zombieC |
 
 ## kenney_blocky-characters_20
 
@@ -888,16 +868,6 @@ are where it sits about the point it is placed at (a model's lone root node's ow
 | `Xbox Series/` | 2 | xbox-series_sheet_default, xbox-series_sheet_double |
 | `Xbox Series/Default/` | 99 | controller_xbox360, controller_xbox_adaptive, controller_xboxone, controller_xboxseries, xbox_button_a, xbox_button_a_outline, xbox_button_b, xbox_button_b_outline, xbox_button_back, xbox_button_back_icon, xbox_button_back_icon_outline, xbox_button_back_outline, ... |
 | `Xbox Series/Double/` | 99 | controller_xbox360, controller_xbox_adaptive, controller_xboxone, controller_xboxseries, xbox_button_a, xbox_button_a_outline, xbox_button_b, xbox_button_b_outline, xbox_button_back, xbox_button_back_icon, xbox_button_back_icon_outline, xbox_button_back_outline, ... |
-
-## kenney_light-masks-1.0
-
-456 pictures, as `zip:kenney_light-masks-1.0.zip/<folder>/<picture>.png`.
-
-| Folder | Pictures | Examples |
-|---|---:|---|
-| `Default/` | 152 | circle_a, circle_a_noise, circle_a_streaks, circle_a_streaks_noise, circle_b, circle_b_noise, circle_b_streaks, circle_b_streaks_noise, circle_c, circle_c_noise, circle_c_streaks, circle_c_streaks_noise, ... |
-| `Inverted/` | 152 | circle_a, circle_a_noise, circle_a_streaks, circle_a_streaks_noise, circle_b, circle_b_noise, circle_b_streaks, circle_b_streaks_noise, circle_c, circle_c_noise, circle_c_streaks, circle_c_streaks_noise, ... |
-| `Transparent/` | 152 | circle_a, circle_a_noise, circle_a_streaks, circle_a_streaks_noise, circle_b, circle_b_noise, circle_b_streaks, circle_b_streaks_noise, circle_c, circle_c_noise, circle_c_streaks, circle_c_streaks_noise, ... |
 
 ## kenney_mini-arena
 
