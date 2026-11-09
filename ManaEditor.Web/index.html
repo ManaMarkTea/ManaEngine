@@ -609,7 +609,7 @@
               hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
             })
           : engine.buildDate;
-        label.textContent = `ManaRenderer v${engine.version}${commit} · ${date}`;
+        label.textContent = `ManaEngine v${engine.version}${commit} · ${date}`;
         label.hidden = false;
       })
       .catch(() => {});

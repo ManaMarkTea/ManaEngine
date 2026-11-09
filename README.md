@@ -1,6 +1,6 @@
-# ManaRenderer
+# ManaEngine
 
-ManaRenderer is a C# renderer and game engine with a voxel-level editor. WebGPU is the graphics backend. The projects target .NET 10, Windows, and macOS (arm64).
+ManaEngine is a C# renderer and game engine with a voxel-level editor. WebGPU is the graphics backend. The projects target .NET 10, Windows, and macOS (arm64).
 
 ## Games
 
@@ -32,7 +32,7 @@ formats, and additional test-running instructions.
 
 ## License and third-party notices
 
-The root [`LICENSE`](LICENSE) covers ManaRenderer's original source code, not every file in the repository. Project
+The root [`LICENSE`](LICENSE) covers ManaEngine's original source code, not every file in the repository. Project
 assets are either original work by the author or CC0, except for the separately licensed third-party material noted
 below. Fonts, shaders, and dependencies may have their own terms; retain their accompanying license and attribution
 notices. Do not infer permission to reuse a third-party asset from the repository's source-code license.

@@ -22,7 +22,7 @@ def assemble(bundle: Path, output: Path, build: str):
         entry.mkdir(parents=True, exist_ok=True)
         (entry / "index.html").write_text(
             '<!DOCTYPE html><html lang="en"><meta charset="utf-8">'
-            '<title>ManaRenderer</title><script>'
+            '<title>ManaEngine</title><script>'
             'const target = new URL("../app/index.html", location.href);'
             'target.search = location.search; target.hash = location.hash;'
             f'target.searchParams.set("mode", "{mode}");'

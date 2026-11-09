@@ -1,4 +1,4 @@
-# ManaRenderer
+# ManaEngine
 
 C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (arm64)** and **Windows**. **WebGPU** (wgpu via Silk.NET) is the graphics backend on every platform. The legacy OpenGL backend has been removed.
 
