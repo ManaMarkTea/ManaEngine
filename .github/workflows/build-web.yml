@@ -1,4 +1,5 @@
 name: Build web editor and play, deploy to GitHub Pages
+# Runs daily on the zeus runner, or by hand from the Actions tab.
 
 # Publish the directory directly: immutable assets remain separate files and Butler uploads deltas.
 on:
