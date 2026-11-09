@@ -5,7 +5,6 @@ import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from publish_screensaver import publish as publish_screensaver
 
 
 def assemble(bundle: Path, output: Path, build: str):
@@ -35,7 +34,6 @@ def assemble(bundle: Path, output: Path, build: str):
     landing = landing.replace("{{BUILD_TIME}}", built_at.isoformat(timespec="seconds"))
     landing = landing.replace("{{BUILD_DATE}}", built_at.strftime("%Y-%m-%d %H:%M UTC"))
     (output / "index.html").write_text(landing, encoding="utf-8")
-    publish_screensaver(Path(__file__).resolve().parents[2], output / "code-screensaver")
 
 
 if __name__ == "__main__":

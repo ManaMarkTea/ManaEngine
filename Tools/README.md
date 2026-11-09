@@ -20,7 +20,7 @@ These are development tools, not runtime dependencies unless a build explicitly 
 | `Sprites` | Reproduces the bow/arrow sprite assets. |
 | `Terrain` | Reproduces the terrain layer atlases from the licensed material packs. |
 | `ThumbnailBaker` | Headless thumbnail executable called by web asset publishing. |
-| `WebAssets` | Immutable asset catalogs, Pages/itch packaging, browser driver, standalone screensaver and their tests. |
+| `WebAssets` | Immutable asset catalogs, Pages/itch packaging, browser driver and their tests. |
 
 Removed obsolete initial-authoring tools:
 

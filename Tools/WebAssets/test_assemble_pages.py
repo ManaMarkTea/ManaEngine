@@ -15,6 +15,7 @@ class PagesAssemblyTests(unittest.TestCase):
             bundle = root / "bundle"
             (bundle / "_framework").mkdir(parents=True)
             (bundle / "_framework" / "dotnet.native.wasm").write_bytes(b"runtime")
+            (bundle / "apps").mkdir()
             (bundle / "index.html").write_text("<body>selector</body>", encoding="utf-8")
             output = root / "pages"
             library = output / "web-assets" / "AssetLibrary"
@@ -31,8 +32,6 @@ class PagesAssemblyTests(unittest.TestCase):
             self.assertIn('Last build:', landing)
             self.assertRegex(landing, r'datetime="\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00"')
             self.assertNotIn('{{BUILD_', landing)
-            self.assertTrue((output / "code-screensaver/index.html").is_file())
-            self.assertGreater(len(json.loads((output / "code-screensaver/sources.json").read_text())), 0)
             for mode in ("editor", "play"):
                 redirect = (output / mode / "index.html").read_text()
                 self.assertIn('target.search = location.search', redirect)
@@ -47,7 +46,7 @@ class PagesAssemblyTests(unittest.TestCase):
     def test_itch_defaults_to_editor_without_changing_pages_default(self):
         with tempfile.TemporaryDirectory() as scratch:
             bundle = Path(scratch) / "bundle"
-            bundle.mkdir()
+            (bundle / "apps").mkdir(parents=True)
             (bundle / "index.html").write_text("<body>selector</body>", encoding="utf-8")
             output = Path(scratch) / "pages"
             subprocess.run([
