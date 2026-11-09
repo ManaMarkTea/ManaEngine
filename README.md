@@ -2,6 +2,10 @@
 
 ManaRenderer is a C# renderer and game engine with a voxel-level editor. WebGPU is the graphics backend. The projects target .NET 10, Windows, and macOS (arm64).
 
+## Games
+
+The games (Contour, Foundry, Train Yard Wars and others) live in their own repository, [ManaGames](https://github.com/ManaMarkTea/ManaGames), which uses this one as a submodule.
+
 ## Projects
 
 | Project | Purpose |
@@ -41,6 +45,7 @@ Notable bundled material with recorded terms:
 - The atmosphere shader includes Sebastian Lague's MIT notice. The liquid-fill shader credits Mirza Beig and records
   the author's reuse permission in the shader file.
 - Poly Haven environment images are CC0; the moon texture is from NASA's public-domain CGI Moon Kit.
+- Natural Earth data (`Assets/GeoData/`, and the planet's coarse start grid `Assets/Planet/baseline.tif` made from it by `Tools/Planet/make_baseline.py`) is public domain. Planet detail streams from Terrarium tiles at run time.
 - Third-party libraries retain the licenses of their respective packages; see each package's distribution for its
   applicable terms.
 - Desktop image decoding and encoding use StbImageSharp and StbImageWriteSharp (ports of stb_image; public domain /

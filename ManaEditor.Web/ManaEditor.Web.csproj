@@ -179,21 +179,4 @@ Log.LogMessage(MessageImportance.High, "Loading screen: download total is " + to
     <ManaWriteEditorDownloadSize AppBundleDir="$(WasmAppDir)" />
   </Target>
 
-
-
-  <!-- The hosted browser app is AppBundle, populated only by WasmFilesToIncludeInFileSystem above.
-       The generic SDK publish/target directories can still collect referenced-project desktop content
-       from Mana.csproj's ordinary CopyToOutputDirectory items. Keep the full ETOPO baseline available
-       to desktop builds, but never leave this 444 MB source GeoTIFF in editor-web outputs that people
-       are likely to zip for itch.io. -->
-  <Target Name="ManaRemoveOversizedDesktopPlanetAssetFromEditorWebOutputs" AfterTargets="Build;Publish">
-    <ItemGroup>
-      <_ManaEditorWebOversizedDesktopAsset Include="$(TargetDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif"
-                                           Condition="Exists('$(TargetDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif')" />
-      <_ManaEditorWebOversizedDesktopAsset Include="$(PublishDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif"
-                                           Condition="'$(PublishDir)' != '' And Exists('$(PublishDir)Assets\Planet\ETOPO_2022_v1_60s_N90W180_surface.tif')" />
-    </ItemGroup>
-    <Delete Files="@(_ManaEditorWebOversizedDesktopAsset)" />
-  </Target>
-
 </Project>

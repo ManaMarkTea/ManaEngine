@@ -125,8 +125,7 @@ Both browser projects import `WebAssets.props`, which embeds shaders, two Roboto
 default textures, the mini-character pack, and all `.manalevel` files under `Content/Levels/` and the games' `Games/*/Content/`.
 `Tools/WebAssets/publish_assets.py` publishes every file under `Assets/`,
 `ManaGraphics/Assets/`, `ManaUI/Assets/`, and `ManaEditor/Assets/` as separate hashed files,
-plus a small catalog. The only exclusion is the oversized desktop planet source
-`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`.
+plus a small catalog.
 
 The initial level's models/packs and glTF sidecars download before its synchronous loader
 runs. Subsequent uses reuse staged files or the persistent browser cache. New assets are

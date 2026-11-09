@@ -159,6 +159,7 @@ public static class TestRunner
         ("ManaEditor", "sprite assets", SpriteAssetChecks.Run),
         ("ManaEditor", "sprite asset dependencies", SpriteAssetDependencyChecks.Run),
         ("ManaGeoTools", "planet streaming and rebuild handoff", PlanetStreamingChecks.Run),
+        ("ManaGeoTools", "planet baseline", PlanetBaselineChecks.Run),
         ("ManaEditor", "glow", GlowChecks.Run),
         ("ManaEditor", "particles", ParticleChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),

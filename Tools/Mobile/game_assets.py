@@ -14,8 +14,6 @@ BOOT = [
     # The start screen's music (GameViewController.MenuMusic).
     "Assets/Audio/Music/Monkeys Spinning Monkeys.wav",
 ]
-# The planet's height map is the editor's (466 MB); a level showing the planet comes up without it, as on the web.
-EXCLUDED = {"Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"}
 CONTENT_KINDS = (".manalevel", ".manaprefab", ".managridpreset", ".manasheet", ".manaslice", ".manawfc", ".manaui")
 REFERENCE = re.compile(r'"(?:zip:([^"/]+\.zip)/[^"]*|((?:Mana/)?Assets/[^";]+\.\w+))"|;((?:Mana/)?Assets/[^";]+\.\w+)')
 # Pictures and sounds kept in Content itself, named by a sheet or a level (the bows' frames).
@@ -61,7 +59,7 @@ def main():
             else:
                 asset = (path or listed).removeprefix("Mana/")
                 source = find(asset)
-            if asset not in files and asset not in EXCLUDED:
+            if asset not in files:
                 files[asset] = source
         for asset in CONTENT_FILE.findall(text):
             source = ROOT / asset

@@ -10,7 +10,6 @@ import zipfile
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit
 
-EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
 # Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
 EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
 ROOTS = ("Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaEditor/Assets")
@@ -108,7 +107,7 @@ def publish(root, output):
             if not source.is_file():
                 continue
             path = "Assets/" + source.relative_to(root / directory).as_posix()
-            if path == EXCLUDED or path.startswith(EXCLUDED_PREFIXES):
+            if path.startswith(EXCLUDED_PREFIXES):
                 continue
             if path in sources:
                 raise ValueError(f"Duplicate asset path: {path}")

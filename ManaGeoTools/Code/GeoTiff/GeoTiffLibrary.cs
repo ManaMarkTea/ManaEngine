@@ -18,7 +18,7 @@ namespace ManaGeoTools.Code.GeoTiff
         // thread also needs every frame. Bucketing tiles by a coarse lat/long grid cell means a query
         // only scans the (typically tiny) handful of tiles actually near that point, regardless of how
         // many thousands of tiles the library holds overall. A tile whose bounding box spans multiple
-        // cells (the whole-globe-ish baseline ETOPO file, in particular) is registered into every cell
+        // cells (the whole-globe baseline file, in particular) is registered into every cell
         // it overlaps -- a one-time cost paid when the tile is added, not per query.
         private const float GridCellDegrees = 1f;
         private readonly Dictionary<(int LonCell, int LatCell), List<IHeightTile>> _grid = new();

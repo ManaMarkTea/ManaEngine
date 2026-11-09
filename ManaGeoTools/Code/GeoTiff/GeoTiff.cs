@@ -51,13 +51,9 @@ namespace ManaGeoTools.Code.GeoTiff
             {
                 var upperLeft = Area.UpperLeft;
                 var diff = location.Subtracted(upperLeft);
-                var pixelY = (int)MathF.Abs(diff.Latitude / Area.PixelSize.Y);
-                var pixelX = (int)MathF.Abs(diff.Longitude / Area.PixelSize.X);
-
-                if (pixelX >= Metadata.Width || pixelY >= Metadata.Height)
-                {
-                    throw new InvalidOperationException("Computed pixel is outside the loaded image bounds.");
-                }
+                // Area.Contains is inclusive, so a point on the far edge (180 E, 90 S) belongs to the last pixel.
+                var pixelY = Math.Min((int)MathF.Abs(diff.Latitude / Area.PixelSize.Y), Metadata.Height - 1);
+                var pixelX = Math.Min((int)MathF.Abs(diff.Longitude / Area.PixelSize.X), Metadata.Width - 1);
 
                 return (pixelX, pixelY);
             }

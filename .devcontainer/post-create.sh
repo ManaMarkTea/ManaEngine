@@ -5,5 +5,4 @@ set -euo pipefail
 sudo apt-get update
 sudo apt-get install -y --no-install-recommends chromium libgl1 libx11-6 libxkbcommon0
 dotnet workload install wasm-tools --skip-manifest-update
-git lfs pull || true
 dotnet restore

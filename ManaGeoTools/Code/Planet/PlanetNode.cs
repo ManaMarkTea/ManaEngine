@@ -89,13 +89,13 @@ namespace ManaGeoTools.Code.Planet
             public required ManaSceneNode RootNode { get; init; }
 
             // The Terrarium zoom level currently backing this patch's elevation data, once it's been
-            // up-res'd at least once (null for a patch still on the whole-globe ETOPO baseline) --
+            // up-res'd at least once (null for a patch still on the whole-globe baseline) --
             // baked into the Node's display Name (see PatchName) so it's visible directly in the
             // Outliner instead of needing to cross-reference the log.
             public int? Zoom { get; set; }
 
             // Approximate number of source-data samples across this patch at Zoom. Null for the
-            // whole-globe ETOPO baseline before an on-demand Terrarium up-res.
+            // whole-globe baseline before an on-demand Terrarium up-res.
             public int? SourceResolution { get; set; }
 
             // Approximate source-data ground resolution at the patch center latitude. Web Mercator
@@ -931,7 +931,7 @@ namespace ManaGeoTools.Code.Planet
 
         // Caller must already hold _rebuildLock (reads childLeaves' Zoom, set only under that lock).
         // Merging targets one zoom coarser than the children's own (min(childZooms) - 1), reverting to
-        // Zoom=null (whole-globe ETOPO baseline) if that would go below the lowest Terrarium zoom ever
+        // Zoom=null (whole-globe baseline) if that would go below the lowest Terrarium zoom ever
         // assigned -- every child is guaranteed a non-null Zoom by the time it's a leaf (FinalizeSplit
         // aborts the whole split if any child failed to fetch), so this is always well-defined.
         private static (int? Zoom, int MeshResolution, int? SourceResolution, double? SourceMetersPerPixel) ComputeMergedPatchTarget(
@@ -1423,7 +1423,7 @@ namespace ManaGeoTools.Code.Planet
         /// On-disk cache paths (see TerrariumTileFetcher.CacheRoot) for the Terrarium tiles currently
         /// backing key's elevation data -- for an Inspector "open source tile" button, so terrain
         /// anomalies can be checked against the actual cached PNG. Empty if the patch is still on the
-        /// whole-globe ETOPO baseline (Zoom null) rather than a Terrarium up-res. Paths aren't guaranteed
+        /// whole-globe baseline (Zoom null) rather than a Terrarium up-res. Paths aren't guaranteed
         /// to exist on disk (a tile can be part of the plan but have failed to fetch).
         /// </summary>
         public IReadOnlyList<string> GetPatchTileCacheFilePaths(PatchKey key)
@@ -1602,7 +1602,7 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // zoom is the Terrarium zoom level currently backing this patch's elevation data (see
-        // PatchLeaf.Zoom) -- null for a patch still on the whole-globe ETOPO baseline, never up-res'd.
+        // PatchLeaf.Zoom) -- null for a patch still on the whole-globe baseline, never up-res'd.
         // meshResolution is the current mesh grid size. sourceResolution is intentionally not shown in
         // the Outliner: it can be a huge source span (e.g. 5395) that is useful in the Inspector but too
         // noisy for node names.

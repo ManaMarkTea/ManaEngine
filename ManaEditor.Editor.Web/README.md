@@ -41,8 +41,7 @@ just says a different thing depending on which script produced it.
 **One-time setup**: GitHub Pages must be enabled for this repo with "Source" set to "GitHub
 Actions" (Settings → Pages) before the deploy-pages step will succeed.
 
-The catalog includes all repository/project asset trees except the oversized
-`Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif`. Model import is glTF/GLB only. A ZIP pack
+The catalog includes all repository/project asset trees. Model import is glTF/GLB only. A ZIP pack
 downloads once when any model inside it is selected; loose glTF models
 fetch their referenced buffers and textures. The library can be browsed without downloading
 models: unloaded entries show format placeholders, with thumbnails generated after download.
