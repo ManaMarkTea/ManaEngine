@@ -275,6 +275,10 @@ namespace ManaVoxel.Code.Assets
 
         private static IEnumerable<string> RelativeZipRoots()
         {
+            if (ManaProjectFolder.RootOverride != null)
+            {
+                yield return ManaProjectFolder.RootOverride;
+            }
             yield return Environment.CurrentDirectory;
             yield return AppContext.BaseDirectory;
             yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..");

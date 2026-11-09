@@ -858,6 +858,10 @@ namespace ManaVoxel.Code.Assets
         /// </summary>
         public static IEnumerable<string> Roots()
         {
+            if (ManaProjectFolder.RootOverride != null)
+            {
+                yield return Path.Combine(ManaProjectFolder.RootOverride, "Assets");
+            }
             yield return Path.Combine(Environment.CurrentDirectory, "Assets");
 
             yield return Path.Combine(AppContext.BaseDirectory, "Assets");

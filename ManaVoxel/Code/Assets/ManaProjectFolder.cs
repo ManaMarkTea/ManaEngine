@@ -68,8 +68,15 @@ namespace ManaVoxel.Code.Assets
             return fallback;
         }
 
+        /// <summary>The checkout whose Content, Library and Assets this app uses, when the app lives in another repo (the games repo's engine submodule).</summary>
+        public static string? RootOverride { get; set; }
+
         private static IEnumerable<string> Roots(string folderName)
         {
+            if (RootOverride != null)
+            {
+                yield return Path.Combine(RootOverride, folderName);
+            }
             yield return Path.Combine(Environment.CurrentDirectory, folderName);
             yield return Path.Combine(AppContext.BaseDirectory, folderName);
             yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", folderName);

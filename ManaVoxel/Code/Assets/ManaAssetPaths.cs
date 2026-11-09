@@ -35,6 +35,16 @@ namespace ManaVoxel.Code.Assets
                 }
             }
 
+            // An app in another repo (the games) keeps the engine's assets in its checkout.
+            if (ManaProjectFolder.RootOverride is { } engine)
+            {
+                var candidate = Path.GetFullPath(Path.Combine(engine, normalized));
+                if (File.Exists(candidate))
+                {
+                    return candidate;
+                }
+            }
+
             // Source assets are not all copied to the output. Locate the checkout without
             // depending on the depth of bin/, Artifacts/Bin/, or runtime-specific outputs.
             for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)

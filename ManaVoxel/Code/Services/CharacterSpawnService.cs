@@ -30,6 +30,10 @@ namespace ManaVoxel.Code.Services
         // rather than assumed.
         private static IEnumerable<string> GetAssetRoots()
         {
+            if (Code.Assets.ManaProjectFolder.RootOverride != null)
+            {
+                yield return Path.Combine(Code.Assets.ManaProjectFolder.RootOverride, "Assets");
+            }
             yield return Path.Combine(Environment.CurrentDirectory, "Assets");
             yield return Path.Combine(AppContext.BaseDirectory, "Assets");
             yield return Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "Assets");
