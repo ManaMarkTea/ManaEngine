@@ -152,7 +152,7 @@ jobs:
           python Tools/WebAssets/split_for_itch.py \
             --app-bundle "$APP_BUNDLE" \
             --library-out pages-site/web-assets/AssetLibrary \
-            --external-base-url https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/
+            --external-base-url https://manamarktea.github.io/ManaEngine/web-assets/AssetLibrary/
 
       - name: Assemble GitHub Pages site
         run: python Tools/WebAssets/assemble_pages.py --app-bundle "$APP_BUNDLE" --output pages-site --build "${GITHUB_SHA::12}" --itch-editor
@@ -168,7 +168,7 @@ jobs:
         uses: actions/deploy-pages@v5
 
       - name: Upload web editor to itch.io
-        if: github.repository == 'ManaMarkTea/ManaRenderer' && inputs.pages_only != true
+        if: github.repository == 'ManaMarkTea/ManaEngine' && inputs.pages_only != true
         # Pages is already live; an itch.io API timeout shouldn't fail the run (the next push re-uploads).
         continue-on-error: true
         # Pin the action source to the reviewed v0.0.3 commit; this step receives the Butler secret.

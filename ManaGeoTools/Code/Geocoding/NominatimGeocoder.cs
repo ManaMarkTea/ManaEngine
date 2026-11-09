@@ -25,7 +25,7 @@ namespace ManaGeoTools.Code.Geocoding
         {
             var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd(
-                "ManaRenderer/1.0 (+https://github.com/ManaMarkTea/ManaRenderer)");
+                "ManaRenderer/1.0 (+https://github.com/ManaMarkTea/ManaEngine)");
             return client;
         }
 

@@ -30,7 +30,7 @@ public static partial class ManaBrowserAssets
     /// catalog still uses relative "AssetLibrary/..." URLs and is unaffected -- this only widens what the
     /// catalog is *allowed* to say, it does not change what a given build's catalog actually says.
     /// </summary>
-    private const string ExternalAssetBaseUrl = "https://manamarktea.github.io/ManaRenderer/web-assets/AssetLibrary/";
+    private const string ExternalAssetBaseUrl = "https://manamarktea.github.io/ManaEngine/web-assets/AssetLibrary/";
 
     public static async Task InitializeAsync()
     {
