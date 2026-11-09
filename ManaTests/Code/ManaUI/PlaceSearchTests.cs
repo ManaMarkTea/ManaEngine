@@ -1,8 +1,8 @@
 using ManaGeoTools.Code.Geocoding;
 using ManaGeoTools.Code.Region;
 using ManaUI;
-using ManaVoxel.Code.Search;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.Search;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -25,7 +25,7 @@ public static class PlaceSearchChecks
 
         // ---------------------------------------------------------------- the panel
         var root = new UiRoot(fonts);
-        var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        var viewModel = new ManaEditor.Code.UI.VoxelEditorViewModel();
         var panelModel = new PlaceSearchModel(_ => Task.FromResult<IReadOnlyList<GeocodeResult>>(Found));
 
         PlaceSearchRequests.Clear();

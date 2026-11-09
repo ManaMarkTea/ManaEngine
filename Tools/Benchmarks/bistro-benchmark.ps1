@@ -25,8 +25,8 @@ if ($Night) { $level = 'Content/Levels/Downloaded/Bistro/Bistro Exterior Night.m
 $out = Join-Path $repo 'Artifacts/Benchmarks'
 New-Item -ItemType Directory -Force $out | Out-Null
 if (-not $Exe) {
-    $Exe = Join-Path $repo 'Artifacts/BenchmarkRelease/ManaVoxel.exe'
-    dotnet build (Join-Path $repo 'ManaVoxel') -c Release -o (Split-Path $Exe) | Out-Null
+    $Exe = Join-Path $repo 'Artifacts/BenchmarkRelease/ManaEditor.exe'
+    dotnet build (Join-Path $repo 'ManaEditor') -c Release -o (Split-Path $Exe) | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'Benchmark build failed.' }
 }
 if ($NoBlockCompression) { $Name = "$Name-rgba" }

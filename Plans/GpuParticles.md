@@ -6,7 +6,7 @@ select **GPU Fountain**, then change **Count** on its **GPU Particle Emitter** c
 Any node can receive the component through Add Component. Its settings save with levels and prefabs.
 
 ```powershell
-dotnet run --project ManaVoxel -- --level "Content/Levels/Particle Garden.manalevel"
+dotnet run --project ManaEditor -- --level "Content/Levels/Particle Garden.manalevel"
 
 # Builds Release, warms up, sweeps counts, prints FPS / slowdown / worst frame / hitches.
 ./Tools/Automation/benchmark-gpu-particles.ps1

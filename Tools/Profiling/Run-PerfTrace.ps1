@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Captures a CPU trace of a running ManaVoxel.exe and prints/saves a hot-function report,
+    Captures a CPU trace of a running ManaEditor.exe and prints/saves a hot-function report,
     with no AI involvement required.
 
 .DESCRIPTION
@@ -16,7 +16,7 @@
     How long to sample. Default 15.
 
 .PARAMETER Launch
-    If ManaVoxel.exe isn't already running, build+launch it (dotnet run --project ManaVoxel),
+    If ManaEditor.exe isn't already running, build+launch it (dotnet run --project ManaEditor),
     wait -WarmupSeconds for it to reach steady state, capture, then stop the instance this script
     started (an already-running instance found without -Launch is left alone either way).
 
@@ -127,7 +127,7 @@ function Write-Report {
     $topTotal = $totalTime.GetEnumerator() | Sort-Object Value -Descending | Select-Object -First $TopCount
 
     $lines = New-Object System.Collections.Generic.List[string]
-    $lines.Add("# ManaVoxel perf trace report")
+    $lines.Add("# ManaEditor perf trace report")
     $lines.Add("")
     $lines.Add("Captured: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     $lines.Add("Thread: $($renderProfile.name)")
@@ -198,19 +198,19 @@ if ($TraceFile -ne "") {
 Test-DotnetTrace
 
 $launchedIt = $false
-$proc = Get-Process -Name "ManaVoxel" -ErrorAction SilentlyContinue | Select-Object -First 1
+$proc = Get-Process -Name "ManaEditor" -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if (-not $proc) {
     if (-not $Launch) {
-        Write-Error "ManaVoxel.exe isn't running. Start it first, or pass -Launch to have this script build+launch it for you."
+        Write-Error "ManaEditor.exe isn't running. Start it first, or pass -Launch to have this script build+launch it for you."
         exit 1
     }
 
-    Write-Host "ManaVoxel.exe not found; building and launching (dotnet run --project ManaVoxel)..."
+    Write-Host "ManaEditor.exe not found; building and launching (dotnet run --project ManaEditor)..."
     Push-Location $repoRoot
     try {
-        dotnet build ManaVoxel/ManaVoxel.csproj | Out-Null
-        Start-Process -FilePath "dotnet" -ArgumentList "run","--project","ManaVoxel","--no-build" -WindowStyle Minimized
+        dotnet build ManaEditor/ManaEditor.csproj | Out-Null
+        Start-Process -FilePath "dotnet" -ArgumentList "run","--project","ManaEditor","--no-build" -WindowStyle Minimized
     } finally {
         Pop-Location
     }
@@ -219,10 +219,10 @@ if (-not $proc) {
     $deadline = (Get-Date).AddSeconds(30)
     while (-not $proc -and (Get-Date) -lt $deadline) {
         Start-Sleep -Seconds 1
-        $proc = Get-Process -Name "ManaVoxel" -ErrorAction SilentlyContinue | Select-Object -First 1
+        $proc = Get-Process -Name "ManaEditor" -ErrorAction SilentlyContinue | Select-Object -First 1
     }
     if (-not $proc) {
-        Write-Error "ManaVoxel.exe never appeared after launch."
+        Write-Error "ManaEditor.exe never appeared after launch."
         exit 1
     }
     Start-Sleep -Seconds $WarmupSeconds
@@ -246,6 +246,6 @@ if (-not (Test-Path $actualSpeedscopeOut)) { $actualSpeedscopeOut = $speedscopeO
 Write-Report -speedscopePath $actualSpeedscopeOut -reportPath $reportOut
 
 if ($launchedIt) {
-    Write-Host "Stopping the ManaVoxel.exe instance this script launched (PID $($proc.Id))..."
+    Write-Host "Stopping the ManaEditor.exe instance this script launched (PID $($proc.Id))..."
     Stop-Process -Id $proc.Id -Force
 }

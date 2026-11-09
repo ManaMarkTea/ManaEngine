@@ -8,7 +8,7 @@ try {
             $_.CommandLine -and
             (
                 ($_.CommandLine -like '*Mana.dll*') -or
-                ($_.CommandLine -like '*ManaVoxel.dll*')
+                ($_.CommandLine -like '*ManaEditor.dll*')
             )
         )
     })

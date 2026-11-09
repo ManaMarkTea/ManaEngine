@@ -12,8 +12,8 @@ param(
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $out = Join-Path $repo 'Artifacts/Automation'
 if (-not $Exe) {
-    $Exe = Join-Path $repo 'Artifacts/GpuParticleRelease/ManaVoxel.exe'
-    dotnet build (Join-Path $repo 'ManaVoxel') -c Release -o (Split-Path $Exe)
+    $Exe = Join-Path $repo 'Artifacts/GpuParticleRelease/ManaEditor.exe'
+    dotnet build (Join-Path $repo 'ManaEditor') -c Release -o (Split-Path $Exe)
     if ($LASTEXITCODE -ne 0) { throw 'GPU particle benchmark build failed.' }
 }
 $benchmarkStarted = Get-Date

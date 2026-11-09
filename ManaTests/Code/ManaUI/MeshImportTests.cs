@@ -2,8 +2,8 @@ using System.Text;
 using Mana;
 using Mana.Code;
 using ManaUI;
-using ManaVoxel.Code.Assets;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.Assets;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -100,7 +100,7 @@ public static class MeshImportChecks
 
         // ---------------------------------------------------------------- the panel
         var root = new UiRoot(fonts);
-        var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        var viewModel = new ManaEditor.Code.UI.VoxelEditorViewModel();
         var library = Library();
 
         // The panel is three panes wide now (folders | list | placement), each with a fixed share, so the
@@ -721,7 +721,7 @@ public static class MeshImportChecks
         library.SetAssets(Sample);
 
         var root = new UiRoot(fonts);
-        var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        var viewModel = new ManaEditor.Code.UI.VoxelEditorViewModel();
         root.Content = MeshImportManaView.Build(root.Theme, viewModel, library, thumbnails: null);
         root.UpdateLayout(panelSize);
         root.Render();
@@ -806,7 +806,7 @@ public static class MeshImportChecks
             ManaCore.Assets.ManaAssetCatalog.Current = catalog;
 
             var root = new UiRoot(fonts);
-            var viewModel = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+            var viewModel = new ManaEditor.Code.UI.VoxelEditorViewModel();
             root.Content = MeshImportManaView.Build(root.Theme, viewModel, library, thumbnails: null);
             root.UpdateLayout(panelSize);
 

@@ -10,7 +10,7 @@ namespace ManaCore.Browser
     /// virtual filesystem and vanish on the next page load.
     /// <para>
     /// Lives here, in ManaCore, rather than beside <c>ManaBrowserInterop</c> in ManaGraphics: the callers
-    /// (<c>ManaUiDensity</c> in Mana, <c>ManaUiWorkspaceLayout</c> in ManaVoxel) are settings-file code with
+    /// (<c>ManaUiDensity</c> in Mana, <c>ManaUiWorkspaceLayout</c> in ManaEditor) are settings-file code with
     /// no graphics dependency, and neither of their projects references ManaGraphics -- ManaCore is the one
     /// layer both already sit on top of. Targets the same already-loaded <c>mana_interop.js</c> module
     /// ManaBrowserInterop registers (JSHost.ImportAsync registers a module name once; any assembly can

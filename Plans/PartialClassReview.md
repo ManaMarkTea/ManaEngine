@@ -57,7 +57,7 @@ The other 18 families need their partial declarations for source generation:
 
 ## Verification
 
-- Desktop builds of ManaTests and ManaVoxel pass. The test build reports seven existing nullable warnings in test sources.
+- Desktop builds of ManaTests and ManaEditor pass. The test build reports seven existing nullable warnings in test sources.
 - All 3,455 headless checks pass, including audio, model import, archive references, bindings, grid painting, polygon helpers, research, storage and rail batching.
 - Editor automation opens Sample Course with zero warnings; saved and fresh snapshots are byte-identical. Theme switches, measurement clicks, play and stop complete. Captures: `Artifacts/Automation/partial-refactor.png`.
 - `Tools/Automation/Checks/train-yard-wars.json` completes with joined gamepads, bot play, score logging and an in-app capture: `Artifacts/Automation/partial-refactor-trains.png`. The existing `train-yard-wars-zoom.json` check also completes with camera/pointer logs.

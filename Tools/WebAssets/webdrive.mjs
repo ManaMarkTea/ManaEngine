@@ -1,6 +1,6 @@
 // Drives the published web build in headless Chrome over the DevTools protocol -- the selector, a level, the pause
 // menu, some play -- writing screenshots and the page's console to <out dir>. Needs Node 22+ (built-in WebSocket)
-// and Chrome; serve the build first (python ManaVoxel.Web/serve.py 8123). See AGENTS.md, "Testing the web build".
+// and Chrome; serve the build first (python ManaEditor.Web/serve.py 8123). See AGENTS.md, "Testing the web build".
 //
 //   node Tools/WebAssets/webdrive.mjs Artifacts/WebDrive '[{"go":"http://127.0.0.1:8123/"},{"shot":"selector"}]'
 //

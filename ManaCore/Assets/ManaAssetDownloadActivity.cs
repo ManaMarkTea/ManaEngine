@@ -2,7 +2,7 @@ namespace ManaCore.Assets;
 
 /// <summary>
 /// Live view of ManaAssetCatalog's downloads, polled by ManaUi rather than pushed to it (see the
-/// BindPolled call sites throughout ManaVoxel's UI for the established convention) -- a corner readout
+/// BindPolled call sites throughout ManaEditor's UI for the established convention) -- a corner readout
 /// in the editor reads this every frame rather than the catalog handing it events to buffer.
 /// <para>
 /// A static hand-off like ManaUiDiagnostics.Snapshot: ManaAssetCatalog.Current is the only thing that

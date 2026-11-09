@@ -19,7 +19,7 @@
   <!-- mana_webgpu.c (ManaBrowserWebGpuNativeContext.cs's forwarding shims) lives physically in
        this project (Native\mana_webgpu.c) since that's the class that consumes it, but the
        NativeFileReference/EmccExportedFunction/EmccExtraLDFlags items that actually make it
-       part of the native wasm link are declared in ManaVoxel.Web.csproj instead: confirmed by
+       part of the native wasm link are declared in ManaEditor.Web.csproj instead: confirmed by
        testing that these items declared here are silently ignored during a top-level app's
        publish; they don't flow across a ProjectReference edge the way ordinary MSBuild items
        don't, and only the top-level executable's own native-link step gets invoked. Any future

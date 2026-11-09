@@ -1,0 +1,408 @@
+using BepuPhysics.Collidables;
+using Mana;
+using Mana.Code.Components;
+using Mana.Code.Levels;
+using Mana.Code.Nodes;
+using Mana.Code.Shapes;
+using ManaEditor.Code.Assets;
+using ManaUI;
+
+namespace ManaEditor.Code.UI.ManaUi.Inspectors
+{
+    /// <summary>
+    /// The level-file identity for an authored node. This is the part Save captures back to JSON.
+    /// </summary>
+    public sealed class LevelSourceWidget : InspectorWidget<ManaSceneNode>
+    {
+        private static readonly string[] ShapeNames =
+        {
+            "Cube",
+            "Sphere",
+            "Pyramid",
+            "Wedge",
+            "Disk",
+            "Torus",
+            "Icosahedron",
+            "Icosphere",
+            "Quad"
+        };
+
+        protected override bool Accepts(ManaSceneNode node)
+        {
+            return node.LevelSource != null;
+        }
+
+        protected override UiElement Build(ManaSceneNode node, InspectorContext context)
+        {
+            var theme = context.Theme;
+            var rows = new List<UiElement>
+            {
+                InspectorControls.Row(context, "Saved kind", ReadOnly(theme, () => KindOf(node)))
+            };
+
+            switch (node.LevelSource?.Kind)
+            {
+                case ManaLevelSourceKind.Shape:
+                    rows.Add(InspectorControls.Row(context, "Shape", ShapeSelector(node)));
+                    rows.Add(InspectorControls.Row(context, "Color", InspectorControls.Colour(
+                        () => node.LevelSource?.Color ?? Vector4.One,
+                        value => UpdateShapeSource(node, color: value))));
+                    rows.Add(InspectorControls.Row(context, SizeLabel(node), InspectorControls.Vector(
+                        () => DisplaySize(node.LevelSource?.Shape, node.LevelSource?.Size ?? Vector3.One),
+                        value => UpdateShapeSource(node, size: Positive(value)),
+                        step: 0.05f)));
+                    break;
+
+                case ManaLevelSourceKind.Mesh:
+                    rows.Add(InspectorControls.Row(context, "Asset", ReadOnly(theme, () => AssetLabel(node))));
+                    break;
+
+                case ManaLevelSourceKind.Group:
+                    rows.Add(InspectorControls.Row(context, "Children",
+                        ReadOnly(theme, () => node.Children.Count.ToString("N0"))));
+                    break;
+
+                case ManaLevelSourceKind.Voxels:
+                    rows.Add(InspectorControls.Row(context, "Voxels", ReadOnly(theme, () => VoxelCount(node))));
+                    break;
+
+                case ManaLevelSourceKind.PlayerStart:
+                    if (node is ManaPlayerStartNode start)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Character", CharacterSelector(start)));
+                        var height = InspectorControls.Scalar(() => start.CharacterHeight, value => start.CharacterHeight = value, 0.0f, 4.0f);
+                        height.WithTooltip("How tall the player is, in world units -- 1 is a grid map cell. 0 keeps the model's own size.");
+                        rows.Add(InspectorControls.Row(context, "Height", height));
+                    }
+
+                    break;
+
+                case ManaLevelSourceKind.Planet:
+                    rows.Add(InspectorControls.Row(context, "Baseline", ReadOnly(theme, () => AssetLabel(node))));
+                    break;
+
+                case ManaLevelSourceKind.Water:
+                    if (node is ManaWaterNode waterNode)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Surface", InspectorControls.Vector2(
+                            () => waterNode.Mesh.Size,
+                            value => waterNode.Resize(value, waterNode.Mesh.Resolution),
+                            step: 0.5f,
+                            places: 2)));
+                        rows.Add(InspectorControls.Row(context, "Resolution", InspectorControls.Scalar(
+                            () => waterNode.Mesh.Resolution,
+                            value => waterNode.Resize(waterNode.Mesh.Size, (int)MathF.Round(value)),
+                            ManaWaterNode.MinimumResolution,
+                            ManaWaterNode.MaximumResolution)));
+                    }
+                    else
+                    {
+                        rows.Add(InspectorControls.Row(context, "Surface", ReadOnly(theme, () => WaterSize(node))));
+                    }
+
+                    break;
+
+                case ManaLevelSourceKind.Terrain:
+                    if (node is ManaTerrainNode terrain)
+                    {
+                        rows.Add(InspectorControls.Row(context, "Samples", InspectorControls.Vector2(
+                            () => new Vector2(terrain.SamplesX, terrain.SamplesZ),
+                            value => terrain.Resize((int)MathF.Round(value.X), (int)MathF.Round(value.Y), terrain.Spacing),
+                            step: 1.0f,
+                            places: 0)));
+                        rows.Add(InspectorControls.Row(context, "Spacing", InspectorControls.Scalar(
+                            () => terrain.Spacing,
+                            value => terrain.Resize(terrain.SamplesX, terrain.SamplesZ, value),
+                            0.1f,
+                            8.0f)));
+                        rows.Add(InspectorControls.Row(context, "Size", ReadOnly(theme, () => $"{terrain.Width:0.#} x {terrain.Depth:0.#} m")));
+                        var textured = new CheckBox().Label("Ground pictures").Checked(terrain.Textured)
+                            .OnChanged(value => terrain.Textured = value);
+                        textured.BindPolled(control => control.IsChecked, () => terrain.Textured);
+                        rows.Add(InspectorControls.Row(context, "Layers", textured,
+                            "Grass, soil, rock and sand pictures tiled across the ground; off, each layer is its flat colour."));
+                    }
+
+                    break;
+            }
+
+            return new Expander()
+                .Header("Level JSON")
+                .Section(theme.Spacing, rows.ToArray());
+        }
+
+        private static readonly Lazy<ManaEditor.Code.Services.CharacterSpawnService> Characters = new(() => new ManaEditor.Code.Services.CharacterSpawnService());
+
+        /// <summary>Which character the start spawns: any of them (the game picks), or one from the packs.</summary>
+        private static UiElement CharacterSelector(ManaPlayerStartNode start)
+        {
+            var catalog = Characters.Value.Catalog;
+            var names = new[] { "Any" }.Concat(catalog.Select(asset => $"{asset.PackName} / {asset.DisplayName}")).ToArray();
+            int Current() => 1 + catalog.ToList().FindIndex(asset =>
+                string.Equals(asset.PackName, start.CharacterPack, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(asset.DisplayName, start.CharacterName, StringComparison.OrdinalIgnoreCase));
+
+            var combo = new ComboBox().Options(names).Selected(Current());
+            combo.SelectionChanged += (_, index) =>
+            {
+                if (combo.IsApplyingBinding || index < 0)
+                {
+                    return;
+                }
+
+                start.CharacterPack = index == 0 ? null : catalog[index - 1].PackName;
+                start.CharacterName = index == 0 ? null : catalog[index - 1].DisplayName;
+            };
+            combo.BindPolled(c => c.SelectedIndex, Current);
+            combo.WithTooltip("Who the player is. Any lets the game pick.");
+            return combo;
+        }
+
+        private static UiElement ShapeSelector(ManaSceneNode node)
+        {
+            var combo = new ComboBox()
+                .Options(ShapeNames)
+                .Selected(ShapeIndex(node.LevelSource?.Shape));
+
+            combo.SelectionChanged += (_, index) =>
+            {
+                if (combo.IsApplyingBinding || index < 0 || index >= ShapeNames.Length)
+                {
+                    return;
+                }
+
+                UpdateShapeSource(node, shape: ShapeNames[index]);
+            };
+
+            combo.BindPolled(c => c.SelectedIndex, () => ShapeIndex(node.LevelSource?.Shape));
+            return combo;
+        }
+
+        private static void UpdateShapeSource(
+            ManaSceneNode node,
+            string? shape = null,
+            Vector4? color = null,
+            Vector3? size = null)
+        {
+            var source = node.LevelSource;
+            if (source?.Kind != ManaLevelSourceKind.Shape)
+            {
+                return;
+            }
+
+            var previousShape = source.Shape ?? "Cube";
+            var nextShape = shape ?? previousShape;
+            var nextColor = color ?? source.Color;
+            var displaySize = Positive(size ?? DisplaySize(previousShape, source.Size));
+            var nextSize = SourceSizeFromDisplaySize(nextShape, displaySize);
+            var shapeChanged = !string.Equals(previousShape, nextShape, StringComparison.Ordinal);
+
+            node.LevelSource = ManaLevelSource.ForShape(nextShape, nextColor, nextSize);
+            ApplyShapeVisual(node, nextShape, source.Color, nextColor, nextSize, shapeChanged);
+        }
+
+        private static void ApplyShapeVisual(
+            ManaSceneNode node,
+            string shape,
+            Vector4 previousColor,
+            Vector4 color,
+            Vector3 size,
+            bool shapeChanged)
+        {
+            var bakesSize = ShapeBakesSize(shape);
+
+            foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
+            {
+                // The material stays: it holds the node's metallic, roughness and the rest, and the colour is the
+                // mesh's own. Swapping in the new mesh's default threw those edits away, and left the Material
+                // inspector showing the discarded one until the node was reselected.
+                var material = renderer.Material;
+                renderer.Mesh = CreateShapeMesh(node.Context, shape, color, size);
+                renderer.Material = material;
+
+                // The material starts out the shape's colour; it follows a new one unless it was given its own.
+                if (Vector4.DistanceSquared(material.Albedo.Value, previousColor) < 1e-6f)
+                {
+                    material.Albedo.Value = color;
+                }
+            }
+
+            if (!bakesSize)
+            {
+                node.Scale = size;
+            }
+            else if (shapeChanged)
+            {
+                node.Scale = Vector3.One;
+            }
+
+            node.UpdateTransform();
+            ResizeBoxCollisionToVisualBounds(node, shape, size);
+        }
+
+        private static ManaMesh CreateShapeMesh(ManaContext context, string shape, Vector4 color, Vector3 size)
+        {
+            return shape switch
+            {
+                "Cube" => new ManaCube(context, color, size),
+                "Sphere" => new ManaSphere(context, color, 0.5f),
+                "Pyramid" => new ManaPyramid(context, color, Vector3.One),
+                "Wedge" => new ManaWedge(context, color, size),
+                "Disk" => new ManaDisk(context, color, size),
+                "Torus" => new ManaTorus(context, color),
+                "Icosahedron" => new ManaIcosahedron(context, color),
+                "Icosphere" => new ManaIsoSphere(context, color, 0.5f),
+                "Quad" => new ManaQuad(context, color, size),
+                _ => new ManaCube(context, color, size)
+            };
+        }
+
+        private static bool ShapeBakesSize(string? shape)
+        {
+            return string.Equals(shape, "Cube", StringComparison.Ordinal)
+                || string.Equals(shape, "Wedge", StringComparison.Ordinal)
+                || string.Equals(shape, "Disk", StringComparison.Ordinal)
+                || string.Equals(shape, "Quad", StringComparison.Ordinal);
+        }
+
+        private static Vector3 DisplaySize(string? shape, Vector3 sourceSize)
+        {
+            return sourceSize;
+        }
+
+        private static Vector3 SourceSizeFromDisplaySize(string? shape, Vector3 displaySize)
+        {
+            return displaySize;
+        }
+
+        private static void ResizeBoxCollisionToVisualBounds(ManaSceneNode node, string shape, Vector3 size)
+        {
+            var hullCollision = node.GetComponents<ManaCollisionComponent>()
+                .FirstOrDefault(component => component.Shape is ConvexHull);
+            if (hullCollision != null)
+            {
+                var showDebug = hullCollision.ShowDebug;
+                var syncNodeToPhysics = hullCollision.SyncNodeToPhysics;
+                node.Context.Physics.RemoveBody(hullCollision.Body);
+                if (ManaCollisionBounds.TryGetVisualHullPoints(node, out var points))
+                {
+                    var replacement = node.Context.Physics.AddConvexHullBody(node, points, Vector3.Zero);
+                    replacement.ShowDebug = showDebug;
+                    replacement.SyncNodeToPhysics = syncNodeToPhysics;
+                }
+                return;
+            }
+
+            if (!TryGetBoxCollision(node, out var collision, out _))
+            {
+                return;
+            }
+
+            var colliderSize = ColliderSizeForShape(shape, size);
+            var offset = collision.Position;
+            var fitted = ManaCollisionBounds.TryGetVisualBox(node, out var visualSize, out var visualOffset);
+            if (fitted)
+            {
+                colliderSize = visualSize;
+                offset = visualOffset;
+            }
+
+            node.Context.Physics.RemoveBody(collision.Body);
+            node.Context.Physics.AddBoxBody(node, colliderSize, offset).FollowsVisualBounds = fitted ? true : null;
+        }
+
+        private static Vector3 ColliderSizeForShape(string shape, Vector3 size)
+        {
+            return size;
+        }
+
+        private static string SizeLabel(ManaSceneNode node)
+        {
+            return node.LevelSource?.Shape switch
+            {
+                "Cube" => "Size",
+                "Wedge" => "Size",
+                "Disk" => "Size",
+                "Quad" => "Quad size",
+                _ => "Source scale"
+            };
+        }
+
+        private static bool TryGetBoxCollision(
+            ManaSceneNode node,
+            out ManaCollisionComponent collision,
+            out Box box)
+        {
+            foreach (var component in node.GetComponents<ManaCollisionComponent>())
+            {
+                if (component is not ManaBoxColliderComponent && component.Shape is Box found)
+                {
+                    collision = component;
+                    box = found;
+                    return true;
+                }
+            }
+
+            collision = null!;
+            box = default;
+            return false;
+        }
+
+        private static TextBlock ReadOnly(UiTheme theme, Func<string> read)
+        {
+            return new TextBlock()
+                .BindTextPolled(read)
+                .Foreground(theme.Text)
+                .Ellipsis()
+                .CenterV();
+        }
+
+        private static string KindOf(ManaSceneNode node)
+        {
+            return node.LevelSource?.Kind.ToString() ?? "Runtime";
+        }
+
+        private static string AssetLabel(ManaSceneNode node)
+        {
+            var asset = node.LevelSource?.Asset;
+            return string.IsNullOrWhiteSpace(asset)
+                ? "missing"
+                : MeshAssetLibrary.Label(asset);
+        }
+
+        private static string VoxelCount(ManaSceneNode node)
+        {
+            return node is ManaVoxelsNode voxels
+                ? voxels.VoxelShape.CommittedVoxels.Count.ToString("N0")
+                : "0";
+        }
+
+        private static string WaterSize(ManaSceneNode node)
+        {
+            return node is ManaWaterNode water
+                ? $"{water.Mesh.Size.X:0.##} x {water.Mesh.Size.Y:0.##}"
+                : "missing";
+        }
+
+        private static string WaterResolution(ManaSceneNode node)
+        {
+            return node is ManaWaterNode water
+                ? water.Mesh.Resolution.ToString("N0")
+                : "0";
+        }
+
+        private static int ShapeIndex(string? shape)
+        {
+            return Array.FindIndex(ShapeNames, name => string.Equals(name, shape, StringComparison.Ordinal));
+        }
+
+        private static Vector3 Positive(Vector3 value)
+        {
+            return new Vector3(
+                MathF.Max(0.001f, value.X),
+                MathF.Max(0.001f, value.Y),
+                MathF.Max(0.001f, value.Z));
+        }
+
+    }
+}

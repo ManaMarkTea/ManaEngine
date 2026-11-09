@@ -90,7 +90,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     env:
-      APP_BUNDLE: Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle
+      APP_BUNDLE: Artifacts/Bin/ManaEditor.Web/Release/net10.0/browser-wasm/AppBundle
 
     steps:
       - name: Checkout
@@ -143,8 +143,8 @@ jobs:
       - name: Publish editor and play
         # Serialize referenced-project builds to avoid shared output races.
         run: |
-          dotnet run --project ManaVoxel -- --prepare-level-assets
-          dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
+          dotnet run --project ManaEditor -- --prepare-level-assets
+          dotnet publish ManaEditor.Web/ManaEditor.Web.csproj -c Release -m:1
 
       - name: Separate the external asset library
         # itch.io's extracted-size limit is 500MB; the catalog points to the library on Pages.

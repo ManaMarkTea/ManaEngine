@@ -1,7 +1,7 @@
 using System.Numerics;
 using System.Runtime.InteropServices;
 using CoreAnimation;
-using ManaVoxel.Code.Measure;
+using ManaEditor.Code.Measure;
 using SceneKit;
 
 namespace ManaLidar;
@@ -9,7 +9,7 @@ namespace ManaLidar;
 /// <summary>
 /// A saved scan to look round and measure: drag to orbit, pinch to zoom, two fingers to pan, tap to place a point.
 /// Points snap to the corners, real edges and edge middles of the triangle under the finger, using the editor's
-/// own measuring rules (the ManaVoxel Measure files, compiled in), so a measurement reads the same on the phone
+/// own measuring rules (the ManaEditor Measure files, compiled in), so a measurement reads the same on the phone
 /// as in Mana.
 /// </summary>
 public sealed class ScanViewerViewController : UIViewController

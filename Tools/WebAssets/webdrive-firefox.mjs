@@ -1,5 +1,5 @@
 // webdrive.mjs for Firefox, over WebDriver BiDi: its shader compiler and Web Audio differ from Chrome's, so a build that
-// passes there can still fail here. Serve the build first (python ManaVoxel.Web/serve.py 8123).
+// passes there can still fail here. Serve the build first (python ManaEditor.Web/serve.py 8123).
 //
 //   node Tools/WebAssets/webdrive-firefox.mjs Artifacts/WebDrive/firefox '[{"go":"http://127.0.0.1:8123/"},{"shot":"selector"}]'
 //

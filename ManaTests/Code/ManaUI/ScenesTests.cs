@@ -1,7 +1,7 @@
 using ManaUI;
-using ManaVoxel.Code.UI.ManaUi;
-using ManaVoxel.Code.UI;
-using ManaVoxel.Code.Levels;
+using ManaEditor.Code.UI.ManaUi;
+using ManaEditor.Code.UI;
+using ManaEditor.Code.Levels;
 
 namespace ManaTests;
 

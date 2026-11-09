@@ -18,7 +18,7 @@
 
 [x] - Retire the OpenGL backend (2026-10-15): WebGPU is the only renderer. Removed the legacy backend, GLSL assets, shader compiler, immediate mesh/texture paths, Silk.NET.OpenGL packages and VS Code backend choices. Material uniform types now belong to ManaCore, with their saved numeric values preserved. Desktop solution and iOS compile passed; all 3455 headless checks passed. Release browser AOT publish and Chrome play/editor smoke checks passed without WebGPU errors, with editor/play captures in Artifacts/Automation and DevPhotos/2026-10-15 webgpu-only.png.
 
-[x] - Remove the standalone ManaSceneViewer (2026-10-15): deleted its project and unused SceneViewerMode demo, removed VS Code build/run/debug entries and browser exclusion, and cleaned up the OpenGL window title. Rendering remains available through ManaVoxel. Desktop solution build passed.
+[x] - Remove the standalone ManaSceneViewer (2026-10-15): deleted its project and unused SceneViewerMode demo, removed VS Code build/run/debug entries and browser exclusion, and cleaned up the OpenGL window title. Rendering remains available through ManaEditor. Desktop solution build passed.
 
 [x] - Orthographic viewport clipping and camera settings (2026-10-14): the editor-only free camera retreats along its view direction as the ortho volume grows, preserving the pivot and restoring the perspective range on switching back. Camera settings open from the sliders button under the navigation gizmo or Camera > Settings (projection, FOV/ortho height, clips, move/pan speeds). CameraComponent, ViewportCameraGizmoManaView/ViewportToolbarManaView. Added Orthographic Navigation reference level and automation; visual before/after verified, full 3469 checks passed plus final 1796 ManaUI checks.
 
@@ -114,7 +114,7 @@
 [x] - Yacht Jousting from the supplied game images (2026-10-08): playable first-to-five boat duel against a bot,
     charged lances, directional shields, guard, lane steering, pause/rematch, and ManaUI score/health HUD.
     Uses Kenney ships, captains, rocks, islands, palms, docks and buoys plus the existing lighthouse.
-    Level: Content/Levels/Yacht Jousting.manalevel; implementation: ManaVoxel/Code/Gameplay/YachtJousting/;
+    Level: Content/Levels/Yacht Jousting.manalevel; implementation: ManaEditor/Code/Gameplay/YachtJousting/;
     details and remaining polish: Plans/YachtJousting.md.
 
 [x] - Version number in the app (bottom left, and in the About box); View > About did nothing; an emptied side column
@@ -269,7 +269,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
 
 [x] Review Changes for prefab variants: the review window works on placed copies; a variant open in the prefab stage could use it too.
 
-[x] ManaVoxel\Code\GameModes\VoxelEditorGameMode.cs has A LOT of stuff it shouldn't have, planet stuff mostly, that all needs to be split out into game mode components, or some other class.
+[x] ManaEditor\Code\GameModes\VoxelEditorGameMode.cs has A LOT of stuff it shouldn't have, planet stuff mostly, that all needs to be split out into game mode components, or some other class.
     Claude (overnight): VoxelEditorGameMode.cs 3,205 -> 1,273 lines.
     - Planet, true-scale regions, KML airspace, streaming and planet stats -> EditorPlanetScenery (its own class;
       the game mode owns one and only reads its Planet to pick/up-res patches).
@@ -301,7 +301,7 @@ the existing .wav jump/pickup/stomp. DevPhotos/2026-09-30 2d-kenney-platformer-p
     table of commands by type: the shared ones (wait, move_camera, sky, wind, emission, material, screenshot, record,
     profile_*, gizmos, teleport/log_player, quit) are built in, and an app adds its own with Register(). Graphics reach it
     as two delegates (capture a frame, dump the environment) so Mana needs no ManaGraphics reference. The editor's
-    (open_level, prefabs, panels, selection, grid maps, bow, play) are registered by ManaVoxel's VoxelCommands.
+    (open_level, prefabs, panels, selection, grid maps, bow, play) are registered by ManaEditor's VoxelCommands.
     Checked with a script (open, sky, screenshot, unknown command, profile, quit) and all tests pass.
 
 [x] - Some kind of particle system. - Points, trails, ribbons, etc.

@@ -5,7 +5,7 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Materials;
 using ManaUI;
-using ManaVoxel.Code.Levels;
+using ManaEditor.Code.Levels;
 
 namespace ManaTests;
 

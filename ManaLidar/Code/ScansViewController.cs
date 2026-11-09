@@ -55,7 +55,7 @@ public sealed class ScansViewController : UITableViewController
 
     public override string? TitleForFooter(UITableView tableView, nint section) => _files.Length == 0
         ? "No scans yet. Export one from the scanner."
-        : "Open a scan in Mana by dropping the .glb onto the ManaVoxel window.";
+        : "Open a scan in Mana by dropping the .glb onto the ManaEditor window.";
 
     public override UITableViewCell GetCell(UITableView tableView, NSIndexPath indexPath)
     {

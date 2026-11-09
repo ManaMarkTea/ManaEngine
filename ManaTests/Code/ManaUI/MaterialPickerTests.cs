@@ -4,7 +4,7 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.UI.ManaUi;
 using ManaUI;
-using ManaVoxel.Code.UI.ManaUi.Inspectors;
+using ManaEditor.Code.UI.ManaUi.Inspectors;
 using Button = ManaUI.Button;
 
 namespace ManaTests;

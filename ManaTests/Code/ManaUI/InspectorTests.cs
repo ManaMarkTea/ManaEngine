@@ -9,11 +9,11 @@ using Mana.Code.UI.ManaUi;
 using ManaUI;
 using Mana.Code.Materials;
 using ManaCore.Graphics;
-using ManaVoxel.Code.Gameplay.Trains;
-using ManaVoxel.Code.Levels;
-using ManaVoxel.Code.UI;
-using ManaVoxel.Code.UI.ManaUi;
-using ManaVoxel.Code.UI.ManaUi.Inspectors;
+using ManaEditor.Code.Gameplay.Trains;
+using ManaEditor.Code.Levels;
+using ManaEditor.Code.UI;
+using ManaEditor.Code.UI.ManaUi;
+using ManaEditor.Code.UI.ManaUi.Inspectors;
 
 namespace ManaTests;
 
@@ -352,8 +352,8 @@ public static class InspectorChecks
 
         // The course pieces are components like any other: selecting a node that carries one has to show its settings.
         var pieceNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Spilled Oil" };
-        pieceNode.Components.Add(new ManaVoxel.Code.Gameplay.Course.HazardComponent(pieceNode));
-        pieceNode.Components.Add(new ManaVoxel.Code.Gameplay.Course.CollectibleComponent(pieceNode));
+        pieceNode.Components.Add(new ManaEditor.Code.Gameplay.Course.HazardComponent(pieceNode));
+        pieceNode.Components.Add(new ManaEditor.Code.Gameplay.Course.CollectibleComponent(pieceNode));
         scene.Children.Add(pieceNode);
         world.Selection.SelectedNode = pieceNode;
         root.UpdateLayout(new Vector2(420, 900));
@@ -362,18 +362,18 @@ public static class InspectorChecks
         Check("a hazard on a node appears in its inspector", pieceHeaders.Any(h => h != null && h.Contains("Hazard", StringComparison.OrdinalIgnoreCase)),
             string.Join(" | ", pieceHeaders));
         Check("a piece offers a picker for which trigger it listens to", pieceLabels.Contains("triggersource"), string.Join(", ", pieceLabels.Distinct().Take(30)));
-        pieceNode.Components.OfType<ManaVoxel.Code.Gameplay.Course.HazardComponent>().First().Label = "Deadly Floor";
+        pieceNode.Components.OfType<ManaEditor.Code.Gameplay.Course.HazardComponent>().First().Label = "Deadly Floor";
         root.UpdateLayout(new Vector2(420, 900));
         Check("a named component's section says so", FindAll<Expander>(view).Any(e => e.Header == "Hazard - Deadly Floor"),
             string.Join(" | ", FindAll<Expander>(view).Select(e => e.Header)));
-        pieceNode.Components.OfType<ManaVoxel.Code.Gameplay.Course.HazardComponent>().First().Label = null;
+        pieceNode.Components.OfType<ManaEditor.Code.Gameplay.Course.HazardComponent>().First().Label = null;
         root.UpdateLayout(new Vector2(420, 900));
         Check("and goes back to its plain heading when the name is cleared", FindAll<Expander>(view).Any(e => e.Header == "Hazard"));
         // The trigger picker follows names given while it is on screen.
         var twoNode = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Two Volumes" };
-        var listener = new ManaVoxel.Code.Gameplay.Course.HazardComponent(twoNode);
+        var listener = new ManaEditor.Code.Gameplay.Course.HazardComponent(twoNode);
         twoNode.Components.Add(listener);
-        var extraVolume = new ManaVoxel.Code.Gameplay.Course.TriggerVolumeComponent(twoNode);
+        var extraVolume = new ManaEditor.Code.Gameplay.Course.TriggerVolumeComponent(twoNode);
         twoNode.Components.Add(extraVolume);
         scene.Children.Add(twoNode);
         world.Selection.SelectedNode = twoNode;
@@ -396,23 +396,23 @@ public static class InspectorChecks
             new[] { "size", "offset", "damage", "kills", "flavor" }.All(name => pieceLabels.Contains(name)),
             string.Join(", ", pieceLabels.Distinct().Take(40)));
 
-        var hazardChain = ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaVoxel.Code.Gameplay.Course.HazardComponent));
+        var hazardChain = ManaEditor.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaEditor.Code.Gameplay.Course.HazardComponent));
         Check("a component's chain is itself, then what it derives from, without ManaComponent",
             hazardChain.SequenceEqual(new[] { "HazardComponent", "ManaTriggerListenerComponent" }), string.Join(" > ", hazardChain));
         Check("a component built straight on ManaComponent has just itself",
-            ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaPickupMotionComponent)).SequenceEqual(new[] { "ManaPickupMotionComponent" }));
+            ManaEditor.Code.UI.ManaUi.Inspectors.ComponentInheritance.Chain(typeof(ManaPickupMotionComponent)).SequenceEqual(new[] { "ManaPickupMotionComponent" }));
         Check("and the tooltip lays it out one class per line",
-            ManaVoxel.Code.UI.ManaUi.Inspectors.ComponentInheritance.Describe(typeof(ManaVoxel.Code.Gameplay.Course.HazardComponent)).Split('\n').Length == 2);
+            ManaEditor.Code.UI.ManaUi.Inspectors.ComponentInheritance.Describe(typeof(ManaEditor.Code.Gameplay.Course.HazardComponent)).Split('\n').Length == 2);
         Check("the hazard's header carries that tooltip",
             FindAll<Expander>(view).Any(e => e.Header == "Hazard" && (e.Tooltip ?? "").Contains("ManaTriggerListenerComponent")),
             string.Join(" | ", FindAll<Expander>(view).Where(e => e.Header == "Hazard").Select(e => e.Tooltip)));
 
         // The real thing: a coin exactly as the sample course stores it (a group carrying the Collectible, with a model
         // child), loaded by the level loader, then selected.
-        var samplePath = ManaVoxel.Code.Levels.ManaLevelLibrary.ResolvePath("Sample Course");
+        var samplePath = ManaEditor.Code.Levels.ManaLevelLibrary.ResolvePath("Sample Course");
         if (File.Exists(samplePath))
         {
-            static ManaVoxel.Code.Levels.ManaLevelNode? FindNode(IEnumerable<ManaVoxel.Code.Levels.ManaLevelNode> nodes, string name)
+            static ManaEditor.Code.Levels.ManaLevelNode? FindNode(IEnumerable<ManaEditor.Code.Levels.ManaLevelNode> nodes, string name)
             {
                 foreach (var candidate in nodes)
                 {
@@ -430,12 +430,12 @@ public static class InspectorChecks
                 return null;
             }
 
-            var coinEntry = FindNode(ManaVoxel.Code.Levels.ManaLevel.Load(samplePath).Nodes, "Coin 1");
+            var coinEntry = FindNode(ManaEditor.Code.Levels.ManaLevel.Load(samplePath).Nodes, "Coin 1");
             if (coinEntry != null)
             {
-                var coinLevel = new ManaVoxel.Code.Levels.ManaLevel();
+                var coinLevel = new ManaEditor.Code.Levels.ManaLevel();
                 coinLevel.Nodes.Add(coinEntry);
-                var loadedCoin = ManaVoxel.Code.Levels.ManaLevelLoader.Load(coinLevel, context, scene, replaceAuthoredNodes: false).Nodes[0];
+                var loadedCoin = ManaEditor.Code.Levels.ManaLevelLoader.Load(coinLevel, context, scene, replaceAuthoredNodes: false).Nodes[0];
                 world.Selection.SelectedNode = loadedCoin;
                 root.UpdateLayout(new Vector2(420, 900));
                 var coinHeaders = FindAll<Expander>(view).Select(e => e.Header).ToList();

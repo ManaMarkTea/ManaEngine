@@ -1,5 +1,5 @@
 using System.Numerics;
-using ManaVoxel.Code.Measure;
+using ManaEditor.Code.Measure;
 using SceneKit;
 
 namespace ManaLidar;

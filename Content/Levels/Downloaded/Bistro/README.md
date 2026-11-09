@@ -9,7 +9,7 @@ too. A failed download leaves no installed partial ZIP; reopening retries it. Re
 import. Saving or Save As retains the download declarations along with the authored nodes.
 
 Web builds use the converted glTF buffers, textures and sky, downloaded individually through the existing hashed asset
-catalog. Run `dotnet run --project ManaVoxel -- --prepare-level-assets` before publishing locally; the daily workflow
+catalog. Run `dotnet run --project ManaEditor -- --prepare-level-assets` before publishing locally; the daily workflow
 does this automatically. The browser never downloads the FBX source ZIP or runs FBX2glTF. The five scenes appear in the
 web selector. These are large benchmark scenes; the selector describes the initial asset download.
 

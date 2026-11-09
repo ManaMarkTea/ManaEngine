@@ -31,4 +31,4 @@ for y in range(h):
             hue = (math.atan2(y - 540, x - 512) / (2 * math.pi) + 0.25) % 1.0
             cr, cg, cb = colorsys.hsv_to_rgb(hue, 0.72, 0.95 * face)
         o[x, y] = tuple(int(255 * (c * (1 - line) + 0.97 * line)) for c in (cr, cg, cb))
-out.save("ManaVoxel.iOS/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png")
+out.save("ManaEditor.iOS/Resources/Assets.xcassets/AppIcon.appiconset/icon-1024.png")

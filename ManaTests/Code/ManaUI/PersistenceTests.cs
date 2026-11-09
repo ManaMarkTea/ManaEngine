@@ -1,5 +1,5 @@
 using ManaUI;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -436,7 +436,7 @@ public static class FloatingPersistenceChecks
 
             // ---------------------------------------------------------------- tearing one out
             var root = new UiRoot(fonts);
-            var vm = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+            var vm = new ManaEditor.Code.UI.VoxelEditorViewModel();
 
             root.Content = EditorWorkspace.Attach(
                 root, new ManaUiShowcaseViewModel(), null, persist: true, editor: vm, layoutPath: scratch);
@@ -467,7 +467,7 @@ public static class FloatingPersistenceChecks
             var reopened = new UiRoot(fonts);
             reopened.Content = EditorWorkspace.Attach(
                 reopened, new ManaUiShowcaseViewModel(), null, persist: true,
-                editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
+                editor: new ManaEditor.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
 
             reopened.UpdateLayout(new Vector2(1600, 900));
 
@@ -502,7 +502,7 @@ public static class FloatingPersistenceChecks
             var upgraded = new UiRoot(fonts);
             upgraded.Content = EditorWorkspace.Attach(
                 upgraded, new ManaUiShowcaseViewModel(), null, persist: true,
-                editor: new ManaVoxel.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
+                editor: new ManaEditor.Code.UI.VoxelEditorViewModel(), layoutPath: scratch);
 
             upgraded.UpdateLayout(new Vector2(1600, 900));
 

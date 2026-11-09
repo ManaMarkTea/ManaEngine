@@ -39,9 +39,9 @@ python -m http.server 8127 --directory Artifacts/ScreensaverSite
 ```
 
 The engine level is `Games/CodeScreensaver/Content/Levels/Code Screensaver.manalevel`; run with
-`dotnet run --project ManaVoxel -- --play "Games/CodeScreensaver/Content/Levels/Code Screensaver.manalevel"`.
+`dotnet run --project ManaEditor -- --play "Games/CodeScreensaver/Content/Levels/Code Screensaver.manalevel"`.
 Its Inspector settings are Columns, ScrollSpeed, Seed (zero randomizes), KeyboardVolume and Repository
 (empty: the last one picked, else this checkout).
 The desktop version reads the checkout at play start and falls back to embedded source files.
 It lives in `Games/CodeScreensaver`, with separate mode, rendering, source loading, terminal state and audio files;
-`ManaVoxel/Code/Levels/ManaGames.cs` registers it with the editor.
+`ManaEditor/Code/Levels/ManaGames.cs` registers it with the editor.

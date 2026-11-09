@@ -1,6 +1,6 @@
 """Capture level thumbnails with desktop WebGPU, including missing previews.
 
-Build ManaVoxel into Artifacts/AutomationBin first. Outputs go to
+Build ManaEditor into Artifacts/AutomationBin first. Outputs go to
 Artifacts/Automation/SceneThumbnails for review; --apply replaces the bundled JPGs.
 Requires Pillow, also used by the other asset baking tools.
 """

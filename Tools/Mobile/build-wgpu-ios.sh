@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds wgpu-native for iOS (device + simulator) as wgpu_native.xcframework, once, into a cache outside the repo
-# (Mac only; ManaVoxel.iOS runs it before building when the framework is missing). Prints the xcframework's path.
+# (Mac only; ManaEditor.iOS runs it before building when the framework is missing). Prints the xcframework's path.
 #
 # Silk.NET.WebGPU.Native.WGPU ships desktop builds only. Its bindings are written against one wgpu-native commit,
 # so the phone's library is built from that same commit: Silk.NET 2.23's binaries are 33133da4 (May 2024) -- the

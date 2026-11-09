@@ -22,7 +22,7 @@ param(
     [string] $Commands,
     [string] $File,
     # The editor to run. Build it somewhere other than its usual output when that one is in use (a debugger):
-    #   dotnet build ManaVoxel -o Artifacts/AutomationBin
+    #   dotnet build ManaEditor -o Artifacts/AutomationBin
     [string] $Exe,
     [string] $Out,
     [string] $PhotoDir,
@@ -36,10 +36,10 @@ param(
 $repo = Resolve-Path (Join-Path $PSScriptRoot "../..")
 if (-not $Out) { $Out = Join-Path $repo "Artifacts/Automation" }
 if (-not $Exe) {
-    $Exe = @("Artifacts/AutomationBin/ManaVoxel.exe", "Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.exe") |
+    $Exe = @("Artifacts/AutomationBin/ManaEditor.exe", "Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.exe") |
         ForEach-Object { Join-Path $repo $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
 }
-if (-not $Exe -or -not (Test-Path $Exe)) { throw "No ManaVoxel.exe found; build it first (dotnet build ManaVoxel -o Artifacts/AutomationBin)." }
+if (-not $Exe -or -not (Test-Path $Exe)) { throw "No ManaEditor.exe found; build it first (dotnet build ManaEditor -o Artifacts/AutomationBin)." }
 New-Item -ItemType Directory -Force $Out | Out-Null
 
 $script = if ($File) { Get-Content -Raw $File } else { $Commands }

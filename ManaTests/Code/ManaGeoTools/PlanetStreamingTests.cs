@@ -4,7 +4,7 @@ using ManaUI;
 using Mana;
 using Mana.Code;
 using Mana.Code.Nodes;
-using ManaVoxel.Code.Levels;
+using ManaEditor.Code.Levels;
 using System.Numerics;
 
 namespace ManaTests;

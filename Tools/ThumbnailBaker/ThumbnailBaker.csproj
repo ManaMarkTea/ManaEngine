@@ -14,10 +14,10 @@
 
   <ItemGroup>
     <!-- Plain reference, no RuntimeIdentifier override: this needs the ordinary desktop-targeted
-         ManaVoxel assembly (MeshThumbnailCache, ManaSharpGltfLoader, the CPU rasterizer), the same one
+         ManaEditor assembly (MeshThumbnailCache, ManaSharpGltfLoader, the CPU rasterizer), the same one
          ManaTests already builds against for its own headless mesh/thumbnail suites. Never published
          itself; run offline off a source build by Tools/WebAssets/bake_thumbnails.py. -->
-    <ProjectReference Include="..\..\ManaVoxel\ManaVoxel.csproj" />
+    <ProjectReference Include="..\..\ManaEditor\ManaEditor.csproj" />
   </ItemGroup>
 
 </Project>

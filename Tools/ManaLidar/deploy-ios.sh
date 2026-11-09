@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Builds an iOS app -- ManaLidar, or APP=ManaVoxel.iOS -- and installs + launches it on the connected iPhone or iPad
+# Builds an iOS app -- ManaLidar, or APP=ManaEditor.iOS -- and installs + launches it on the connected iPhone or iPad
 # (Mac only). Usage: Tools/ManaLidar/deploy-ios.sh [Debug|Release]    DEVICE=<udid or name> picks one when several are paired.
 # Installs with devicectl: `dotnet build -t:Run` hangs in mlaunch's install step here.
 set -euo pipefail
@@ -8,8 +8,8 @@ config="${1:-Debug}"
 app_project="${APP:-ManaLidar}"
 case "$app_project" in
   ManaLidar) bundle_id="com.manarenderer.manalidar" ;;
-  ManaVoxel.iOS) bundle_id="com.manarenderer.manavoxel" ;;
-  *) echo "Unknown app $app_project (ManaLidar or ManaVoxel.iOS)." >&2; exit 1 ;;
+  ManaEditor.iOS) bundle_id="com.manarenderer.manavoxel" ;;
+  *) echo "Unknown app $app_project (ManaLidar or ManaEditor.iOS)." >&2; exit 1 ;;
 esac
 
 device="${DEVICE:-}"

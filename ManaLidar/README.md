@@ -99,11 +99,11 @@ the surface tapped -- a floor to its ceiling, one side of a cabinet to the other
 last button picks which), with the same snapping as the Mana editor's measuring
 tool (corners, real edges and their middles, a larger reach for a fingertip). **Floor** keeps later points on
 the first point's surface; **m/ft** switches units; **Undo**, **Clear**, and **Done** to finish a path. The
-measuring rules are the editor's own files (`ManaVoxel/Code/Measure/`), compiled into the app.
+measuring rules are the editor's own files (`ManaEditor/Code/Measure/`), compiled into the app.
 
 ## Viewing in Mana
 
-Drop the `.glb` onto the ManaVoxel editor window (`dotnet run --project ManaVoxel`) to place it in the open
+Drop the `.glb` onto the ManaEditor editor window (`dotnet run --project ManaEditor`) to place it in the open
 level. Scans are unlit, because their colours come from photos that already hold the room's light. Any glTF
 viewer opens them too, including Blender and macOS Preview/Quick Look.
 
@@ -113,4 +113,4 @@ Mana draws through wgpu-native, whose NuGet package ships Windows, macOS and Lin
 and its windows come from GLFW, which iOS doesn't have. So the scanner draws its live view with SceneKit, and
 Mana takes over once the scan is a GLB. Two ways to get Mana onto the phone later: build wgpu-native as an iOS
 static library and give `ManaGraphics` a `CAMetalLayer` surface, or use the web build. Safari on iOS 26 has
-WebGPU, so `ManaVoxel.Web` could view scans in the browser today.
+WebGPU, so `ManaEditor.Web` could view scans in the browser today.

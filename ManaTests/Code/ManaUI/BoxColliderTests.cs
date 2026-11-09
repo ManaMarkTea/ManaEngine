@@ -5,8 +5,8 @@ using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using ManaUI;
-using ManaVoxel.Code.UI;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.UI;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 

@@ -1,6 +1,6 @@
 """Downloads NVIDIA ORCA's Amazon Lumberyard Bistro (CC-BY 4.0, ~900 MB) into Downloaded/, for benchmarks.
 
-The editor does the rest: open Downloaded/Bistro_v5_2 in the Scenes panel (or run `ManaVoxel --import
+The editor does the rest: open Downloaded/Bistro_v5_2 in the Scenes panel (or run `ManaEditor --import
 Downloaded/Bistro_v5_2.zip`) and it is converted into Library/Imported/Bistro_v5_2/ -- FBX to glTF, materials from the
 pack's texture naming, pivots, its sun and HDR sky, light probes, a night version (ManaSceneImporter).
 

@@ -226,7 +226,7 @@ namespace ManaUI
         /// <para>
         /// These four metrics -- this, Padding, ControlPadding and LineSpacing -- are where the editor's
         /// information density comes from, and they were set for comfort in a demo panel rather than for a
-        /// working editor. Tightened after comparing a full-screen ManaVoxel against Unreal at the same
+        /// working editor. Tightened after comparing a full-screen ManaEditor against Unreal at the same
         /// window size: the viewport was actually the larger of the two, but every panel showed noticeably
         /// fewer rows, which is what made the window feel smaller. Restrained on purpose -- a couple of
         /// pixels per gap compounds across a docked layout, and going further starts costing legibility

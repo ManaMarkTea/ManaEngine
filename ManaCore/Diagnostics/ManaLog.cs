@@ -9,7 +9,7 @@ namespace ManaCore.Diagnostics
     /// Shared Serilog logger, reachable from every project (lives in ManaCore, which nothing else
     /// depends on) -- ManaGraphics.Code.Diagnostics.ManaConsole forwards its existing
     /// WriteDiagnostic/Shutdown/DiagnosticLogPath API here so both share one logger/log file, and adds
-    /// its own console-window-attach behavior on top. Everything else (Mana, ManaGeoTools, ManaVoxel)
+    /// its own console-window-attach behavior on top. Everything else (Mana, ManaGeoTools, ManaEditor)
     /// can use this directly.
     /// </summary>
     public static class ManaLog

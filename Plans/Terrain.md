@@ -24,8 +24,8 @@ A `Terrain` node kind, like `GridMap` and `Voxels`:
   `VoxelEditorGameMode.Polygon.cs`), so a dirt road is a curve you can drag, not a stroke you must repeat.
 - **Scatter:** later, paint grass/trees/rocks by density from the Import panel's models.
 
-Files to start from: `ManaVoxel/Code/GridMaps/` (node, tool window, level capture/load), `Mana/Code/Shapes/ManaSpriteMesh.cs`
-and `ManaParticleMesh.cs` (hand-built meshes), `ManaVoxel/Code/Levels/` (capture/load).
+Files to start from: `ManaEditor/Code/GridMaps/` (node, tool window, level capture/load), `Mana/Code/Shapes/ManaSpriteMesh.cs`
+and `ManaParticleMesh.cs` (hand-built meshes), `ManaEditor/Code/Levels/` (capture/load).
 
 ### 2. Marching-cubes volume (caves and cliffs)
 

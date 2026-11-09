@@ -26,7 +26,7 @@ param(
     [string] $Repo = $env:MANA_MAC_REPO,
     [ValidateSet("Debug", "Release")] [string] $Configuration = "Release",
     # Which app: the scanner, or Mana itself (the engine on the phone or iPad).
-    [ValidateSet("ManaLidar", "ManaVoxel.iOS")] [string] $App = "ManaLidar",
+    [ValidateSet("ManaLidar", "ManaEditor.iOS")] [string] $App = "ManaLidar",
     # An iPhone or iPad by name or UDID, when several are paired with the Mac.
     [string] $Device = $env:MANA_IOS_DEVICE,
     # Seconds of the app's own output (its log, a crash) to show after it launches.
@@ -119,7 +119,7 @@ if ($LASTEXITCODE -ne 0) {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
 $commit = (git -C $repoRoot rev-parse --short HEAD).Trim()
-if (git -C $repoRoot status --porcelain -- $App ManaLidar.Core ManaVoxel/Code/Measure ManaGraphics Mana ManaCore ManaUI Tools/Mobile) {
+if (git -C $repoRoot status --porcelain -- $App ManaLidar.Core ManaEditor/Code/Measure ManaGraphics Mana ManaCore ManaUI Tools/Mobile) {
     Write-Host "Uncommitted changes to the app are not sent: building the last commit, $commit." -ForegroundColor Yellow
 }
 Write-Host "Sending $commit to the Mac..."

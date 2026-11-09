@@ -101,8 +101,8 @@ with no managed sample callbacks, AudioWorklets, worker threads or shared-memory
 ```sh
 dotnet run --project ManaTests -- Audio
 dotnet run --project ManaTests -- --audio-smoke
-dotnet build ManaVoxel.Web
-dotnet build ManaVoxel.Editor.Web
+dotnet build ManaEditor.Web
+dotnet build ManaEditor.Editor.Web
 dotnet build Tools/AudioSmoke.Web -t:Rebuild
 dotnet publish Tools/AudioSmoke.Web -c Release -p:RunAOTCompilation=true
 python -m http.server 8766 --bind 127.0.0.1 --directory Artifacts/Bin/AudioSmoke.Web/Debug/net10.0/browser-wasm/AppBundle

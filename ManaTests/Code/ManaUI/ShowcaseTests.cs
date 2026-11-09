@@ -1,7 +1,7 @@
 using Mana;
 using Mana.Code;
 using ManaUI;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 

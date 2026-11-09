@@ -559,7 +559,7 @@ public static class BackdropChecks
         blurredTheme.BackdropBlur = 16.0f;
 
         var stripRoot = new UiRoot(fonts) { Theme = blurredTheme };
-        stripRoot.Content = ManaVoxel.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(blurredTheme);
+        stripRoot.Content = ManaEditor.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(blurredTheme);
         stripRoot.UpdateLayout(new Vector2(600, 200));
 
         var stripDrawn = stripRoot.Render().Instances.ToArray();
@@ -569,7 +569,7 @@ public static class BackdropChecks
 
         var sharpTheme = UiTheme.Dark();
         var sharpRoot = new UiRoot(fonts) { Theme = sharpTheme };
-        sharpRoot.Content = ManaVoxel.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(sharpTheme);
+        sharpRoot.Content = ManaEditor.Code.UI.ManaUi.ManaUiPerformanceStrip.Build(sharpTheme);
         sharpRoot.UpdateLayout(new Vector2(600, 200));
 
         Check("and stays solid when blur is off",
@@ -624,14 +624,14 @@ public static class BackdropChecks
         // stronger. That is exactly how the first attempt at this shipped looking like it did nothing: the
         // sampler it borrowed clamped LOD to 1, so every radius resolved to a single halving.
         Check("every offered blur is one the backend can reach",
-            ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices
+            ManaEditor.Code.UI.ManaUi.EditorWorkspace.BlurChoices
                 .All(blur => blur <= ManaUiDrawList.MaxBackdropBlur),
-            string.Join(", ", ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices));
+            string.Join(", ", ManaEditor.Code.UI.ManaUi.EditorWorkspace.BlurChoices));
 
         // And the largest is worth offering -- a menu whose strongest setting is a quarter of what the
         // chain can do is leaving the effect on the table.
         Check("and the strongest one uses the whole chain",
-            ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max() == ManaUiDrawList.MaxBackdropBlur,
-            $"{ManaVoxel.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max()} of {ManaUiDrawList.MaxBackdropBlur}");
+            ManaEditor.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max() == ManaUiDrawList.MaxBackdropBlur,
+            $"{ManaEditor.Code.UI.ManaUi.EditorWorkspace.BlurChoices.Max()} of {ManaUiDrawList.MaxBackdropBlur}");
     }
 }

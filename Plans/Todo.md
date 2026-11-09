@@ -66,7 +66,7 @@
     language; last + 10 recent kept (code-screensaver.json on desktop, localStorage + ?repo= on the web). GitHubSources.cs.
 
 [] - Project code cleanup: Plans/CodeCleanup.md.
-    [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaVoxel suites; all 3,512 checks pass.
+    [x] Test ownership (2026-10-18): moved 40 domain assertions from ManaUI to Mana/ManaEditor suites; all 3,512 checks pass.
     [x] Renderer ownership audit (2026-10-18): Plans/RendererResourceOwnership.md maps resources, callbacks and shutdown across all 16 context partials.
     [x] Readback/thumbnail lifetime repair (2026-10-18): safe callback IDs, staging retirement and thumbnail rollback; 3,523 checks plus native Metal and browser rendering checks pass.
     [x] Environment lifetime repair (2026-10-18): CPU-only preparation, stale-generation rejection and render-thread GPU upload/activation; 3,538 checks plus native Metal, browser and iOS compile checks pass.
@@ -108,7 +108,7 @@
     Flatten, Noise, Paint; size, strength, falloff; Ctrl swaps raise/lower, Shift smooths; one undo per stroke) with a
     ring on the ground under the pointer. Saved as deflated base64 blobs (`ManaLevelTerrain`). Reference level
     `Content/Levels/Tests/Terrain.manalevel` (hills, a dirt path, a pond), check `Tools/Automation/Checks/terrain.json`,
-    tests in `ManaTests/Code/ManaVoxel/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
+    tests in `ManaTests/Code/ManaEditor/TerrainTests.cs`, DevPhotos/2026-10-23 terrain.png.
     Open: the path spline tool (flatten + paint along a draggable curve); layer (2), caves and cliffs.
     Triplanar colour on steep ground is done (2026-10-28): cliffs no longer smear down their faces.
     Claude (2026-10-28): the layers are textured -- grass, soil, granite and sand pictures (CC0 packs already in
@@ -133,10 +133,10 @@
     handles several; nothing reads them yet apart from the flying mount), a camera that frames all players, and a join screen.
     Each game should be its own project to keep things seperate where posssible.  The editor prolly needs to depend on them all though to function?
     Claude (2026-10-08): yes -- Train Yard Wars is now its own project, `Games/TrainYardWars/` (engine only, no editor
-    code). ManaVoxel references each game and registers its level game mode in `ManaVoxel/Code/Levels/ManaGames.cs`,
+    code). ManaEditor references each game and registers its level game mode in `ManaEditor/Code/Levels/ManaGames.cs`,
     lending it what only the app has (mesh import), so the editor depends on the games and never the other way round.
     Its tests are their own system: `dotnet run --project ManaTests -- TrainYardWars`. Yacht Jousting
-    (`ManaVoxel/Code/Gameplay/YachtJousting/`) could move to `Games/` the same way.
+    (`ManaEditor/Code/Gameplay/YachtJousting/`) could move to `Games/` the same way.
     Codex (2026-10-10): Train Yard Wars performance and bot fixes are complete; review: Plans/TrainYardWarsReview.md.
     Codex (2026-10-11): Couch stockpiles now depend on owned yards: 10 of each good and 20 Steel per depot/station,
     with munitions capped at 24. Player cards show held/capacity; full yards keep cargo aboard until room is made.
@@ -171,9 +171,9 @@
     earlier fix). If you still see it, tell me the level and the time of day -- or does it show only at a distance, where
     the shadow cascades get coarser?
 
-[] - Big step!!  Rename ManaVoxel, its no longer just a voxel editor
-    Claude (2026-10-23, not started -- needs a name from you): the rename touches 4 projects (ManaVoxel, ManaVoxel.Web,
-    ManaVoxel.Editor.Web, ManaVoxel.iOS), ~850 mentions in ~330 files (283 .cs, mostly `ManaVoxel.Code.*` namespaces),
+[] - Big step!!  Rename ManaEditor, its no longer just a voxel editor
+    Claude (2026-10-23, not started -- needs a name from you): the rename touches 4 projects (ManaEditor, ManaEditor.Web,
+    ManaEditor.Editor.Web, ManaEditor.iOS), ~850 mentions in ~330 files (283 .cs, mostly `ManaEditor.Code.*` namespaces),
     the sln, build-web.yml, .vscode launch/tasks, run-commands.ps1 and the other Tools scripts, the iOS deploy scripts
     and AGENTS.md. Plan: `git mv` the folders and csproj files, rewrite namespaces and paths in one scripted pass, build
     everything plus the web publish and an iOS compile, run the suite and a check script, one commit -- on a day no

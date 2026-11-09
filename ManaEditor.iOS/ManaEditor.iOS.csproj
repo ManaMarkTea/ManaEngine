@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Mana on iPhone and iPad, natively: the engine's WebGPU renderer on Metal through wgpu-native. Builds on a Mac
+       with Xcode (Tools/ManaLidar/deploy-ios-from-windows.ps1 -App ManaEditor.iOS from Windows). -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>true</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RuntimeIdentifier>ios-arm64</RuntimeIdentifier>
+    <SupportedOSPlatformVersion>18.0</SupportedOSPlatformVersion>
+
+    <ApplicationTitle>Mana</ApplicationTitle>
+    <ApplicationId>com.manarenderer.manavoxel</ApplicationId>
+    <ApplicationDisplayVersion>0.1</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    <AppIcon>AppIcon</AppIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ImageAsset Include="Resources\Assets.xcassets\**" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!-- ManaEditor is an executable too (the desktop editor); here it is only the game's code. -->
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
+    <!-- Levels, prefabs, the Inspector and UiMarkup reach types by reflection and JSON. -->
+    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
+    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Bepu's SIMD generics crash Mono's ahead-of-time compiler (as they did the web's), so only the physics is
+         interpreted; everything else is compiled. -->
+    <MtouchInterpreter>-all,BepuPhysics,BepuUtilities</MtouchInterpreter>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ManaEditor\ManaEditor.csproj" />
+    <TrimmerRootAssembly Include="Mana" />
+    <TrimmerRootAssembly Include="ManaEditor" />
+    <TrimmerRootAssembly Include="ManaUI" />
+    <TrimmerRootAssembly Include="ManaGraphics" />
+  </ItemGroup>
+
+  <!-- What the game reads, in Game/ laid out as the repo is (the app runs with Game/ as its working folder): the
+       renderer's boot set and everything the bundled levels and prefabs refer to (Tools/Mobile/game_assets.py, about
+       70 MB), not the planet or the rest of the library. Listed at build time, so a new level brings its packs along. -->
+  <PropertyGroup>
+    <ManaPython Condition="'$(ManaPython)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">python</ManaPython>
+    <ManaPython Condition="'$(ManaPython)' == ''">python3</ManaPython>
+  </PropertyGroup>
+  <!-- Before the iOS SDK collects the bundle's files, which it does ahead of BeforeBuild. -->
+  <Target Name="ManaGameAssets" BeforeTargets="_CollectBundleResources">
+    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)../Tools/Mobile/game_assets.py&quot;" ConsoleToMSBuild="true" StandardOutputImportance="low">
+      <Output TaskParameter="ConsoleOutput" ItemName="_ManaGameAsset" />
+    </Exec>
+    <ItemGroup>
+      <BundleResource Include="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[0])" LogicalName="$([System.String]::Copy('%(_ManaGameAsset.Identity)').Split('|')[1])" />
+    </ItemGroup>
+  </Target>
+
+  <!-- The engine projects copy their whole Assets and Content folders beside a desktop build, and ManaEditor brings
+       its desktop launcher (apphost, deps.json, runtimeconfig.json); the app carries only its Game/ selection above. -->
+  <Target Name="ManaDropDesktopAssets" BeforeTargets="_ComputePublishLocation">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Assets')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Content'))" />
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)' == 'apphost' Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.deps.json')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.runtimeconfig.json'))" />
+    </ItemGroup>
+  </Target>
+
+  <!-- wgpu-native for iOS, built once on the Mac by Tools/Mobile/build-wgpu-ios.sh into a cache outside the repo. -->
+  <PropertyGroup>
+    <ManaWgpuFramework Condition="'$(ManaWgpuFramework)' == ''">$(HOME)/Library/Caches/ManaRenderer/wgpu-native-33133da4/wgpu_native.xcframework</ManaWgpuFramework>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <NativeReference Include="$(ManaWgpuFramework)">
+      <Kind>Framework</Kind>
+    </NativeReference>
+  </ItemGroup>
+  <Target Name="BuildWgpuForIos" BeforeTargets="BeforeBuild" Condition="$([MSBuild]::IsOSPlatform('OSX')) And !Exists('$(ManaWgpuFramework)')">
+    <Exec Command="bash &quot;$(MSBuildThisFileDirectory)../Tools/Mobile/build-wgpu-ios.sh&quot;" />
+  </Target>
+
+</Project>

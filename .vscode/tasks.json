@@ -56,12 +56,12 @@
       "detail": "Select a project or desktop solution and Debug/Release. Cleans and rebuilds its dependencies."
     },
     {
-      "label": "Build: ManaVoxel (Debug)",
+      "label": "Build: ManaEditor (Debug)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
+        "${workspaceFolder}/ManaEditor/ManaEditor.csproj",
         "-c",
         "Debug",
         "--nologo"
@@ -87,13 +87,13 @@
       "group": "build"
     },
     {
-      "label": "Run: ManaVoxel",
+      "label": "Run: ManaEditor",
       "type": "process",
       "command": "dotnet",
       "args": [
         "run",
         "--project",
-        "${workspaceFolder}/ManaVoxel/ManaVoxel.csproj",
+        "${workspaceFolder}/ManaEditor/ManaEditor.csproj",
         "-c",
         "${input:configuration}",
         "--"
@@ -138,7 +138,7 @@
       "detail": "Windows: sends committed HEAD directly to a separate deploy copy on the Mac over SSH, then builds, installs and launches ManaLidar. Commit app changes first. Remote Login must be on; the phone must be paired with the Mac."
     },
     {
-      "label": "Deploy: ManaVoxel to iPhone",
+      "label": "Deploy: ManaEditor to iPhone",
       "type": "process",
       "command": "${workspaceFolder}/Tools/ManaLidar/deploy-ios.sh",
       "args": [
@@ -146,7 +146,7 @@
       ],
       "options": {
         "env": {
-          "APP": "ManaVoxel.iOS"
+          "APP": "ManaEditor.iOS"
         }
       },
       "windows": {
@@ -156,16 +156,16 @@
           "-File",
           "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
           "-App",
-          "ManaVoxel.iOS",
+          "ManaEditor.iOS",
           "-Configuration",
           "${input:configuration}"
         ]
       },
       "problemMatcher": "$msCompile",
-      "detail": "Builds, installs and launches ManaVoxel on the iPhone. Windows automatically deploys committed HEAD through the Mac over SSH; commit app changes first."
+      "detail": "Builds, installs and launches ManaEditor on the iPhone. Windows automatically deploys committed HEAD through the Mac over SSH; commit app changes first."
     },
     {
-      "label": "Deploy: ManaVoxel to iPhone (from Windows, via the Mac)",
+      "label": "Deploy: ManaEditor to iPhone (from Windows, via the Mac)",
       "type": "process",
       "command": "pwsh",
       "args": [
@@ -173,12 +173,12 @@
         "-File",
         "${workspaceFolder}/Tools/ManaLidar/deploy-ios-from-windows.ps1",
         "-App",
-        "ManaVoxel.iOS",
+        "ManaEditor.iOS",
         "-Configuration",
         "${input:configuration}"
       ],
       "problemMatcher": "$msCompile",
-      "detail": "Windows: sends committed HEAD directly to a separate deploy copy on the Mac over SSH, then builds, installs and launches ManaVoxel. Commit app changes first. Remote Login must be on; the phone must be paired with the Mac."
+      "detail": "Windows: sends committed HEAD directly to a separate deploy copy on the Mac over SSH, then builds, installs and launches ManaEditor. Commit app changes first. Remote Login must be on; the phone must be paired with the Mac."
     },
     {
       "label": "Run: ManaTests",
@@ -214,12 +214,12 @@
       "group": "test"
     },
     {
-      "label": "Publish: ManaVoxel.Web (Release)",
+      "label": "Publish: ManaEditor.Web (Release)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "publish",
-        "${workspaceFolder}/ManaVoxel.Web/ManaVoxel.Web.csproj",
+        "${workspaceFolder}/ManaEditor.Web/ManaEditor.Web.csproj",
         "-c",
         "Release",
         "--nologo"
@@ -228,7 +228,7 @@
       "group": "build"
     },
     {
-      "label": "Serve: ManaVoxel.Web (existing publish)",
+      "label": "Serve: ManaEditor.Web (existing publish)",
       "type": "process",
       "command": "python3",
       "windows": {
@@ -236,14 +236,14 @@
       },
       "args": [
         "-u",
-        "${workspaceFolder}/ManaVoxel.Web/serve.py",
+        "${workspaceFolder}/ManaEditor.Web/serve.py",
         "8000"
       ],
       "problemMatcher": [],
       "detail": "Serve existing output at http://localhost:8000; terminate the task to stop."
     },
     {
-      "label": "Run: ManaVoxel.Web",
+      "label": "Run: ManaEditor.Web",
       "type": "process",
       "command": "python3",
       "windows": {
@@ -251,21 +251,21 @@
       },
       "args": [
         "-u",
-        "${workspaceFolder}/ManaVoxel.Web/serve.py",
+        "${workspaceFolder}/ManaEditor.Web/serve.py",
         "8000"
       ],
       "problemMatcher": [],
       "detail": "Publish Release, then serve at http://localhost:8000. Open the URL in your browser.",
-      "dependsOn": "Publish: ManaVoxel.Web (Release)",
+      "dependsOn": "Publish: ManaEditor.Web (Release)",
       "dependsOrder": "sequence"
     },
     {
-      "label": "Publish: ManaVoxel.Editor.Web (Release)",
+      "label": "Publish: ManaEditor.Editor.Web (Release)",
       "type": "process",
       "command": "dotnet",
       "args": [
         "publish",
-        "${workspaceFolder}/ManaVoxel.Web/ManaVoxel.Web.csproj",
+        "${workspaceFolder}/ManaEditor.Web/ManaEditor.Web.csproj",
         "-c",
         "Release",
         "--nologo"
@@ -274,7 +274,7 @@
       "group": "build"
     },
     {
-      "label": "Serve: ManaVoxel.Editor.Web (existing publish)",
+      "label": "Serve: ManaEditor.Editor.Web (existing publish)",
       "type": "process",
       "command": "python3",
       "windows": {
@@ -282,14 +282,14 @@
       },
       "args": [
         "-u",
-        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py",
+        "${workspaceFolder}/ManaEditor.Editor.Web/serve.py",
         "8002"
       ],
       "problemMatcher": [],
       "detail": "Serve the combined editor at http://localhost:8002/?mode=editor; terminate the task to stop."
     },
     {
-      "label": "Run: ManaVoxel.Editor.Web",
+      "label": "Run: ManaEditor.Editor.Web",
       "type": "process",
       "command": "python3",
       "windows": {
@@ -297,12 +297,12 @@
       },
       "args": [
         "-u",
-        "${workspaceFolder}/ManaVoxel.Editor.Web/serve.py",
+        "${workspaceFolder}/ManaEditor.Editor.Web/serve.py",
         "8002"
       ],
       "problemMatcher": [],
       "detail": "Publish Release, then serve at http://localhost:8002/?mode=editor. Open the URL in your browser.",
-      "dependsOn": "Publish: ManaVoxel.Editor.Web (Release)",
+      "dependsOn": "Publish: ManaEditor.Editor.Web (Release)",
       "dependsOrder": "sequence"
     },
     {
@@ -370,8 +370,8 @@
           "value": "ManaRenderer.sln"
         },
         {
-          "label": "ManaVoxel",
-          "value": "ManaVoxel/ManaVoxel.csproj"
+          "label": "ManaEditor",
+          "value": "ManaEditor/ManaEditor.csproj"
         },
         {
           "label": "ManaTests",
@@ -402,12 +402,12 @@
           "value": "ManaGeoTools/ManaGeoTools.csproj"
         },
         {
-          "label": "ManaVoxel.Web",
-          "value": "ManaVoxel.Web/ManaVoxel.Web.csproj"
+          "label": "ManaEditor.Web",
+          "value": "ManaEditor.Web/ManaEditor.Web.csproj"
         },
         {
-          "label": "ManaVoxel.Editor.Web",
-          "value": "ManaVoxel.Web/ManaVoxel.Web.csproj"
+          "label": "ManaEditor.Editor.Web",
+          "value": "ManaEditor.Web/ManaEditor.Web.csproj"
         },
         {
           "label": "Tools/AudioSmoke.Web",
@@ -418,7 +418,7 @@
           "value": "Tools/ThumbnailBaker/ThumbnailBaker.csproj"
         }
       ],
-      "default": "ManaVoxel/ManaVoxel.csproj"
+      "default": "ManaEditor/ManaEditor.csproj"
     },
     {
       "id": "configuration",
@@ -434,7 +434,7 @@
       "id": "appBundle",
       "type": "promptString",
       "description": "Path to an existing published AppBundle",
-      "default": "Artifacts/Bin/ManaVoxel.Web/Release/net10.0/browser-wasm/AppBundle"
+      "default": "Artifacts/Bin/ManaEditor.Web/Release/net10.0/browser-wasm/AppBundle"
     }
   ]
 }

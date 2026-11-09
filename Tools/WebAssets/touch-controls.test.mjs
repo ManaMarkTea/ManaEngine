@@ -21,7 +21,7 @@ globalThis.document={hidden:false,getElementById:name=>elements[name],
     addEventListener:(name,callback)=>docEvents.set(name,callback),body:{classList:{add(){}}}};
 const graphics={OnKeyDown:code=>held.add(code),OnKeyUp:code=>held.delete(code),
     OnMouseMove(){},OnMouseDown:()=>mouse=true,OnMouseUp:()=>mouse=false,OnMouseDelta:(x,y)=>deltas.push([x,y])};
-const source=await readFile(new URL('../../ManaVoxel.Web/touch-controls.js',import.meta.url),'utf8');
+const source=await readFile(new URL('../../ManaEditor.Web/touch-controls.js',import.meta.url),'utf8');
 const {installTouchControls}=await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 const ready=installTouchControls(graphics,()=>{globalThis.ManaMenuOpen=true;docEvents.get('mana-pause')();});
 const move=elements.manaMove, jump=elements.manaTouchJump, look=elements.manaLook;

@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ManaEditor — Web</title>
+  <meta name="theme-color" content="#1E1F22" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+  <script>
+    // Installs as the level in the URL (apps/, written by publish_assets.py). Absolute, because the <base> a deploy adds
+    // below points into v/<build>/, and the manifest stays put across deploys.
+    (function () {
+        const level = new URLSearchParams(location.search).get('level');
+        let slug = 'mana';
+        if (level) {
+            slug = level.split('/').pop().replace(/\.manalevel$/, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        }
+        const manifestUrl = new URL(`apps/${slug}.webmanifest`, location.href);
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = manifestUrl.href;
+        document.head.appendChild(link);
+        // Safari takes its home screen icon from a tag of its own, not the manifest.
+        fetch(manifestUrl)
+            .then(response => response.ok ? response.json() : null)
+            .then(manifest => {
+                if (!manifest) {
+                    return;
+                }
+                document.title = manifest.name;
+                const icon = document.createElement('link');
+                icon.rel = 'apple-touch-icon';
+                icon.href = new URL(manifest.icons[0].src, manifestUrl).href;
+                document.head.appendChild(icon);
+            })
+            .catch(() => {});
+    })();
+  </script>
+  <style>
+    /* Colours, metrics and timings below are lifted from ManaUI's dark UiTheme and from
+       ManaLoadingScreenManaView/ProgressBar, so the browser build's loading screen and the
+       engine's own are the same picture. If the theme moves, move these with it. */
+    :root {
+      --mana-background: #1E1F22;  /* UiTheme.Background  */
+      --mana-surface:    #2B2D30;  /* UiTheme.Surface     */
+      --mana-surface-alt:#1E1F22;  /* UiTheme.SurfaceAlt  */
+      --mana-border:     #3B3E43;  /* UiTheme.Border      */
+      --mana-text-muted: #9DA0A8;  /* UiTheme.TextMuted   */
+      --mana-accent:     #4A88E8;  /* UiTheme.Accent      */
+      --mana-error:      #E05252;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: var(--mana-background);
+      color: #DFE1E5;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+
+    /* Keep the renderer label inside its HTML surface so it leaves with that surface. */
+    .mana-html-badge {
+      display: block;
+      width: fit-content;
+      margin: 0 auto 8px;
+      padding: 3px 7px;
+      border: 1px solid #59616e;
+      border-radius: 4px;
+      color: #b9c5d8;
+      font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
+    #manaCanvas { display: block; width: 100%; height: 100%; }
+
+    /* pointer-events: none throughout -- nothing here is interactive, and it means an overlay
+       that somehow fails to hide can never brick canvas input behind it. */
+    #manaLoading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--mana-background);
+      pointer-events: none;
+      opacity: 1;
+      transition: opacity 320ms ease-out;
+    }
+
+    #manaLoading.mana-hidden { opacity: 0; }
+
+    .mana-card {
+      box-sizing: border-box;
+      width: 460px;             /* ManaLoadingScreenManaView.CardWidth  */
+      min-height: 168px;        /* ManaLoadingScreenManaView.CardHeight */
+      padding: 24px 28px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+      background: var(--mana-surface);
+      border: 1px solid var(--mana-border);
+      border-radius: 8px;       /* UiTheme.CornerRadiusLarge */
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .mana-title {
+      margin: 0;
+      text-align: center;
+      font-size: 18px;          /* UiTheme.FontSizeHeading */
+      font-weight: 500;
+      letter-spacing: 0.14em;
+      color: var(--mana-accent);
+      /* The engine screen pulses its heading so a step that happens to take a while cannot be
+         mistaken for a hang. It matters far more here: both the wasm download and the level load
+         block the main thread outright, so a JS-driven animation would freeze solid at exactly
+         the moment it needs to be moving. opacity and transform animate on the compositor, which
+         keeps running regardless of what the main thread is doing -- so every moving part on this
+         screen is restricted to those two properties on purpose. 2.09s is the engine's own
+         sin(time * 3.0) period. */
+      animation: mana-pulse 2.09s ease-in-out infinite;
+    }
+
+    @keyframes mana-pulse {
+      0%, 100% { opacity: 1; }
+      50%      { opacity: 0.6; }
+    }
+
+    .mana-status,
+    .mana-percent {
+      margin: 0;
+      text-align: center;
+      font-size: 13px;          /* UiTheme.FontSizeSmall */
+      color: var(--mana-text-muted);
+    }
+
+    .mana-percent { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    /* The emoji the browser has drawn for the UI so far, each popping in as it is made. */
+    .mana-emoji {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 2px;
+      min-height: 0; max-width: 100%; margin: 0;
+      font-size: 20px; line-height: 1.2;
+    }
+    .mana-emoji span { animation: mana-emoji-pop 360ms cubic-bezier(.3, 1.6, .5, 1) both; }
+    @keyframes mana-emoji-pop {
+      from { transform: scale(0) rotate(-30deg); opacity: 0; }
+      to   { transform: scale(1) rotate(0); opacity: 1; }
+    }
+
+    .mana-track {
+      position: relative;
+      height: 8px;              /* ProgressBar.Thickness */
+      border-radius: 4px;
+      background: var(--mana-surface-alt);
+      overflow: hidden;
+    }
+
+    /* scaleX rather than width: width is a layout property and only ever updates on the main
+       thread, which is blocked for most of this screen's life. The track clips the corners, so
+       scaling a plain rect still reads as a rounded bar. */
+    .mana-fill {
+      position: absolute;
+      inset: 0;
+      background: var(--mana-accent);
+      transform: scaleX(0);
+      transform-origin: left center;
+      transition: transform 220ms ease-out;
+    }
+
+    /* ProgressBar's indeterminate sweep, at its own SweepSeconds. Runs the whole time, not only
+       when the fraction is unknown: it is the one part of the screen that proves the page is
+       still alive while wasm has the main thread. */
+    .mana-sweep {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.16) 50%,
+        rgba(255, 255, 255, 0) 100%);
+      transform: translateX(-100%);
+      animation: mana-sweep 1.4s linear infinite;
+    }
+
+    @keyframes mana-sweep {
+      from { transform: translateX(-100%); }
+      to   { transform: translateX(100%); }
+    }
+
+    /* A failed boot used to be a black page and a console nobody had open. */
+    #manaLoading.mana-failed .mana-title { animation: none; color: var(--mana-error); }
+    #manaLoading.mana-failed .mana-sweep { animation: none; opacity: 0; }
+    #manaLoading.mana-failed .mana-fill  { background: var(--mana-error); }
+
+    #manaLoading.mana-failed .mana-status {
+      color: var(--mana-error);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      text-align: left;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 40vh;
+      overflow-y: auto;
+    }
+
+    /* ---- Level selector: the page's front door, shown until a level is chosen ------------------------- */
+    #manaSelect {
+      position: fixed;
+      inset: 0;
+      display: none;
+      overflow-y: auto;
+      background: radial-gradient(ellipse at top, #26292F 0%, var(--mana-background) 70%);
+    }
+    #manaSelect.mana-open { display: block; }
+    .mana-select-inner { max-width: 980px; margin: 0 auto; padding: 56px 24px 40px; }
+    .mana-select-inner .mana-title { animation: none; font-size: 26px; margin-bottom: 6px; }
+    .mana-select-subtitle { text-align: center; color: var(--mana-text-muted); font-size: 14px; margin: 0 0 32px; }
+    .mana-levels { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .mana-level {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+      padding: 0;
+      overflow: hidden;
+      cursor: pointer;
+      color: inherit;
+      font: inherit;
+      background: var(--mana-surface);
+      border: 1px solid var(--mana-border);
+      border-radius: 8px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+      transition: transform 120ms ease-out, border-color 120ms ease-out;
+    }
+    .mana-level:hover, .mana-level:focus-visible { transform: translateY(-2px); border-color: var(--mana-accent); outline: none; }
+    .mana-level-picture {
+      aspect-ratio: 16 / 9;
+      width: 100%;
+      background: linear-gradient(135deg, #34373D, #22242A);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 42px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.18);
+    }
+    .mana-level-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
+    .mana-level-name { font-size: 15px; font-weight: 600; }
+    .mana-level-description { font-size: 12.5px; color: var(--mana-text-muted); line-height: 1.4; }
+    .mana-select-footer { margin-top: 28px; text-align: center; font-size: 12px; color: var(--mana-text-muted); }
+    #manaBuildInfo {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(12px, env(safe-area-inset-bottom));
+      color: var(--mana-text-muted);
+      font-size: 12px;
+      max-width: calc(100% - 32px);
+      text-align: right;
+      z-index: 2;
+      pointer-events: none;
+    }
+    #manaBuildInfo > :not([hidden]) { display: block; font-size: inherit; }
+    /* The rest of the corner lets clicks through to the game; the GPU mark takes the pointer, for its tooltip. */
+    #manaGpuInfo { pointer-events: auto; cursor: help; }
+    #manaFps:not([hidden]) {
+      position: fixed;
+      top: max(58px, env(safe-area-inset-top));
+      left: max(12px, env(safe-area-inset-left));
+      padding: 6px 10px;
+      background: rgba(20, 22, 28, 0.85);
+      color: #DFE1E5;
+      border-radius: 6px;
+      font: 600 14px/1.2 system-ui, sans-serif;
+    }
+    #manaTouch[hidden] { display: none; }
+    #manaTouch {
+      position: fixed; inset: 0; z-index: 3; pointer-events: none;
+      user-select: none; -webkit-user-select: none;
+    }
+    #manaTouch button, #manaLook { pointer-events: auto; touch-action: none; }
+    /* What each scheme puts up; touch-controls.js has the list. Menu is always there. */
+    #manaTouch #manaMove, #manaTouch #manaLook, #manaTouch #manaAim, #manaTouch #manaTouchActions, #manaTouch #manaTwinButtons, #manaTouch #manaTouchCamera { display: none; }
+    #manaTouch[data-scheme="stick"] #manaMove, #manaTouch[data-scheme="stick"] #manaTouchCamera { display: block; }
+    #manaTouch[data-scheme="stick"] #manaLook { display: grid; }
+    #manaTouch[data-scheme="stick"] #manaTouchActions { display: flex; }
+    #manaTouch[data-scheme="twin"] #manaMove, #manaTouch[data-scheme="twin"] #manaAim { display: block; bottom: 104px; }
+    #manaTouch[data-scheme="twin"] #manaTwinButtons { display: grid; }
+    #manaAim {
+      position: absolute; right: max(20px, env(safe-area-inset-right)); width: 128px; height: 128px;
+      border-radius: 50% !important; border-color: rgba(255, 150, 120, 0.6) !important;
+    }
+    #manaAimKnob {
+      position: absolute; width: 44px; height: 44px; top: 41px; left: 41px;
+      border-radius: 50%; background: rgba(255, 150, 120, 0.45); pointer-events: none;
+    }
+    #manaTwinButtons {
+      position: absolute; right: calc(max(20px, env(safe-area-inset-right)) + 140px); bottom: 104px;
+      grid-template-columns: repeat(2, auto); gap: 6px;
+    }
+    #manaTwinButtons button { min-height: 40px; min-width: 62px; }
+    /* Games with their own panels in the top right corner keep Menu clear of them, and a phone has no room for the build stamp. */
+    #manaTouch:not([data-scheme="stick"]) #manaTouchTop { right: auto; left: max(12px, env(safe-area-inset-left)); top: 90px; }
+    .mana-touch-play #manaEngineVersion, .mana-touch-play #manaGpuInfo { display: none !important; }
+    #manaRotate[hidden] { display: none; }
+    #manaRotate {
+      position: fixed; inset: 0; z-index: 4; display: grid; place-items: center; text-align: center; padding: 24px;
+      color: #DFE1E5; background: #0A0C14; font: 600 20px/1.4 system-ui, sans-serif;
+    }
+    #manaTouch button {
+      color: #DFE1E5; background: rgba(25, 28, 36, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 24px;
+      min-height: 48px; min-width: 56px; font: 600 14px system-ui, sans-serif;
+    }
+    #manaMove {
+      position: absolute; left: max(20px, env(safe-area-inset-left));
+      bottom: max(56px, env(safe-area-inset-bottom)); width: 128px; height: 128px;
+      border-radius: 50% !important;
+    }
+    #manaMoveKnob {
+      position: absolute; width: 44px; height: 44px; top: 41px; left: 41px;
+      border-radius: 50%; background: rgba(220, 225, 235, 0.4); pointer-events: none;
+    }
+    #manaLook {
+      position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: 132px;
+      width: 128px; height: 104px; display: grid; place-items: center;
+      color: #DFE1E5; font-size: 12px; border-radius: 50%;
+      background: rgba(25, 28, 36, 0.35); border: 1px dashed rgba(255, 255, 255, 0.35);
+    }
+    #manaTouchActions {
+      position: absolute; right: max(20px, env(safe-area-inset-right)); bottom: 56px;
+      display: flex; gap: 10px;
+    }
+    #manaTouchTop {
+      position: absolute; top: max(52px, env(safe-area-inset-top));
+      right: max(12px, env(safe-area-inset-right)); display: flex; gap: 8px;
+    }
+    .mana-touch-play #manaCanvas { touch-action: none; }
+    .mana-touch-play #manaCanvas, .mana-touch-play #manaTouch, .mana-touch-play #manaTouch *,
+    .mana-touch-play #manaBuildInfo, .mana-touch-play #manaBuildInfo *, .mana-touch-play #manaHint {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    body.mana-touch-play { overscroll-behavior: none; }
+    @media (max-height: 400px) {
+      #manaLook { bottom: 110px; height: 76px; width: 112px; }
+    }
+
+    /* ---- Pause menu: Escape while playing ------------------------------------------------------------ */
+    #manaMenu {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 11, 13, 0.55);
+      backdrop-filter: blur(3px);
+    }
+    #manaMenu.mana-open { display: flex; }
+    #manaMenu .mana-card { width: 300px; min-height: 0; gap: 10px; }
+    #manaMenu .mana-title { animation: none; margin-bottom: 6px; }
+    .mana-button {
+      font: inherit;
+      font-size: 14px;
+      padding: 10px 14px;
+      color: #DFE1E5;
+      background: #35383E;
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .mana-button:hover, .mana-button:focus-visible { background: #3F434A; border-color: var(--mana-accent); outline: none; }
+    .mana-button.mana-primary { background: var(--mana-accent); border-color: var(--mana-accent); color: white; }
+    .mana-button.mana-primary:hover { background: #5B96EE; }
+    .mana-menu-hint { text-align: center; font-size: 12px; color: var(--mana-text-muted); margin: 4px 0 0; }
+
+    /* ---- Settings: picked here, carried in the URL, read by the engine as it starts ---------------------- */
+    .mana-settings { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 18px; font-size: 13px; color: var(--mana-text-muted); }
+    #manaSelect .mana-settings { margin: -16px 0 28px; }
+    #manaMenu .mana-settings { flex-direction: column; align-items: stretch; gap: 8px; margin-top: 4px; }
+    .mana-setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .mana-setting select {
+      font: inherit;
+      color: #DFE1E5;
+      background: #35383E;
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      padding: 5px 8px;
+    }
+    .mana-setting select:focus-visible { border-color: var(--mana-accent); outline: none; }
+
+    /* A reminder the menu exists, for the first seconds of play. */
+    #manaHint {
+      position: fixed;
+      right: 16px;
+      bottom: 58px;
+      padding: 6px 10px;
+      font-size: 12px;
+      color: var(--mana-text-muted);
+      background: rgba(30, 31, 34, 0.75);
+      border: 1px solid var(--mana-border);
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 400ms ease-out;
+      pointer-events: none;
+    }
+    #manaHint.mana-shown { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .mana-title, .mana-sweep { animation: none; }
+      .mana-fill { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="manaCanvas"></canvas>
+
+  <div id="manaLoading">
+    <div class="mana-card">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
+      <h1 class="mana-title">MANA RENDERER</h1>
+      <p class="mana-status" id="manaLoadingStatus">Starting...</p>
+      <div class="mana-track">
+        <div class="mana-fill" id="manaLoadingFill"></div>
+        <div class="mana-sweep"></div>
+      </div>
+      <p class="mana-percent" id="manaLoadingPercent">0%</p>
+      <p class="mana-emoji" id="manaLoadingEmoji" aria-hidden="true"></p>
+    </div>
+  </div>
+
+  <div id="manaSelect">
+    <div class="mana-select-inner">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
+      <h1 class="mana-title">MANA RENDERER</h1>
+      <p class="mana-select-subtitle">Choose a level to play</p>
+      <div class="mana-settings" data-mana-settings></div>
+      <div class="mana-levels" id="manaLevels"></div>
+      <p><a class="mana-button" href="?mode=editor">Open editor</a></p>
+      <p class="mana-select-footer">WASD to move, Shift to run, Space to jump (again in the air to double jump), Esc for the menu</p>
+    </div>
+  </div>
+  <div id="manaBuildInfo">
+    <span id="manaFps" hidden></span>
+    <small id="manaEngineVersion" title="Engine version and build time in your local time zone" hidden></small>
+    <small id="manaGpuInfo" tabindex="0" hidden>&#9432; GPU</small>
+  </div>
+  <div id="manaTouch" hidden aria-label="Touch game controls">
+    <button id="manaMove" aria-label="Move: drag in the direction you want to walk"><span id="manaMoveKnob"></span></button>
+    <div id="manaLook" aria-label="Drag to look around">Drag to look</div>
+    <div id="manaTouchActions"><button id="manaTouchRun">Run</button><button id="manaTouchJump">Jump</button></div>
+    <button id="manaAim" aria-label="Aim and fire: drag in the direction you want to shoot"><span id="manaAimKnob"></span></button>
+    <div id="manaTwinButtons">
+      <button data-key="ShiftLeft">Boost</button><button data-key="Space">Lock</button>
+      <button data-key="KeyE">Weapon</button><button data-key="KeyT">Turret</button>
+      <button data-key="Enter">Launch</button>
+    </div>
+    <div id="manaTouchTop"><button id="manaTouchCamera">Camera</button><button id="manaTouchMenu">Menu</button></div>
+  </div>
+  <div id="manaRotate" hidden>Turn your phone sideways to play</div>
+
+  <div id="manaMenu" role="dialog" aria-modal="true" aria-label="Paused">
+    <div class="mana-card">
+      <span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>
+      <h1 class="mana-title">PAUSED</h1>
+      <button class="mana-button mana-primary" id="manaResume">Resume</button>
+      <button class="mana-button" id="manaRestart">Restart level</button>
+      <button class="mana-button" id="manaQuit">Choose another level</button>
+      <div class="mana-settings" data-mana-settings title="Changing one reloads the level"></div>
+      <p class="mana-menu-hint">Esc to resume</p>
+    </div>
+  </div>
+
+  <div id="manaHint"><span class="mana-html-badge" title="Browser-rendered HTML interface">HTML</span>Esc &mdash; menu</div>
+
+  <script>
+    // Deliberately an inline classic script, not part of main.js: main.js is a module, so it does
+    // not run until the whole document has parsed AND `import { dotnet }` has fetched, and the
+    // whole point of this overlay is to be driving before any of that. Everything it needs is in
+    // the markup above it.
+    //
+    // The API is global because three separate JS worlds drive it and none of them can import
+    // from the others: this script, main.js (a module), and mana_interop.js (pulled in by
+    // JSHost.ImportAsync, which is how C# reports engine-side progress). Same reasoning as
+    // globalThis.ManaExports in main.js.
+    (function () {
+        // The download is the long pole -- roughly 45 MB of _framework plus 13 MB of bundled
+        // assets -- so it gets most of the bar, and the engine's own load the rest. Two phases
+        // on one bar rather than two bars, because from outside they are one wait.
+        var DOWNLOAD_SHARE = 0.7;
+
+        var root = document.getElementById('manaLoading');
+        var statusEl = document.getElementById('manaLoadingStatus');
+        var fillEl = document.getElementById('manaLoadingFill');
+        var percentEl = document.getElementById('manaLoadingPercent');
+
+        // Monotonic: the download total is discovered as Content-Length headers arrive, so the
+        // denominator grows during the first second or so. Clamping forward means the bar stalls
+        // briefly instead of visibly running backwards, which reads as something going wrong.
+        var shown = 0;
+        var failed = false;
+        var hidden = false;
+
+        function megabytes(bytes) {
+            return (bytes / (1024 * 1024)).toFixed(1);
+        }
+
+        function apply(fraction, status) {
+            if (failed || hidden) {
+                return;
+            }
+            if (typeof fraction === 'number' && isFinite(fraction)) {
+                shown = Math.max(shown, Math.min(1, Math.max(0, fraction)));
+                fillEl.style.transform = 'scaleX(' + shown + ')';
+                percentEl.textContent = Math.round(shown * 100) + '%';
+            }
+            if (status) {
+                statusEl.textContent = status;
+            }
+        }
+
+        globalThis.ManaLoading = {
+            /// Bytes off the network, before any C# has run. totalBytes may still be growing.
+            download: function (receivedBytes, totalBytes) {
+                var fraction = totalBytes > 0 ? (receivedBytes / totalBytes) * DOWNLOAD_SHARE : 0;
+                apply(fraction, 'Downloading engine  ' + megabytes(receivedBytes) + ' / ' + megabytes(totalBytes) + ' MB');
+            },
+
+            /// C#-side progress, 0..1 across the engine's own load. Called from mana_interop.js.
+            engine: function (status, fraction) {
+                var scaled = typeof fraction === 'number' && isFinite(fraction)
+                    ? DOWNLOAD_SHARE + fraction * (1 - DOWNLOAD_SHARE)
+                    : undefined;
+                apply(scaled, status);
+            },
+
+            /// Terminal: the screen stays up showing why, rather than a blank canvas and a
+            /// console nobody opened.
+            fail: function (message) {
+                if (hidden) {
+                    return;
+                }
+                failed = true;
+                root.classList.add('mana-failed');
+                root.querySelector('.mana-title').textContent = 'FAILED TO START';
+                statusEl.textContent = String(message);
+                percentEl.textContent = '';
+                console.error('[ManaLoading] ' + message);
+            },
+
+            hide: function () {
+                if (failed || hidden) {
+                    return;
+                }
+                hidden = true;
+                apply(1, 'Ready');
+                root.classList.add('mana-hidden');
+                // After the opacity transition, not with it: removing the node mid-fade snaps it
+                // away. 400ms covers the 320ms transition with room for a slow frame.
+                setTimeout(function () { root.remove(); }, 400);
+            },
+
+            /// Each emoji the browser draws for the UI (mana_interop.js drawEmoji), shown as it is made.
+            emoji: function (text) {
+                var tray = document.getElementById('manaLoadingEmoji');
+                if (hidden || !tray || tray.childElementCount >= 48) {
+                    return;
+                }
+                var item = document.createElement('span');
+                item.textContent = text;
+                tray.appendChild(item);
+            },
+
+            isFailed: function () { return failed; }
+        };
+    })();
+  </script>
+
+  <!-- A deploy puts each build in v/<build>/ and names it in version.json, read uncached: the build's own files
+       never change, so the browser may cache them freely without ever pairing one deploy's loader with another's
+       files (Pages caches for 10 minutes, and a mix fails its integrity checks as "Failed to fetch"). A local
+       build has no version.json and loads from here. -->
+  <script type="module">
+    try {
+        const response = await fetch('version.json', { cache: 'no-store' });
+        if (response.ok) {
+            const { build } = await response.json();
+            const base = document.createElement('base');
+            base.href = `v/${build}/`;
+            document.head.appendChild(base);
+        }
+    } catch (error) {
+        // No version file: a local build.
+    }
+    fetch(new URL('engine-version.json', document.baseURI))
+      .then(response => response.ok ? response.json() : null)
+      .then(engine => {
+        if (!engine) return;
+        const label = document.getElementById('manaEngineVersion');
+        const commit = engine.commit ? `+${engine.commit.slice(0, 7)}` : '';
+        const buildTime = engine.buildTime ? new Date(engine.buildTime) : null;
+        const date = buildTime && !Number.isNaN(buildTime.getTime())
+          ? buildTime.toLocaleString(undefined, {
+              year: 'numeric', month: 'short', day: 'numeric',
+              hour: 'numeric', minute: '2-digit', second: '2-digit', timeZoneName: 'short'
+            })
+          : engine.buildDate;
+        label.textContent = `ManaRenderer v${engine.version}${commit} · ${date}`;
+        label.hidden = false;
+      })
+      .catch(() => {});
+    // The GPU the page draws with, from mana_webgpu.c once the adapter arrives.
+    // The GPU the page draws with, and the resolution it has fallen back to when frames ran slow.
+    let gpuName = '';
+    let renderScale = 1;
+    const showGpu = () => {
+      const mark = document.getElementById('manaGpuInfo');
+      mark.title = `Drawing with: ${gpuName}` + (renderScale < 1 ? `
+At ${Math.round(renderScale * 100)}% resolution: frames were slow.` : '');
+      mark.hidden = false;
+    };
+    window.addEventListener('mana-gpu', event => { gpuName = event.detail; showGpu(); });
+    window.addEventListener('mana-render-scale', event => { renderScale = event.detail; showGpu(); });
+    await import(new URL('main.js', document.baseURI).href);
+  </script>
+</body>
+</html>

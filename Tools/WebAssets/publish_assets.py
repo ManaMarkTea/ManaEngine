@@ -13,7 +13,7 @@ from urllib.parse import quote, unquote, urlsplit
 EXCLUDED = "Assets/Planet/ETOPO_2022_v1_60s_N90W180_surface.tif"
 # Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
 EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
-ROOTS = ("Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaVoxel/Assets")
+ROOTS = ("Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaEditor/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
 
@@ -94,7 +94,7 @@ def imported_sources(root):
             continue
         source = root / path
         if not source.is_file():
-            raise ValueError(f"Missing imported scene asset: {path}; run dotnet run --project ManaVoxel -- --prepare-level-assets")
+            raise ValueError(f"Missing imported scene asset: {path}; run dotnet run --project ManaEditor -- --prepare-level-assets")
         sources[path] = source
         if source.suffix.lower() in (".gltf", ".glb"):
             paths.update(dependency_paths(path, model_document(source)))
@@ -266,7 +266,7 @@ def publish_apps(root, output, levels):
     apps = output / "apps"
     shutil.rmtree(apps, ignore_errors=True)
     apps.mkdir()
-    shutil.copyfile(root / "ManaVoxel.Web" / "mana-icon.png", apps / "mana.png")
+    shutil.copyfile(root / "ManaEditor.Web" / "mana-icon.png", apps / "mana.png")
 
     def write(slug, name, description, start, icon):
         manifest = dict(id=f"mana-app-{slug}", name=name, short_name=name, description=description,

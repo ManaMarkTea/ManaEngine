@@ -9,7 +9,7 @@ def publish(root: Path, output: Path):
     output.mkdir(parents=True, exist_ok=True)
     files = []
     for folder in ("Mana/Code", "ManaCore", "ManaUI/Code", "ManaGraphics/Code",
-                   "ManaGraphics/Assets/Shaders/WebGpu", "ManaVoxel/Code", "Games"):
+                   "ManaGraphics/Assets/Shaders/WebGpu", "ManaEditor/Code", "Games"):
         for path in sorted((root / folder).rglob("*")):
             if path.suffix not in (".cs", ".wgsl") or any(p in ("obj", "bin") for p in path.parts):
                 continue

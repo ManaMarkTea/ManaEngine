@@ -14,7 +14,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mana;
 using Mana.Code;
-using ManaVoxel.Code.Assets;
+using ManaEditor.Code.Assets;
 using ManaCore.Imaging;
 
 if (args.Length != 4 || args[0] != "--app-bundle" || args[2] != "--cache")

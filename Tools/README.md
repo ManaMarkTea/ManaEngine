@@ -35,9 +35,9 @@ Keep asset generators that explain how to reproduce bundled binary assets. One-o
 From the repository root:
 
 ```powershell
-dotnet run --project ManaVoxel -- --prepare-level-assets
-dotnet publish ManaVoxel.Web/ManaVoxel.Web.csproj -c Release -m:1
-python ManaVoxel.Web/serve.py 8123
+dotnet run --project ManaEditor -- --prepare-level-assets
+dotnet publish ManaEditor.Web/ManaEditor.Web.csproj -c Release -m:1
+python ManaEditor.Web/serve.py 8123
 ```
 
 The preparation command downloads/checks/imports the source packs declared by checked-in levels. It opens no window.

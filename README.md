@@ -11,7 +11,7 @@ ManaRenderer is a C# renderer and game engine with a voxel-level editor. WebGPU 
 | `Mana` | Engine, scene graph, components, and game modes |
 | `ManaUI` | Retained-mode UI framework |
 | `ManaTests` | Headless test suite |
-| `ManaVoxel` | Main runnable editor and game |
+| `ManaEditor` | Main runnable editor and game |
 
 ## Build and run
 
@@ -19,7 +19,7 @@ Install the .NET 10 SDK, then run these from the repository root:
 
 ```sh
 dotnet build
-dotnet run --project ManaVoxel
+dotnet run --project ManaEditor
 dotnet run --project ManaTests
 ```
 

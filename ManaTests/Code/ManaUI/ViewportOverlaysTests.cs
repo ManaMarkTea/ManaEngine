@@ -2,7 +2,7 @@ using System.Text.Json;
 using Mana.Code.UI.ManaUi;
 using ManaCore.Assets;
 using ManaUI;
-using ManaVoxel.Code.UI.ManaUi;
+using ManaEditor.Code.UI.ManaUi;
 
 namespace ManaTests;
 
@@ -28,7 +28,7 @@ public static class ViewportOverlayChecks
         optionsRoot.UpdateLayout(new Vector2(380, 400));
         Check("camera settings render safely without a current camera", optionsRoot.Render().InstanceCount > 0);
 
-        var editor = new ManaVoxel.Code.UI.VoxelEditorViewModel();
+        var editor = new ManaEditor.Code.UI.VoxelEditorViewModel();
         var toolbar = ViewportToolbarManaView.Build(editor, () => null, null);
         var displayMenu = toolbar.Menus.Single(menu => menu.Text == "Display");
         var wireframe = displayMenu.Items.Single(item => item.Text == "Wireframe");

@@ -168,7 +168,7 @@ namespace ManaGraphics.Code.Graphics.Browser
         public bool TransparentFramebuffer => false;
         public bool TopMost { get; set; }
         public IGLContext? SharedContext => null;
-        public string WindowClass => "ManaVoxel.Web";
+        public string WindowClass => "ManaEditor.Web";
 
         public bool ShouldSwapAutomatically { get; set; }
         public bool IsEventDriven { get; set; }

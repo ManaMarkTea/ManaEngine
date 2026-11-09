@@ -8,8 +8,8 @@ using Mana.Code.UI;
 using ManaAudio;
 using ManaCore.Audio;
 using ManaUI;
-using ManaVoxel.Code.Gameplay.Course;
-using ManaVoxel.Code.Levels;
+using ManaEditor.Code.Gameplay.Course;
+using ManaEditor.Code.Levels;
 
 namespace ManaTests;
 

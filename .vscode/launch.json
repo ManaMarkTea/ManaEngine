@@ -5,8 +5,8 @@
       "name": "Editor: WebGPU",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Build: ManaVoxel (Debug)",
-      "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
+      "preLaunchTask": "Build: ManaEditor (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.dll",
       "args": [
         "--graphics",
         "webgpu"
@@ -23,8 +23,8 @@
       "name": "Editor: open level...",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Build: ManaVoxel (Debug)",
-      "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
+      "preLaunchTask": "Build: ManaEditor (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.dll",
       "args": [
         "--graphics",
         "webgpu",
@@ -43,8 +43,8 @@
       "name": "Game: play level...",
       "type": "coreclr",
       "request": "launch",
-      "preLaunchTask": "Build: ManaVoxel (Debug)",
-      "program": "${workspaceFolder}/Artifacts/Bin/ManaVoxel/Debug/net10.0/ManaVoxel.dll",
+      "preLaunchTask": "Build: ManaEditor (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.dll",
       "args": [
         "--graphics",
         "webgpu",
