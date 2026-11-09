@@ -31,6 +31,9 @@ namespace Mana
         /// <summary>The editor's selection: its edges drawn faintly over it (ManaWebGpuSelectionWireframeOverlay).</summary>
         public bool EditorWireframe { get; set; }
 
+        /// <summary>Past this many triangles the selection wireframe turns into a solid wash, so only the outline is drawn.</summary>
+        public const int MaxSelectionWireframeTriangles = 10_000;
+
         /// <summary>Each side lit as the side facing the camera -- a thin sheet seen from both sides (cloth).</summary>
         public bool TwoSidedLighting { get; set; }
 

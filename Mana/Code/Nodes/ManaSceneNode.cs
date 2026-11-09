@@ -363,7 +363,7 @@ namespace Mana.Code.Nodes
                         OutlineEnabled = renderer.RenderOutlineEnabled,
                         OutlineColor = renderer.RenderOutlineColor,
                         OutlineWidth = renderer.RenderOutlineWidth,
-                        SelectionWireframe = renderer.EditorWireframe,
+                        SelectionWireframe = renderer.EditorWireframe && meshData.Indexes.Length / 3 <= MeshRendererComponent.MaxSelectionWireframeTriangles,
                         TwoSidedLighting = renderer.TwoSidedLighting,
                         TerrainLayers = renderer.TerrainLayers,
                         InsetDepth = renderer.Material.InsetDepth,
