@@ -362,14 +362,6 @@
       "source": "15b542016c91061716722aae328734cba81105841b51efab459de6be23f2ffa5",
       "png": "888ac07e59824483b0c8d15adfd363e2dc5c4d34ab8c4496efa747fc5ede82f5.png"
     },
-    "Assets/Models/Lantern/glTF-Binary/Lantern.glb": {
-      "source": "2d7ea69e1f4b7f5b9f00854978b20f41b9effa392272c50f4c98b5a8db3152b2",
-      "png": "a71adbdd79cf440cda04b7cdfa9073681eb4a8d4b7b695cf8164eb63b2c856b5.png"
-    },
-    "Assets/Models/Lantern/glTF-pbrSpecularGlossiness/Lantern.gltf": {
-      "source": "530a33211bf9130e7ed15d01678aa12c70a1b0fe042f69b74558c3863888e4d7",
-      "png": "a71adbdd79cf440cda04b7cdfa9073681eb4a8d4b7b695cf8164eb63b2c856b5.png"
-    },
     "Assets/Models/Lantern/glTF/Lantern.gltf": {
       "source": "2106fea76c458caf43078c34ae7da7016cedd1f22e6f4badf94590be590f53d6",
       "png": "a71adbdd79cf440cda04b7cdfa9073681eb4a8d4b7b695cf8164eb63b2c856b5.png"
@@ -377,14 +369,6 @@
     "Assets/Models/Lighthouse/lighthouse.glb": {
       "source": "af8319ac0c62453db758510bb9371f96d1fd62c294a5850abc89acb1f89539c3",
       "png": "3e1f1eb4f32cdc42a062aad1a0cda76df3e9e6cf611d0e9910ec0b97246f8794.png"
-    },
-    "Assets/Models/WaterBottle/glTF-Binary/WaterBottle.glb": {
-      "source": "074341e0c9b991244ea88fed77221754dfa33b53ee13523fa5f3c10a28a30160",
-      "png": "d89a144ac0e2adf9723ec90e0da7fb059e955233c0c7a551de4af862d79086c9.png"
-    },
-    "Assets/Models/WaterBottle/glTF-pbrSpecularGlossiness/WaterBottle.gltf": {
-      "source": "74eda85e0edd12d7891bb8033521d47a4e2e83e9384641f6823c641796432196",
-      "png": "d89a144ac0e2adf9723ec90e0da7fb059e955233c0c7a551de4af862d79086c9.png"
     },
     "Assets/Models/WaterBottle/glTF/WaterBottle.gltf": {
       "source": "0596f4e61dc781439d254fdfb5e3462daf1762c18715e3e3ac13001aa8f3f547",

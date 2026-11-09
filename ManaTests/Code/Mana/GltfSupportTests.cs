@@ -86,7 +86,19 @@ public static class GltfSupportChecks
 
         if (repository != null)
         {
-            var dracoModel = Path.Combine(repository.FullName, "Assets", "Models", "Lantern", "glTF-Draco", "Lantern.gltf");
+            // Khronos ships a Draco copy beside the plain one; rebuild that layout from the plain Lantern in a scratch
+            // folder (the Draco copy itself is not kept in the repo).
+            var scratch = Directory.CreateTempSubdirectory("mana-draco-").FullName;
+            var plainFolder = Path.Combine(repository.FullName, "Assets", "Models", "Lantern", "glTF");
+            Directory.CreateDirectory(Path.Combine(scratch, "glTF"));
+            Directory.CreateDirectory(Path.Combine(scratch, "glTF-Draco"));
+            foreach (var file in Directory.GetFiles(plainFolder))
+            {
+                File.Copy(file, Path.Combine(scratch, "glTF", Path.GetFileName(file)));
+            }
+            var dracoModel = Path.Combine(scratch, "glTF-Draco", "Lantern.gltf");
+            File.WriteAllText(dracoModel, File.ReadAllText(Path.Combine(plainFolder, "Lantern.gltf"))
+                .Insert(1, "\"extensionsRequired\":[\"KHR_draco_mesh_compression\"],"));
 
             Check("the shipped Draco Lantern has a plain sibling to fall back to",
                 ManaGltfSupport.FindSupportedAlternative(dracoModel) != null,
@@ -110,6 +122,7 @@ public static class GltfSupportChecks
             Check("and importing the Draco Lantern itself succeeds via that sibling",
                 caught == null && loaded != null,
                 caught?.Message ?? "loaded");
+            try { Directory.Delete(scratch, true); } catch (IOException) { }
         }
 
         // ---------------------------------------------------------------- one mesh, two textured materials

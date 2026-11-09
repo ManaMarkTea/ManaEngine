@@ -2033,10 +2033,10 @@ In `Assets/Models`, beside the packs: placed as `Assets/Models/<path>`.
 | `Kenny/trunk-long.glb` | 0.54 | 1.29 | 0.61 |  |  |
 | `Kenny/trunk.glb` | 0.49 | 0.37 | 0.55 |  |  |
 | `Kenny/urn.glb` | 0.17 | 0.39 | 0.17 |  |  |
-| `Lantern/glTF-Binary/Lantern.glb` | 15.49 | 25.66 | 4.63 | x -11.57..3.92, y 0.18..25.85, z -2.32..2.32 |  |
+| `Lantern/glTF/Lantern.gltf` | 15.49 | 25.66 | 4.63 | x -11.57..3.92, y 0.18..25.85, z -2.32..2.32 |  |
 | `Lighthouse/lighthouse.glb` | 1.66 | 8.18 | 3.02 |  |  |
 | `ShaderBall/ShaderBall.glb` | 1.01 | 1 | 0.94 |  |  |
-| `WaterBottle/glTF-Binary/WaterBottle.glb` | 0.11 | 0.26 | 0.11 | x -0.05..0.05, y -0.13..0.13, z -0.05..0.05 |  |
+| `WaterBottle/glTF/WaterBottle.gltf` | 0.11 | 0.26 | 0.11 | x -0.05..0.05, y -0.13..0.13, z -0.05..0.05 |  |
 
 ## The project's own assets
 
@@ -2058,93 +2058,6 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Prefab | `Prefabs/Rocket.manaprefab` |
 | Prefab | `Prefabs/Spikes 2D.manaprefab` |
 | Prefab | `Prefabs/Spring 2D.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Arc Furnace.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Assembler.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Battery.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Biter.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Boiler.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Chemical Plant.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Chest.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Coal Generator.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Conveyor Turn Left.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Conveyor Turn Right.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Conveyor.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Depot.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Drill.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Left.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Fast Conveyor Turn Right.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Fast Conveyor.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Fast Inserter.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Furnace.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Gun Turret.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Inserter.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Lab.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Lamp.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Laser Turret.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Long Inserter.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Merger.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Nest.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Offshore Pump.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Oil Refinery.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Pipe To Ground.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Pipe.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Power Pole.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Provider Chest.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Pumpjack.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Rail Signal.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Rail.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Requester Chest.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Roboport.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Robot.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Rocket Silo.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Solar Panel.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Space Beacon.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Splitter.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Status Light.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Steam Engine.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Stone Wall.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Storage Tank.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Substation.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Train Stop.manaprefab` |
-| Prefab | `@Foundry/Prefabs/Underground Belt.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Crabs.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Enter.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Gaps.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Leave.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Pier.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Beach/Beach Shallows.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Barriers.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Cones.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Crates.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Duck.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Mixed.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Orcs.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Start.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Train Yard.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/City/Runner Trains.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Gates.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Pits.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Spikes.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Tombs.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Crypt Undead.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Dungeon Enter.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Dungeon Leave.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Mine Carts.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Dungeon/Mine Junction.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Bees.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Clouds.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Enter.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Hops.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Islands.manaprefab` |
-| Prefab | `@Runner/Prefabs/Sections/Sky/Sky Leave.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Barracks.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Depot.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Headlamp.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Station.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Torch.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Tower.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Yard Dock.manaprefab` |
-| Prefab | `@TrainYardWars/Prefabs/Yard Site.manaprefab` |
 | Sprite sheet | `Sprites/Blob.manasheet` |
 | Sprite sheet | `Sprites/Characters/Beige Alien.manasheet` |
 | Sprite sheet | `Sprites/Characters/Green Alien.manasheet` |
@@ -2208,6 +2121,11 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Generator rules | `Generators/Dungeon.manawfc` |
 | Generator rules | `Generators/Table Clutter.manawfc` |
 | Level | `Levels/2D Sample.manalevel` |
+| Level | `Levels/Downloaded/Bistro/Bistro Exterior Night.manalevel` |
+| Level | `Levels/Downloaded/Bistro/Bistro Exterior.manalevel` |
+| Level | `Levels/Downloaded/Bistro/Bistro Interior Wine Evening.manalevel` |
+| Level | `Levels/Downloaded/Bistro/Bistro Interior Wine.manalevel` |
+| Level | `Levels/Downloaded/Bistro/Bistro Interior.manalevel` |
 | Level | `Levels/Light Show.manalevel` |
 | Level | `Levels/Little Pond.manalevel` |
 | Level | `Levels/Little Train Yard.manalevel` |
@@ -2223,15 +2141,10 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Level | `Levels/Tests/Orthographic Navigation.manalevel` |
 | Level | `Levels/Tests/Parallax.manalevel` |
 | Level | `Levels/Tests/Particles.manalevel` |
+| Level | `Levels/Tests/Pixel FX.manalevel` |
+| Level | `Levels/Tests/Point Shadows.manalevel` |
 | Level | `Levels/Tests/Reflections.manalevel` |
 | Level | `Levels/Tests/Shadow Contact.manalevel` |
 | Level | `Levels/Tests/Sprite Normals.manalevel` |
 | Level | `Levels/Tests/Terrain.manalevel` |
 | Level | `Levels/Voxel Showcase.manalevel` |
-| Level | `@CodeScreensaver/Levels/Code Screensaver.manalevel` |
-| Level | `@Foundry/Levels/Foundry.manalevel` |
-| Level | `@Runner/Levels/Endless Run.manalevel` |
-| Level | `@TrainYardWars/Levels/Train Yard Wars Couch.manalevel` |
-| Level | `@TrainYardWars/Levels/Train Yard Wars Duel.manalevel` |
-| Level | `@TrainYardWars/Levels/Train Yard Wars.manalevel` |
-| Level | `@YachtJousting/Levels/Yacht Jousting.manalevel` |
