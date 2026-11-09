@@ -14,18 +14,26 @@ namespace Mana.Code.Content
     {
         public const char Prefix = '@';
 
+        /// <summary>Folders beside <c>Games</c> that hold <c>&lt;Name&gt;/Content</c> too: an app outside this repo (the games repo) adds its own.</summary>
+        public static List<string> GameFolders { get; } = new();
+
         /// <summary>The main folder first, then each game's, for the project whose Content folder is <paramref name="contentRoot"/>.</summary>
         public static IReadOnlyList<ManaContentMount> For(string contentRoot)
         {
             var main = Path.GetFullPath(contentRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var mounts = new List<ManaContentMount> { new(string.Empty, main) };
-            var games = Path.Combine(Path.GetDirectoryName(main) ?? main, "Games");
-            if (Directory.Exists(games))
+            var folders = new List<string> { Path.Combine(Path.GetDirectoryName(main) ?? main, "Games") };
+            folders.AddRange(GameFolders);
+            foreach (var games in folders.Distinct(StringComparer.OrdinalIgnoreCase))
             {
+                if (!Directory.Exists(games))
+                {
+                    continue;
+                }
                 foreach (var game in Directory.EnumerateDirectories(games).Order(StringComparer.OrdinalIgnoreCase))
                 {
                     var content = Path.Combine(game, "Content");
-                    if (Directory.Exists(content))
+                    if (Directory.Exists(content) && !mounts.Any(m => string.Equals(m.Name, Path.GetFileName(game), StringComparison.OrdinalIgnoreCase)))
                     {
                         mounts.Add(new ManaContentMount(Path.GetFileName(game), content));
                     }

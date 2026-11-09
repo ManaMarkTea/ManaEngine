@@ -56,8 +56,6 @@ public static class TestRunner
 
     private static readonly (string System, string Section, Action<ManaFontManager, Action<string, bool, string>> Run)[] Suites =
     {
-        ("Foundry", "factory logistics, crafting, power and persistence", FoundryChecks.Run),
-        ("Foundry", "buildings drawn from prefabs", FoundryPrefabChecks.Run),
         ("Audio", "WAV decoding and voice lifetime", AudioChecks.Run),
         ("Audio", "course cues, persistence and cleanup", CourseAudioChecks.Run),
         ("ManaUI", "glyph coverage", GlyphChecks.Run),
@@ -163,12 +161,6 @@ public static class TestRunner
         ("ManaGeoTools", "planet streaming and rebuild handoff", PlanetStreamingChecks.Run),
         ("ManaVoxel", "glow", GlowChecks.Run),
         ("ManaVoxel", "particles", ParticleChecks.Run),
-        ("TrainYardWars", "rail rendering batches", TrackBatchChecks.Run),
-        ("TrainYardWars", "match review regressions", MatchReviewChecks.Run),
-        ("TrainYardWars", "train yard wars rules", TrainYardWarsChecks.Run),
-        ("YachtJousting", "yacht jousting rules", YachtJoustingChecks.Run),
-        ("Contour", "contour combat, waves and missions", ContourChecks.Run),
-        ("CodeScreensaver", "repository sources and history", CodeScreensaverChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),
         ("ManaUI", "wheel", WheelChecks.Run),
         ("ManaUI", "window resize grip", WindowChecks.RunGrip),

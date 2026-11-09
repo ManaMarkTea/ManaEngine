@@ -42,8 +42,6 @@
     <TrimmerRootAssembly Include="ManaVoxel" />
     <!-- UiMarkup finds its element types by scanning this assembly. -->
     <TrimmerRootAssembly Include="ManaUI" />
-    <!-- A layout binds to a view model by property name, so its game keeps its public properties. -->
-    <TrimmerRootAssembly Include="Contour" />
   </ItemGroup>
 
   <ItemGroup>

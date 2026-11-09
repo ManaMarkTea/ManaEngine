@@ -10,8 +10,44 @@ namespace ManaTests;
 /// </summary>
 public static class UiDesignerChecks
 {
+    // A game's HUD view model stands in for Contour's, which lives in the games repo.
+    public sealed class StubWeaponViewModel
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+
+    public sealed class StubMenuRow
+    {
+        public string Label { get; set; } = string.Empty;
+    }
+
+    public sealed class StubMenu
+    {
+        public string Title { get; set; } = string.Empty;
+        public StubMenuRow[] Rows { get; } = [new StubMenuRow()];
+    }
+
+    public sealed class StubHudViewModel
+    {
+        public StubWeaponViewModel[] Weapons { get; } = [new StubWeaponViewModel(), new StubWeaponViewModel()];
+        public StubMenu? Menu { get; set; } = new StubMenu();
+        public float CameraZoom { get; set; }
+        public string Credits { get; set; } = "0";
+        public string AbandonLabel { get; set; } = string.Empty;
+        public System.Windows.Input.ICommand ResumeCommand { get; } = new CommunityToolkit.Mvvm.Input.RelayCommand(() => { });
+    }
+
+    private sealed class StubHudMode : Mana.Code.GameModes.ManaLevelGameMode
+    {
+        public override Type? HudViewModelType => typeof(StubHudViewModel);
+    }
+
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
+        ManaVoxel.Code.Levels.ManaLevelGameModes.Register(new ManaVoxel.Code.Levels.ManaLevelGameModes.Definition
+        {
+            Type = "StubHud", DisplayName = "Stub HUD", Description = "Test only", ModeType = typeof(StubHudMode), Create = () => new StubHudMode()
+        });
         void Check(string what, bool ok, string detail = "") => check(what, ok, detail);
 
         var sample = UiDesignerDocument.List().FirstOrDefault(path => Path.GetFileNameWithoutExtension(path) == "Main Menu");
@@ -150,7 +186,7 @@ public static class UiDesignerChecks
         check("the picker lists only what fits the property", opacity.Contains("Number") && opacity.Contains("Whole") && !opacity.Contains("Words") && !opacity.Contains("Flag"), string.Join(", ", opacity));
         var visible = UiDesignerBindings.Groups(typeof(EveryTypeViewModel), UiDesignerPathKind.Property, typeof(Visibility)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
         check("visibility takes a flag", visible.Contains("Flag") && !visible.Contains("Number"), string.Join(", ", visible));
-        var hud = UiDesignerBindings.Groups(typeof(Contour.View.ContourHudViewModel), UiDesignerPathKind.Property, typeof(System.Collections.IEnumerable)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
+        var hud = UiDesignerBindings.Groups(typeof(StubHudViewModel), UiDesignerPathKind.Property, typeof(System.Collections.IEnumerable)).SelectMany(g => g.Members).Select(m => m.Name).ToList();
         check("a list of view models is offered to what takes a list", hud.Contains("Weapons"), string.Join(", ", hud));
 
         var inverted = UiDesignerBindings.Write(UiDesignerBindings.Read(JsonValue.Create("Flag")) with { Invert = true });
@@ -176,9 +212,9 @@ public static class UiDesignerChecks
         }
 
         UiDesignerDocument.Replace((JsonObject)JsonNode.Parse("""
-            { "format": "mana-ui", "id": "cc", "viewModel": "Contour", "root": { "type": "Grid", "children": [ { "type": "Button", "name": "go", "text": "Play" }, { "type": "TextBlock", "name": "blank", "bind": { "text": "Credits" } } ] } }
+            { "format": "mana-ui", "id": "cc", "viewModel": "StubHud", "root": { "type": "Grid", "children": [ { "type": "Button", "name": "go", "text": "Play" }, { "type": "TextBlock", "name": "blank", "bind": { "text": "Credits" } } ] } }
             """)!, null);
-        check("the view model comes from the layout's game mode", UiDesignerDocument.ViewModelType == typeof(Contour.View.ContourHudViewModel), $"{UiDesignerDocument.ViewModelType}");
+        check("the view model comes from the layout's game mode", UiDesignerDocument.ViewModelType == typeof(StubHudViewModel), $"{UiDesignerDocument.ViewModelType}");
         UiDesignerDocument.Select(UiDesignerDocument.FindNamed("go"));
         Layout();
         var preview = Find<UiDesignerPreview>(root.Content!)[0];
@@ -403,10 +439,10 @@ public static class UiDesignerChecks
         check("a Button offers its command", UiDesignerBindings.Targets(typeof(Button)).Contains("command"), "");
         check("and its click", UiDesignerBindings.Events(typeof(Button)).Contains("click"), string.Join(", ", UiDesignerBindings.Events(typeof(Button))));
 
-        var hud = typeof(Contour.View.ContourHudViewModel);
-        var weapon = typeof(Contour.View.ContourWeaponViewModel);
+        var hud = typeof(StubHudViewModel);
+        var weapon = typeof(StubWeaponViewModel);
         var groups = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Property);
-        check("properties are grouped by the view model they are on, its own first", groups.Select(g => g.ViewModel).SequenceEqual([hud.Name, nameof(Contour.View.ContourMenu), nameof(Contour.View.ContourMenuRow), weapon.Name]), string.Join(", ", groups.Select(g => g.ViewModel)));
+        check("properties are grouped by the view model they are on, its own first", groups.Select(g => g.ViewModel).SequenceEqual([hud.Name, nameof(StubMenu), nameof(StubMenuRow), weapon.Name]), string.Join(", ", groups.Select(g => g.ViewModel)));
         check("a group's members carry the path that reaches them", groups[0].Members.Any(m => m.Path == "CameraZoom") && groups[3].Members.Any(m => m.Path == "Weapons[0].Name" && m.Name == "Name"), "");
         check("a list of view models is stepped into, not offered as a value", groups[0].Members.All(m => m.Name != "Weapons"), "");
         var commands = UiDesignerBindings.Groups(hud, UiDesignerPathKind.Command);
@@ -440,12 +476,12 @@ public static class UiDesignerChecks
         var size = new Vector2(1200, 700);
         string? picked = null;
         var anchor = Find<UiDesignerPreview>(root.Content!)[0];
-        var popup = UiDesignerPathPicker.Show(root, anchor, typeof(Contour.View.ContourHudViewModel), UiDesignerPathKind.Property, "CameraZoom", path => picked = path);
+        var popup = UiDesignerPathPicker.Show(root, anchor, typeof(StubHudViewModel), UiDesignerPathKind.Property, "CameraZoom", path => picked = path);
         root.UpdateLayout(size);
         root.UpdateLayout(size);
         var rows = Find<UiDesignerMemberRow>(popup);
         check("the picker is wide enough to read, whatever opened it", popup.Bounds.Width >= 300.0f, $"{popup.Bounds.Width}");
-        check("and heads each view model's members with its name", Find<TextBlock>(popup).Any(text => text.Text == "ContourWeaponViewModel"), "");
+        check("and heads each view model's members with its name", Find<TextBlock>(popup).Any(text => text.Text == nameof(StubWeaponViewModel)), "");
 
         var filter = Find<TextBox>(popup)[0];
         filter.Text = "credits";

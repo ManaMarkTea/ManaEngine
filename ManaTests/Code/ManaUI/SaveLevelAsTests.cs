@@ -30,8 +30,7 @@ public static class SaveLevelAsChecks
         check("the box offers a copy of the open level's name", name.Text == "Terrain copy", name.Text);
         var folders = LevelViewModel.SaveFolders(opened);
         check("in the open level's own folder first", folders[0].Label.EndsWith("Content/Levels/Tests", StringComparison.Ordinal), folders[0].Label);
-        check("then the main folder and each game's", folders.Any(f => f.Label.EndsWith("Content/Levels", StringComparison.Ordinal))
-            && folders.Any(f => f.Label.StartsWith("Games/", StringComparison.Ordinal)), string.Join(", ", folders.Select(f => f.Label)));
+        check("then the main folder", folders.Any(f => f.Label.EndsWith("Content/Levels", StringComparison.Ordinal)), string.Join(", ", folders.Select(f => f.Label)));
         check("and the name is ready to type over", root.FocusManager.Focused == name, "");
 
         root.Input.InjectKeyDown(UiKey.Enter);

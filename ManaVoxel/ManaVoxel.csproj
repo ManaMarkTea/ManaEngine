@@ -67,19 +67,8 @@
     <!-- Live scans from the phone (ScanStream, colouring, the textured export): desktop only, where there is a
          network to listen on; the browser build leaves the LiveScan code out (MANA_BROWSER). -->
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <!-- Games in projects of their own; ManaGames.cs registers their level game modes. -->
-    <ProjectReference Include="..\Games\Foundry\Foundry.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\Foundry\Foundry.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\CodeScreensaver\CodeScreensaver.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <ProjectReference Include="..\Games\YachtJousting\YachtJousting.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\YachtJousting\YachtJousting.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\TrainYardWars\TrainYardWars.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <ProjectReference Include="..\Games\Runner\Runner.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\Runner\Runner.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
-    <ProjectReference Include="..\Games\Contour\Contour.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
-    <ProjectReference Include="..\Games\Contour\Contour.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <!-- Games live in their own repo, which references this project and registers them (ManaGames/). -->
+    <InternalsVisibleTo Include="ManaGames" />
   </ItemGroup>
 
 
@@ -87,7 +76,6 @@
     <Content Include="..\Content\**\*.manaui" LinkBase="Content">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="..\Games\*\Content\**\*.manaui" LinkBase="Games" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
