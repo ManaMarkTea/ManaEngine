@@ -30,6 +30,9 @@ namespace TargetPractice
         private const string GunAsset = "zip:kenney_space-kit.zip/Models/GLTF format/weapon_gun.glb";
         private const string GunArm = "arm-right";
 
+        // Metres a shot is aimed for when the crosshair is on nothing at all.
+        private const float DefaultRange = 30.0f;
+
         // In the arm's own units: the arm pivots at the shoulder and hangs 1 down its -Y; its front (+Z) faces up when
         // raised, so the gun sits on top of the fist.
         private static readonly Vector3 Hand = new(-0.2f, -0.9f, 0.2f);
@@ -235,13 +238,21 @@ namespace TargetPractice
             {
                 exclude.UnionWith(TargetRange.Subtree(_player));
             }
-            var point = eye + look * 100.0f;
+            // How far the crosshair points decides how much the pea is lifted for its drop. It is what the ray meets, or
+            // nearer, a standing target the ray passes close by (one seen against the sky or a far wall); with neither,
+            // a usual range.
+            var distance = DefaultRange;
             var hit = ManaScenePicker.PickWithHit(_session.Context.World.Scenes, eye, look, exclude);
             if (hit != null)
             {
-                point = hit.Value.Position;
+                distance = Vector3.Distance(eye, hit.Value.Position);
             }
-            LaunchAt(point);
+            var near = _range?.RangeAlong(eye, look, TargetRange.DiscRadius + 1.5f);
+            if (near != null && near < distance)
+            {
+                distance = near.Value;
+            }
+            LaunchAt(eye + look * distance);
         }
 
         // Spits a pea from the gun at a point, lifted by the drop it will have on the way so it lands there.

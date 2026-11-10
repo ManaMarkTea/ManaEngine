@@ -72,6 +72,8 @@ public static class TargetPracticeChecks
         Check("a ball that goes by, wide, is a miss", !range.Sweep(new Vector3(-1.5f, 0, -9), new Vector3(-1.5f, 0, -11), r) && range.Down == 1);
         Check("so is one that stops short", !range.Sweep(new Vector3(0, 0, -5), new Vector3(0, 0, -9), r) && range.Down == 1);
         Check("a fast one is caught between its two frames", range.Sweep(new Vector3(0, 0, -2), new Vector3(0, 0, -30), r) && range.Down == 2);
+        Check("a ray passing near a target gives its range", range.RangeAlong(Vector3.Zero, Vector3.Normalize(new Vector3(4.5f, 0, -10)), 2.0f) is > 10.0f and < 11.5f);
+        Check("one passing far from every target gives none", range.RangeAlong(Vector3.Zero, Vector3.UnitY, 2.0f) == null);
 
         // ---------------------------------------------------------------- pop and reset
         var homeScale = left.Scale;

@@ -115,6 +115,29 @@ namespace TargetPractice
             return true;
         }
 
+        /// <summary>
+        /// How far along a ray the nearest standing target lies, if the ray passes within <paramref name="corridor"/>
+        /// metres of its centre: the range to aim a shot for when the crosshair is near a target but not on it.
+        /// </summary>
+        public float? RangeAlong(Vector3 eye, Vector3 look, float corridor)
+        {
+            float? nearest = null;
+            foreach (var target in _targets.Where(t => !t.Down))
+            {
+                var centre = target.Node.WorldTransform.Translation;
+                var along = Vector3.Dot(centre - eye, look);
+                if (along <= 0.0f || Vector3.Distance(centre, eye + look * along) > corridor)
+                {
+                    continue;
+                }
+                if (nearest == null || along < nearest)
+                {
+                    nearest = along;
+                }
+            }
+            return nearest;
+        }
+
         /// <summary>Half the width of a target's face, metres.</summary>
         public const float DiscRadius = 0.6f;
 
