@@ -61,6 +61,14 @@ namespace TargetPractice
         [Range(1.5, 10.0), Category("Camera")]
         public float CameraDistance { get; set; } = 4.0f;
 
+        /// <summary>The world's downward pull while playing, m/s squared; the engine's -64 is a platformer's, too snappy here.</summary>
+        [Range(5.0, 64.0), Category("Movement")]
+        public float Gravity { get; set; } = 24.0f;
+
+        /// <summary>How high a held jump goes, metres.</summary>
+        [Range(0.5, 4.0), Category("Movement")]
+        public float JumpHeight { get; set; } = 1.6f;
+
         public override bool WantsPlayerCharacter => true;
 
         // The host's coins-and-health HUD means nothing here; this game draws its own.
@@ -81,6 +89,8 @@ namespace TargetPractice
         private AimingArm? _aiming;
         private ManaSceneNode? _gun;
         private Vector3 _muzzle;
+        private Vector3 _savedGravity = ManaPhysics.DefaultGravity;
+        private float _savedJumpHeight;
 
         public override void BeginPlay(ManaPlaySession session)
         {
@@ -88,6 +98,8 @@ namespace TargetPractice
             _range = TargetRange.Find(session.Context.World, TargetPrefix, PopSeconds);
             _peas = new PeaShooter(session.Context);
             _shots = 0;
+            _savedGravity = session.Context.Physics.Gravity;
+            session.Context.Physics.Gravity = new Vector3(0.0f, -Gravity, 0.0f);
             _keyboard = session.Context.Input?.Keyboards.FirstOrDefault();
             if (_keyboard != null)
             {
@@ -113,8 +125,19 @@ namespace TargetPractice
                 LaunchAt(node.WorldTransform.Translation);
                 ManaLog.WriteDiagnostic($"Command file: target_shoot '{command.Name}' fired");
             });
+            // target_look [yaw, pitch] in degrees points the camera, as the mouse would.
+            session.Commands?.Register("target_look", command =>
+            {
+                if (_boom == null || command.Position == null || command.Position.Length < 2)
+                {
+                    return;
+                }
+                _boom.YawRadians = command.Position[0].ToRadians();
+                _boom.PitchRadians = Math.Clamp(command.Position[1], _boom.MinPitchDegrees, _boom.MaxPitchDegrees).ToRadians();
+                ManaLog.WriteDiagnostic($"Command file: target_look camera at {_boom.CameraPosition}, arm {_boom.CurrentArmLength:F2}");
+            });
             session.Commands?.Register("target_log", _ =>
-                ManaLog.WriteDiagnostic($"Command file: targets {_range?.Down}/{_range?.Total}, shots {_shots}, peas {_peas?.InFlight}, gun {_gun != null}, won {_range?.Won}, time {_range?.Time:F1}, standing [{string.Join(", ", _range?.Standing ?? Array.Empty<string>())}]"));
+                ManaLog.WriteDiagnostic($"Command file: targets {_range?.Down}/{_range?.Total}, shots {_shots}, peas {_peas?.InFlight}, gun {_gun != null}, won {_range?.Won}, time {_range?.Time:F1}, standing [{string.Join(", ", _range?.Standing ?? Array.Empty<string>())}], camera {_boom?.CameraPosition}, arm {_boom?.CurrentArmLength:F2}"));
         }
 
         public override void Tick(float deltaSeconds)
@@ -151,6 +174,10 @@ namespace TargetPractice
             TakeOff();
             _peas?.Dispose();
             _peas = null;
+            if (_session != null)
+            {
+                _session.Context.Physics.Gravity = _savedGravity;
+            }
             _range?.Reset();
             _range = null;
             _session = null;
@@ -307,8 +334,10 @@ namespace TargetPractice
                 // An action game's mouse: the view always follows it, the pointer held.
                 _boom.ActionLook = true;
             }
+            _savedJumpHeight = player.JumpHeight;
+            player.JumpHeight = JumpHeight;
 
-            var arm = TargetRange.Subtree(player).FirstOrDefault(n => n.Name == GunArm);
+            var arm =TargetRange.Subtree(player).FirstOrDefault(n => n.Name == GunArm);
             if (arm == null)
             {
                 return;
@@ -352,6 +381,10 @@ namespace TargetPractice
                 _boom.SocketOffset = _boomSocket;
                 _boom.ActionLook = false;
                 _boom = null;
+            }
+            if (_player != null)
+            {
+                _player.JumpHeight = _savedJumpHeight;
             }
             _player = null;
         }

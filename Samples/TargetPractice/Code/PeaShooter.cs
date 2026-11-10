@@ -12,11 +12,8 @@ namespace TargetPractice
         public const float Lifetime = 6.0f;
         public const int MaximumPeas = 40;
 
-        // The world's gravity (-64) is a platformer's; a pea feels this share of it: an arc, but a flat one, so a shot goes near where it is aimed.
-        private const float GravityShare = 0.12f;
-
-        /// <summary>The downward pull on a pea, m/s squared.</summary>
-        public static float EffectiveGravity => 64.0f * GravityShare;
+        /// <summary>The downward pull on a pea, m/s squared, whatever the world's: an arc, but a flat one, so a shot goes near where it is aimed.</summary>
+        public const float EffectiveGravity = 7.5f;
 
         private sealed class Pea
         {
@@ -57,7 +54,9 @@ namespace TargetPractice
             node.Components.Add(new MeshRendererComponent(node, _mesh));
             _scene.Children.Add(node);
             node.UpdateTransform();
-            var body = _context.Physics.AddDynamicSphereBody(node, Radius, 0.02f, Vector3.Normalize(direction) * Speed);
+            // Lifted for the first step too, which the world's full gravity takes before Tick first sees the pea.
+            var velocity = Vector3.Normalize(direction) * Speed + Vector3.UnitY * Lift(1.0f / 60.0f);
+            var body = _context.Physics.AddDynamicSphereBody(node, Radius, 0.02f, velocity);
             _peas.Add(new Pea { Node = node, Body = body, Last = origin });
         }
 
@@ -92,7 +91,7 @@ namespace TargetPractice
                 }
                 pea.Last = position;
                 var velocity = body.Velocity;
-                velocity.Linear.Y += -_context.Physics.Gravity.Y * (1.0f - GravityShare) * step;
+                velocity.Linear.Y += Lift(step);
                 body.Velocity = velocity;
                 if (pea.Age > Lifetime || position.Y < -50.0f)
                 {
@@ -100,6 +99,9 @@ namespace TargetPractice
                 }
             }
         }
+
+        // The upward speed a step takes back of the world's gravity, leaving the pea its own.
+        private float Lift(float step) => (-_context.Physics.Gravity.Y - EffectiveGravity) * step;
 
         public void Clear()
         {

@@ -155,6 +155,25 @@ public static class TargetPracticeChecks
         }
         Check("a pea aimed at a target knocks it down", course.Won);
         Check("and is used up", shooter.InFlight == 0);
+
+        // The mode lightens the world; a pea still falls by its own gravity, and a dropped ball by the new one.
+        physicsContext.Physics.Gravity = new Vector3(0, -24, 0);
+        shooter.Fire(new Vector3(0, 20, 0), new Vector3(1, 0, 0));
+        var ball = new ManaSceneNode(physicsContext, Matrix4x4.CreateTranslation(50, 20, 0)) { Name = "Ball" };
+        physicsContext.World.DefaultScene.Children.Add(ball);
+        ball.UpdateTransform();
+        var ballBody = physicsContext.Physics.AddDynamicSphereBody(ball, 0.1f, 1.0f, Vector3.Zero);
+        for (var frame = 0; frame < 30; frame++)
+        {
+            physicsContext.Physics.Simulation.Timestep(dt, physicsContext.Physics.ThreadDispatcher);
+            shooter.Tick(dt, field);
+        }
+        var peaDrop = 20.0f - shooter.Positions.First().Y;
+        var ballDrop = 20.0f - physicsContext.Physics.Simulation.Bodies[ballBody].Pose.Position.Y;
+        Check("a pea falls by its own gravity in a lighter world", Math.Abs(peaDrop - 0.5f * PeaShooter.EffectiveGravity * 0.25f) < 0.15f, peaDrop.ToString());
+        Check("and setting the world's gravity reaches the simulation", Math.Abs(ballDrop - 0.5f * 24.0f * 0.25f) < 0.3f, ballDrop.ToString());
+        physicsContext.Physics.Gravity = ManaPhysics.DefaultGravity;
+        shooter.Clear();
         shooter.Dispose();
         Check("disposing takes the pea scene out of the world", !physicsContext.World.Scenes.Any(sc => sc.Name == "Peas"));
 

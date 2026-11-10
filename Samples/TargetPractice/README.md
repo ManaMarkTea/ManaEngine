@@ -14,13 +14,13 @@ It also runs in the browser build (`ManaEditor.Web`), where the level is in the 
 
 | | |
 |---|---|
-| `Code/TargetPracticeMode.cs` | The **level game mode**: input, the over-the-shoulder camera, the gun, the HUD, a script command. A level lists it under `gameModes`; the editor, `--play` and the browser all run it the same way (`BeginPlay`, `Tick`, `EndPlay`). Its public properties (`TargetPrefix`, `PopSeconds`, `ShoulderOffset`, `CameraDistance`) are settings the level saves and the Inspector shows. |
+| `Code/TargetPracticeMode.cs` | The **level game mode**: input, the over-the-shoulder camera, the gun, the HUD, a script command. A level lists it under `gameModes`; the editor, `--play` and the browser all run it the same way (`BeginPlay`, `Tick`, `EndPlay`). Its public properties (`TargetPrefix`, `PopSeconds`, `ShoulderOffset`, `CameraDistance`, `Gravity`, `JumpHeight`) are settings the level saves and the Inspector shows; gravity and jump height are set for play and put back after. |
 | `Code/TargetRange.cs` | The **rules**, with no window or input: which nodes are targets, what a passing pea knocks down, the pop, the reset, the clock. Kept apart so `ManaTests` can play it. |
 | `Code/PeaShooter.cs` | The **peas**: each a ball in the physics world, fired at 45 m/s, arcing, bouncing off the scenery, used up by a target. |
 | `Code/AimingArm.cs` | A **component on the character** that turns it to the camera's heading and raises its gun arm along the aim, after the walk animation has posed it. |
 | `Content/Levels/Target Practice.manalevel` | The **content**: a floor, a wall, crates, pillars and ten targets. A target is any node named `Target ...` (here a group of three discs and a post), so adding one is Add > Group in the editor and a rename. |
 | `ManaTests/Code/TargetPractice/` | Checks for the rules, the mode's saved settings, and the level. |
-| `Tools/Automation/Checks/target-practice.json` | An in-app check: plays the level and shoots every target by script (`target_shoot`, `target_log`). |
+| `Tools/Automation/Checks/target-practice.json` | An in-app check: plays the level and shoots every target by script (`target_shoot`, `target_log`; `target_look` [yaw, pitch] points the camera). |
 
 ## How it fits the engine
 

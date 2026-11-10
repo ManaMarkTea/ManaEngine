@@ -21,7 +21,24 @@ namespace Mana.Code
 
         // The value handed to the pose integrator. Exposed because a character controller has to know
         // it to shape a jump arc -- Mario-style falling applies extra gravity on top of this.
-        public Vector3 Gravity { get; }
+        // Settable so a level's game mode can change it for its play (and put it back after).
+        public Vector3 Gravity
+        {
+            get => _gravity;
+            set
+            {
+                _gravity = value;
+                if (Simulation?.PoseIntegrator is PoseIntegrator<DemoPoseIntegratorCallbacks> integrator)
+                {
+                    integrator.Callbacks.Gravity = value;
+                }
+            }
+        }
+
+        private Vector3 _gravity;
+
+        /// <summary>The engine's own gravity, m/s squared: a platformer's, heavier than Earth's for snappy jumps.</summary>
+        public static readonly Vector3 DefaultGravity = new(0, -64, 0);
 
         /// <summary>The length of the step <see cref="Update"/> last took, seconds (frame time, clamped); 0 before the first.</summary>
         public float LastTimestep { get; private set; }
@@ -32,7 +49,7 @@ namespace Mana.Code
         public ManaPhysics(ManaContext context) : base(context)
         {
             BufferPool = new BufferPool();
-            Gravity = new Vector3(0, -64, 0);
+            Gravity = DefaultGravity;
             
             var targetThreadCount = int.Max(1, Environment.ProcessorCount > 4 ? Environment.ProcessorCount - 2 : Environment.ProcessorCount - 1);
             ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
