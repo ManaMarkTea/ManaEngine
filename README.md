@@ -53,6 +53,6 @@ Notable bundled material with recorded terms:
 - Third-party libraries retain the licenses of their respective packages; see each package's distribution for its
   applicable terms.
 - Desktop image decoding and encoding use StbImageSharp and StbImageWriteSharp (ports of stb_image; public domain /
-  MIT). ImageSharp was removed because its license is not free for every use.
+  MIT).
 
 Assets without an individual notice are original work by the author or CC0.
