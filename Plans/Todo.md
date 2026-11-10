@@ -25,5 +25,4 @@ What is still to do in the engine. Finished work, with notes on how it was built
 [ ] - Imported scenes (Bistro): persist reparenting, duplication and authored nodes nested inside imported parts; improve
     the lighting against the ORCA references.
 
-[ ] - Other platforms: the iPhone/iPad host and a macOS check of the web build; make the Algma paper a link in the README
-    once there is a URL.
+[ ] - Other platforms: the iPhone/iPad host and a macOS check of the web build.

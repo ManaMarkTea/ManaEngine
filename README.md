@@ -48,6 +48,8 @@ Notable bundled material with recorded terms:
 - Antonio and Barlow Condensed fonts include their SIL Open Font Licenses in their font folders.
 - The atmosphere shader includes Sebastian Lague's MIT notice. The liquid-fill shader credits Mirza Beig and records
   the author's reuse permission in the shader file.
+- The ambient occlusion shader implements the visibility bitmask of Therrien, Levesque and Gilet,
+  [Screen Space Indirect Lighting with Visibility Bitmask](https://arxiv.org/abs/2301.11376) (2023).
 - Poly Haven environment images are CC0; the moon texture is from NASA's public-domain CGI Moon Kit.
 - Natural Earth data (`Assets/GeoData/`, and the planet's coarse start grid `Assets/Planet/baseline.tif` made from it by `Tools/Planet/make_baseline.py`) is public domain. Planet detail streams from Terrarium tiles at run time.
 - Third-party libraries retain the licenses of their respective packages; see each package's distribution for its

@@ -2,7 +2,7 @@
 // visibility bitmask of Therrien, Levesque and Gilet, "Screen Space Indirect Lighting with Visibility Bitmask" (2023):
 // GTAO's slices and horizon march, but each depth sample is a surface of fixed thickness that hides only the sectors
 // (32 a slice) between its front and back, so light passes behind thin things -- chair legs, a table's edge -- rather
-// than everything behind them reading as solid. Out: occlusion in r (1 = open), for ssao_blur.wgsl.
+// than everything behind them reading as solid (https://arxiv.org/abs/2301.11376). Out: occlusion in r (1 = open), for ssao_blur.wgsl.
 
 struct AoParams {
     projection : mat4x4<f32>,
