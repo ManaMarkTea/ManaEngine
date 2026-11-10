@@ -152,11 +152,11 @@ namespace TargetPractice
                     return;
                 }
                 // Led: aimed where a moving one will be when the pea gets there (twice, as the lead changes the distance).
-                var aim = node.WorldTransform.Translation;
+                var aim = _range!.CentreOf(node);
                 for (var pass = 0; pass < 2; pass++)
                 {
                     var flight = Vector3.Distance(Muzzle(), aim) / PeaShooter.Speed;
-                    aim = node.WorldTransform.Translation + _range!.VelocityOf(node) * flight;
+                    aim = _range.CentreOf(node) + _range.VelocityOf(node) * flight;
                 }
                 LaunchAt(aim);
                 ManaLog.WriteDiagnostic($"Command file: target_shoot '{command.Name}' fired");
@@ -299,7 +299,7 @@ namespace TargetPractice
             }
             foreach (var node in _range.Nodes)
             {
-                ManaPixelFxSpawner.Spawn(_peas.Effects, WinEffect, node.WorldTransform.Translation + new Vector3(0.0f, 1.5f, 0.0f), scale: 1.5f);
+                ManaPixelFxSpawner.Spawn(_peas.Effects, WinEffect, _range.CentreOf(node) + new Vector3(0.0f, 1.5f, 0.0f), scale: 1.5f);
             }
         }
 

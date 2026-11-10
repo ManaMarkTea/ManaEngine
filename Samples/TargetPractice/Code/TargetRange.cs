@@ -14,6 +14,11 @@ namespace TargetPractice
             public required Vector3 HomeScale { get; init; }
             public required List<MeshRendererComponent> Renderers { get; init; }
 
+            /// <summary>The part whose middle a shot must reach: its Bullseye, so a target on a post can have its origin at the post's foot.</summary>
+            public required ManaSceneNode Face { get; init; }
+
+            public Vector3 Centre => Face.WorldTransform.Translation;
+
             /// <summary>Where it was at the last tick, and how fast it is going (a Moving Target glides).</summary>
             public Vector3? Last { get; set; }
 
@@ -51,6 +56,12 @@ namespace TargetPractice
         public IEnumerable<ManaSceneNode> Nodes => _targets.Select(t => t.Node);
 
         /// <summary>How fast a target is moving, metres a second, as of the last tick: zero for one that stands still.</summary>
+        /// <summary>The middle of a target's face (its Bullseye part, or the node itself), where a shot aims.</summary>
+        public Vector3 CentreOf(ManaSceneNode node) => _targets.FirstOrDefault(t => t.Node == node)?.Centre ?? node.WorldTransform.Translation;
+
+        /// <summary>The part of a target that marks the middle of its face.</summary>
+        public const string FacePart = "Bullseye";
+
         public Vector3 VelocityOf(ManaSceneNode node) => _targets.FirstOrDefault(t => t.Node == node)?.Velocity ?? Vector3.Zero;
 
         /// <summary>The standing target called <paramref name="name"/>, or null.</summary>
@@ -69,7 +80,8 @@ namespace TargetPractice
                     {
                         Node = node,
                         HomeScale = node.Scale,
-                        Renderers = Subtree(node).SelectMany(n => n.Components.OfType<MeshRendererComponent>()).ToList()
+                        Renderers = Subtree(node).SelectMany(n => n.Components.OfType<MeshRendererComponent>()).ToList(),
+                        Face = Subtree(node).FirstOrDefault(n => n.Name == FacePart) ?? node
                     });
                     return;
                 }
@@ -102,7 +114,7 @@ namespace TargetPractice
             var bestDistance = float.MaxValue;
             foreach (var target in _targets.Where(t => !t.Down))
             {
-                var centre = target.Node.WorldTransform.Translation;
+                var centre = target.Centre;
                 var along = to - from;
                 var length = along.LengthSquared();
                 var t = 0.0f;
@@ -135,7 +147,7 @@ namespace TargetPractice
             float? nearest = null;
             foreach (var target in _targets.Where(t => !t.Down))
             {
-                var centre = target.Node.WorldTransform.Translation;
+                var centre = target.Centre;
                 var along = Vector3.Dot(centre - eye, look);
                 if (along <= 0.0f || Vector3.Distance(centre, eye + look * along) > corridor)
                 {
@@ -161,7 +173,7 @@ namespace TargetPractice
             }
             foreach (var target in _targets)
             {
-                var now = target.Node.WorldTransform.Translation;
+                var now = target.Centre;
                 if (target.Last is { } last && deltaSeconds > 0.0f)
                 {
                     target.Velocity = (now - last) / deltaSeconds;

@@ -17,11 +17,12 @@ As much of the game as can be is content, edited in the editor rather than in co
 
 | File | What it is |
 |---|---|
-| `Content/Levels/Target Practice.manalevel` | The level: floor, walls, pillars, trees, and prefab instances -- ten targets, one moving target, three crates. A `HUD` node carries the UiCanvas script, a `Sounds` node the music and the win fanfare. |
+| `Content/Levels/Target Practice.manalevel` | The level: floor, walls, pillars, trees, and prefab instances -- ten targets, one moving target, three crates, fence runs. A `HUD` node carries the UiCanvas script, a `Sounds` node the music and the win fanfare. |
 | `Content/Prefabs/Target Practice/Target.manaprefab` | A target: three discs and an `AudioSource` on the `EnemyDefeat` cue (its hit sound). Ring and bullseye colours are exposed properties, so each instance can be recoloured. |
-| `.../Target On Post.manaprefab` | The same on a post, for the crates and pillars. |
+| `.../Target On Post.manaprefab` | The same on a post, its origin at the post's foot so an instance stands on whatever it is placed on (a crate's lid, a pillar's top). A shot aims at a target's `Bullseye` part, not its origin. |
 | `.../Moving Target.manaprefab` | A **variant** of Target: it adds a `Motion` script (gliding side to side) and follows every later change to Target. |
-| `.../Crate.manaprefab` | Kenney's pirate crate, sized and given a collider -- peas bounce off it, the character stands on it. |
+| `.../Crate.manaprefab` | A closed box from Kenney's survival kit, 1.4 m, with a collider -- peas bounce off it, the character stands on it. |
+| `.../Fence Run.manaprefab` | 10 m of Kenney's wooden fence (five sections, each with a collider); the level's three fences are rows of these. |
 | `.../Pea Shooter.manaprefab` | The gun: its grip at the origin, barrel along -Z, a `Muzzle` node where peas leave, an `AudioSource` on the `Shoot` cue. |
 | `.../Pea.manaprefab` | What a pea looks like (a glowing green ball); its physics is the game's. |
 | `Content/UI/Target Practice HUD.manaui` | The HUD layout -- score card, progress bar, crosshair, win banner, controls -- bound to `TargetPracticeHud` (MVVM). Open it in Panels > UI Designer. |

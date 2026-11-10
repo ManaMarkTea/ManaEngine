@@ -18,11 +18,11 @@
       0
     ],
     "scale": [
-      1.8,
-      1.8,
-      1.8
+      5.6,
+      5.6,
+      5.6
     ],
-    "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate.glb",
+    "asset": "zip:kenney_survival-kit.zip/Models/GLB format/box.glb",
     "collision": {
       "useVisualBounds": true
     }

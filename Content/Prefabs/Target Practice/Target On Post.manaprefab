@@ -29,7 +29,7 @@
         "kind": "Shape",
         "position": [
           0,
-          0,
+          1.6,
           0
         ],
         "rotation": [
@@ -61,7 +61,7 @@
         "kind": "Shape",
         "position": [
           0,
-          0,
+          1.6,
           0.03
         ],
         "rotation": [
@@ -93,7 +93,7 @@
         "kind": "Shape",
         "position": [
           0,
-          0,
+          1.6,
           0.05
         ],
         "rotation": [
@@ -125,7 +125,7 @@
         "kind": "Shape",
         "position": [
           0,
-          -1.1,
+          0.5,
           -0.05
         ],
         "rotation": [

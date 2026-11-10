@@ -1,0 +1,149 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "45f6656e0efe423fac9f717d54f881e0",
+  "name": "Fence Run",
+  "root": {
+    "id": "e1be5aca5d9542c9a9f0b9fe72577304",
+    "name": "Fence Run",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "628e4da96d4e40b39723c04474dd30f7",
+        "name": "Section 1",
+        "kind": "Mesh",
+        "position": [
+          -4,
+          0,
+          1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ],
+        "asset": "Assets/Models/Kenny/fence.glb",
+        "collision": {
+          "useVisualBounds": true
+        }
+      },
+      {
+        "id": "92aaa0da12fd4a9f99c1cbd7de3b4a72",
+        "name": "Section 2",
+        "kind": "Mesh",
+        "position": [
+          -2,
+          0,
+          1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ],
+        "asset": "Assets/Models/Kenny/fence.glb",
+        "collision": {
+          "useVisualBounds": true
+        }
+      },
+      {
+        "id": "1392a74eed3942daabcbc4af71fc1304",
+        "name": "Section 3",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ],
+        "asset": "Assets/Models/Kenny/fence.glb",
+        "collision": {
+          "useVisualBounds": true
+        }
+      },
+      {
+        "id": "84dd06c6d6bb4cc4a7b73dc7a11ec52a",
+        "name": "Section 4",
+        "kind": "Mesh",
+        "position": [
+          2,
+          0,
+          1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ],
+        "asset": "Assets/Models/Kenny/fence.glb",
+        "collision": {
+          "useVisualBounds": true
+        }
+      },
+      {
+        "id": "59dfcc6373ff4d2e83ca6bd30f309c2c",
+        "name": "Section 5",
+        "kind": "Mesh",
+        "position": [
+          4,
+          0,
+          1.0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          2,
+          2,
+          2
+        ],
+        "asset": "Assets/Models/Kenny/fence.glb",
+        "collision": {
+          "useVisualBounds": true
+        }
+      }
+    ]
+  },
+  "properties": []
+}
