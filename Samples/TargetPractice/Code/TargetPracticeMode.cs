@@ -91,6 +91,7 @@ namespace TargetPractice
         private Vector3 _muzzle;
         private Vector3 _savedGravity = ManaPhysics.DefaultGravity;
         private float _savedJumpHeight;
+        private (float Yaw, float Pitch, int Frames)? _lookGlide;
 
         public override void BeginPlay(ManaPlaySession session)
         {
@@ -132,8 +133,16 @@ namespace TargetPractice
                 {
                     return;
                 }
-                _boom.YawRadians = command.Position[0].ToRadians();
-                _boom.PitchRadians = Math.Clamp(command.Position[1], _boom.MinPitchDegrees, _boom.MaxPitchDegrees).ToRadians();
+                var yaw = command.Position[0].ToRadians();
+                var pitch = Math.Clamp(command.Position[1], _boom.MinPitchDegrees, _boom.MaxPitchDegrees).ToRadians();
+                if (command.Frames > 0)
+                {
+                    // Glides there a frame at a time, as a moving mouse would.
+                    _lookGlide = (yaw, pitch, command.Frames);
+                    return;
+                }
+                _boom.YawRadians = yaw;
+                _boom.PitchRadians = pitch;
                 ManaLog.WriteDiagnostic($"Command file: target_look camera at {_boom.CameraPosition}, arm {_boom.CurrentArmLength:F2}");
             });
             session.Commands?.Register("target_log", _ =>
@@ -152,6 +161,16 @@ namespace TargetPractice
                 // The host spawns the character after the modes begin (and again on a respawn), so the kit waits for it.
                 TakeOff();
                 Equip(player);
+            }
+            if (_lookGlide is var (yaw, pitch, frames) && _boom != null)
+            {
+                _boom.YawRadians += (yaw - _boom.YawRadians) / frames;
+                _boom.PitchRadians += (pitch - _boom.PitchRadians) / frames;
+                _lookGlide = null;
+                if (frames > 1)
+                {
+                    _lookGlide = (yaw, pitch, frames - 1);
+                }
             }
             Aim();
             _range.Tick(deltaSeconds);

@@ -139,6 +139,10 @@ public static class PawnCameraControlChecks
         var grazing = CameraHeightLookingUp(25.0f, 1.5f);
         Check("looking up, the camera stays clear of the floor it meets at a grazing angle",
             grazing > 0.35f, $"camera at y {grazing}");
+        // Just before the floor comes within the arm's length the camera hung on the surface (about 21 degrees here).
+        var lowest = Enumerable.Range(0, 71).Select(degrees => (degrees, height: CameraHeightLookingUp(degrees, 1.5f))).MinBy(p => p.height);
+        Check("at every pitch on the way up, the camera keeps clear of the floor",
+            lowest.height > 0.35f, $"lowest y {lowest.height} at {lowest.degrees} degrees");
         var steep = CameraHeightLookingUp(70.0f, 0.5f);
         Check("and comes in closer than its minimum length rather than going through the floor",
             steep > 0.15f, $"camera at y {steep}");

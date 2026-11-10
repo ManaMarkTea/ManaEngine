@@ -20,7 +20,7 @@ It also runs in the browser build (`ManaEditor.Web`), where the level is in the 
 | `Code/AimingArm.cs` | A **component on the character** that turns it to the camera's heading and raises its gun arm along the aim, after the walk animation has posed it. |
 | `Content/Levels/Target Practice.manalevel` | The **content**: a floor, a wall, crates, pillars and ten targets. A target is any node named `Target ...` (here a group of three discs and a post), so adding one is Add > Group in the editor and a rename. |
 | `ManaTests/Code/TargetPractice/` | Checks for the rules, the mode's saved settings, and the level. |
-| `Tools/Automation/Checks/target-practice.json` | An in-app check: plays the level and shoots every target by script (`target_shoot`, `target_log`; `target_look` [yaw, pitch] points the camera). |
+| `Tools/Automation/Checks/target-practice.json` | An in-app check: plays the level and shoots every target by script (`target_shoot`, `target_log`; `target_look` [yaw, pitch] points the camera, gliding over `frames` if given). |
 
 ## How it fits the engine
 

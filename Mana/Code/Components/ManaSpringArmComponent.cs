@@ -227,6 +227,9 @@ namespace Mana
         // How close something in the way may pull the camera in, metres: about the head's own size, inside the socket.
         private const float MinimumProbedLength = 0.2f;
 
+        // Grazing hits count as this square-on, so the buffer along the ray stays bounded (ProbeBuffer / this).
+        private const float MinimumFacing = 0.2f;
+
         private float ProbeArmLength(Vector3 socket, Vector3 forward, float desiredLength)
         {
             var simulation = Context.Physics.Simulation;
@@ -238,7 +241,9 @@ namespace Mana
                 ? new ExcludeBodyRayHandler(IgnoreBody.Handle)
                 : new ExcludeBodyRayHandler(new BepuPhysics.BodyHandle(-1));
 
-            simulation.RayCast(socket, direction, desiredLength, Context.Physics.BufferPool, ref handler, 0);
+            // Cast past the camera by the most the buffer can ask for: a surface just beyond the arm's end still
+            // needs the camera pulled in, or a grazing floor sat right on the lens until it came within reach.
+            simulation.RayCast(socket, direction, desiredLength + ProbeBuffer / MinimumFacing, Context.Physics.BufferPool, ref handler, 0);
 
             if (!handler.Hit)
             {
@@ -248,7 +253,7 @@ namespace Mana
             // The buffer is kept off the surface, not along the ray: looking up, the arm meets the floor at a grazing
             // angle, and the same distance along it left the camera inside the near plane, showing through the floor.
             var normal = handler.Normal.LengthSquared() > 1e-8f ? Vector3.Normalize(handler.Normal) : Vector3.UnitY;
-            var facing = MathF.Max(MathF.Abs(Vector3.Dot(direction, normal)), 0.2f);
+            var facing = MathF.Max(MathF.Abs(Vector3.Dot(direction, normal)), MinimumFacing);
             var clear = handler.Distance - ProbeBuffer / facing;
 
             // Shorter than MinArmLength if that is all the room there is: held out at the minimum, it went through.
