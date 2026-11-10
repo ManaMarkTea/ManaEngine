@@ -1,7 +1,7 @@
 # Target Practice
 
-The engine's sample game: walk about a small level and shoot the targets. Click (or press F) to fire at the pointer;
-R starts over, Esc quits. It is small on purpose, and a template for a game of your own.
+The engine's sample game: walk about a small level and shoot the targets with a pea shooter. The camera sits over
+the character's right shoulder; click (or press F) to fire at the crosshair, right-drag to aim. R starts over, Esc quits. It is small on purpose, and a template for a game of your own.
 
 ```sh
 dotnet run --project ManaEditor -- --play "Content/Levels/Target Practice.manalevel"   # the game, on its own
@@ -14,8 +14,10 @@ It also runs in the browser build (`ManaEditor.Web`), where the level is in the 
 
 | | |
 |---|---|
-| `Code/TargetPracticeMode.cs` | The **level game mode**: input, the camera ray, the HUD, a script command. A level lists it under `gameModes`; the editor, `--play` and the browser all run it the same way (`BeginPlay`, `Tick`, `EndPlay`). Its public properties (`TargetPrefix`, `PopSeconds`) are settings the level saves and the Inspector shows. |
-| `Code/TargetRange.cs` | The **rules**, with no window or input: which nodes are targets, what a shot knocks down, the pop, the reset, the clock. Kept apart so `ManaTests` can play it with a ray. |
+| `Code/TargetPracticeMode.cs` | The **level game mode**: input, the over-the-shoulder camera, the gun, the HUD, a script command. A level lists it under `gameModes`; the editor, `--play` and the browser all run it the same way (`BeginPlay`, `Tick`, `EndPlay`). Its public properties (`TargetPrefix`, `PopSeconds`, `ShoulderOffset`, `CameraDistance`) are settings the level saves and the Inspector shows. |
+| `Code/TargetRange.cs` | The **rules**, with no window or input: which nodes are targets, what a passing pea knocks down, the pop, the reset, the clock. Kept apart so `ManaTests` can play it. |
+| `Code/PeaShooter.cs` | The **peas**: each a ball in the physics world, fired at 45 m/s, arcing, bouncing off the scenery, used up by a target. |
+| `Code/AimingArm.cs` | A **component on the character** that turns it to the camera's heading and raises its gun arm along the aim, after the walk animation has posed it. |
 | `Content/Levels/Target Practice.manalevel` | The **content**: a floor, a wall, crates, pillars and ten targets. A target is any node named `Target ...` (here a group of three discs and a post), so adding one is Add > Group in the editor and a rename. |
 | `ManaTests/Code/TargetPractice/` | Checks for the rules, the mode's saved settings, and the level. |
 | `Tools/Automation/Checks/target-practice.json` | An in-app check: plays the level and shoots every target by script (`target_shoot`, `target_log`). |
@@ -27,9 +29,14 @@ It also runs in the browser build (`ManaEditor.Web`), where the level is in the 
   `ManaLevelGameModes.Register(...)` from its own app.
 - `WantsPlayerCharacter` asks the host for the character: spawned at the level's Player Start, walked with WASD and
   followed by the camera. `ShowsPlayHud` is off because this game draws its own HUD (`BuildHud`, ManaUI).
-- A shot is `ManaScenePicker.PickWithHit` from the camera through the pointer. It tests the meshes' triangles, so it works
-  on any node, with or without a collider; the player's own body is left out because the camera shoots through it.
-- Nothing a round does is saved: `EndPlay` puts every target back as the level had it.
+- A shot finds what is under the crosshair with `ManaScenePicker.PickWithHit` (it tests the meshes' triangles, so it
+  works on any node, with or without a collider) and fires a pea from the gun at it, aimed a little high for the drop.
+  The pea is a real body (`ManaPhysics.AddDynamicSphereBody`, continuous so it cannot step through a thin wall); what it
+  hits is decided by the segment it travelled each frame, so a target needs no collider either.
+- The gun is the `weapon_gun` model from the Kenney space kit, placed through `ManaModelLibrary` as a child of the
+  character's `arm-right` node, so it moves with the arm.
+- Nothing a round does is saved: `EndPlay` puts every target back as the level had it, removes the peas and the gun,
+  and gives the camera back its own distance.
 
 ## Making a game from it
 

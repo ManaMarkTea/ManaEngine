@@ -23,6 +23,9 @@ namespace Mana.Code
         // it to shape a jump arc -- Mario-style falling applies extra gravity on top of this.
         public Vector3 Gravity { get; }
 
+        /// <summary>The length of the step <see cref="Update"/> last took, seconds (frame time, clamped); 0 before the first.</summary>
+        public float LastTimestep { get; private set; }
+
         // Shared with the narrow phase so character capsules can get their own contact material.
         public ManaCharacterRegistry Characters { get; } = new();
 
@@ -191,6 +194,37 @@ namespace Mana.Code
             }
         }
 
+        /// <summary>
+        /// A free-moving ball that drives <paramref name="node"/> (a projectile). Continuous, so a fast one is stopped by a
+        /// thin floor or fence rather than stepping through it between two frames. Remove it with <see cref="RemoveBody"/>.
+        /// </summary>
+        public BodyHandle AddDynamicSphereBody(ManaSceneNode node, float radius, float mass, Vector3 linearVelocity)
+        {
+            var sphere = new Sphere(radius);
+            var shapeIndex = Simulation.Shapes.Add(sphere);
+            var body = BodyDescription.CreateDynamic(
+                ManaCollisionComponent.CreateBodyPose(node, Vector3.Zero),
+                new BodyVelocity(linearVelocity),
+                sphere.ComputeInertia(mass),
+                new CollidableDescription(shapeIndex, ContinuousDetection.Continuous()),
+                new BodyActivityDescription(0.01f));
+            var handle = Simulation.Bodies.Add(body);
+
+            var collision = new ManaCollisionComponent(node)
+            {
+                Shape = sphere,
+                ShapeIndex = shapeIndex,
+                Body = handle,
+                SyncNodeToPhysics = false
+            };
+            PhysicsMap[handle] = collision;
+            lock (Context.World.SceneLock)
+            {
+                node.Components.Add(collision);
+            }
+            return handle;
+        }
+
         public void RemoveBody(BodyHandle handle)
         {
             ManaCollisionComponent? removedCollision = null;
@@ -296,6 +330,7 @@ namespace Mana.Code
                 dtSeconds = Math.Clamp(dtSeconds, 1.0f / 240.0f, 1.0f / 30.0f);
             }
 
+            LastTimestep = dtSeconds;
             Simulation.Timestep(dtSeconds, ThreadDispatcher);
         }
 

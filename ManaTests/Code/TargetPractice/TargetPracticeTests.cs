@@ -12,8 +12,8 @@ using TargetPractice;
 namespace ManaTests;
 
 /// <summary>
-/// The sample game's rules without a window: which nodes are targets, what a shot knocks down, what stands in its way,
-/// the pop and the reset, winning, and that the editor knows the mode and the bundled level has what the game needs.
+/// The sample game's rules without a window: which nodes are targets, what a ball passing through knocks down, the pop
+/// and the reset, winning, peas flying and landing in the physics world, and that the editor knows the mode and the bundled level has what the game needs.
 /// </summary>
 public static class TargetPracticeChecks
 {
@@ -64,17 +64,14 @@ public static class TargetPracticeChecks
         Check("a node under a target is part of it, not another", !range.Standing.Contains("Target Marker Inside"));
         Check("another prefix finds other nodes", TargetRange.Find(world, "Wall", 0.2f).Total == 1);
 
-        // ---------------------------------------------------------------- shooting
-        var from = Vector3.Zero;
-        Check("a shot at a target knocks it down", range.Shoot(world, from, new Vector3(-3, 0, -10) / 10.440307f) && range.Down == 1);
+        // ---------------------------------------------------------------- a ball passing
+        var r = PeaShooter.Radius;
+        Check("a ball through a target's face knocks it down", range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) && range.Down == 1);
         Check("and it is no longer standing", !range.Standing.Contains("Target 1") && range.NodeOf("Target 1") == null);
-        Check("a second shot at it is nothing", !range.Shoot(world, from, new Vector3(-3, 0, -10) / 10.440307f) && range.Down == 1);
-        Check("a shot at the wall is a miss", !range.Shoot(world, from, new Vector3(8, 0, -10) / 12.806249f) && range.Down == 1);
-        Check("a shot at nothing is a miss", !range.Shoot(world, from, Vector3.UnitY) && range.Down == 1);
-
-        var body = Box("Player", new Vector3(0, 0, -4), new Vector3(1, 2, 1));
-        Check("something in the way takes the shot", !range.Shoot(world, from, -Vector3.UnitZ) && range.Down == 1);
-        Check("unless it is the player's own body, shot through", range.Shoot(world, from, -Vector3.UnitZ, body) && range.Down == 2);
+        Check("a second ball through it is nothing", !range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) && range.Down == 1);
+        Check("a ball that goes by, wide, is a miss", !range.Sweep(new Vector3(-1.5f, 0, -9), new Vector3(-1.5f, 0, -11), r) && range.Down == 1);
+        Check("so is one that stops short", !range.Sweep(new Vector3(0, 0, -5), new Vector3(0, 0, -9), r) && range.Down == 1);
+        Check("a fast one is caught between its two frames", range.Sweep(new Vector3(0, 0, -2), new Vector3(0, 0, -30), r) && range.Down == 2);
 
         // ---------------------------------------------------------------- pop and reset
         var homeScale = left.Scale;
@@ -84,7 +81,6 @@ public static class TargetPracticeChecks
         range.Tick(0.2f);
         var ring = left.Children[0].Components.OfType<MeshRendererComponent>().First();
         Check("then it goes out of sight", !ring.IsVisible);
-        Check("and a shot where it was meets the wall, not it", !range.Shoot(world, from, new Vector3(-3, 0, -10) / 10.440307f) && range.Down == 2);
 
         Check("the clock runs while targets stand", range.Time > 0.29f && range.Time < 0.31f, range.Time.ToString());
         range.Reset();
@@ -93,18 +89,72 @@ public static class TargetPracticeChecks
         Check("and the clock is at nothing", range.Time == 0.0f);
 
         // ---------------------------------------------------------------- winning
-        range.Shoot(world, from, new Vector3(-3, 0, -10) / 10.440307f);
-        range.Shoot(world, from, new Vector3(3, 0, -10) / 10.440307f);
+        range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r);
+        range.Sweep(new Vector3(3, 0, -9), new Vector3(3, 0, -11), r);
         Check("two down is not a win", !range.Won);
         range.Tick(0.5f);
-        range.Shoot(world, from, Vector3.Normalize(new Vector3(0, 0, -10)), body);
+        range.Sweep(new Vector3(0, 0, -9), new Vector3(0, 0, -11), r);
         Check("the last one down is", range.Won && range.Down == 3);
         range.Tick(1.0f);
         var stopped = range.Time;
         range.Tick(1.0f);
         Check("the clock stops when you win", stopped > 0.4f && range.Time == stopped, $"{stopped} then {range.Time}");
-        Check("and there is nothing left to hit", !range.Shoot(world, from, -Vector3.UnitZ, body));
+        Check("and there is nothing left to hit", !range.Sweep(new Vector3(0, 0, -9), new Vector3(0, 0, -11), r));
         Check("a level with no targets is never won", !TargetRange.Find(world, "Nothing Called This", 0.2f).Won);
+
+        // ---------------------------------------------------------------- peas, in the physics world
+        var physicsContext = new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true };
+        physicsContext.World.Context = physicsContext;
+        physicsContext.World.DefaultScene = new ManaScene(physicsContext) { Name = "Default Scene" };
+        physicsContext.World.Scenes.Add(physicsContext.World.DefaultScene);
+        physicsContext.Physics = new ManaPhysics(physicsContext);
+        var floor = new ManaSceneNode(physicsContext, Matrix4x4.CreateTranslation(0, -0.1f, 0)) { Name = "Floor" };
+        physicsContext.World.DefaultScene.Children.Add(floor);
+        floor.UpdateTransform();
+        physicsContext.Physics.AddBoxBody(floor, new Vector3(1000, 0.2f, 1000), Vector3.Zero);
+
+        var field = TargetRange.Find(physicsContext.World, "Nothing", 0.2f);
+        var shooter = new PeaShooter(physicsContext);
+        shooter.Fire(new Vector3(0, 1.5f, 0), new Vector3(0, 0, -1));
+        Check("a pea is in flight", shooter.InFlight == 1);
+        var dt = 1.0f / 60.0f;
+        for (var frame = 0; frame < 15; frame++)
+        {
+            physicsContext.Physics.Simulation.Timestep(dt, physicsContext.Physics.ThreadDispatcher);
+            shooter.Tick(dt, field);
+        }
+        var flying = shooter.Positions.First();
+        Check("it flies the way it was aimed, fast", flying.Z < -8.0f && Math.Abs(flying.X) < 0.01f, flying.ToString());
+        Check("and falls under gravity as it goes", flying.Y < 1.5f && flying.Y > 0.5f, flying.Y.ToString());
+        for (var frame = 0; frame < 120; frame++)
+        {
+            physicsContext.Physics.Simulation.Timestep(dt, physicsContext.Physics.ThreadDispatcher);
+            shooter.Tick(dt, field);
+        }
+        var landed = shooter.Positions.FirstOrDefault();
+        Check("the floor holds it up, not letting it through", shooter.InFlight == 1 && landed.Y > 0.05f && landed.Y < 0.3f, landed.ToString());
+        shooter.Fire(new Vector3(0, 1.5f, 0), new Vector3(0, 1, -1));
+        shooter.Fire(new Vector3(0, 1.5f, 0), new Vector3(0, 1, -1));
+        shooter.Clear();
+        Check("clearing takes them all out of the world", shooter.InFlight == 0 && physicsContext.Physics.PhysicsMap.Count == 1);
+
+        // Aimed at a target, a pea knocks it down and is used up.
+        var mark = new ManaSceneNode(physicsContext, Matrix4x4.CreateTranslation(0, 1.5f, -12)) { Name = "Target A" };
+        mark.Components.Add(new MeshRendererComponent(mark, new ManaCube(physicsContext, Vector4.One, Vector3.One)));
+        physicsContext.World.DefaultScene.Children.Add(mark);
+        mark.UpdateTransform();
+        var course = TargetRange.Find(physicsContext.World, "Target", 0.2f);
+        var lift = 0.5f * PeaShooter.EffectiveGravity * MathF.Pow(12.0f / PeaShooter.Speed, 2.0f);
+        shooter.Fire(new Vector3(0, 1.5f, 0), new Vector3(0, lift, -12));
+        for (var frame = 0; frame < 60 && course.Down == 0; frame++)
+        {
+            physicsContext.Physics.Simulation.Timestep(dt, physicsContext.Physics.ThreadDispatcher);
+            shooter.Tick(dt, course);
+        }
+        Check("a pea aimed at a target knocks it down", course.Won);
+        Check("and is used up", shooter.InFlight == 0);
+        shooter.Dispose();
+        Check("disposing takes the pea scene out of the world", !physicsContext.World.Scenes.Any(sc => sc.Name == "Peas"));
 
         // ---------------------------------------------------------------- the mode, and its level
         var definition = ManaLevelGameModes.Find(TargetPracticeMode.ModeType);

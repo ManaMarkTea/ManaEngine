@@ -78,42 +78,45 @@ namespace TargetPractice
         }
 
         /// <summary>
-        /// Fires along a ray: the first surface it meets is the shot's, and a standing target there goes down. Whatever is
-        /// under <paramref name="ignore"/> (the player's own body, which the camera shoots through) is not in the way.
+        /// A thrown ball's turn: the standing target nearest the segment it travelled this frame, if the ball (of
+        /// <paramref name="radius"/>) touched its face, goes down. A target is a disc about 1.2 m across.
         /// </summary>
-        public bool Shoot(ManaWorld world, Vector3 origin, Vector3 direction, ManaSceneNode? ignore = null)
+        public bool Sweep(Vector3 from, Vector3 to, float radius)
         {
             if (Won)
             {
                 return false;
             }
-            _started = true;
-            HashSet<ManaSceneNode>? exclude = null;
-            if (ignore != null)
+            Target? best = null;
+            var bestDistance = float.MaxValue;
+            foreach (var target in _targets.Where(t => !t.Down))
             {
-                exclude = new HashSet<ManaSceneNode>(Subtree(ignore));
+                var centre = target.Node.WorldTransform.Translation;
+                var along = to - from;
+                var length = along.LengthSquared();
+                var t = 0.0f;
+                if (length > 1e-8f)
+                {
+                    t = Math.Clamp(Vector3.Dot(centre - from, along) / length, 0.0f, 1.0f);
+                }
+                var distance = Vector3.Distance(centre, from + along * t);
+                if (distance <= DiscRadius + radius && distance < bestDistance)
+                {
+                    best = target;
+                    bestDistance = distance;
+                }
             }
-            var hit = ManaScenePicker.PickWithHit(world.Scenes, origin, direction, exclude);
-            if (hit == null)
+            if (best == null)
             {
                 return false;
             }
-            for (var node = hit.Value.Node; node != null; node = node.Parent)
-            {
-                var target = _targets.FirstOrDefault(t => t.Node == node);
-                if (target == null)
-                {
-                    continue;
-                }
-                if (target.Down)
-                {
-                    return false;
-                }
-                target.Age = 0.0f;
-                return true;
-            }
-            return false;
+            _started = true;
+            best.Age = 0.0f;
+            return true;
         }
+
+        /// <summary>Half the width of a target's face, metres.</summary>
+        public const float DiscRadius = 0.6f;
 
         /// <summary>Runs the clock and shrinks the targets that were hit; one that has finished goes out of sight.</summary>
         public void Tick(float deltaSeconds)
@@ -157,7 +160,7 @@ namespace TargetPractice
             _started = false;
         }
 
-        private static IEnumerable<ManaSceneNode> Subtree(ManaSceneNode root)
+        public static IEnumerable<ManaSceneNode> Subtree(ManaSceneNode root)
         {
             yield return root;
             foreach (var child in root.Children)
