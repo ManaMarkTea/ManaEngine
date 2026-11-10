@@ -54,7 +54,7 @@ namespace TargetPractice
 
         /// <summary>How far right of the character the camera sits, metres, so it does not hide what it aims at.</summary>
         [Range(0.0, 2.0), Category("Camera")]
-        public float ShoulderOffset { get; set; } = 0.9f;
+        public float ShoulderOffset { get; set; } = 0.6f;
 
         /// <summary>How far behind the character the camera sits, metres.</summary>
         [Range(1.5, 10.0), Category("Camera")]
