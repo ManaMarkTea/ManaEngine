@@ -4,6 +4,8 @@
     <!-- macOS ships python3 with no plain python; Windows installs python. -->
     <ManaPython Condition="'$(ManaPython)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">python</ManaPython>
     <ManaPython Condition="'$(ManaPython)' == ''">python3</ManaPython>
+    <!-- The folder holding Games/<Name>/Content: this checkout, or the repo of games that has it as a submodule. -->
+    <ManaGamesDirectory Condition="'$(ManaGamesDirectory)' == ''">$(MSBuildThisFileDirectory)</ManaGamesDirectory>
   </PropertyGroup>
   <ItemGroup>
     <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)ManaAudio/Browser/mana_audio.js" Link="mana_audio.js" />
@@ -41,8 +43,8 @@
       <TargetPath>Content/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <!-- Each game's own content (ManaContentMounts), at the same place beside Content/ as in the repo. -->
-    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Games/*/Content/**/*.manalevel;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaprefab;$(MSBuildThisFileDirectory)Games/*/Content/**/*.managridpreset;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manasheet;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaslice;$(MSBuildThisFileDirectory)Games/*/Content/**/*.manaui;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.jpg;$(MSBuildThisFileDirectory)Games/*/Content/Levels/Pictures/*.png">
-      <TargetPath>$([MSBuild]::MakeRelative($(MSBuildThisFileDirectory), %(FullPath)).Replace('\', '/'))</TargetPath>
+    <WasmFilesToIncludeInFileSystem Include="$(ManaGamesDirectory)Games/*/Content/**/*.manalevel;$(ManaGamesDirectory)Games/*/Content/**/*.manaprefab;$(ManaGamesDirectory)Games/*/Content/**/*.managridpreset;$(ManaGamesDirectory)Games/*/Content/**/*.manasheet;$(ManaGamesDirectory)Games/*/Content/**/*.manaslice;$(ManaGamesDirectory)Games/*/Content/**/*.manaui;$(ManaGamesDirectory)Games/*/Content/Levels/Pictures/*.jpg;$(ManaGamesDirectory)Games/*/Content/Levels/Pictures/*.png">
+      <TargetPath>$([MSBuild]::MakeRelative($(ManaGamesDirectory), %(FullPath)).Replace('\', '/'))</TargetPath>
     </WasmFilesToIncludeInFileSystem>
     <WasmExtraFilesToDeploy Include="$(MSBuildThisFileDirectory)Tools/WebAssets/asset-downloads.js" Link="asset-downloads.js" />
   </ItemGroup>
@@ -50,6 +52,6 @@
     <WriteLinesToFile File="$(WasmAppDir)engine-version.json"
                       Lines="{&quot;version&quot;:&quot;$(Version)&quot;,&quot;commit&quot;:&quot;$(SourceRevisionId)&quot;,&quot;buildDate&quot;:&quot;$([System.DateTime]::UtcNow.ToString('yyyy-MM-dd'))&quot;,&quot;buildTime&quot;:&quot;$([System.DateTime]::UtcNow.ToString('yyyy-MM-ddTHH:mm:ssZ'))&quot;}"
                       Overwrite="true" Encoding="UTF-8" />
-    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)Tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot;" />
+    <Exec Command="&quot;$(ManaPython)&quot; &quot;$(MSBuildThisFileDirectory)Tools/WebAssets/publish_assets.py&quot; --root &quot;$(MSBuildThisFileDirectory).&quot; --output &quot;$(WasmAppDir).&quot; --games-root &quot;$(ManaGamesDirectory).&quot;" />
   </Target>
 </Project>

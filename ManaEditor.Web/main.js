@@ -284,7 +284,8 @@ if (!editorMode && !chosenLevel) {
     // lives on the runtime instance dotnet.create() returns, not as a named export of dotnet.js.
     globalThis.ManaExports = await runtime.getAssemblyExports('ManaGraphics');
     if (!editorMode) {
-        const gameExports = await runtime.getAssemblyExports('ManaEditor.Web');
+        // The host's own assembly: ManaEditor.Web here, the games repo's host (which links the same code) elsewhere.
+        const gameExports = await runtime.getAssemblyExports(runtime.getConfig().mainAssemblyName ?? 'ManaEditor.Web');
         installPauseMenu(gameExports.ManaEditor.Web.BrowserGameControls,
             globalThis.ManaExports.ManaGraphics.Code.Graphics.Browser.ManaBrowserInterop);
     }

@@ -100,6 +100,22 @@ def imported_sources(root):
     return sources
 
 
+# Where Games/<Name>/Content lives: the engine checkout itself, or the repo of games that has it as a submodule.
+GAMES_ROOT = None
+
+
+def games_root(root):
+    return GAMES_ROOT or root
+
+
+def repo_path(root, source):
+    """A file's path as the game addresses it: relative to the engine, or to the games repo."""
+    try:
+        return source.relative_to(root).as_posix()
+    except ValueError:
+        return source.relative_to(games_root(root)).as_posix()
+
+
 def publish(root, output):
     sources = {}
     for directory in ROOTS:
@@ -115,9 +131,9 @@ def publish(root, output):
 
     # A game's own models, sounds and HUD pictures (Games/<Name>/Content/Models, /Audio, /UI/Pictures) are referenced by their repo path, as on desktop.
     for folder in ("Models", "Audio", "UI/Pictures"):
-        for source in sorted(root.glob(f"Games/*/Content/{folder}/**/*")):
+        for source in sorted(games_root(root).glob(f"Games/*/Content/{folder}/**/*")):
             if source.is_file():
-                sources[source.relative_to(root).as_posix()] = source
+                sources[source.relative_to(games_root(root)).as_posix()] = source
 
     sources.update(imported_sources(root))
     library = output / "AssetLibrary"
@@ -219,7 +235,7 @@ def attach_thumbnails(root, library, files, models):
 def level_folders(root):
     """Content/Levels, then each game's own (Games/<Name>/Content/Levels, its content mount)."""
     yield root / "Content" / "Levels"
-    yield from sorted(path for path in (root / "Games").glob("*/Content/Levels") if path.is_dir())
+    yield from sorted(path for path in (games_root(root) / "Games").glob("*/Content/Levels") if path.is_dir())
 
 
 def publish_levels(root, output):
@@ -238,7 +254,7 @@ def publish_levels(root, output):
                 continue
             def count(nodes):
                 return sum(1 + count(node.get("children") or []) for node in nodes or [])
-            entry = dict(name=name, file=source.relative_to(root).as_posix(),
+            entry = dict(name=name, file=repo_path(root, source),
                          description=web.get("description") or "", nodes=count(document.get("nodes")),
                          order=web.get("order", 100))
             picture = folder / "Pictures" / f"{name}.jpg"
@@ -276,7 +292,7 @@ def publish_apps(root, output, levels):
 
     write("mana", "Mana Renderer", "Levels and games made with Mana.", "../index.html", "mana.png")
     for level in levels:
-        source = root / level["file"]
+        source = (games_root(root) if level["file"].startswith("Games/") else root) / level["file"]
         slug = app_slug(source.stem)
         icon = source.parent / "Icons" / f"{source.stem}.png"
         icon_name = "mana.png"
@@ -290,5 +306,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--games-root", type=Path, help="The repo holding Games/<Name>/Content when it is not --root")
     args = parser.parse_args()
+    if args.games_root:
+        GAMES_ROOT = args.games_root.resolve()
     publish(args.root.resolve(), args.output.resolve())

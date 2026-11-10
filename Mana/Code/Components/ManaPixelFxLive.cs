@@ -24,8 +24,14 @@ namespace Mana.Code.Components
         private long _drawnStep = long.MinValue;
         private bool _blank;
 
+        /// <param name="owner">The node the effect is drawn under.</param>
+        /// <param name="effect">The pixel effect to paint.</param>
+        /// <param name="options">The effect's own options, only what differs from its defaults.</param>
+        /// <param name="pixelsPerUnit">Canvas pixels to a metre.</param>
         /// <param name="anchor">Where the node sits on the effect's canvas, in pixels from its top left.</param>
         /// <param name="drawn">Everything one run draws, in canvas pixels: the quads cover only that.</param>
+        /// <param name="flip">Mirrors the picture left to right.</param>
+        /// <param name="tint">A colour multiplied into the picture.</param>
         public ManaPixelFxLive(ManaSceneNode owner, PixelEffect effect, Dictionary<string, object> options, float pixelsPerUnit, (double X, double Y) anchor, PixelBounds drawn, bool flip, Vector4 tint)
         {
             _drawing = new ManaDrawingNode(owner, "Pixel FX");

@@ -4,7 +4,10 @@ import unittest
 import zipfile
 import struct
 from pathlib import Path
-from publish_assets import publish, EXCLUDED, web_scene_dds
+from publish_assets import publish, web_scene_dds
+
+# Under an excluded prefix (Assets/Generated/): left out of the catalog.
+EXCLUDED = 'Assets/Generated/oversized.bin'
 
 
 class PublishAssetsTests(unittest.TestCase):
