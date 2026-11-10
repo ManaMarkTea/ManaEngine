@@ -2,9 +2,13 @@
 
 ManaEngine is a C# renderer and game engine with a voxel-level editor. WebGPU is the graphics backend. The projects target .NET 10, Windows, and macOS (arm64).
 
-## Games
+## Making a game
 
-The games (Contour, Foundry, Train Yard Wars and others) live in their own repository, [ManaGames](https://github.com/ManaMarkTea/ManaGames), which uses this one as a submodule.
+The engine has no game built in; a game is a project of its own that references `Mana`. It registers its rules as level
+game modes (`ManaLevelGameModes.Register`), keeps its levels, prefabs and pictures in a `Content` folder the editor
+mounts, and can run in the editor, standalone (`--play <level>`) or in the browser (`ManaEditor.Web`). `Content/Levels/`
+holds sample levels to open and play, such as `Sample Course`. `AGENTS.md` describes the level, prefab and game-mode
+formats.
 
 ## Projects
 
