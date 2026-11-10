@@ -11,7 +11,8 @@ undefined" -- new C# calling a function the cached JS copy doesn't have yet.
 Sending no-store on everything costs nothing locally and makes "did I actually reload my changes?"
 a question you never have to ask.
 
-Usage:  python3 serve.py [port]          (defaults to 8000, serves the published AppBundle)
+Usage:  python3 serve.py [port] [bundle]  (port defaults to 8000; bundle, to this project's published AppBundle --
+        another host's, such as a games repo's, passes its own)
 """
 
 import functools
@@ -41,19 +42,20 @@ class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
 
 def main():
     port = int(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_PORT
+    app_bundle = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else APP_BUNDLE
 
-    if not os.path.isdir(APP_BUNDLE):
-        print(f"AppBundle not found at {APP_BUNDLE}")
+    if not os.path.isdir(app_bundle):
+        print(f"AppBundle not found at {app_bundle}")
         print("Publish first:  dotnet publish ManaEditor.Web/ManaEditor.Web.csproj -c Release")
         return 1
 
-    handler = functools.partial(NoCacheHandler, directory=APP_BUNDLE)
+    handler = functools.partial(NoCacheHandler, directory=app_bundle)
     # Threaded: the engine download is dozens of requests at once, and a one-at-a-time server refuses some of them
     # once its queue fills -- the boot then fails with "Failed to fetch" on a framework file.
     http.server.ThreadingHTTPServer.allow_reuse_address = True
     http.server.ThreadingHTTPServer.daemon_threads = True
     with http.server.ThreadingHTTPServer(("", port), handler) as httpd:
-        print(f"Serving {APP_BUNDLE}")
+        print(f"Serving {app_bundle}")
         print(f"  http://localhost:{port}/   (no-store: every reload gets fresh files)")
         try:
             httpd.serve_forever()
