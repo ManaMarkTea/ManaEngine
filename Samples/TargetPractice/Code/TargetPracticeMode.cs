@@ -25,7 +25,7 @@ namespace TargetPractice
     {
         public const string ModeType = "TargetPractice";
         public const string DisplayName = "Target Practice";
-        public const string Description = "Walk about and shoot the targets (nodes named Target...) with a pea shooter. Click or F fires at the crosshair; R starts over.";
+        public const string Description = "Walk about and shoot the targets (nodes named Target...) with a pea shooter. The mouse aims, click or F fires; R starts over.";
 
         private const string GunAsset = "zip:kenney_space-kit.zip/Models/GLTF format/weapon_gun.glb";
         private const string GunArm = "arm-right";
@@ -153,6 +153,23 @@ namespace TargetPractice
             _session = null;
         }
 
+        // Ejected to inspect the match (F8): the editor needs the pointer.
+        public override void Suspend()
+        {
+            if (_boom != null)
+            {
+                _boom.ActionLook = false;
+            }
+        }
+
+        public override void Resume()
+        {
+            if (_boom != null)
+            {
+                _boom.ActionLook = true;
+            }
+        }
+
         public override bool Restart()
         {
             _range?.Reset();
@@ -276,6 +293,8 @@ namespace TargetPractice
                 _boomLength = _boom.ArmLength;
                 _boomSocket = _boom.SocketOffset;
                 _boom.ArmLength = CameraDistance;
+                // An action game's mouse: the view always follows it, the pointer held.
+                _boom.ActionLook = true;
             }
 
             var arm = TargetRange.Subtree(player).FirstOrDefault(n => n.Name == GunArm);
@@ -320,6 +339,7 @@ namespace TargetPractice
             {
                 _boom.ArmLength = _boomLength;
                 _boom.SocketOffset = _boomSocket;
+                _boom.ActionLook = false;
                 _boom = null;
             }
             _player = null;
@@ -340,7 +360,7 @@ namespace TargetPractice
             grid.Children.Add(Card(Label(() => Score(), 26, Vector4.One)).Top().Left().Margin(20));
             grid.Children.Add(Label(() => Message(), 34, gold).CenterH().Top().Margin(0, 90, 0, 0));
             grid.Children.Add(Label(() => "+", 30, Vector4.One).Center());
-            grid.Children.Add(Card(Label(() => "WASD  Walk     SPACE  Jump     CLICK or F  Fire at the crosshair     RIGHT-DRAG  Aim     R  Start over     ESC  Quit", 16, Vector4.One))
+            grid.Children.Add(Card(Label(() => "MOUSE  Aim     CLICK or F  Fire     WASD  Walk     SPACE  Jump     R  Start over     ESC  Quit", 16, Vector4.One))
                 .CenterH().Bottom().Margin(16));
             return grid;
         }

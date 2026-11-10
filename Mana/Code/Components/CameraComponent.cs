@@ -697,6 +697,14 @@ namespace Mana
             var leftDown = rig.MouseLookControls && mouseState.IsButtonPressed(MouseButton.Left);
             var orbitActive = _leftMouseGesture.Update(leftDown, uiCapturesMouse);
 
+            // Action look is the steer held for as long as nothing on screen wants the mouse; a menu gets the pointer back.
+            var actionLook = rig.ActionLook && !uiCapturesMouse;
+            if (actionLook)
+            {
+                steerActive = true;
+                orbitActive = false;
+            }
+
             // Published even on the frames the mouse does not move: what reads these needs to know the
             // drag is still held, not that it moved.
             rig.IsSteerGestureActive = steerActive;
@@ -708,7 +716,7 @@ namespace Mana
             // the screen. Grabbing and releasing both teleport the OS pointer, so the frame either
             // happens on contributes one enormous bogus delta -- hence dropping that frame's motion,
             // which costs nothing perceptible at the start or end of a drag.
-            var captureChanged = UpdatePointerCapture(mouseState, lookActive && rig.MouseLookControls);
+            var captureChanged = UpdatePointerCapture(mouseState, lookActive && (rig.MouseLookControls || actionLook));
 
             const float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;

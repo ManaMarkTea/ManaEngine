@@ -28,6 +28,12 @@ namespace Mana
         /// <summary>Play-mode mouse scheme: a left-drag looks as well as a right-drag, and the pointer is held during either.</summary>
         bool MouseLookControls { get; }
 
+        /// <summary>
+        /// Action-game mouse: the view always follows the mouse, with the pointer held, as if the right button were never
+        /// let go (the character faces the way it looks). Off is the RPG scheme, where looking is a drag.
+        /// </summary>
+        bool ActionLook => false;
+
         bool IsSteerGestureActive { get; set; }
         bool IsOrbitGestureActive { get; set; }
 

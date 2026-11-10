@@ -94,6 +94,9 @@ namespace Mana
         /// </summary>
         public bool MouseLookControls { get; set; }
 
+        /// <inheritdoc/>
+        public bool ActionLook { get; set; }
+
         public Vector3 CameraPosition { get; private set; }
         public Vector3 CameraTarget { get; private set; }
         public Vector3 CameraRotation => new(PitchRadians, YawRadians, 0.0f);

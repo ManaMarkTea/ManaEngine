@@ -1,7 +1,7 @@
 # Target Practice
 
 The engine's sample game: walk about a small level and shoot the targets with a pea shooter. The camera sits over
-the character's right shoulder; click (or press F) to fire at the crosshair, right-drag to aim. R starts over, Esc quits. It is small on purpose, and a template for a game of your own.
+the character's right shoulder; the mouse aims, as in an action game (the camera's `ActionLook`), and a click (or F) fires at the crosshair. R starts over, Esc quits. It is small on purpose, and a template for a game of your own.
 
 ```sh
 dotnet run --project ManaEditor -- --play "Content/Levels/Target Practice.manalevel"   # the game, on its own
