@@ -1,3 +1,5 @@
+using Mana.Code.Models;
+
 namespace TargetPractice
 {
     /// <summary>
@@ -25,16 +27,29 @@ namespace TargetPractice
 
         private readonly ManaContext _context;
         private readonly ManaScene _scene;
-        private readonly ManaSphere _mesh;
+        private readonly ManaModel? _look;
+        private ManaSphere? _sphere;
         private readonly List<Pea> _peas = new();
 
-        public PeaShooter(ManaContext context)
+        /// <param name="look">What a pea looks like (the Pea prefab, read once); a plain green ball without one.</param>
+        public PeaShooter(ManaContext context, ManaModel? look = null)
         {
             _context = context;
+            _look = look;
             _scene = new ManaScene(context) { Name = "Peas" };
             _context.World.Scenes.Add(_scene);
-            _mesh = new ManaSphere(context, new Vector4(0.45f, 0.85f, 0.25f, 1.0f), Radius) { LatitudeSegments = 10, LongitudeSegments = 12 };
+            Effects = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Effects", IsEditorTransient = true };
+            _scene.Children.Add(Effects);
         }
+
+        /// <summary>The scene the peas fly in, removed with them: the game's other passing things go here too.</summary>
+        public ManaScene Scene => _scene;
+
+        /// <summary>Raised when a pea knocks a target down: the target, and where the pea was.</summary>
+        public event Action<ManaSceneNode, Vector3>? Hit;
+
+        /// <summary>A node at the world's origin, in the peas' scene, for what a shot sets off (sparks, fireworks): gone with them.</summary>
+        public ManaSceneNode Effects { get; }
 
         public int InFlight => _peas.Count;
 
@@ -50,8 +65,7 @@ namespace TargetPractice
             {
                 Remove(_peas[0]);
             }
-            var node = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(origin)) { Name = "Pea" };
-            node.Components.Add(new MeshRendererComponent(node, _mesh));
+            var node = MakePea(origin);
             _scene.Children.Add(node);
             node.UpdateTransform();
             // Lifted for the first step too, which the world's full gravity takes before Tick first sees the pea.
@@ -84,9 +98,11 @@ namespace TargetPractice
                 var body = simulation.Bodies[pea.Body];
                 body.Awake = true;
                 var position = body.Pose.Position;
-                if (range.Sweep(pea.Last, position, Radius))
+                var target = range.Sweep(pea.Last, position, Radius);
+                if (target != null)
                 {
                     Remove(pea);
+                    Hit?.Invoke(target, position);
                     continue;
                 }
                 pea.Last = position;
@@ -98,6 +114,19 @@ namespace TargetPractice
                     Remove(pea);
                 }
             }
+        }
+
+        // A copy of the prefab's look sharing its mesh, or the fallback ball.
+        private ManaSceneNode MakePea(Vector3 origin)
+        {
+            if (_look != null)
+            {
+                return _look.Instantiate(_context, "Pea", Matrix4x4.CreateTranslation(origin));
+            }
+            _sphere ??= new ManaSphere(_context, new Vector4(0.45f, 0.85f, 0.25f, 1.0f), Radius) { LatitudeSegments = 10, LongitudeSegments = 12 };
+            var node = new ManaSceneNode(_context, Matrix4x4.CreateTranslation(origin)) { Name = "Pea", IsEditorTransient = true };
+            node.Components.Add(new MeshRendererComponent(node, _sphere));
+            return node;
         }
 
         // The upward speed a step takes back of the world's gravity, leaving the pea its own.

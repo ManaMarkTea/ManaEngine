@@ -1,0 +1,49 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "854b867b668541a1a1ca4477ef2b4cd0",
+  "name": "Pea",
+  "root": {
+    "id": "b5476f1c7afa486babf03c183aac546c",
+    "name": "Pea",
+    "kind": "Shape",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      0.24,
+      0.24,
+      0.24
+    ],
+    "shape": "Sphere",
+    "color": [
+      0.45,
+      0.85,
+      0.25,
+      1
+    ],
+    "size": [
+      1,
+      1,
+      1
+    ],
+    "material": {
+      "roughness": 0.35,
+      "emission": [
+        0.45,
+        0.85,
+        0.25,
+        1
+      ],
+      "emissionStrength": 0.6
+    }
+  },
+  "properties": []
+}

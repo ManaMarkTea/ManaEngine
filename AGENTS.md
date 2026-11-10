@@ -13,7 +13,7 @@ C# .NET 10 renderer / game engine using Silk.NET. Target platforms are **macOS (
 | `ManaPixelFx` | pixelfx's painter, particles and effects ported from JS, pixel for pixel (no graphics dependency); `PixelEffects` lists the ported ones |
 | `ManaTests` | Headless test suite for all systems; suites live in `Code/<System>/` |
 | `ManaEditor` | Voxel editor app (the main runnable executable) |
-| `Samples/TargetPractice` | The sample game -- a level game mode, HUD and level in a project of its own (`README.md` there); `ManaEditor` references it and lists the mode in `ManaLevelGameModes`; level `Content/Levels/Target Practice.manalevel`, check `Tools/Automation/Checks/target-practice.json` (`target_shoot`, `target_log`) |
+| `Samples/TargetPractice` | The sample game -- a level game mode in a project of its own, its content data (`README.md` there): prefabs in `Content/Prefabs/Target Practice/`, HUD `Content/UI/Target Practice HUD.manaui` bound to its view model, sounds on cues; `ManaEditor` references it and lists the mode in `ManaLevelGameModes`; level `Content/Levels/Target Practice.manalevel`, check `Tools/Automation/Checks/target-practice.json` (`target_shoot`, `target_log`, `target_look`) |
 | *Games* | Live in their own repo, **ManaGames** (`github.com/ManaMarkTea/ManaGames`; Contour, Foundry, Runner, Train Yard Wars, Yacht Jousting, Code Screensaver). It adds this repo as a submodule, has its own app that wraps `ManaEditor` (`ManaEditor.Program.Main`) and registers the games' level game modes, scripts and loaders -- `ManaContentMounts.GameFolders` mounts each game's `Games/<Name>/Content`, `ManaProjectFolder.RootOverride` points Content/Assets/Library at this checkout, and ManaEditor's internals are visible to its `ManaGames` assembly. The engine has no game in it |
 | `ManaEditor.iOS` | The game natively on iPhone/iPad: `VoxelPlayGameMode` on wgpu-native's Metal backend (`Tools/Mobile/build-wgpu-ios.sh` builds the library Silk.NET does not ship), a platform window and touch controls through `IManaWebGpuNativeHost`, and `Game/` in the bundle (`Tools/Mobile/game_assets.py`). Deploy with `-App ManaEditor.iOS`; `Documents/commands.json` on the phone runs as `--command-file` (`@@DOCUMENTS@@` for paths) |
 | `ManaLidar` / `ManaLidar.Core` | iPhone LiDAR room scanner (`net10.0-ios`, built on the Mac; `ManaLidar/README.md`) and its Apple-free half -- ARKit mesh (or fused ARCore depth) plus keyframe photos to a simplified, textured, unlit GLB that Mana opens |
@@ -304,7 +304,9 @@ are baked from; the live editor draws new ones with the GPU instead.
   a game mode that frames the shot itself uses `ManaComputedCameraRig` (the ManaGames repo's Train Yard Wars and Yacht Jousting) or its own rig
   (`RunnerCamera`), and detaches it on `Suspend` (F8) -- never by borrowing `ShouldCapture*Input`.
 - **Engine pieces for games** (use these before writing a game's own): `ManaModelLibrary`/`ManaModel` (models and
-  prefabs, read once, placed as shared copies, "Owner" parts painted), `ManaShapeMesh` (many coloured shapes as one mesh),
+  prefabs, read once, placed as shared copies, "Owner" parts painted -- the look only), `ManaPrefabs` (`Spawn` a prefab
+  with its scripts, colliders and sounds, `Find` a named part, `Despawn`; the app sets the spawner, the editor does),
+  sound cues (`ManaAudioCueRouter.EmitAt(node, cue)` plays whatever `AudioSource` there listens for it), `ManaShapeMesh` (many coloured shapes as one mesh),
   `ManaMeshBatch` (static scenery merged into one mesh per texture), `ManaStrategyCamera` (top-down view: zoom to the
   pointer, drag, quarter turns, bounds; its own rig), `ManaFixedStepClock` (fixed ticks, speed, pause, alpha),
   `ManaSoundBank` and `ManaMusicPlayer` (sounds by path, music crossfades).

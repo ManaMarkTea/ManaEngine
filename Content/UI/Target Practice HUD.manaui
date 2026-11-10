@@ -1,0 +1,140 @@
+{
+  "format": "mana-ui",
+  "version": 1,
+  "id": "5b0e7d0c3f6a4e2f9a1d8c47b2e6f310",
+  "name": "Target Practice HUD",
+  "viewModel": "TargetPractice",
+  "root": {
+    "type": "Grid",
+    "name": "HUD",
+    "isHitTestVisible": false,
+    "children": [
+      {
+        "type": "Border",
+        "name": "Score Card",
+        "background": "#08101AD9",
+        "borderColor": "#FFD159",
+        "borderThickness": 1.5,
+        "cornerRadius": 8,
+        "padding": [18, 10],
+        "margin": [20, 20],
+        "horizontalAlignment": "Left",
+        "verticalAlignment": "Top",
+        "child": {
+          "type": "StackPanel",
+          "spacing": 6,
+          "children": [
+            {
+              "type": "StackPanel",
+              "orientation": "Horizontal",
+              "spacing": 14,
+              "children": [
+                {
+                  "type": "TextBlock",
+                  "text": "TARGETS",
+                  "fontSize": 15,
+                  "foreground": "#FFD159",
+                  "verticalAlignment": "Center"
+                },
+                {
+                  "type": "TextBlock",
+                  "name": "Count",
+                  "text": "0 / 10",
+                  "fontSize": 26,
+                  "foreground": "#FFFFFF",
+                  "bind": { "text": "Count" }
+                },
+                {
+                  "type": "TextBlock",
+                  "name": "Time",
+                  "text": "0.0 s",
+                  "fontSize": 26,
+                  "foreground": "#C9D3E0",
+                  "bind": { "text": { "path": "Time", "format": "{0:F1} s" } }
+                }
+              ]
+            },
+            {
+              "type": "ProgressBar",
+              "name": "Progress",
+              "tone": "Success",
+              "thickness": 6,
+              "width": 240,
+              "horizontalAlignment": "Left",
+              "bind": { "fraction": "Progress" }
+            },
+            {
+              "type": "TextBlock",
+              "name": "Shots",
+              "text": "0 shots",
+              "fontSize": 14,
+              "foreground": "#C9D3E0",
+              "bind": { "text": { "path": "Shots", "format": "{0} shots" } }
+            }
+          ]
+        }
+      },
+      {
+        "type": "TextBlock",
+        "name": "Crosshair",
+        "text": "+",
+        "fontSize": 30,
+        "foreground": "#FFFFFF",
+        "horizontalAlignment": "Center",
+        "verticalAlignment": "Center"
+      },
+      {
+        "type": "Border",
+        "name": "Win Banner",
+        "background": "#08101AD9",
+        "borderColor": "#FFD159",
+        "borderThickness": 2,
+        "cornerRadius": 10,
+        "padding": [28, 14],
+        "margin": [0, 90, 0, 0],
+        "horizontalAlignment": "Center",
+        "verticalAlignment": "Top",
+        "visibility": "Collapsed",
+        "bind": { "visibility": "Won" },
+        "child": {
+          "type": "TextBlock",
+          "name": "Win Message",
+          "text": "All down!",
+          "fontSize": 30,
+          "foreground": "#FFD159",
+          "bind": { "text": "WinMessage" }
+        }
+      },
+      {
+        "type": "TextBlock",
+        "name": "No Targets",
+        "text": "No targets: name some nodes 'Target...', or place the Target prefab",
+        "fontSize": 24,
+        "foreground": "#FFD159",
+        "margin": [0, 90, 0, 0],
+        "horizontalAlignment": "Center",
+        "verticalAlignment": "Top",
+        "visibility": "Collapsed",
+        "bind": { "visibility": "NoTargets" }
+      },
+      {
+        "type": "Border",
+        "name": "Controls",
+        "background": "#08101AD9",
+        "borderColor": "#FFD159",
+        "borderThickness": 1,
+        "cornerRadius": 6,
+        "padding": [18, 8],
+        "margin": [16, 16],
+        "horizontalAlignment": "Center",
+        "verticalAlignment": "Bottom",
+        "child": {
+          "type": "TextBlock",
+          "text": "MOUSE  Aim     CLICK or F  Fire     WASD  Walk     SPACE  Jump     R  Start over     ESC  Quit",
+          "fontSize": 16,
+          "foreground": "#FFFFFF"
+        }
+      }
+    ]
+  }
+}

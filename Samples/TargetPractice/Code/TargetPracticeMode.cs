@@ -16,8 +16,9 @@ namespace TargetPractice
     /// with the camera moved over its shoulder and a gun in its hand (<see cref="AimingArm"/>);</item>
     /// <item>physics: each pea is a ball in the physics world (<see cref="PeaShooter"/>);</item>
     /// <item>settings that save with the level and show in the Inspector (the properties below);</item>
-    /// <item>the level as the game's content: targets are nodes named "Target ...", moved and added in the editor;</item>
-    /// <item>a HUD in ManaUI, and a script command so an automation file can play it.</item>
+    /// <item>content as data: targets, crates, the gun and the pea are prefabs (Content/Prefabs/Target Practice), the
+    /// HUD a .manaui layout bound to <see cref="TargetPracticeHud"/>, sounds AudioSources on cues;</item>
+    /// <item>script commands so an automation file can play it.</item>
     /// </list>
     /// The rules are <see cref="TargetRange"/>; this class is the input, the aim and the screen.
     /// </summary>
@@ -27,8 +28,10 @@ namespace TargetPractice
         public const string DisplayName = "Target Practice";
         public const string Description = "Walk about and shoot the targets (nodes named Target...) with a pea shooter. The mouse aims, click or F fires; R starts over.";
 
-        private const string GunAsset = "zip:kenney_space-kit.zip/Models/GLTF format/weapon_gun.glb";
         private const string GunArm = "arm-right";
+
+        /// <summary>The node in the gun prefab peas leave from.</summary>
+        public const string MuzzleName = "Muzzle";
 
         // Metres a shot is aimed for when the crosshair is on nothing at all.
         private const float DefaultRange = 30.0f;
@@ -36,9 +39,8 @@ namespace TargetPractice
         // In the arm's own units: the arm pivots at the shoulder and hangs 1 down its -Y; its front (+Z) faces up when
         // raised, so the gun sits on top of the fist.
         private static readonly Vector3 Hand = new(-0.2f, -0.9f, 0.2f);
-        private const float GunScale = 1.6f;
 
-        // The gun's barrel is its -Z: along the arm's -Y, toward the hand. Its top (+Y) along the arm's front (+Z).
+        // The gun prefab's barrel is its -Z: along the arm's -Y, toward the hand. Its top (+Y) along the arm's front (+Z).
         private static readonly Matrix4x4 GunMount = new(
             -1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 0.0f, 1.0f, 0.0f,
@@ -69,11 +71,33 @@ namespace TargetPractice
         [Range(0.5, 4.0), Category("Movement")]
         public float JumpHeight { get; set; } = 1.6f;
 
+        /// <summary>
+        /// The gun put in the character's hand: its grip at the prefab's origin, barrel along -Z, a "Muzzle" node at
+        /// the end, and an AudioSource on the Shoot cue for its sound.
+        /// </summary>
+        [Category("Content")]
+        public string GunPrefab { get; set; } = "Prefabs/Target Practice/Pea Shooter.manaprefab";
+
+        /// <summary>What a pea looks like; its physics is the game's.</summary>
+        [Category("Content")]
+        public string PeaPrefab { get; set; } = "Prefabs/Target Practice/Pea.manaprefab";
+
+        /// <summary>The pixel effect a target goes down in (a pixelfx id); empty for none.</summary>
+        [Category("Content")]
+        public string HitEffect { get; set; } = "impacts/hit-spark";
+
+        /// <summary>The pixel effect over each target when the last one falls; empty for none.</summary>
+        [Category("Content")]
+        public string WinEffect { get; set; } = "explosions/firework-burst";
+
+        public override IEnumerable<string> Assets => [GunPrefab, PeaPrefab];
+
         public override bool WantsPlayerCharacter => true;
 
         // The host's coins-and-health HUD means nothing here; this game draws its own.
         public override bool ShowsPlayHud => false;
 
+        private readonly TargetPracticeHud _hud = new();
         private ManaPlaySession? _session;
         private TargetRange? _range;
         private PeaShooter? _peas;
@@ -88,7 +112,8 @@ namespace TargetPractice
         private Vector3 _boomSocket;
         private AimingArm? _aiming;
         private ManaSceneNode? _gun;
-        private Vector3 _muzzle;
+        private ManaSceneNode? _muzzle;
+        private bool _celebrated;
         private Vector3 _savedGravity = ManaPhysics.DefaultGravity;
         private float _savedJumpHeight;
         private (float Yaw, float Pitch, int Frames)? _lookGlide;
@@ -97,8 +122,10 @@ namespace TargetPractice
         {
             _session = session;
             _range = TargetRange.Find(session.Context.World, TargetPrefix, PopSeconds);
-            _peas = new PeaShooter(session.Context);
+            _peas = new PeaShooter(session.Context, new ManaModelLibrary(session.Context).Model(PeaPrefab));
+            _peas.Hit += OnHit;
             _shots = 0;
+            _celebrated = false;
             _savedGravity = session.Context.Physics.Gravity;
             session.Context.Physics.Gravity = new Vector3(0.0f, -Gravity, 0.0f);
             _keyboard = session.Context.Input?.Keyboards.FirstOrDefault();
@@ -123,7 +150,14 @@ namespace TargetPractice
                     ManaLog.WriteDiagnostic($"Command file: target_shoot found no standing target '{command.Name}'");
                     return;
                 }
-                LaunchAt(node.WorldTransform.Translation);
+                // Led: aimed where a moving one will be when the pea gets there (twice, as the lead changes the distance).
+                var aim = node.WorldTransform.Translation;
+                for (var pass = 0; pass < 2; pass++)
+                {
+                    var flight = Vector3.Distance(Muzzle(), aim) / PeaShooter.Speed;
+                    aim = node.WorldTransform.Translation + _range!.VelocityOf(node) * flight;
+                }
+                LaunchAt(aim);
                 ManaLog.WriteDiagnostic($"Command file: target_shoot '{command.Name}' fired");
             });
             // target_look [yaw, pitch] in degrees points the camera, as the mouse would.
@@ -175,6 +209,11 @@ namespace TargetPractice
             Aim();
             _range.Tick(deltaSeconds);
             _peas?.Tick(deltaSeconds, _range);
+            if (_range.Won && !_celebrated)
+            {
+                Celebrate();
+            }
+            _hud.Refresh(_range.Down, _range.Total, _range.Time, _shots, _range.Won);
         }
 
         public override void EndPlay()
@@ -224,8 +263,43 @@ namespace TargetPractice
             _range?.Reset();
             _peas?.Clear();
             _shots = 0;
+            _celebrated = false;
             // The host puts the character back at the Player Start.
             return false;
+        }
+
+        // The target's own sound (an AudioSource on its EnemyDefeat cue, in the prefab) and a burst of sparks where the pea struck.
+        private void OnHit(ManaSceneNode target, Vector3 where)
+        {
+            Cue(target, ManaSoundCue.EnemyDefeat);
+            if (HitEffect.Length > 0 && _peas != null)
+            {
+                ManaPixelFxSpawner.Spawn(_peas.Effects, HitEffect, where, scale: 0.5f);
+            }
+        }
+
+        // A placed prefab is a node holding the prefab's own root, so the cue goes to whichever node in it listens.
+        private static void Cue(ManaSceneNode placed, ManaSoundCue cue)
+        {
+            foreach (var node in TargetRange.Subtree(placed).ToList())
+            {
+                ManaAudioCueRouter.EmitAt(node, cue);
+            }
+        }
+
+        // The last one down: whatever in the level listens for the Goal cue (a fanfare), and fireworks where each target stood.
+        private void Celebrate()
+        {
+            _celebrated = true;
+            _session?.Context.World.AudioCues.Emit(ManaSoundCue.Goal);
+            if (WinEffect.Length == 0 || _peas == null || _range == null)
+            {
+                return;
+            }
+            foreach (var node in _range.Nodes)
+            {
+                ManaPixelFxSpawner.Spawn(_peas.Effects, WinEffect, node.WorldTransform.Translation + new Vector3(0.0f, 1.5f, 0.0f), scale: 1.5f);
+            }
         }
 
         private void OnMouseDown(IMouse mouse, MouseButton button)
@@ -319,13 +393,17 @@ namespace TargetPractice
             heading.Y += 0.5f * PeaShooter.EffectiveGravity * flight * flight / distance;
             _shots++;
             _peas.Fire(muzzle, Vector3.Normalize(heading));
+            if (_gun != null)
+            {
+                Cue(_gun, ManaSoundCue.Shoot);
+            }
         }
 
         private Vector3 Muzzle()
         {
-            if (_gun != null)
+            if (_muzzle != null)
             {
-                return Vector3.Transform(_muzzle, _gun.WorldTransform);
+                return _muzzle.WorldTransform.Translation;
             }
             if (_player != null)
             {
@@ -364,21 +442,24 @@ namespace TargetPractice
             _aiming = new AimingArm(player, arm);
             player.Components.Add(_aiming);
 
-            var model = new ManaModelLibrary(_session!.Context).Model(GunAsset);
-            if (model == null)
+            // The gun is a prefab, its sound and muzzle in it; placed into the peas' scene, then handed to the arm.
+            if (_peas == null)
             {
                 return;
             }
-            var centre = (model.BoundsMin + model.BoundsMax) * 0.5f;
-            var grip = new Vector3(centre.X, model.BoundsMin.Y, centre.Z);
-            var placement = Matrix4x4.CreateTranslation(-grip) * Matrix4x4.CreateScale(GunScale) * GunMount * Matrix4x4.CreateTranslation(Hand);
-            var gun = model.Instantiate(_session.Context, "Pea Shooter", placement);
-            arm.AddChild(gun);
+            var gun = ManaPrefabs.Spawn(_session!.Context, _peas.Scene, GunPrefab, GunMount * Matrix4x4.CreateTranslation(Hand));
+            if (gun == null)
+            {
+                return;
+            }
+            lock (_session.Context.World.SceneLock)
+            {
+                _peas.Scene.Children.Remove(gun);
+                arm.AddChild(gun);
+            }
             gun.UpdateTransform();
             _gun = gun;
-            // The muzzle in the gun node's own space: the model's front end, through the placement the node already has.
-            Matrix4x4.Invert(gun.LocalTransform, out var toGun);
-            _muzzle = Vector3.Transform(Vector3.Transform(new Vector3(centre.X, centre.Y, model.BoundsMin.Z), placement), toGun);
+            _muzzle = ManaPrefabs.Find(gun, MuzzleName);
         }
 
         // Puts the character back as the host made it.
@@ -386,8 +467,9 @@ namespace TargetPractice
         {
             if (_gun != null)
             {
-                _gun.Parent?.RemoveChild(_gun);
+                ManaPrefabs.Despawn(_gun);
                 _gun = null;
+                _muzzle = null;
             }
             if (_aiming != null)
             {
@@ -408,50 +490,9 @@ namespace TargetPractice
             _player = null;
         }
 
-        public override UiElement BuildHud(UiTheme theme)
-        {
-            var gold = new Vector4(1.0f, 0.82f, 0.35f, 1.0f);
-            TextBlock Label(Func<string> text, float size, Vector4 color)
-            {
-                var label = new TextBlock().FontSize(size).Foreground(color);
-                label.BindPolled(t => t.Text, text);
-                return label;
-            }
-            Border Card(UiElement child) => new Border().Fill(new Vector4(0.03f, 0.05f, 0.09f, 0.85f)).Outline(gold).Rounded(6).PaddingOf(18, 10).Content(child);
+        // The HUD is a layout (Content/UI/Target Practice HUD.manaui) shown by a UiCanvas script in the level; this is what it binds to.
+        public override object? HudViewModel => _hud;
 
-            var grid = new Grid { IsHitTestVisible = false };
-            grid.Children.Add(Card(Label(() => Score(), 26, Vector4.One)).Top().Left().Margin(20));
-            grid.Children.Add(Label(() => Message(), 34, gold).CenterH().Top().Margin(0, 90, 0, 0));
-            grid.Children.Add(Label(() => "+", 30, Vector4.One).Center());
-            grid.Children.Add(Card(Label(() => "MOUSE  Aim     CLICK or F  Fire     WASD  Walk     SPACE  Jump     R  Start over     ESC  Quit", 16, Vector4.One))
-                .CenterH().Bottom().Margin(16));
-            return grid;
-        }
-
-        private string Score()
-        {
-            if (_range == null)
-            {
-                return string.Empty;
-            }
-            return $"TARGETS  {_range.Down} / {_range.Total}     {_range.Time:F1} s";
-        }
-
-        private string Message()
-        {
-            if (_range == null)
-            {
-                return string.Empty;
-            }
-            if (_range.Total == 0)
-            {
-                return $"No targets: name some nodes '{TargetPrefix}...'";
-            }
-            if (_range.Won)
-            {
-                return $"All down in {_range.Time:F1} s with {_shots} shots -- R to go again";
-            }
-            return string.Empty;
-        }
+        public override Type? HudViewModelType => typeof(TargetPracticeHud);
     }
 }

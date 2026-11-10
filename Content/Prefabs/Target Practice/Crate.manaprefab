@@ -1,0 +1,31 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "c4e1185b3e52420494b05a4535607b0a",
+  "name": "Crate",
+  "root": {
+    "id": "769788409d5d4b8cb103e8c228ba1d45",
+    "name": "Crate",
+    "kind": "Mesh",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1.8,
+      1.8,
+      1.8
+    ],
+    "asset": "zip:kenney_pirate-kit.zip/Models/GLB format/crate.glb",
+    "collision": {
+      "useVisualBounds": true
+    }
+  },
+  "properties": []
+}

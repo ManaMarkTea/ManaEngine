@@ -1,0 +1,91 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "12aff08df2564423860e7d5d09b0b2c0",
+  "name": "Pea Shooter",
+  "root": {
+    "id": "fd92b144cb454beb98dc99302cd913ab",
+    "name": "Pea Shooter",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "67e0c31df2874f879abfab3a54a71912",
+        "name": "Model",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1.6,
+          1.6,
+          1.6
+        ],
+        "asset": "zip:kenney_space-kit.zip/Models/GLTF format/weapon_gun.glb"
+      },
+      {
+        "id": "67efc0ee9db6489abe0b1add0369e46d",
+        "name": "Muzzle",
+        "kind": "Group",
+        "position": [
+          0,
+          0.36000000000000004,
+          -0.5599999999999999
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "scripts": [
+      {
+        "id": "b4ac0da22d3f46af837026e012248db3",
+        "type": "AudioSource",
+        "properties": {
+          "clipPath": "Assets/Audio/Starter/Gameplay/whoosh.wav",
+          "variants": "",
+          "spatial": false,
+          "playOnBegin": false,
+          "loop": false,
+          "volume": 0.45,
+          "pitch": 1.6,
+          "referenceDistance": 6,
+          "maxDistance": 90,
+          "rolloff": 1,
+          "bus": "Sfx",
+          "cue": "Shoot",
+          "global": false
+        }
+      }
+    ]
+  },
+  "properties": []
+}

@@ -1,0 +1,34 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "114e76b546d640d39319980bd6d91a1b",
+  "name": "Moving Target",
+  "base": {
+    "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+    "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+    "overrides": [
+      {
+        "path": [
+          "15dd098b48254d4ea9258993539c0242",
+          "scripts",
+          "60a73e91410e4bdb8117d8457458f706"
+        ],
+        "add": true,
+        "value": {
+          "id": "60a73e91410e4bdb8117d8457458f706",
+          "type": "Motion",
+          "properties": {
+            "moveAxis": [
+              1,
+              0,
+              0
+            ],
+            "moveDistance": 3.0,
+            "moveSpeed": 0.2
+          }
+        }
+      }
+    ]
+  },
+  "properties": []
+}

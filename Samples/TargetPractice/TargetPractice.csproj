@@ -19,6 +19,9 @@
     <Using Include="Mana.Code.Nodes" />
     <Using Include="Mana.Code.Components" />
     <Using Include="Mana.Code.Shapes" />
+    <Using Include="Mana.Code.Models" />
+    <Using Include="Mana.Code.Audio" />
+    <Using Include="ManaCore.Audio" />
     <Using Include="BepuPhysics" />
     <InternalsVisibleTo Include="ManaTests" />
   </ItemGroup>

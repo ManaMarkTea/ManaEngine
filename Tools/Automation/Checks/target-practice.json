@@ -91,6 +91,14 @@
  },
  {
   "type": "target_shoot",
+  "name": "Target 11"
+ },
+ {
+  "type": "wait",
+  "frames": 50
+ },
+ {
+  "type": "target_shoot",
   "name": "Target 9"
  },
  {

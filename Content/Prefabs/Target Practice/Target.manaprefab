@@ -1,0 +1,159 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "9caf567c5f1a4277be78d8efb52e090f",
+  "name": "Target",
+  "root": {
+    "id": "15dd098b48254d4ea9258993539c0242",
+    "name": "Target",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "2723d6bb4fed45039e172274ebba5af6",
+        "name": "Ring",
+        "kind": "Shape",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Disk",
+        "color": [
+          0.85,
+          0.12,
+          0.1,
+          1
+        ],
+        "size": [
+          1.2,
+          0.08,
+          1.2
+        ]
+      },
+      {
+        "id": "22fcd837d2bf4855b30179df0cbf6128",
+        "name": "Ring White",
+        "kind": "Shape",
+        "position": [
+          0,
+          0,
+          0.03
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Disk",
+        "color": [
+          0.95,
+          0.95,
+          0.95,
+          1
+        ],
+        "size": [
+          0.7,
+          0.08,
+          0.7
+        ]
+      },
+      {
+        "id": "55bc2108c03c46778b9b9b3a20eba664",
+        "name": "Bullseye",
+        "kind": "Shape",
+        "position": [
+          0,
+          0,
+          0.05
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "scale": [
+          1,
+          1,
+          1
+        ],
+        "shape": "Disk",
+        "color": [
+          0.85,
+          0.12,
+          0.1,
+          1
+        ],
+        "size": [
+          0.25,
+          0.08,
+          0.25
+        ]
+      }
+    ],
+    "scripts": [
+      {
+        "id": "e118904a319b4adc9d3760b3396f431b",
+        "type": "AudioSource",
+        "properties": {
+          "clipPath": "Assets/Audio/Starter/Gameplay/pickup.wav",
+          "variants": "",
+          "spatial": true,
+          "playOnBegin": false,
+          "loop": false,
+          "volume": 0.8,
+          "pitch": 1.0,
+          "referenceDistance": 6,
+          "maxDistance": 90,
+          "rolloff": 1,
+          "bus": "Sfx",
+          "cue": "EnemyDefeat",
+          "global": false
+        }
+      }
+    ]
+  },
+  "properties": [
+    {
+      "id": "9a0df42618534fe5932c79e53e79c26b",
+      "name": "Ring Colour",
+      "nodeId": "2723d6bb4fed45039e172274ebba5af6",
+      "property": "color"
+    },
+    {
+      "id": "efa2d1354b254275a1d1414b0484a97a",
+      "name": "Bullseye Colour",
+      "nodeId": "55bc2108c03c46778b9b9b3a20eba664",
+      "property": "color"
+    }
+  ]
+}

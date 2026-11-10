@@ -2,8 +2,8 @@ namespace TargetPractice
 {
     /// <summary>
     /// The game's rules, with no window or input: the targets a level holds, which of them are down, and the clock. A
-    /// target is any node whose name starts with the prefix ("Target 1", "Target Roof"), however it is built; a shot that
-    /// hits it or anything beneath it knocks it down. Kept apart from <see cref="TargetPracticeMode"/> so the tests can
+    /// target is any node whose name starts with the prefix ("Target 1", "Target Roof") -- an instance of one of the
+    /// Target prefabs, or anything else so named; a shot that hits it knocks it down. Kept apart from <see cref="TargetPracticeMode"/> so the tests can
     /// play it with a ray and no keyboard.
     /// </summary>
     internal sealed class TargetRange
@@ -13,6 +13,11 @@ namespace TargetPractice
             public required ManaSceneNode Node { get; init; }
             public required Vector3 HomeScale { get; init; }
             public required List<MeshRendererComponent> Renderers { get; init; }
+
+            /// <summary>Where it was at the last tick, and how fast it is going (a Moving Target glides).</summary>
+            public Vector3? Last { get; set; }
+
+            public Vector3 Velocity { get; set; }
 
             /// <summary>Seconds since it was hit; negative while it still stands.</summary>
             public float Age { get; set; } = -1.0f;
@@ -41,6 +46,12 @@ namespace TargetPractice
 
         /// <summary>The names of the targets still standing, for a script that wants to shoot one.</summary>
         public IEnumerable<string> Standing => _targets.Where(t => !t.Down).Select(t => t.Node.Name);
+
+        /// <summary>Every target, standing or down.</summary>
+        public IEnumerable<ManaSceneNode> Nodes => _targets.Select(t => t.Node);
+
+        /// <summary>How fast a target is moving, metres a second, as of the last tick: zero for one that stands still.</summary>
+        public Vector3 VelocityOf(ManaSceneNode node) => _targets.FirstOrDefault(t => t.Node == node)?.Velocity ?? Vector3.Zero;
 
         /// <summary>The standing target called <paramref name="name"/>, or null.</summary>
         public ManaSceneNode? NodeOf(string name) =>
@@ -79,13 +90,13 @@ namespace TargetPractice
 
         /// <summary>
         /// A thrown ball's turn: the standing target nearest the segment it travelled this frame, if the ball (of
-        /// <paramref name="radius"/>) touched its face, goes down. A target is a disc about 1.2 m across.
+        /// <paramref name="radius"/>) touched its face, goes down and is returned. A target is a disc about 1.2 m across.
         /// </summary>
-        public bool Sweep(Vector3 from, Vector3 to, float radius)
+        public ManaSceneNode? Sweep(Vector3 from, Vector3 to, float radius)
         {
             if (Won)
             {
-                return false;
+                return null;
             }
             Target? best = null;
             var bestDistance = float.MaxValue;
@@ -108,11 +119,11 @@ namespace TargetPractice
             }
             if (best == null)
             {
-                return false;
+                return null;
             }
             _started = true;
             best.Age = 0.0f;
-            return true;
+            return best.Node;
         }
 
         /// <summary>
@@ -147,6 +158,15 @@ namespace TargetPractice
             if (_started && !Won)
             {
                 Time += deltaSeconds;
+            }
+            foreach (var target in _targets)
+            {
+                var now = target.Node.WorldTransform.Translation;
+                if (target.Last is { } last && deltaSeconds > 0.0f)
+                {
+                    target.Velocity = (now - last) / deltaSeconds;
+                }
+                target.Last = now;
             }
             foreach (var target in _targets.Where(t => t.Down))
             {

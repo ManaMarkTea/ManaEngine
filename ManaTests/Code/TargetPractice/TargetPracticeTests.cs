@@ -3,7 +3,9 @@ using System.Text.Json;
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
+using Mana.Code.Models;
 using Mana.Code.Nodes;
+using ManaCore.Audio;
 using Mana.Code.Shapes;
 using ManaEditor.Code.Levels;
 using ManaUI;
@@ -66,12 +68,12 @@ public static class TargetPracticeChecks
 
         // ---------------------------------------------------------------- a ball passing
         var r = PeaShooter.Radius;
-        Check("a ball through a target's face knocks it down", range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) && range.Down == 1);
+        Check("a ball through a target's face knocks it down", range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) == left && range.Down == 1);
         Check("and it is no longer standing", !range.Standing.Contains("Target 1") && range.NodeOf("Target 1") == null);
-        Check("a second ball through it is nothing", !range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) && range.Down == 1);
-        Check("a ball that goes by, wide, is a miss", !range.Sweep(new Vector3(-1.5f, 0, -9), new Vector3(-1.5f, 0, -11), r) && range.Down == 1);
-        Check("so is one that stops short", !range.Sweep(new Vector3(0, 0, -5), new Vector3(0, 0, -9), r) && range.Down == 1);
-        Check("a fast one is caught between its two frames", range.Sweep(new Vector3(0, 0, -2), new Vector3(0, 0, -30), r) && range.Down == 2);
+        Check("a second ball through it is nothing", range.Sweep(new Vector3(-3, 0, -9), new Vector3(-3, 0, -11), r) == null && range.Down == 1);
+        Check("a ball that goes by, wide, is a miss", range.Sweep(new Vector3(-1.5f, 0, -9), new Vector3(-1.5f, 0, -11), r) == null && range.Down == 1);
+        Check("so is one that stops short", range.Sweep(new Vector3(0, 0, -5), new Vector3(0, 0, -9), r) == null && range.Down == 1);
+        Check("a fast one is caught between its two frames", range.Sweep(new Vector3(0, 0, -2), new Vector3(0, 0, -30), r) == middle && range.Down == 2);
         Check("a ray passing near a target gives its range", range.RangeAlong(Vector3.Zero, Vector3.Normalize(new Vector3(4.5f, 0, -10)), 2.0f) is > 10.0f and < 11.5f);
         Check("one passing far from every target gives none", range.RangeAlong(Vector3.Zero, Vector3.UnitY, 2.0f) == null);
 
@@ -101,7 +103,7 @@ public static class TargetPracticeChecks
         var stopped = range.Time;
         range.Tick(1.0f);
         Check("the clock stops when you win", stopped > 0.4f && range.Time == stopped, $"{stopped} then {range.Time}");
-        Check("and there is nothing left to hit", !range.Sweep(new Vector3(0, 0, -9), new Vector3(0, 0, -11), r));
+        Check("and there is nothing left to hit", range.Sweep(new Vector3(0, 0, -9), new Vector3(0, 0, -11), r) == null);
         Check("a level with no targets is never won", !TargetRange.Find(world, "Nothing Called This", 0.2f).Won);
 
         // ---------------------------------------------------------------- peas, in the physics world
@@ -196,12 +198,70 @@ public static class TargetPracticeChecks
             var nodes = document.RootElement.GetProperty("nodes").EnumerateArray().ToList();
             Check("it has a Player Start", nodes.Any(n => n.GetProperty("kind").GetString() == "PlayerStart"));
             var targets = nodes.Where(n => n.GetProperty("name").GetString()!.StartsWith("Target ")).ToList();
-            Check("and ten targets, each a group with its rings", targets.Count == 10
-                && targets.All(t => t.GetProperty("kind").GetString() == "Group" && t.GetProperty("children").GetArrayLength() >= 3),
+            Check("and targets, each placed from a Target prefab", targets.Count >= 10
+                && targets.All(t => t.GetProperty("kind").GetString() == "Prefab"
+                    && t.GetProperty("prefab").GetProperty("assetPath").GetString()!.StartsWith("Prefabs/Target Practice/")),
                 targets.Count.ToString());
             Check("and runs the game", document.RootElement.GetProperty("gameModes").EnumerateArray()
                 .Any(m => m.GetProperty("type").GetString() == TargetPracticeMode.ModeType));
+            Check("and shows the HUD layout, bound to the mode", nodes.SelectMany(n => n.TryGetProperty("scripts", out var s) ? s.EnumerateArray() : Enumerable.Empty<JsonElement>())
+                .Any(s => s.GetProperty("type").GetString() == "UiCanvas"
+                    && s.GetProperty("properties").GetProperty("bindingSource").GetString() == TargetPracticeMode.ModeType));
         }
+
+        // ---------------------------------------------------------------- the HUD: a layout, bound to the view model
+        var hudFile = FindContent(Path.Combine("UI", "Target Practice HUD.manaui"));
+        Check("the HUD layout is there", hudFile != null);
+        if (hudFile != null)
+        {
+            var hud = new TargetPracticeHud();
+            var layout = UiMarkup.Load(File.ReadAllText(hudFile), new UiTheme(), hud, typeof(TargetPracticeHud));
+            Check("it binds only to what the view model has", layout.Problems.Count == 0, string.Join("; ", layout.Problems));
+            hud.Refresh(3, 11, 12.34f, 5, false);
+            Check("and follows it: the count", layout.Find<TextBlock>("Count")?.Text == "3 / 11", layout.Find<TextBlock>("Count")?.Text ?? "missing");
+            Check("the time, formatted by the layout", layout.Find<TextBlock>("Time")?.Text == "12.3 s", layout.Find<TextBlock>("Time")?.Text ?? "missing");
+            Check("the bar", layout.Find<ProgressBar>("Progress") is { } bar && Math.Abs(bar.Fraction - 3.0f / 11.0f) < 1e-4f);
+            Check("and no banner until the last one falls", layout.Find<Border>("Win Banner")?.Visibility == Visibility.Collapsed);
+            hud.Refresh(11, 11, 20.0f, 14, true);
+            Check("then the banner, with the score", layout.Find<Border>("Win Banner")?.Visibility == Visibility.Visible
+                && layout.Find<TextBlock>("Win Message")?.Text == "All down in 20.0 s with 14 shots -- R to go again",
+                layout.Find<TextBlock>("Win Message")?.Text ?? "missing");
+        }
+
+        // ---------------------------------------------------------------- prefabs placed from code
+        var spawnContext = new ManaContext(null!, null!, new ManaWorld()) { DeferGpuUploads = true };
+        spawnContext.World.Context = spawnContext;
+        var spawnScene = new ManaScene(spawnContext) { Name = "Spawned" };
+        spawnContext.World.Scenes.Add(spawnScene);
+        var target = ManaPrefabs.Spawn(spawnContext, spawnScene, "Prefabs/Target Practice/Target.manaprefab", Matrix4x4.CreateTranslation(1, 2, 3), "Target 99");
+        Check("a prefab placed from code has its parts", target != null && ManaPrefabs.Find(target, "Bullseye") != null);
+        Check("named and placed as asked", target is { Name: "Target 99" } && target.WorldTransform.Translation == new Vector3(1, 2, 3));
+        Check("its sound on the cue a hit raises", target != null
+            && TargetRange.Subtree(target).SelectMany(n => n.Components).OfType<ManaAudioSourceComponent>().Any(a => a.Cue == ManaSoundCue.EnemyDefeat));
+        Check("and never saved into a level", target != null && TargetRange.Subtree(target).All(n => n.IsEditorTransient));
+        if (target != null)
+        {
+            ManaPrefabs.Despawn(target);
+        }
+        Check("taking it out leaves nothing behind", spawnScene.Children.Count == 0);
+        var pea = new ManaModelLibrary(spawnContext).Model("Prefabs/Target Practice/Pea.manaprefab");
+        Check("the model library reads a prefab for its look", pea != null && Math.Abs(pea.BoundsMax.Y - pea.BoundsMin.Y - 0.24f) < 0.01f,
+            pea == null ? "null" : (pea.BoundsMax - pea.BoundsMin).ToString());
+    }
+
+    private static string? FindContent(string relative)
+    {
+        var level = FindLevel();
+        if (level == null)
+        {
+            return null;
+        }
+        var file = Path.Combine(Path.GetDirectoryName(Path.GetDirectoryName(level))!, relative);
+        if (File.Exists(file))
+        {
+            return file;
+        }
+        return null;
     }
 
     private static string? FindLevel()

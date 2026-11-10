@@ -225,10 +225,10 @@
     {
       "id": "1a5da66d3534439684be976667b9c86f",
       "name": "Crate Left",
-      "kind": "Shape",
+      "kind": "Prefab",
       "position": [
         52,
-        1,
+        0,
         52
       ],
       "rotation": [
@@ -241,29 +241,19 @@
         1,
         1
       ],
-      "shape": "Cube",
-      "color": [
-        0.62,
-        0.45,
-        0.26,
-        1
-      ],
-      "size": [
-        2,
-        2,
-        2
-      ],
-      "collision": {
-        "useVisualBounds": true
+      "prefab": {
+        "assetId": "c4e1185b3e52420494b05a4535607b0a",
+        "assetPath": "Prefabs/Target Practice/Crate.manaprefab",
+        "overrides": []
       }
     },
     {
       "id": "26e968c1c7b343d48da8e39bf51baa8e",
       "name": "Crate Right",
-      "kind": "Shape",
+      "kind": "Prefab",
       "position": [
         68,
-        1,
+        0,
         50
       ],
       "rotation": [
@@ -276,29 +266,19 @@
         1,
         1
       ],
-      "shape": "Cube",
-      "color": [
-        0.62,
-        0.45,
-        0.26,
-        1
-      ],
-      "size": [
-        2,
-        2,
-        2
-      ],
-      "collision": {
-        "useVisualBounds": true
+      "prefab": {
+        "assetId": "c4e1185b3e52420494b05a4535607b0a",
+        "assetPath": "Prefabs/Target Practice/Crate.manaprefab",
+        "overrides": []
       }
     },
     {
       "id": "78fb4bf19dda4ff0b59f439f99848bbd",
       "name": "Crate Middle",
-      "kind": "Shape",
+      "kind": "Prefab",
       "position": [
         60,
-        1,
+        0,
         44
       ],
       "rotation": [
@@ -311,20 +291,10 @@
         1,
         1
       ],
-      "shape": "Cube",
-      "color": [
-        0.62,
-        0.45,
-        0.26,
-        1
-      ],
-      "size": [
-        2,
-        2,
-        2
-      ],
-      "collision": {
-        "useVisualBounds": true
+      "prefab": {
+        "assetId": "c4e1185b3e52420494b05a4535607b0a",
+        "assetPath": "Prefabs/Target Practice/Crate.manaprefab",
+        "overrides": []
       }
     },
     {
@@ -400,7 +370,7 @@
     {
       "id": "e0c030695d2a425194f72f9baa666d4e",
       "name": "Target 1",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         52,
         2.0,
@@ -416,109 +386,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "9b38bbba35874c0b994009a96995fc0e",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "1521522df2f3405f85d9dae280d628fd",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "3b82bcf7406045c09d19022c862e741f",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+        "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "c25217f633594d4da290f813b2f0fa0a",
       "name": "Target 2",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         60,
         3.5,
@@ -534,109 +411,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "0de5d50f53e84d3ebf6e1a1dfa746538",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "e20721d0015b46e5bf0e5cc4701075c4",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "2d2e9ef67aa647788d784f7565ed7b77",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+        "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "7de5f9ae16904cbe87c4f66f8f81e8a2",
       "name": "Target 3",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         68,
         2.0,
@@ -652,109 +436,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "f482fa575b2049d5bdf7a25a2dd4658e",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "c59e9b84467442c09daaf9f9194349f6",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "6fab787fd67f4c988bd337db6dedb8a7",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+        "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "3f01896882ff48a6937565e412e3df7a",
       "name": "Target 4",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         55,
         4.8,
@@ -770,109 +461,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "621234ee2e2a4d8099b98900be790014",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "ebd3861c48db4151a5c37e78cd7a5238",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "ac2637edb24c44df962dc0f6b4ac6fdd",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+        "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "15fda1fbf7a44113886fc197f8f7f424",
       "name": "Target 5",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         65,
         4.8,
@@ -888,112 +486,19 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "8110df56b0f242fb92449a5579e201f5",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "1d1a82f53771472297b8aa048749acae",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "20a811c6bddc4c1e869fac6e221761c8",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "9caf567c5f1a4277be78d8efb52e090f",
+        "assetPath": "Prefabs/Target Practice/Target.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "e2956e37c5164bc0ab1589e4ac87d7a9",
       "name": "Target 6",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         52,
-        3.1,
+        2.95,
         52.0
       ],
       "rotation": [
@@ -1006,144 +511,19 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "2431e28782e6410e9b7550e9875147c4",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "30f3856c067b459fa0243bf4a7ddef10",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "d955939b3bd143608d99c48772f7617f",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        },
-        {
-          "id": "c87e6b0a6db3442a849a0bdd91b1f323",
-          "name": "Post",
-          "kind": "Shape",
-          "position": [
-            0,
-            -1.1,
-            -0.05
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Cube",
-          "color": [
-            0.45,
-            0.45,
-            0.5,
-            1
-          ],
-          "size": [
-            0.12,
-            1.0,
-            0.12
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "1890fe88a48b40caa98e8b6b2aac117b",
+        "assetPath": "Prefabs/Target Practice/Target On Post.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "031378624daf4937b7642deb272dabc6",
       "name": "Target 7",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         68,
-        3.1,
+        2.95,
         50.0
       ],
       "rotation": [
@@ -1156,144 +536,19 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "ed8b05b5f0284a508b1b7265f114491d",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "f38939f7205849bb9940a1424a7d24f5",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "89b4644fed4f4b2e9e53927456b714c4",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        },
-        {
-          "id": "6d34937e4c97458ab9272aec99bf7b7e",
-          "name": "Post",
-          "kind": "Shape",
-          "position": [
-            0,
-            -1.1,
-            -0.05
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Cube",
-          "color": [
-            0.45,
-            0.45,
-            0.5,
-            1
-          ],
-          "size": [
-            0.12,
-            1.0,
-            0.12
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "1890fe88a48b40caa98e8b6b2aac117b",
+        "assetPath": "Prefabs/Target Practice/Target On Post.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "92c2b1884b20454ab4e5293959fb0ae1",
       "name": "Target 8",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         60,
-        3.1,
+        2.95,
         44.0
       ],
       "rotation": [
@@ -1306,141 +561,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "ccd1aa234e464f4a82c459ef532833cd",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "3110e787d0584f4a827bf0488b175fef",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "67874f4c067a4965be804b99a050018d",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        },
-        {
-          "id": "3a8f1e744795479e9112d782ef1952e3",
-          "name": "Post",
-          "kind": "Shape",
-          "position": [
-            0,
-            -1.1,
-            -0.05
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Cube",
-          "color": [
-            0.45,
-            0.45,
-            0.5,
-            1
-          ],
-          "size": [
-            0.12,
-            1.0,
-            0.12
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "1890fe88a48b40caa98e8b6b2aac117b",
+        "assetPath": "Prefabs/Target Practice/Target On Post.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "1bfc4d4b20d94757a75ddef8bb4eb417",
       "name": "Target 9",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         48,
         3.35,
@@ -1456,141 +586,16 @@
         1,
         1
       ],
-      "children": [
-        {
-          "id": "bee79e3d975e4c45b176eba08f66f840",
-          "name": "Ring",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
-        },
-        {
-          "id": "46d08af09200480d9deff51073404760",
-          "name": "Ring White",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.03
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
-        },
-        {
-          "id": "8eefd9f23bd84cf2a7345c55a8af15a7",
-          "name": "Bullseye",
-          "kind": "Shape",
-          "position": [
-            0,
-            0,
-            0.05
-          ],
-          "rotation": [
-            1.5707963267948966,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
-        },
-        {
-          "id": "d2d4c13e53264fdeb4cd9123e8ea59c0",
-          "name": "Post",
-          "kind": "Shape",
-          "position": [
-            0,
-            -1.05,
-            -0.05
-          ],
-          "rotation": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            1,
-            1,
-            1
-          ],
-          "shape": "Cube",
-          "color": [
-            0.45,
-            0.45,
-            0.5,
-            1
-          ],
-          "size": [
-            0.12,
-            0.9,
-            0.12
-          ]
-        }
-      ]
+      "prefab": {
+        "assetId": "1890fe88a48b40caa98e8b6b2aac117b",
+        "assetPath": "Prefabs/Target Practice/Target On Post.manaprefab",
+        "overrides": []
+      }
     },
     {
       "id": "ae271a868aee473b9a508c03607a9d9f",
       "name": "Target 10",
-      "kind": "Group",
+      "kind": "Prefab",
       "position": [
         72,
         3.35,
@@ -1606,134 +611,396 @@
         1,
         1
       ],
+      "prefab": {
+        "assetId": "1890fe88a48b40caa98e8b6b2aac117b",
+        "assetPath": "Prefabs/Target Practice/Target On Post.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "fad4e974b74f4919b12d213b236349b4",
+      "name": "Target 11",
+      "kind": "Prefab",
+      "position": [
+        60,
+        2.0,
+        35.4
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "prefab": {
+        "assetId": "114e76b546d640d39319980bd6d91a1b",
+        "assetPath": "Prefabs/Target Practice/Moving Target.manaprefab",
+        "overrides": []
+      }
+    },
+    {
+      "id": "5a871656b6eb403dad4ab15457c54206",
+      "name": "HUD",
+      "kind": "Group",
+      "position": [
+        60,
+        0,
+        70
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "ae488b9e6a234701ad1fab4a05fbe6d9",
+          "type": "UiCanvas",
+          "properties": {
+            "layout": {
+              "assetId": "5b0e7d0c3f6a4e2f9a1d8c47b2e6f310",
+              "assetPath": "UI/Target Practice HUD.manaui"
+            },
+            "bindingSource": "TargetPractice",
+            "visible": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "f30b33e5d180417a901dff533d423d7c",
+      "name": "Sounds",
+      "kind": "Group",
+      "position": [
+        60,
+        0,
+        70
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "scripts": [
+        {
+          "id": "56d6ab8f40654f588df1152c9656bd45",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav",
+            "cue": "None",
+            "global": true,
+            "spatial": false,
+            "playOnBegin": true,
+            "loop": true,
+            "volume": 0.25,
+            "pitch": 1,
+            "bus": "Music",
+            "fadeSeconds": 0.5
+          }
+        },
+        {
+          "id": "f237d7eb93cd401086827da0947b85aa",
+          "type": "AudioSource",
+          "properties": {
+            "clipPath": "Assets/Audio/Starter/Gameplay/goal.wav",
+            "cue": "Goal",
+            "global": true,
+            "spatial": false,
+            "playOnBegin": false,
+            "loop": false,
+            "volume": 0.9,
+            "pitch": 1,
+            "bus": "Sfx",
+            "fadeSeconds": 0.08
+          }
+        }
+      ]
+    },
+    {
+      "id": "21ebd299768149be8993b3365e0ec4d9",
+      "name": "Trees",
+      "kind": "Group",
+      "position": [
+        60,
+        0,
+        52
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
       "children": [
         {
-          "id": "19ed05561d1149058cb0cb308bc7efd6",
-          "name": "Ring",
-          "kind": "Shape",
+          "id": "37c49f64cb6d4d36bc7f43959e722c99",
+          "name": "Tree",
+          "kind": "Mesh",
           "position": [
+            -32,
             0,
-            0,
-            0
+            -22
           ],
           "rotation": [
-            1.5707963267948966,
             0,
+            5.160000000000012,
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            3.2,
+            3.2,
+            3.2
           ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            1.2,
-            0.08,
-            1.2
-          ]
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
         },
         {
-          "id": "3d4d8082fb21472f93954a9f136b22f4",
-          "name": "Ring White",
-          "kind": "Shape",
+          "id": "e79ea67f0ee143899af18c8464aa9ae8",
+          "name": "Tree",
+          "kind": "Mesh",
           "position": [
+            -31,
             0,
-            0,
-            0.03
+            -6
           ],
           "rotation": [
-            1.5707963267948966,
             0,
+            3.6400000000000095,
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            3.0,
+            3.0,
+            3.0
           ],
-          "shape": "Disk",
-          "color": [
-            0.95,
-            0.95,
-            0.95,
-            1
-          ],
-          "size": [
-            0.7,
-            0.08,
-            0.7
-          ]
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
         },
         {
-          "id": "92b6d1ee82144bd5a86c420a962cbb00",
-          "name": "Bullseye",
-          "kind": "Shape",
+          "id": "43863243418e45159d271370266cd140",
+          "name": "Tree",
+          "kind": "Mesh",
           "position": [
+            -33,
             0,
-            0,
-            0.05
+            10
           ],
           "rotation": [
-            1.5707963267948966,
             0,
+            6.240000000000008,
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            3.6,
+            3.6,
+            3.6
           ],
-          "shape": "Disk",
-          "color": [
-            0.85,
-            0.12,
-            0.1,
-            1
-          ],
-          "size": [
-            0.25,
-            0.08,
-            0.25
-          ]
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
         },
         {
-          "id": "e9c87dd5f9164ee688e990df919f5b77",
-          "name": "Post",
-          "kind": "Shape",
+          "id": "422456ea432744f3917885a7bd20eb00",
+          "name": "Tree",
+          "kind": "Mesh",
           "position": [
+            -30,
             0,
-            -1.05,
-            -0.05
+            22
           ],
           "rotation": [
             0,
-            0,
+            0.4400000000000057,
             0
           ],
           "scale": [
-            1,
-            1,
-            1
+            2.8,
+            2.8,
+            2.8
           ],
-          "shape": "Cube",
-          "color": [
-            0.45,
-            0.45,
-            0.5,
-            1
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
+        },
+        {
+          "id": "f3d269b1a2fa4250a29a2ed09ee6ad21",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            32,
+            0,
+            -20
           ],
-          "size": [
-            0.12,
-            0.9,
-            0.12
-          ]
+          "rotation": [
+            0,
+            0.7199999999999935,
+            0
+          ],
+          "scale": [
+            3.1,
+            3.1,
+            3.1
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
+        },
+        {
+          "id": "4cfa1ee1f7114ccf9971c7808c002a8f",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            31,
+            0,
+            -4
+          ],
+          "rotation": [
+            0,
+            4.039999999999992,
+            0
+          ],
+          "scale": [
+            3.4,
+            3.4,
+            3.4
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
+        },
+        {
+          "id": "2ac3492a957343d29cfb18b6923f27f7",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            34,
+            0,
+            12
+          ],
+          "rotation": [
+            0,
+            3.9599999999999893,
+            0
+          ],
+          "scale": [
+            3.0,
+            3.0,
+            3.0
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
+        },
+        {
+          "id": "f2a72ce23bf242319e01dbd39bf1611e",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            30,
+            0,
+            24
+          ],
+          "rotation": [
+            0,
+            5.679999999999989,
+            0
+          ],
+          "scale": [
+            2.9,
+            2.9,
+            2.9
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
+        },
+        {
+          "id": "4b8c8089f0a34eafa7b0f4cf89f4cab2",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            -14,
+            0,
+            -27
+          ],
+          "rotation": [
+            0,
+            3.120000000000007,
+            0
+          ],
+          "scale": [
+            3.3,
+            3.3,
+            3.3
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
+        },
+        {
+          "id": "1b3cfc2635e54153916bceb017995041",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            -4,
+            0,
+            -29
+          ],
+          "rotation": [
+            0,
+            4.320000000000005,
+            0
+          ],
+          "scale": [
+            3.8,
+            3.8,
+            3.8
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
+        },
+        {
+          "id": "721ee6b018764ee3ae579202f20d9970",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            8,
+            0,
+            -28
+          ],
+          "rotation": [
+            0,
+            3.4000000000000012,
+            0
+          ],
+          "scale": [
+            3.1,
+            3.1,
+            3.1
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree.glb"
+        },
+        {
+          "id": "4e2489179e824f828075c1b70dd3eb47",
+          "name": "Tree",
+          "kind": "Mesh",
+          "position": [
+            18,
+            0,
+            -27
+          ],
+          "rotation": [
+            0,
+            1.0399999999999983,
+            0
+          ],
+          "scale": [
+            3.5,
+            3.5,
+            3.5
+          ],
+          "asset": "zip:kenney_mini-forest_1.0.zip/Models/GLB format/tree-high.glb"
         }
       ]
     }
