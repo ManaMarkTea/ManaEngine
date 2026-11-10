@@ -224,6 +224,9 @@ namespace Mana
             CameraPosition = smoothedSocket - (forward * CurrentArmLength);
         }
 
+        // How close something in the way may pull the camera in, metres: about the head's own size, inside the socket.
+        private const float MinimumProbedLength = 0.2f;
+
         private float ProbeArmLength(Vector3 socket, Vector3 forward, float desiredLength)
         {
             var simulation = Context.Physics.Simulation;
@@ -242,7 +245,14 @@ namespace Mana
                 return desiredLength;
             }
 
-            return Math.Clamp(handler.Distance - ProbeBuffer, MinArmLength, desiredLength);
+            // The buffer is kept off the surface, not along the ray: looking up, the arm meets the floor at a grazing
+            // angle, and the same distance along it left the camera inside the near plane, showing through the floor.
+            var normal = handler.Normal.LengthSquared() > 1e-8f ? Vector3.Normalize(handler.Normal) : Vector3.UnitY;
+            var facing = MathF.Max(MathF.Abs(Vector3.Dot(direction, normal)), 0.2f);
+            var clear = handler.Distance - ProbeBuffer / facing;
+
+            // Shorter than MinArmLength if that is all the room there is: held out at the minimum, it went through.
+            return Math.Clamp(clear, MinimumProbedLength, desiredLength);
         }
 
         private static float WrapRadians(float radians)

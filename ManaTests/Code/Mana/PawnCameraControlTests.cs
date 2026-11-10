@@ -117,6 +117,32 @@ public static class PawnCameraControlChecks
         Check("snapping resets both camera axes without dragging through the level",
             Vector3.Distance(lagArm.CameraTarget, lagPawn.Position + lagArm.SocketOffset) < 0.0001f);
 
+        // Looking up swings the camera down behind the character onto the floor, whose top is y = 0.
+        float CameraHeightLookingUp(float pitchDegrees, float socketHeight)
+        {
+            var context = CreateContext();
+            context.World.Context = context;
+            context.Physics = new ManaPhysics(context);
+            var floor = new ManaSceneNode(context, Matrix4x4.CreateTranslation(0.0f, -0.1f, 0.0f));
+            floor.UpdateTransform();
+            context.Physics.AddBoxBody(floor, new Vector3(100.0f, 0.2f, 100.0f), Vector3.Zero);
+            var target = new ManaSceneNode(context, Matrix4x4.Identity);
+            var arm = new ManaSpringArmComponent(target)
+            {
+                SocketOffset = new Vector3(0.0f, socketHeight, 0.0f),
+                ArmLength = 4.0f,
+                PitchRadians = pitchDegrees.ToRadians()
+            };
+            arm.Evaluate(FrameSeconds);
+            return arm.CameraPosition.Y;
+        }
+        var grazing = CameraHeightLookingUp(25.0f, 1.5f);
+        Check("looking up, the camera stays clear of the floor it meets at a grazing angle",
+            grazing > 0.35f, $"camera at y {grazing}");
+        var steep = CameraHeightLookingUp(70.0f, 0.5f);
+        Check("and comes in closer than its minimum length rather than going through the floor",
+            steep > 0.15f, $"camera at y {steep}");
+
         Vector3 FollowAtRate(int fps, float? verticalSpeed)
         {
             var (pawn, arm) = CreateLagRig();
