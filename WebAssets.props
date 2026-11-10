@@ -32,6 +32,10 @@
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_mini-dungeon.zip">
       <TargetPath>Assets/kenney_mini-dungeon.zip</TargetPath>
     </WasmFilesToIncludeInFileSystem>
+    <!-- Target Practice's start asks for a blocky character (0.6 MB): its gun and aiming arm are fitted to that rig. -->
+    <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Assets/kenney_blocky-characters_20.zip">
+      <TargetPath>Assets/kenney_blocky-characters_20.zip</TargetPath>
+    </WasmFilesToIncludeInFileSystem>
     <WasmFilesToIncludeInFileSystem Include="$(MSBuildThisFileDirectory)Content/Levels/**/*.manalevel">
       <TargetPath>Content/Levels/%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </WasmFilesToIncludeInFileSystem>

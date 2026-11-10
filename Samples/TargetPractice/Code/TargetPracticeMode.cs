@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics.CodeAnalysis;
 using ManaCore.Diagnostics;
 using Mana.Code.Models;
 using ManaUI;
@@ -491,7 +492,12 @@ namespace TargetPractice
         }
 
         // The HUD is a layout (Content/UI/Target Practice HUD.manaui) shown by a UiCanvas script in the level; this is what it binds to.
-        public override object? HudViewModel => _hud;
+        // Its properties are found by name, which the trimmed web build would strip without this.
+        public override object? HudViewModel
+        {
+            [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(TargetPracticeHud))]
+            get => _hud;
+        }
 
         public override Type? HudViewModelType => typeof(TargetPracticeHud);
     }

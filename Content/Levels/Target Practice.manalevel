@@ -45,7 +45,12 @@
         1,
         1,
         1
-      ]
+      ],
+      "character": {
+        "pack": "kenney_blocky-characters_20",
+        "name": "character-a",
+        "height": 1
+      }
     },
     {
       "id": "7f9ba80096594067bf298a2e42c45a19",
@@ -318,9 +323,9 @@
       ],
       "shape": "Cube",
       "color": [
-        0.55,
-        0.55,
-        0.6,
+        0.78,
+        0.74,
+        0.66,
         1
       ],
       "size": [
@@ -353,9 +358,9 @@
       ],
       "shape": "Cube",
       "color": [
-        0.55,
-        0.55,
-        0.6,
+        0.78,
+        0.74,
+        0.66,
         1
       ],
       "size": [
