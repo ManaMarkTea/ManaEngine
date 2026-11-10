@@ -27,8 +27,6 @@ namespace TargetPractice
         public const string DisplayName = "Target Practice";
         public const string Description = "Walk about and shoot the targets (nodes named Target...) with a pea shooter. Click or F fires at the crosshair; R starts over.";
 
-        private const float ClickSeconds = 0.35f;
-        private const float ClickPixels = 6.0f;
         private const string GunAsset = "zip:kenney_space-kit.zip/Models/GLTF format/weapon_gun.glb";
         private const string GunArm = "arm-right";
 
@@ -69,9 +67,7 @@ namespace TargetPractice
         private TargetRange? _range;
         private PeaShooter? _peas;
         private IKeyboard? _keyboard;
-        private Vector2 _pressedAt;
-        private float _heldFor;
-        private bool _wasDown;
+        private IMouse? _mouse;
         private int _shots;
 
         // The character's kit, set up once the host has spawned it.
@@ -89,11 +85,16 @@ namespace TargetPractice
             _range = TargetRange.Find(session.Context.World, TargetPrefix, PopSeconds);
             _peas = new PeaShooter(session.Context);
             _shots = 0;
-            _wasDown = false;
             _keyboard = session.Context.Input?.Keyboards.FirstOrDefault();
             if (_keyboard != null)
             {
                 _keyboard.KeyDown += OnKeyDown;
+            }
+            // The press itself fires, as the event says: polled once a frame, a quick click could fall between frames.
+            _mouse = session.Context.Input?.Mice.FirstOrDefault();
+            if (_mouse != null)
+            {
+                _mouse.MouseDown += OnMouseDown;
             }
             ManaLog.WriteDiagnostic($"Target Practice: {_range.Total} target(s).");
 
@@ -129,7 +130,6 @@ namespace TargetPractice
             Aim();
             _range.Tick(deltaSeconds);
             _peas?.Tick(deltaSeconds, _range);
-            ReadMouse(deltaSeconds);
         }
 
         public override void EndPlay()
@@ -138,6 +138,11 @@ namespace TargetPractice
             {
                 _keyboard.KeyDown -= OnKeyDown;
                 _keyboard = null;
+            }
+            if (_mouse != null)
+            {
+                _mouse.MouseDown -= OnMouseDown;
+                _mouse = null;
             }
             // The level goes back as it was, so nothing a round did is ever saved into it.
             TakeOff();
@@ -157,38 +162,12 @@ namespace TargetPractice
             return false;
         }
 
-        // A left click fires. A left drag orbits the camera (the host's mouse scheme), so a press is a shot only if it is
-        // let go quickly and has not travelled.
-        private void ReadMouse(float deltaSeconds)
+        private void OnMouseDown(IMouse mouse, MouseButton button)
         {
-            var mouse = _session!.Context.Input?.Mice.FirstOrDefault();
-            if (mouse == null)
+            if (button == MouseButton.Left && _session != null && !_session.UiWantsMouse())
             {
-                return;
+                FireAtCrosshair();
             }
-            var down = mouse.IsButtonPressed(MouseButton.Left);
-            if (!down)
-            {
-                if (_wasDown && _heldFor <= ClickSeconds && Vector2.Distance(mouse.Position, _pressedAt) <= ClickPixels)
-                {
-                    FireAtCrosshair();
-                }
-            }
-            else if (!_wasDown)
-            {
-                _pressedAt = mouse.Position;
-                _heldFor = 0.0f;
-                if (_session.UiWantsMouse())
-                {
-                    // Pressed on a button or panel: not a shot.
-                    _pressedAt = new Vector2(float.MinValue, float.MinValue);
-                }
-            }
-            else
-            {
-                _heldFor += deltaSeconds;
-            }
-            _wasDown = down;
         }
 
         private void OnKeyDown(IKeyboard keyboard, Key key, int scancode)
