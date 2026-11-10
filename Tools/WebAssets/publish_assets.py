@@ -281,7 +281,8 @@ def publish_apps(root, output, levels):
     apps = output / "apps"
     shutil.rmtree(apps, ignore_errors=True)
     apps.mkdir()
-    shutil.copyfile(root / "ManaEditor.Web" / "mana-icon.png", apps / "mana.png")
+    # The engine's icon, from the checkout this script is in (--root may be a smaller tree).
+    shutil.copyfile(Path(__file__).resolve().parents[2] / "ManaEditor.Web" / "mana-icon.png", apps / "mana.png")
 
     def write(slug, name, description, start, icon):
         manifest = dict(id=f"mana-app-{slug}", name=name, short_name=name, description=description,
