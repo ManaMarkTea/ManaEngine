@@ -123,6 +123,7 @@ public static class TestRunner
         ("ManaCore", "asset catalog", AssetCatalogChecks.Run),
         ("Mana", "glTF support and camera framing", GltfSupportChecks.Run),
         ("ManaEditor", "measuring tool", MeasureToolChecks.Run),
+        ("TargetPractice", "rules, mode and sample level", TargetPracticeChecks.Run),
         ("ManaEditor", "playable levels", PlayableLevelsChecks.Run),
         ("ManaLidar", "scan colouring and glTF export", ScanExportChecks.Run),
         ("ManaLidar", "depth fusion", ScanFusionChecks.Run),

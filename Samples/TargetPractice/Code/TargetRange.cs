@@ -1,0 +1,172 @@
+namespace TargetPractice
+{
+    /// <summary>
+    /// The game's rules, with no window or input: the targets a level holds, which of them are down, and the clock. A
+    /// target is any node whose name starts with the prefix ("Target 1", "Target Roof"), however it is built; a shot that
+    /// hits it or anything beneath it knocks it down. Kept apart from <see cref="TargetPracticeMode"/> so the tests can
+    /// play it with a ray and no keyboard.
+    /// </summary>
+    internal sealed class TargetRange
+    {
+        private sealed class Target
+        {
+            public required ManaSceneNode Node { get; init; }
+            public required Vector3 HomeScale { get; init; }
+            public required List<MeshRendererComponent> Renderers { get; init; }
+
+            /// <summary>Seconds since it was hit; negative while it still stands.</summary>
+            public float Age { get; set; } = -1.0f;
+
+            public bool Down => Age >= 0.0f;
+        }
+
+        private readonly List<Target> _targets = new();
+        private readonly float _popSeconds;
+
+        private TargetRange(float popSeconds)
+        {
+            _popSeconds = Math.Max(popSeconds, 0.01f);
+        }
+
+        public int Total => _targets.Count;
+
+        public int Down => _targets.Count(t => t.Down);
+
+        /// <summary>Seconds since the first shot, stopped when the last target falls.</summary>
+        public float Time { get; private set; }
+
+        private bool _started;
+
+        public bool Won => Total > 0 && Down == Total;
+
+        /// <summary>The names of the targets still standing, for a script that wants to shoot one.</summary>
+        public IEnumerable<string> Standing => _targets.Where(t => !t.Down).Select(t => t.Node.Name);
+
+        /// <summary>The standing target called <paramref name="name"/>, or null.</summary>
+        public ManaSceneNode? NodeOf(string name) =>
+            _targets.FirstOrDefault(t => !t.Down && t.Node.Name == name)?.Node;
+
+        /// <summary>Collects the level's targets: the outermost nodes in any scene whose name starts with <paramref name="prefix"/>.</summary>
+        public static TargetRange Find(ManaWorld world, string prefix, float popSeconds)
+        {
+            var range = new TargetRange(popSeconds);
+            void Walk(ManaSceneNode node)
+            {
+                if (node.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    range._targets.Add(new Target
+                    {
+                        Node = node,
+                        HomeScale = node.Scale,
+                        Renderers = Subtree(node).SelectMany(n => n.Components.OfType<MeshRendererComponent>()).ToList()
+                    });
+                    return;
+                }
+                foreach (var child in node.Children)
+                {
+                    Walk(child);
+                }
+            }
+            foreach (var scene in world.Scenes)
+            {
+                foreach (var node in scene.Children)
+                {
+                    Walk(node);
+                }
+            }
+            return range;
+        }
+
+        /// <summary>
+        /// Fires along a ray: the first surface it meets is the shot's, and a standing target there goes down. Whatever is
+        /// under <paramref name="ignore"/> (the player's own body, which the camera shoots through) is not in the way.
+        /// </summary>
+        public bool Shoot(ManaWorld world, Vector3 origin, Vector3 direction, ManaSceneNode? ignore = null)
+        {
+            if (Won)
+            {
+                return false;
+            }
+            _started = true;
+            HashSet<ManaSceneNode>? exclude = null;
+            if (ignore != null)
+            {
+                exclude = new HashSet<ManaSceneNode>(Subtree(ignore));
+            }
+            var hit = ManaScenePicker.PickWithHit(world.Scenes, origin, direction, exclude);
+            if (hit == null)
+            {
+                return false;
+            }
+            for (var node = hit.Value.Node; node != null; node = node.Parent)
+            {
+                var target = _targets.FirstOrDefault(t => t.Node == node);
+                if (target == null)
+                {
+                    continue;
+                }
+                if (target.Down)
+                {
+                    return false;
+                }
+                target.Age = 0.0f;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>Runs the clock and shrinks the targets that were hit; one that has finished goes out of sight.</summary>
+        public void Tick(float deltaSeconds)
+        {
+            if (_started && !Won)
+            {
+                Time += deltaSeconds;
+            }
+            foreach (var target in _targets.Where(t => t.Down))
+            {
+                if (target.Age >= _popSeconds)
+                {
+                    continue;
+                }
+                target.Age += deltaSeconds;
+                var left = 1.0f - Math.Clamp(target.Age / _popSeconds, 0.0f, 1.0f);
+                target.Node.Scale = target.HomeScale * left * left;
+                if (target.Age >= _popSeconds)
+                {
+                    foreach (var renderer in target.Renderers)
+                    {
+                        renderer.IsVisible = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>Stands every target up again, as the level has it, and sets the clock back to wait for the first shot. Also how play puts the level back.</summary>
+        public void Reset()
+        {
+            foreach (var target in _targets)
+            {
+                target.Age = -1.0f;
+                target.Node.Scale = target.HomeScale;
+                foreach (var renderer in target.Renderers)
+                {
+                    renderer.IsVisible = true;
+                }
+            }
+            Time = 0.0f;
+            _started = false;
+        }
+
+        private static IEnumerable<ManaSceneNode> Subtree(ManaSceneNode root)
+        {
+            yield return root;
+            foreach (var child in root.Children)
+            {
+                foreach (var node in Subtree(child))
+                {
+                    yield return node;
+                }
+            }
+        }
+    }
+}

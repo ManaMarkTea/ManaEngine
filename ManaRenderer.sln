@@ -33,6 +33,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaLidar.Core", "ManaLidar
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ManaPixelFx", "ManaPixelFx\ManaPixelFx.csproj", "{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{5D20AA90-6969-D8BD-9DCD-8634F4692FDA}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TargetPractice", "Samples\TargetPractice\TargetPractice.csproj", "{16F80514-E063-4000-AD8A-E4CA9C798CFC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -163,11 +167,24 @@ Global
 		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x64.Build.0 = Release|Any CPU
 		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x86.ActiveCfg = Release|Any CPU
 		{5EC9B1CA-5295-4F3D-BD53-86ABBF849182}.Release|x86.Build.0 = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|x64.Build.0 = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Debug|x86.Build.0 = Debug|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|x64.ActiveCfg = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|x64.Build.0 = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|x86.ActiveCfg = Release|Any CPU
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{16F80514-E063-4000-AD8A-E4CA9C798CFC} = {5D20AA90-6969-D8BD-9DCD-8634F4692FDA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {FC14B720-B669-414D-92DF-793CB59376E6}

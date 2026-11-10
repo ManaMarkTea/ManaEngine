@@ -2,9 +2,6 @@
 
 What is still to do in the engine. Finished work, with notes on how it was built, is in `Todo-Finished.md`.
 
-[ ] - Sample game: a small game project in the engine (its own level game mode, HUD, content folder and test) that also
-    works as a template for making one. Today the engine ships sample levels, not a game.
-
 [ ] - Auto-Normal looks really bad. Auto Normal Map is off by default; tune `ManaSpriteNormals` against a level and sprite
     that look wrong (Tools/Automation/Checks/sprite-normals.json reads fine).
 

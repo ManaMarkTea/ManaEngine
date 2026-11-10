@@ -43,6 +43,15 @@ namespace ManaEditor.Code.Levels
                 Description = "Spawns the character at the Player Start with the follow camera and the coins/health HUD. Without it, play is a free debug camera.",
                 ModeType = typeof(ManaCharacterGameMode),
                 Create = () => new ManaCharacterGameMode()
+            },
+            // The sample game (Samples/TargetPractice); a game of your own registers the same way.
+            new Definition
+            {
+                Type = TargetPractice.TargetPracticeMode.ModeType,
+                DisplayName = TargetPractice.TargetPracticeMode.DisplayName,
+                Description = TargetPractice.TargetPracticeMode.Description,
+                ModeType = typeof(TargetPractice.TargetPracticeMode),
+                Create = () => new TargetPractice.TargetPracticeMode()
             }
         };
 

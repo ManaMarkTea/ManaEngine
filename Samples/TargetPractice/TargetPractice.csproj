@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Target Practice: the engine's sample game, a level game mode in a project of its own. It needs only the engine
+       (Mana); the editor and the browser host register it. Copy this folder to start a game of your own. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifiers>browser-wasm</RuntimeIdentifiers>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>TargetPractice</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="Silk.NET.Input" />
+    <Using Include="System.Numerics" />
+    <Using Include="Mana" />
+    <Using Include="Mana.Code" />
+    <Using Include="Mana.Code.GameModes" />
+    <Using Include="Mana.Code.Nodes" />
+    <Using Include="Mana.Code.Components" />
+    <InternalsVisibleTo Include="ManaTests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The browser build needs Mana built for browser-wasm too; the desktop one does not. -->
+    <ProjectReference Include="..\..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\..\Mana\Mana.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+  </ItemGroup>
+
+</Project>

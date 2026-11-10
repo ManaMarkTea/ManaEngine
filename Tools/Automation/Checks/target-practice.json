@@ -1,0 +1,118 @@
+[
+ {
+  "type": "open_level",
+  "path": "Content/Levels/Target Practice.manalevel"
+ },
+ {
+  "type": "wait",
+  "frames": 240
+ },
+ {
+  "type": "play"
+ },
+ {
+  "type": "wait",
+  "frames": 120
+ },
+ {
+  "type": "target_log"
+ },
+ {
+  "type": "screenshot",
+  "path": "@@OUT@@"
+ },
+ {
+  "type": "wait",
+  "frames": 10
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 8"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 6"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 7"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 1"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 2"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 3"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 4"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 5"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 9"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "target_shoot",
+  "name": "Target 10"
+ },
+ {
+  "type": "wait",
+  "frames": 20
+ },
+ {
+  "type": "wait",
+  "frames": 30
+ },
+ {
+  "type": "target_log"
+ },
+ {
+  "type": "quit"
+ }
+]

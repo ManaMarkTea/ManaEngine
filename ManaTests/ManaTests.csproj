@@ -22,6 +22,7 @@
     <ProjectReference Include="..\ManaUI\ManaUI.csproj" />
     <!-- Referenced so the suite exercises the editor's real views, not a copy of them that could drift. -->
     <ProjectReference Include="..\ManaEditor\ManaEditor.csproj" />
+    <ProjectReference Include="..\Samples\TargetPractice\TargetPractice.csproj" />
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" />
   </ItemGroup>
 

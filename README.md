@@ -7,8 +7,9 @@ ManaEngine is a C# renderer and game engine with a voxel-level editor. WebGPU is
 The engine has no game built in; a game is a project of its own that references `Mana`. It registers its rules as level
 game modes (`ManaLevelGameModes.Register`), keeps its levels, prefabs and pictures in a `Content` folder the editor
 mounts, and can run in the editor, standalone (`--play <level>`) or in the browser (`ManaEditor.Web`). `Content/Levels/`
-holds sample levels to open and play, such as `Sample Course`. `AGENTS.md` describes the level, prefab and game-mode
-formats.
+holds sample levels to open and play, such as `Sample Course`. `Samples/TargetPractice` is a small complete game --
+its own project, level game mode, HUD, level and tests -- to read and copy; `AGENTS.md` describes the level, prefab and
+game-mode formats.
 
 ## Projects
 
@@ -20,6 +21,7 @@ formats.
 | `ManaUI` | Retained-mode UI framework |
 | `ManaTests` | Headless test suite |
 | `ManaEditor` | Main runnable editor and game |
+| `Samples/TargetPractice` | The sample game: walk about and shoot targets; a template for your own |
 
 ## Build and run
 

@@ -64,6 +64,9 @@
     <ProjectReference Include="..\Mana\Mana.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\ManaGeoTools\ManaGeoTools.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <!-- The engine's sample game: a level game mode in a project of its own (Samples/TargetPractice). -->
+    <ProjectReference Include="..\Samples\TargetPractice\TargetPractice.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
+    <ProjectReference Include="..\Samples\TargetPractice\TargetPractice.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
     <!-- Live scans from the phone (ScanStream, colouring, the textured export): desktop only, where there is a
          network to listen on; the browser build leaves the LiveScan code out (MANA_BROWSER). -->
     <ProjectReference Include="..\ManaLidar.Core\ManaLidar.Core.csproj" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />

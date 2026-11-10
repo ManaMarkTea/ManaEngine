@@ -1,0 +1,1741 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Target Practice",
+  "web": {
+    "publish": true,
+    "description": "The engine's sample game: walk about and shoot the targets.",
+    "order": 3
+  },
+  "camera": {
+    "position": [
+      60,
+      6,
+      84
+    ],
+    "rotation": [
+      -0.25,
+      0,
+      0
+    ]
+  },
+  "gameModes": [
+    {
+      "id": "f036d540b2994851b70dc34984a0510e",
+      "type": "TargetPractice",
+      "properties": {}
+    }
+  ],
+  "nodes": [
+    {
+      "id": "0c533c5d425e4c60b941fd558ce4a7a6",
+      "name": "Player Start",
+      "kind": "PlayerStart",
+      "position": [
+        60,
+        0.5,
+        70
+      ],
+      "rotation": [
+        0,
+        3.1416,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "7f9ba80096594067bf298a2e42c45a19",
+      "name": "Floor",
+      "kind": "Shape",
+      "position": [
+        60,
+        -0.1,
+        52
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.36,
+        0.52,
+        0.32,
+        1
+      ],
+      "size": [
+        50,
+        0.2,
+        50
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "29c58f62c2514c0883d64e4e12b205bd",
+      "name": "Back Wall",
+      "kind": "Shape",
+      "position": [
+        60,
+        3,
+        34
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.6,
+        0.56,
+        1
+      ],
+      "size": [
+        30,
+        6,
+        1
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "9b85ead084df4a4892af6b859353767e",
+      "name": "Fence Left",
+      "kind": "Shape",
+      "position": [
+        35,
+        0.6,
+        52
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.45,
+        0.45,
+        0.5,
+        1
+      ],
+      "size": [
+        0.5,
+        1.2,
+        50
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "d609f89897cc49a09f6e977d1c479af4",
+      "name": "Fence Right",
+      "kind": "Shape",
+      "position": [
+        85,
+        0.6,
+        52
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.45,
+        0.45,
+        0.5,
+        1
+      ],
+      "size": [
+        0.5,
+        1.2,
+        50
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "348607c7dee54d1a8ca7f37aef6905d1",
+      "name": "Fence Front",
+      "kind": "Shape",
+      "position": [
+        60,
+        0.6,
+        77
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.45,
+        0.45,
+        0.5,
+        1
+      ],
+      "size": [
+        50,
+        1.2,
+        0.5
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "1a5da66d3534439684be976667b9c86f",
+      "name": "Crate Left",
+      "kind": "Shape",
+      "position": [
+        52,
+        1,
+        52
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.45,
+        0.26,
+        1
+      ],
+      "size": [
+        2,
+        2,
+        2
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "26e968c1c7b343d48da8e39bf51baa8e",
+      "name": "Crate Right",
+      "kind": "Shape",
+      "position": [
+        68,
+        1,
+        50
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.45,
+        0.26,
+        1
+      ],
+      "size": [
+        2,
+        2,
+        2
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "78fb4bf19dda4ff0b59f439f99848bbd",
+      "name": "Crate Middle",
+      "kind": "Shape",
+      "position": [
+        60,
+        1,
+        44
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.62,
+        0.45,
+        0.26,
+        1
+      ],
+      "size": [
+        2,
+        2,
+        2
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "dd5dbfc1491844ce85ebc27f8366605b",
+      "name": "Pillar Left",
+      "kind": "Shape",
+      "position": [
+        48,
+        2,
+        62
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ],
+      "size": [
+        1.5,
+        4,
+        1.5
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "aca4919aa3164f7193a9ab697ccb7609",
+      "name": "Pillar Right",
+      "kind": "Shape",
+      "position": [
+        72,
+        2,
+        64
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "shape": "Cube",
+      "color": [
+        0.55,
+        0.55,
+        0.6,
+        1
+      ],
+      "size": [
+        1.5,
+        4,
+        1.5
+      ],
+      "collision": {
+        "useVisualBounds": true
+      }
+    },
+    {
+      "id": "e0c030695d2a425194f72f9baa666d4e",
+      "name": "Target 1",
+      "kind": "Group",
+      "position": [
+        52,
+        2.0,
+        34.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "9b38bbba35874c0b994009a96995fc0e",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "1521522df2f3405f85d9dae280d628fd",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "3b82bcf7406045c09d19022c862e741f",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "c25217f633594d4da290f813b2f0fa0a",
+      "name": "Target 2",
+      "kind": "Group",
+      "position": [
+        60,
+        3.5,
+        34.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "0de5d50f53e84d3ebf6e1a1dfa746538",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "e20721d0015b46e5bf0e5cc4701075c4",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "2d2e9ef67aa647788d784f7565ed7b77",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "7de5f9ae16904cbe87c4f66f8f81e8a2",
+      "name": "Target 3",
+      "kind": "Group",
+      "position": [
+        68,
+        2.0,
+        34.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "f482fa575b2049d5bdf7a25a2dd4658e",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "c59e9b84467442c09daaf9f9194349f6",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "6fab787fd67f4c988bd337db6dedb8a7",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3f01896882ff48a6937565e412e3df7a",
+      "name": "Target 4",
+      "kind": "Group",
+      "position": [
+        55,
+        4.8,
+        34.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "621234ee2e2a4d8099b98900be790014",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "ebd3861c48db4151a5c37e78cd7a5238",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "ac2637edb24c44df962dc0f6b4ac6fdd",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "15fda1fbf7a44113886fc197f8f7f424",
+      "name": "Target 5",
+      "kind": "Group",
+      "position": [
+        65,
+        4.8,
+        34.55
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "8110df56b0f242fb92449a5579e201f5",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "1d1a82f53771472297b8aa048749acae",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "20a811c6bddc4c1e869fac6e221761c8",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        }
+      ]
+    },
+    {
+      "id": "e2956e37c5164bc0ab1589e4ac87d7a9",
+      "name": "Target 6",
+      "kind": "Group",
+      "position": [
+        52,
+        3.1,
+        52.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "2431e28782e6410e9b7550e9875147c4",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "30f3856c067b459fa0243bf4a7ddef10",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "d955939b3bd143608d99c48772f7617f",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        },
+        {
+          "id": "c87e6b0a6db3442a849a0bdd91b1f323",
+          "name": "Post",
+          "kind": "Shape",
+          "position": [
+            0,
+            -1.1,
+            -0.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.45,
+            0.45,
+            0.5,
+            1
+          ],
+          "size": [
+            0.12,
+            1.0,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "id": "031378624daf4937b7642deb272dabc6",
+      "name": "Target 7",
+      "kind": "Group",
+      "position": [
+        68,
+        3.1,
+        50.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "ed8b05b5f0284a508b1b7265f114491d",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "f38939f7205849bb9940a1424a7d24f5",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "89b4644fed4f4b2e9e53927456b714c4",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        },
+        {
+          "id": "6d34937e4c97458ab9272aec99bf7b7e",
+          "name": "Post",
+          "kind": "Shape",
+          "position": [
+            0,
+            -1.1,
+            -0.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.45,
+            0.45,
+            0.5,
+            1
+          ],
+          "size": [
+            0.12,
+            1.0,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "id": "92c2b1884b20454ab4e5293959fb0ae1",
+      "name": "Target 8",
+      "kind": "Group",
+      "position": [
+        60,
+        3.1,
+        44.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "ccd1aa234e464f4a82c459ef532833cd",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "3110e787d0584f4a827bf0488b175fef",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "67874f4c067a4965be804b99a050018d",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        },
+        {
+          "id": "3a8f1e744795479e9112d782ef1952e3",
+          "name": "Post",
+          "kind": "Shape",
+          "position": [
+            0,
+            -1.1,
+            -0.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.45,
+            0.45,
+            0.5,
+            1
+          ],
+          "size": [
+            0.12,
+            1.0,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "id": "1bfc4d4b20d94757a75ddef8bb4eb417",
+      "name": "Target 9",
+      "kind": "Group",
+      "position": [
+        48,
+        4.9,
+        62.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "bee79e3d975e4c45b176eba08f66f840",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "46d08af09200480d9deff51073404760",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "8eefd9f23bd84cf2a7345c55a8af15a7",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        },
+        {
+          "id": "d2d4c13e53264fdeb4cd9123e8ea59c0",
+          "name": "Post",
+          "kind": "Shape",
+          "position": [
+            0,
+            -1.05,
+            -0.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.45,
+            0.45,
+            0.5,
+            1
+          ],
+          "size": [
+            0.12,
+            0.9,
+            0.12
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ae271a868aee473b9a508c03607a9d9f",
+      "name": "Target 10",
+      "kind": "Group",
+      "position": [
+        72,
+        4.9,
+        64.0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ],
+      "children": [
+        {
+          "id": "19ed05561d1149058cb0cb308bc7efd6",
+          "name": "Ring",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            1.2,
+            0.08,
+            1.2
+          ]
+        },
+        {
+          "id": "3d4d8082fb21472f93954a9f136b22f4",
+          "name": "Ring White",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.03
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.95,
+            0.95,
+            0.95,
+            1
+          ],
+          "size": [
+            0.7,
+            0.08,
+            0.7
+          ]
+        },
+        {
+          "id": "92b6d1ee82144bd5a86c420a962cbb00",
+          "name": "Bullseye",
+          "kind": "Shape",
+          "position": [
+            0,
+            0,
+            0.05
+          ],
+          "rotation": [
+            1.5707963267948966,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Disk",
+          "color": [
+            0.85,
+            0.12,
+            0.1,
+            1
+          ],
+          "size": [
+            0.25,
+            0.08,
+            0.25
+          ]
+        },
+        {
+          "id": "e9c87dd5f9164ee688e990df919f5b77",
+          "name": "Post",
+          "kind": "Shape",
+          "position": [
+            0,
+            -1.05,
+            -0.05
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "scale": [
+            1,
+            1,
+            1
+          ],
+          "shape": "Cube",
+          "color": [
+            0.45,
+            0.45,
+            0.5,
+            1
+          ],
+          "size": [
+            0.12,
+            0.9,
+            0.12
+          ]
+        }
+      ]
+    }
+  ]
+}
