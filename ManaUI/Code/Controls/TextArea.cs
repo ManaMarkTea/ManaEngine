@@ -899,7 +899,7 @@ namespace ManaUI
 
             for (var line = firstLine; line <= lastLine; line++)
             {
-                DrawLineText(drawList, font, line, originX, area.Y + line * lineHeight - _scrollY, lineHeight, enabled);
+                DrawLineText(drawList, font, line, originX, area.Y + line * lineHeight - _scrollY, lineHeight, enabled, area);
             }
 
             if (IsFocused && !HasSelection)
@@ -979,9 +979,9 @@ namespace ManaUI
             }
         }
 
-        private void DrawLineText(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled)
+        private void DrawLineText(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled, UiRect visible)
         {
-            DrawLineRuns(drawList, font, line, originX, y, lineHeight, enabled);
+            DrawLineRuns(drawList, font, line, originX, y, lineHeight, enabled, visible);
 
             var swatchLine = LineText(line);
             foreach (var swatch in SwatchesFor(swatchLine))
@@ -990,7 +990,10 @@ namespace ManaUI
             }
         }
 
-        private void DrawLineRuns(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled)
+        // Colored runs left to right, measuring each once as the pen moves along: measuring every run from the line's start
+        // was quadratic in its length, and a long generated line (hundreds of numbers, each its own color) took a second a
+        // frame. Runs past the right of the view stop the line; runs scrolled off the left are measured but not drawn.
+        private void DrawLineRuns(ManaUiDrawList drawList, ManaFont font, int line, float originX, float y, float lineHeight, bool enabled, UiRect visible)
         {
             var text = LineText(line);
             if (text.Length == 0)
@@ -1005,41 +1008,76 @@ namespace ManaUI
             }
 
             _layout.Font = font;
+            var swatches = SwatchesFor(text);
+            var slot = SwatchSlot(font);
+            var nextSwatch = 0;
+            var position = 0;
+            var x = originX;
+
+            // Where column `to` starts: the text since the last run, plus any swatch boxes at or before it (as XOf counts them).
+            float Advance(int to)
+            {
+                if (to > position)
+                {
+                    if (position > 0)
+                    {
+                        x += font.GetKerning(text[position - 1], text[position]);
+                    }
+                    x += font.MeasureWidth(text.AsSpan(position, to - position));
+                    position = to;
+                }
+                while (nextSwatch < swatches.Count && swatches[nextSwatch].Column <= to)
+                {
+                    x += slot;
+                    nextSwatch++;
+                }
+                return x;
+            }
+
+            // False once the line has run off the right of the view.
+            bool Run(int start, int end, Vector4 color)
+            {
+                var from = Advance(start);
+                if (from > visible.Right)
+                {
+                    return false;
+                }
+                var to = Advance(end);
+                if (to >= visible.X)
+                {
+                    _layout.Text = text.Substring(start, end - start);
+                    _layout.Render(drawList, new UiRect(from, y, float.MaxValue / 4.0f, lineHeight), color);
+                }
+                return true;
+            }
+
             var spans = LineColorizer?.Invoke(text);
             if (spans == null || spans.Count == 0)
             {
-                DrawRun(drawList, font, text, 0, text.Length, originX, y, lineHeight, baseColor);
+                Run(0, text.Length, baseColor);
                 return;
             }
 
-            var position = 0;
+            var drawn = 0;
             foreach (var span in spans.OrderBy(s => s.Start))
             {
-                var start = Math.Clamp(span.Start, position, text.Length);
+                var start = Math.Clamp(span.Start, drawn, text.Length);
                 var end = Math.Clamp(span.Start + span.Length, start, text.Length);
-                if (start > position)
+                if (start > drawn && !Run(drawn, start, baseColor))
                 {
-                    DrawRun(drawList, font, text, position, start, originX, y, lineHeight, baseColor);
+                    return;
                 }
-                if (end > start)
+                if (end > start && !Run(start, end, span.Color))
                 {
-                    DrawRun(drawList, font, text, start, end, originX, y, lineHeight, span.Color);
+                    return;
                 }
-                position = Math.Max(position, end);
+                drawn = Math.Max(drawn, end);
             }
 
-            if (position < text.Length)
+            if (drawn < text.Length)
             {
-                DrawRun(drawList, font, text, position, text.Length, originX, y, lineHeight, baseColor);
+                Run(drawn, text.Length, baseColor);
             }
-        }
-
-        private void DrawRun(ManaUiDrawList drawList, ManaFont font, string line, int start, int end, float originX, float y, float lineHeight, Vector4 color)
-        {
-            var x = originX + font.MeasureWidth(line.AsSpan(0, start)) + ExtraWidth(font, line, start, inclusive: true);
-            _layout.Font = font;
-            _layout.Text = line.Substring(start, end - start);
-            _layout.Render(drawList, new UiRect(x, y, float.MaxValue / 4.0f, lineHeight), color);
         }
 
         private float LongestLineWidth(ManaFont font)
