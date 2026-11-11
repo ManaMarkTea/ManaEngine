@@ -15,7 +15,7 @@ These are development tools, not runtime dependencies unless a build explicitly 
 | `Materials` | Downloads/rebuilds compact licensed material packs using the source manifest. |
 | `Mobile` | iOS wgpu-native build, mobile asset selection and app-icon generation. |
 | `Native` | Builds ManaEditor's FBX reader (`ManaEditor/Native/Fbx`, ufbx): `build-mana-fbx.ps1` on Windows (MSVC), `build-mana-fbx.sh` on the Mac. Rebuild and commit both after changing `mana_fbx.c` or updating ufbx. |
-| `PixelFx` | `parity.mjs` writes pixelfx's own per-frame hashes of each ported effect (a checkout at `../pixelfx`) for `PixelFxParityChecks`. |
+| `PixelFx` | `parity.mjs` writes pixelfx's own per-frame hashes of each ported effect (a checkout at `../References/pixelfx`) for `PixelFxParityChecks`. |
 | `Profiling` | Collects desktop .NET performance traces. |
 | `Sky` | Generates the constellation data shared by shaders and C#. |
 | `Sprites` | Reproduces the bow/arrow sprite assets. |

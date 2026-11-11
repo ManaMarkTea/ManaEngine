@@ -4,7 +4,7 @@
 //
 //   node Tools/PixelFx/parity.mjs fire/torch fire/campfire      (or a category: fire)
 //
-// Options: --pixelfx DIR (a pixelfx checkout; default ../pixelfx beside this repo, or PIXELFX).
+// Options: --pixelfx DIR (a pixelfx checkout; default ../References/pixelfx, then ../pixelfx, or PIXELFX).
 // Writes ManaTests/Data/PixelFx/<category>/<name>.json. Run it for every effect ported, and again when one changes.
 
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -25,9 +25,10 @@ if (ids.length === 0) {
   console.error("usage: node Tools/PixelFx/parity.mjs <id|category|pattern>... [--pixelfx DIR]");
   process.exit(2);
 }
-const pixelfx = resolve(flags.pixelfx ?? process.env.PIXELFX ?? join(REPO, "..", "pixelfx"));
+const besideRepo = [join(REPO, "..", "References", "pixelfx"), join(REPO, "..", "pixelfx")].find(dir => existsSync(dir));
+const pixelfx = resolve(flags.pixelfx ?? process.env.PIXELFX ?? besideRepo ?? join(REPO, "..", "References", "pixelfx"));
 if (!existsSync(join(pixelfx, "tools", "lib", "fxlib.mjs"))) {
-  console.error(`no pixelfx checkout at ${pixelfx}: git clone https://github.com/patch-gg/pixelfx there, or pass --pixelfx`);
+  console.error(`no pixelfx checkout at ${pixelfx}: git clone https://github.com/patch-gg/pixelfx into ../References/pixelfx, or pass --pixelfx`);
   process.exit(2);
 }
 const { resolveIds, loadEffect, renderFrames } = await import(pathToFileURL(join(pixelfx, "tools", "lib", "fxlib.mjs")).href);

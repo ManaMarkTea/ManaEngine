@@ -109,12 +109,17 @@ public sealed class PixelFxWidget : InspectorWidget<ManaPixelFxComponent>
                 }
             });
 
-        // The original sits in a pixelfx checkout beside the repo, when there is one.
+        // The original sits in a pixelfx checkout in References/ beside the repo, or beside it, when there is one.
         var repo = Path.GetDirectoryName(ManaContentAssets.Root) ?? Directory.GetCurrentDirectory();
-        var original = Path.GetFullPath(Path.Combine(repo, "..", "pixelfx", PixelEffects.OriginalFile(effect)));
+        var original = Path.GetFullPath(Path.Combine(repo, "..", "References", "pixelfx", PixelEffects.OriginalFile(effect)));
+        var besideRepo = Path.GetFullPath(Path.Combine(repo, "..", "pixelfx", PixelEffects.OriginalFile(effect)));
+        if (!File.Exists(original) && File.Exists(besideRepo))
+        {
+            original = besideRepo;
+        }
         var hasOriginal = File.Exists(original);
         var originalButton = new ManaUI.Button().Label(Path.GetFileName(original)).Variant(ButtonVariant.Subtle).Enabled(hasOriginal)
-            .WithTooltip(hasOriginal ? original : $"pixelfx's {effect.Meta.Id}.js: clone https://github.com/patch-gg/pixelfx beside this repo to open it.")
+            .WithTooltip(hasOriginal ? original : $"pixelfx's {effect.Meta.Id}.js: clone https://github.com/patch-gg/pixelfx into References/ beside this repo to open it.")
             .OnClick(() => ComponentSource.Open(new ComponentSource.Location(original, 1)));
         return new StackPanel().Horizontal(theme.Spacing).Children(portButton, originalButton);
     }
