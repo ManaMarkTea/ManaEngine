@@ -85,7 +85,9 @@ def imported_sources(root):
 
     for folder in level_folders(root):
         for level in sorted(folder.rglob("*.manalevel")):
-            walk(json.loads(level.read_text(encoding="utf-8-sig")))
+            document = json.loads(level.read_text(encoding="utf-8-sig"))
+            if not skipped_level(document):
+                walk(document)
     sources = {}
     while paths:
         path = paths.pop()
@@ -98,6 +100,14 @@ def imported_sources(root):
         if source.suffix.lower() in (".gltf", ".glb"):
             paths.update(dependency_paths(path, model_document(source)))
     return sources
+
+
+# Leave out levels that declare downloads (Bistro): a site that does not host them needs no multi-GB scene import.
+SKIP_DOWNLOADED_LEVELS = False
+
+
+def skipped_level(document):
+    return SKIP_DOWNLOADED_LEVELS and bool(document.get("downloads"))
 
 
 # Where Games/<Name>/Content lives: the engine checkout itself, or the repo of games that has it as a submodule.
@@ -250,7 +260,7 @@ def publish_levels(root, output):
             document = json.loads(source.read_text(encoding="utf-8-sig"))
             name = document.get("name") or source.stem
             web = document.get("web") or {}
-            if not web.get("publish"):
+            if not web.get("publish") or skipped_level(document):
                 continue
             def count(nodes):
                 return sum(1 + count(node.get("children") or []) for node in nodes or [])
@@ -308,7 +318,10 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--games-root", type=Path, help="The repo holding Games/<Name>/Content when it is not --root")
+    parser.add_argument("--no-downloaded-levels", action="store_true",
+                        help="Leave out levels with downloads and their imported scenes")
     args = parser.parse_args()
+    SKIP_DOWNLOADED_LEVELS = args.no_downloaded_levels
     if args.games_root:
         GAMES_ROOT = args.games_root.resolve()
     publish(args.root.resolve(), args.output.resolve())

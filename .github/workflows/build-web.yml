@@ -192,3 +192,8 @@ jobs:
           while read -r id; do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
           done < "$RUNNER_TEMP/pages-artifact-ids"
+
+      - name: Free the runner's disk
+        # Checkout wipes these next run anyway; between runs they only fill the shared runner's disk.
+        if: always()
+        run: rm -rf Artifacts pages-site
