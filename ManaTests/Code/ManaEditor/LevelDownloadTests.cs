@@ -59,8 +59,9 @@ public static class LevelDownloadChecks
                     ManaLevelDownloads.Validate(dependency);
                 }
             }
-            check("all five checked-in Bistro variants declare their source pack and web listing", variants.Count == 5
-                && variants.All(variant => variant.Downloads is { Count: 1 } && variant.Web?.Publish == true), "");
+            // Desktop only: the browser cannot fetch or convert the source pack, and the web build must not need it.
+            check("all five checked-in Bistro variants declare their source pack and stay off the web", variants.Count == 5
+                && variants.All(variant => variant.Downloads is { Count: 1 } && variant.Web?.Publish != true), "");
 
             download.File = "Bad.zip";
             download.Sha256 = new string('0', 64);

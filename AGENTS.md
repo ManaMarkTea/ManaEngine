@@ -146,11 +146,10 @@ Patterns that work:
 
 Checked-in downloadable levels live in `Content/Levels/Downloaded/` (Bistro has five). A level's optional `downloads`
 array names source ZIPs by `file`, HTTPS `url`, and `sha256`: opening it fetches/verifies the ZIP in `Downloaded/`, imports
-it into `Library/Imported/`, then loads its authored nodes. Capture/save preserves these declarations. Before publishing
-the web build locally, run `dotnet run --project ManaEditor -- --prepare-level-assets`; the daily workflow does this too.
-The publisher follows referenced imported files and glTF sidecars into the normal hashed asset catalog. The browser
-fetches converted assets on open, never FBX2glTF or the source ZIP. Imported DDS textures start at their existing 512 px
-mip in web output to fit browser memory and Pages hosting; desktop keeps full resolution. `Tools/README.md` inventories
+it into `Library/Imported/`, then loads its authored nodes. Capture/save preserves these declarations. Bistro is
+desktop-only (`web.publish` false): the browser can neither fetch nor convert the pack, and the build machine never
+imports it. The web publisher follows `Library/Imported/` files only for web-published levels (a level of that kind
+needs `--prepare-level-assets` before publishing; imported DDS textures start at their 512 px mip). `Tools/README.md` inventories
 the maintained tools; retired initial level generators must not be used to overwrite authored content.
 
 Big third-party scenes are downloaded, never committed. **Downloaded scene packs:** zips in `Downloaded/` (gitignored,

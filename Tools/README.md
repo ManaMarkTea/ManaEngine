@@ -42,8 +42,8 @@ python ManaEditor.Web/serve.py 8123
 
 The preparation command downloads/checks/imports the source packs declared by checked-in levels. It opens no window.
 The web publisher follows each level's `Library/Imported/` references and glTF sidecars, publishing only those files as
-immutable catalog entries. Source ZIPs and unused importer files stay out of the web output. Browser downloads happen
-when a level opens; cached assets are reused. The daily web workflow performs preparation before publishing.
+immutable catalog entries. Source ZIPs and unused importer files stay out of the web output. Only web-published levels count,
+so Bistro (desktop-only) is never imported on the build machine.
 
 Imported DDS textures use their existing mip chain from 512 px down in web output; desktop files stay full resolution.
 This keeps the site within Pages hosting limits and reduces browser memory use without decoding/recompressing blocks.

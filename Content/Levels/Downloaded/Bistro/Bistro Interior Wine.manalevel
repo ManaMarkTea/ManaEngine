@@ -6,7 +6,7 @@
     "position": [103.445, 10.258, 97.753],
     "rotation": [-0.03732129, -1.4556046, 0]
   },
-  "web": {"publish": true, "description": "Amazon Lumberyard Bistro (ORCA, CC-BY 4.0). Large scene assets download on first open."},
+  "web": {"publish": false, "description": "Amazon Lumberyard Bistro (ORCA, CC-BY 4.0). Desktop only: the source pack downloads and imports on first open."},
   "downloads": [
     {
       "file": "Bistro_v5_2.zip",

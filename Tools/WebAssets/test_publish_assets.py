@@ -4,7 +4,6 @@ import unittest
 import zipfile
 import struct
 from pathlib import Path
-import publish_assets
 from publish_assets import publish, web_scene_dds
 
 # Under an excluded prefix (Assets/Generated/): left out of the catalog.
@@ -36,7 +35,7 @@ class PublishAssetsTests(unittest.TestCase):
             for name in ('scene.bin', 'paint.png', 'sky.png', 'unused.bin'):
                 (scene / name).write_bytes(b'content')
             (levels / 'Test.manalevel').write_text(json.dumps({
-                'sky': {'photo': 'Library/Imported/Test/sky.png'},
+                'web': {'publish': True}, 'sky': {'photo': 'Library/Imported/Test/sky.png'},
                 'nodes': [{'asset': 'Library/Imported/Test/scene.gltf'}]}))
             catalog = publish(root, root / 'output')
             files = {item['path']: item for item in catalog['files']}
@@ -46,15 +45,11 @@ class PublishAssetsTests(unittest.TestCase):
             (scene / 'scene.bin').unlink()
             with self.assertRaisesRegex(ValueError, 'prepare-level-assets'):
                 publish(root, root / 'output')
-            # A site that leaves downloaded levels out needs none of their imports.
+            # An unpublished (desktop-only) downloaded level needs none of its imports.
             (levels / 'Test.manalevel').write_text(json.dumps({
-                'downloads': [{'file': 'Test.zip'}], 'web': {'publish': True},
+                'downloads': [{'file': 'Test.zip'}],
                 'nodes': [{'asset': 'Library/Imported/Test/scene.gltf'}]}))
-            publish_assets.SKIP_DOWNLOADED_LEVELS = True
-            try:
-                catalog = publish(root, root / 'output')
-            finally:
-                publish_assets.SKIP_DOWNLOADED_LEVELS = False
+            catalog = publish(root, root / 'output')
             self.assertFalse(any(item['path'].startswith('Library/') for item in catalog['files']))
 
     def test_complete_catalog_dependencies_and_immutable_outputs(self):
