@@ -19,11 +19,32 @@ namespace ManaCore.Diagnostics
         private static readonly LoggingLevelSwitch LevelSwitch = new(ParseMinimumLevel());
         private static Logger? _logger;
 
-        public static string DiagnosticLogPath { get; } =
-            Path.Combine(Environment.GetEnvironmentVariable("MANA_LOG_ROOT") ?? FindLogRoot(), "Artifacts", "Logs", "ManaGraphicsStartup.log");
+        public static string DiagnosticLogPath { get; } = Path.Combine(FindLogFolder(), "ManaGraphicsStartup.log");
 
         // MANA_LOG_ROOT: where an app whose working folder is read-only (a phone's bundle) keeps its log.
-        private static string FindLogRoot()
+        private static string FindLogFolder()
+        {
+            if (Environment.GetEnvironmentVariable("MANA_LOG_ROOT") is { Length: > 0 } root)
+            {
+                return Path.Combine(root, "Artifacts", "Logs");
+            }
+            if (FindCheckout() is { } checkout)
+            {
+                return Path.Combine(checkout, "Artifacts", "Logs");
+            }
+
+            // An installed app logs in its own per-user folder, never the folder it was started in: opening a file
+            // starts it in that file's folder, which would fill with Artifacts/Logs.
+            var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            if (appData.Length > 0)
+            {
+                var app = System.Reflection.Assembly.GetEntryAssembly()?.GetName().Name ?? "Mana";
+                return Path.Combine(appData, app, "Logs");
+            }
+            return Path.Combine(Environment.CurrentDirectory, "Artifacts", "Logs");
+        }
+
+        private static string? FindCheckout()
         {
             // Resolve the checkout even when dotnet run or the debugger starts in a project folder.
             foreach (var start in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
@@ -38,8 +59,7 @@ namespace ManaCore.Diagnostics
                 }
             }
 
-            // Standalone builds keep their diagnostics beneath the launch directory.
-            return Environment.CurrentDirectory;
+            return null;
         }
 
         /// <summary>
