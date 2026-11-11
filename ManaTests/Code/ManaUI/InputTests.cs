@@ -393,5 +393,60 @@ public static class WheelChecks
 
         Check("and it keeps scrolling", viewer.Offset.Y > afterSecond,
             $"{afterSecond:0} -> {viewer.Offset.Y:0}");
+
+        Pen(fonts, check);
+    }
+
+    // The host's tablet input reaches pointer events: kind, pressure, eraser, and the samples between events.
+    private static void Pen(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        var root = new UiRoot(fonts);
+        var pad = new Border { Width = 200, Height = 200, Background = UiColor.White };
+        root.Content = new StackPanel().Children(pad);
+        root.UpdateLayout(new Vector2(300, 300));
+        root.Render();
+        var seen = new List<UiPointerEventArgs>();
+        pad.PointerPressed += (_, e) => seen.Add(e);
+        pad.PointerMoved += (_, e) => seen.Add(e);
+        pad.PointerReleased += (_, e) => seen.Add(e);
+
+        root.Input.InjectPointerMoved(new Vector2(10, 10));
+        root.Input.InjectPointerPressed(new Vector2(10, 10), PointerButton.Left, 0.0);
+        root.Input.InjectPointerMoved(new Vector2(12, 10));
+        root.Input.InjectPointerReleased(new Vector2(12, 10), PointerButton.Left);
+        check("a mouse is a mouse, pressing 0.5 only while a button is down",
+            seen.Count == 4 && seen.All(e => e.Kind == UiPointerKind.Mouse && e.PenSamples.Count == 0)
+            && seen[0].Pressure == 0 && seen[1].Pressure == 0.5f && seen[2].Pressure == 0.5f && seen[3].Pressure == 0,
+            string.Join(",", seen.Select(e => e.Pressure)));
+
+        seen.Clear();
+        root.Input.InjectPenState(true, 0.3f, false);
+        root.Input.InjectPenSample(new Vector2(20, 20), 0.3f);
+        root.Input.InjectPointerPressed(new Vector2(20, 20), PointerButton.Left, 1.0);
+        root.Input.InjectPenSample(new Vector2(21, 20), 0.4f);
+        root.Input.InjectPenSample(new Vector2(22, 21), 0.6f);
+        root.Input.InjectPenState(true, 0.6f, false);
+        root.Input.InjectPointerMoved(new Vector2(22, 21));
+        root.Input.InjectPointerMoved(new Vector2(22, 21));
+        check("a pen reports its pressure, and each event carries the samples since the last, oldest first",
+            seen.Count == 3 && seen.All(e => e.Kind == UiPointerKind.Pen)
+            && seen[0].Pressure == 0.3f && seen[0].PenSamples.Count == 1
+            && seen[1].Pressure == 0.6f && seen[1].PenSamples.Select(e => e.Pressure).SequenceEqual(new[] { 0.4f, 0.6f })
+            && seen[1].PenSamples[0].Position == new Vector2(21, 20) && seen[2].PenSamples.Count == 0,
+            string.Join(" | ", seen.Select(e => $"{e.Kind} {e.Pressure} [{string.Join(",", e.PenSamples.Select(p => p.Pressure))}]")));
+        root.Input.InjectPointerReleased(new Vector2(22, 21), PointerButton.Left);
+
+        seen.Clear();
+        root.Input.InjectPenState(true, 0.8f, true);
+        root.Input.InjectPointerPressed(new Vector2(30, 30), PointerButton.Left, 2.0);
+        root.Input.InjectPointerReleased(new Vector2(30, 30), PointerButton.Left);
+        check("the eraser end says so", seen.Count == 2 && seen.All(e => e.IsEraser), "");
+
+        seen.Clear();
+        root.Input.InjectPenSample(new Vector2(40, 40), 0.9f);
+        root.Input.InjectPenState(false, 0.0f, false);
+        root.Input.InjectPointerMoved(new Vector2(40, 40));
+        check("a pen out of range leaves the pointer a mouse again, dropping its unclaimed samples",
+            seen.Count == 1 && seen[0].Kind == UiPointerKind.Mouse && seen[0].PenSamples.Count == 0 && !seen[0].IsEraser, "");
     }
 }

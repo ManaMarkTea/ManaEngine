@@ -174,6 +174,56 @@ namespace ManaUI
             UpdateHover(_pointerPosition, UiModifiers.None);
         }
 
+        // ----- pen ---------------------------------------------------------------------------------------
+
+        private bool _penInRange;
+        private float _penPressure;
+        private bool _penEraser;
+        private readonly List<UiPenSample> _penSamples = new();
+        private int _buttonsDown;
+
+        /// <summary>
+        /// The host's tablet state: a pen over the window (in range), how hard it presses and whether it is the eraser
+        /// end. Pointer events report it while the pen is in range, and a mouse otherwise.
+        /// </summary>
+        public void InjectPenState(bool inRange, float pressure, bool isEraser)
+        {
+            _penInRange = inRange;
+            _penPressure = Math.Clamp(pressure, 0.0f, 1.0f);
+            _penEraser = isEraser;
+            if (!inRange)
+            {
+                _penSamples.Clear();
+            }
+        }
+
+        /// <summary>One pen reading (root coordinates), handed to the next pointer event in <see cref="UiPointerEventArgs.PenSamples"/>.</summary>
+        public void InjectPenSample(Vector2 position, float pressure)
+        {
+            _penSamples.Add(new UiPenSample(position, Math.Clamp(pressure, 0.0f, 1.0f)));
+        }
+
+        private void FillPointer(UiPointerEventArgs args)
+        {
+            if (_penInRange)
+            {
+                args.Kind = UiPointerKind.Pen;
+                args.Pressure = _penPressure;
+                args.IsEraser = _penEraser;
+                if (_penSamples.Count > 0)
+                {
+                    args.PenSamples = _penSamples.ToArray();
+                    _penSamples.Clear();
+                }
+                return;
+            }
+            args.Kind = UiPointerKind.Mouse;
+            if (_buttonsDown > 0)
+            {
+                args.Pressure = 0.5f;
+            }
+        }
+
         // ----- injection -----------------------------------------------------------------------------
 
         public void InjectPointerMoved(Vector2 position, UiModifiers modifiers = UiModifiers.None)
@@ -192,6 +242,7 @@ namespace ManaUI
                 Position = position,
                 Modifiers = modifiers
             };
+            FillPointer(args);
 
             Dispatch(target, UiRoutedEventKind.PointerMoved, args);
         }
@@ -203,6 +254,7 @@ namespace ManaUI
             UiModifiers modifiers = UiModifiers.None)
         {
             _pointerPosition = position;
+            _buttonsDown++;
             UpdateHover(position, modifiers);
 
             var target = PointerCaptureTarget ?? HoveredElement;
@@ -236,6 +288,7 @@ namespace ManaUI
                 Modifiers = modifiers,
                 ClickCount = _clickCount
             };
+            FillPointer(args);
 
             Dispatch(target, UiRoutedEventKind.PointerPressed, args);
 
@@ -255,6 +308,7 @@ namespace ManaUI
             UiModifiers modifiers = UiModifiers.None)
         {
             _pointerPosition = position;
+            _buttonsDown = Math.Max(0, _buttonsDown - 1);
 
             var target = PointerCaptureTarget ?? HoveredElement;
             if (target == null)
@@ -270,6 +324,7 @@ namespace ManaUI
                 Modifiers = modifiers,
                 ClickCount = _clickCount
             };
+            FillPointer(args);
 
             Dispatch(target, UiRoutedEventKind.PointerReleased, args);
 

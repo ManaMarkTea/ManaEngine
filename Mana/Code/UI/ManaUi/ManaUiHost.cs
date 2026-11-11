@@ -45,6 +45,10 @@ namespace Mana.Code.UI.ManaUi
             if (input != null)
             {
                 InputBridge = new ManaUiInputBridge(Root, input);
+#if !MANA_BROWSER
+                // A pen's pressure and full-rate samples (Windows Ink); elsewhere it stays a mouse.
+                _pen = ManaWindowsPen.TryAttach(_window, Root);
+#endif
             }
             _window.FocusChanged += OnFocusChanged;
         }
@@ -60,6 +64,7 @@ namespace Mana.Code.UI.ManaUi
         }
 
 #if !MANA_BROWSER
+        private ManaWindowsPen? _pen;
         private ManaUiDesktopWindows? _desktopWindows;
         public void EnableDesktopWindows(Func<IWindow, IUiWindowRenderer?> createRenderer, string? iconPath = null)
         {
@@ -237,6 +242,10 @@ namespace Mana.Code.UI.ManaUi
 #endif
             _window.FocusChanged -= OnFocusChanged;
             InputBridge?.Dispose();
+#if !MANA_BROWSER
+            _pen?.Dispose();
+            _pen = null;
+#endif
             Fonts.Dispose();
         }
     }

@@ -42,12 +42,36 @@ namespace ManaUI
         /// <summary>Consecutive clicks within the double-click window: 1 for single, 2 for double.</summary>
         public int ClickCount { get; internal set; } = 1;
 
+        /// <summary>Mouse, or a pen (its pressure and samples come from the host's tablet input).</summary>
+        public UiPointerKind Kind { get; internal set; }
+
+        /// <summary>0 to 1. A pen's measured pressure; a mouse reports 0.5 while a button is held and 0 otherwise.</summary>
+        public float Pressure { get; internal set; }
+
+        /// <summary>The pen is being used with its eraser end (or its inverted tip).</summary>
+        public bool IsEraser { get; internal set; }
+
+        /// <summary>
+        /// Every pen sample since the previous pointer event, oldest first, in root coordinates: a pen reports far more
+        /// often than the frame rate, and a stroke drawn from the events alone comes out polygonal. Empty for a mouse.
+        /// </summary>
+        public IReadOnlyList<UiPenSample> PenSamples { get; internal set; } = System.Array.Empty<UiPenSample>();
+
         /// <summary>Position relative to an element's top-left corner.</summary>
         public Vector2 GetPosition(UiElement element)
         {
             return Position - element.Bounds.Position;
         }
     }
+
+    public enum UiPointerKind
+    {
+        Mouse,
+        Pen
+    }
+
+    /// <summary>One pen reading: where (root coordinates) and how hard, 0 to 1.</summary>
+    public readonly record struct UiPenSample(Vector2 Position, float Pressure);
 
     public class UiPointerWheelEventArgs : UiPointerEventArgs
     {
