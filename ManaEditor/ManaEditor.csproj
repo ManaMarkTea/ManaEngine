@@ -57,6 +57,15 @@
     <PackageReference Include="Silk.NET.Windowing.Glfw" Version="2.23.0" />
   </ItemGroup>
 
+  <!-- The FBX reader (ufbx, Native/Fbx): built per platform by Tools/Native/build-mana-fbx.*, committed, copied beside the exe. -->
+  <ItemGroup Condition="'$(RuntimeIdentifier)' != 'browser-wasm'">
+    <None Include="Native/Fbx/runtimes/*/*.dll;Native/Fbx/runtimes/*/*.dylib">
+      <Link>%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\ManaGraphics\ManaGraphics.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />
     <ProjectReference Include="..\Mana\Mana.csproj" SetTargetFramework="TargetFramework=net10.0;RuntimeIdentifier=$(RuntimeIdentifier)" Condition="'$(RuntimeIdentifier)' == 'browser-wasm'" />

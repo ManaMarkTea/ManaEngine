@@ -2,7 +2,8 @@
 
 These level files preserve the imported scene nodes, authored lighting, camera poses and overrides. Large assets are
 not committed. Open a level normally: its `downloads` block fetches `Downloaded/Bistro_v5_2.zip`, verifies SHA256, and
-imports it into `Library/Imported/Bistro_v5_2/`. The first import also fetches FBX2glTF and takes a few minutes.
+imports it into `Library/Imported/Bistro_v5_2/`. The FBX scenes convert in process (ufbx) in seconds;
+most of a first import is reading the textures.
 
 Each download declaration has a ZIP `file` name, an HTTPS `url`, and a required `sha256`. Existing local ZIPs are verified
 too. A failed download leaves no installed partial ZIP; reopening retries it. Reopening an unchanged pack reuses the

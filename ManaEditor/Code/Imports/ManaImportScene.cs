@@ -149,8 +149,7 @@ namespace ManaEditor.Code.Imports
         }
 
         /// <summary>
-        /// The first directional light (KHR_lights_punctual): its colour and the way it shines. FBX2glTF keeps the FBX
-        /// light's axis, which leaves the node's -Z pointing at the light; its +Z is the way light travels.
+        /// The first directional light (KHR_lights_punctual): its colour and the way it shines, down its node's -Z.
         /// </summary>
         public static (Vector3 Colour, Vector3 Direction)? Sun(ManaGltfDocument gltf)
         {
@@ -170,7 +169,7 @@ namespace ManaEditor.Code.Imports
                     continue;
                 }
                 var colour = ManaGltfDocument.Vector(light["color"], Vector3.One);
-                return (colour, Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, world)));
+                return (colour, Vector3.Normalize(Vector3.TransformNormal(-Vector3.UnitZ, world)));
             }
             return null;
         }

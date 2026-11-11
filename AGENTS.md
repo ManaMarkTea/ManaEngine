@@ -157,8 +157,9 @@ kept as they came) show in the editor's Scenes panel and Level menu under Downlo
 background, progress in the status line -- into `Library/Imported/<zip name>/` (private, regenerable) and opens its
 first level, and later opens skip straight there while the zip is unchanged (`import.json`; bump
 `ManaDownloads.ImporterVersion` to redo every import). `ManaEditor --import Downloaded/<pack>.zip` does it headless.
-The importer (`ManaEditor/Code/Imports/`, `ManaSceneImporter`) unzips, converts each FBX with Godot's FBX2glTF (fetched
-once into `Library/Tools/`), rebuilds the materials from the pack's texture naming (`<name>_BaseColor`/`_Specular` or
+The importer (`ManaEditor/Code/Imports/`, `ManaSceneImporter`) unzips, converts each FBX to glTF in process with ufbx
+(`ManaEditor/Native/Fbx`: `mana_fbx.c` over vendored ufbx, built per platform by `Tools/Native/build-mana-fbx.ps1`/`.sh`
+and committed; `ManaFbxConverter` writes the glTF -- Bistro's three scenes take seconds), rebuilds the materials from the pack's texture naming (`<name>_BaseColor`/`_Specular` or
 `_ORM`/`_Normal`/`_Emissive`; DDS referenced where it lies; normal maps flipped when the pack's readme says DirectX --
 BC5 inside its blocks), puts every part's pivot at its geometry (exported scenes leave them at the origin), and writes
 a level per scene: placed at (100, >=8, 100), batched by the renderer (`mergeParts`), a `ProbeVolume` over it, the

@@ -63,6 +63,8 @@
   <Target Name="ManaDropDesktopAssets" BeforeTargets="_ComputePublishLocation">
     <ItemGroup>
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Assets')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('Content'))" />
+      <!-- The desktop FBX reader (Windows and macOS builds): no importing on the phone. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)' == 'mana_fbx' Or '%(ResolvedFileToPublish.Filename)' == 'libmana_fbx'" />
       <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.Filename)' == 'apphost' Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.deps.json')) Or $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').EndsWith('.runtimeconfig.json'))" />
     </ItemGroup>
   </Target>

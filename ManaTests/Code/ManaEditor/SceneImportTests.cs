@@ -5,7 +5,7 @@ using ManaEditor.Code.Imports;
 
 namespace ManaTests;
 
-/// <summary>The scene importer's own steps, each on a small made-up case: none runs FBX2glTF or a real pack.</summary>
+/// <summary>The scene importer's own steps, each on a small made-up case: none reads a real pack.</summary>
 public static class SceneImportChecks
 {
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
@@ -19,6 +19,7 @@ public static class SceneImportChecks
             Hdr(check);
             Manifest(folder.FullName, check);
             SceneFileMaterials(folder.FullName, check);
+            FbxBuffer(folder.FullName, check);
             check("pack names read as words", ManaSceneImporter.Words("BistroExterior") == "Bistro Exterior"
                 && ManaSceneImporter.Words("Bistro_Interior_Wine") == "Bistro Interior Wine", ManaSceneImporter.Words("BistroExterior"));
         }
@@ -26,6 +27,82 @@ public static class SceneImportChecks
         {
             folder.Delete(recursive: true);
         }
+    }
+
+    // What mana_fbx.c hands back, written by hand: a root, a node turned a quarter about X holding a one-triangle mesh
+    // and a sun, and a node whose mesh has no triangles.
+    private static void FbxBuffer(string folder, Action<string, bool, string> check)
+    {
+        var stream = new MemoryStream();
+        var w = new BinaryWriter(stream, System.Text.Encoding.UTF8);
+        void Text(string value)
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(value);
+            w.Write((uint)bytes.Length);
+            w.Write(bytes);
+        }
+        void Floats(params float[] values)
+        {
+            foreach (var value in values)
+            {
+                w.Write(value);
+            }
+        }
+        void Node(string name, int parent, Quaternion rotation, int mesh, int light)
+        {
+            Text(name);
+            w.Write(parent);
+            Floats(0, 0, 0, rotation.X, rotation.Y, rotation.Z, rotation.W, 1, 1, 1);
+            w.Write(mesh);
+            w.Write(-1);
+            w.Write(light);
+        }
+        w.Write("MFBX"u8.ToArray());
+        w.Write(1u);
+        w.Write(3u);
+        Node("RootNode", -1, Quaternion.Identity, -1, -1);
+        var tilt = Quaternion.CreateFromAxisAngle(Vector3.UnitX, MathF.PI / 2);
+        Node("Lamp Post", 0, tilt, 0, 0);
+        Node("Empty", 0, Quaternion.Identity, 1, -1);
+        w.Write(2u);
+        Text("Tri");
+        w.Write(1u);
+        w.Write(0);
+        w.Write(3u);
+        Floats(0, 0, 0, 1, 0, 0, 0, 1, 0);
+        Floats(0, 0, 1, 0, 0, 1, 0, 0, 1);
+        Floats(0, 0, 1, 0, 0, 1);
+        w.Write(3u);
+        w.Write(0u);
+        w.Write(1u);
+        w.Write(2u);
+        Text("Nothing");
+        w.Write(0u);
+        w.Write(1u);
+        Text("Iron");
+        Floats(0.2f, 0.2f, 0.2f, 1);
+        Text("Iron_BaseColor.dds");
+        Text("");
+        w.Write(0u);
+        w.Write(1u);
+        Text("Sun");
+        w.Write(1);
+        Floats(1, 0.9f, 0.8f, 3);
+
+        var (root, buffer) = ManaFbxConverter.ToGltf(stream.ToArray(), "fbx.bin");
+        File.WriteAllBytes(Path.Combine(folder, "fbx.bin"), buffer);
+        File.WriteAllText(Path.Combine(folder, "fbx.gltf"), root.ToJsonString());
+        var gltf = ManaGltfDocument.Load(Path.Combine(folder, "fbx.gltf"));
+        check("an FBX's nodes keep their hierarchy under its root", gltf.Nodes[0]?["name"]?.GetValue<string>() == "RootNode"
+            && gltf.Nodes[0]?["children"] is JsonArray { Count: 2 } && gltf.Nodes[1]?["mesh"]?.GetValue<int>() == 0, root.ToJsonString());
+        check("a mesh with no triangles is left off its node", gltf.Nodes[2]?["mesh"] == null && gltf.Meshes.Count == 1, "");
+        check("an FBX material keeps its texture's file name", gltf.Root["images"]?[0]?["uri"]?.GetValue<string>() == "Iron_BaseColor.dds", "");
+        // Shining along its node's +Z, turned a quarter about X: straight down.
+        var sun = ManaImportScene.Sun(gltf);
+        check("an FBX sun shines along its node's +Z", sun is { } s && Vector3.Distance(s.Direction, -Vector3.UnitY) < 1e-4f
+            && Vector3.Distance(s.Colour, new Vector3(1, 0.9f, 0.8f)) < 1e-4f, $"{sun}");
+        var bounds = ManaImportScene.Bounds(gltf);
+        check("an FBX mesh's bounds come through", Vector3.Distance(bounds.Max - bounds.Min, new Vector3(1, 0, 1)) < 1e-4f, $"{bounds}");
     }
 
     // A mesh 10 m from its node's origin, used by a node turned a quarter about Y, with a child below it.

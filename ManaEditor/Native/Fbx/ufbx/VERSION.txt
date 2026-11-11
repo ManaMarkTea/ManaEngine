@@ -1,0 +1,2 @@
+ufbx 0.23.1, https://github.com/ufbx/ufbx commit 5955c5c0b042ac2dc6f32955ab206aaec0620cfc (MIT or public domain, LICENSE).
+Unmodified; mana_fbx.c beside this folder is the wrapper ManaEditor calls.

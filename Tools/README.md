@@ -14,6 +14,7 @@ These are development tools, not runtime dependencies unless a build explicitly 
 | `ManaLidar` | Windows-to-Mac deployment, device installation and signing setup. |
 | `Materials` | Downloads/rebuilds compact licensed material packs using the source manifest. |
 | `Mobile` | iOS wgpu-native build, mobile asset selection and app-icon generation. |
+| `Native` | Builds ManaEditor's FBX reader (`ManaEditor/Native/Fbx`, ufbx): `build-mana-fbx.ps1` on Windows (MSVC), `build-mana-fbx.sh` on the Mac. Rebuild and commit both after changing `mana_fbx.c` or updating ufbx. |
 | `PixelFx` | `parity.mjs` writes pixelfx's own per-frame hashes of each ported effect (a checkout at `../pixelfx`) for `PixelFxParityChecks`. |
 | `Profiling` | Collects desktop .NET performance traces. |
 | `Sky` | Generates the constellation data shared by shaders and C#. |

@@ -12,7 +12,7 @@ namespace ManaEditor.Code.Imports
         public const string FolderName = "Downloaded";
 
         /// <summary>Bump when an import would come out differently, so every pack converts again.</summary>
-        public const int ImporterVersion = 6;
+        public const int ImporterVersion = 7;
 
         private const string ManifestName = "import.json";
 

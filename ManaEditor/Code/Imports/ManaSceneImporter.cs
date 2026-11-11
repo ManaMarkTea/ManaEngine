@@ -12,7 +12,7 @@ namespace ManaEditor.Code.Imports
 {
     /// <summary>
     /// Turns a downloaded scene pack (a zip in Downloaded/) into levels the editor opens, all in Library/Imported/:
-    /// unzip; convert each FBX with FBX2glTF; rebuild its materials from the pack's texture naming; put every part's
+    /// unzip; convert each FBX in process (ufbx, ManaFbxConverter); rebuild its materials from the pack's texture naming; put every part's
     /// pivot at its geometry; then write a level that places the scene, lights it as the pack's own scene file says
     /// (its sun, its HDR sky), bakes probes over it and batches it, plus a night version lit by what glows. A glTF or
     /// GLB in the pack is placed as it is. Runs off the main thread; progress comes as one line at a time.
@@ -48,10 +48,8 @@ namespace ManaEditor.Code.Imports
 
             var extractedStamp = Path.Combine(source, ".zip-stamp");
             var stampText = $"{stamp.ZipLength}:{stamp.ZipTicks}";
-            var unpacked = false;
             if (!File.Exists(extractedStamp) || File.ReadAllText(extractedStamp) != stampText)
             {
-                unpacked = true;
                 progress?.Report($"Unpacking {Path.GetFileName(zip)}");
                 if (Directory.Exists(source))
                 {
@@ -77,7 +75,6 @@ namespace ManaEditor.Code.Imports
             var directXNormals = notes.Contains("directx", StringComparison.OrdinalIgnoreCase);
             var pictures = ManaImportMaterials.IndexPictures(source);
             var levels = new List<string>();
-            string? converter = null;
             foreach (var scene in scenes)
             {
                 token.ThrowIfCancellationRequested();
@@ -91,14 +88,8 @@ namespace ManaEditor.Code.Imports
                 if (Path.GetExtension(scene).Equals(".fbx", StringComparison.OrdinalIgnoreCase))
                 {
                     var sceneFolder = Path.Combine(folder, stem);
-                    // FBX2glTF's output depends only on the FBX: from the same unpacked zip, the last conversion stands.
-                    var raw = Path.Combine(sceneFolder, stem + "_out", stem + ".gltf");
-                    if (unpacked || !File.Exists(raw))
-                    {
-                        converter ??= await ManaFbxConverter.EnsureAsync(ManaDownloads.LibraryFolder(checkout), progress, token).ConfigureAwait(false);
-                        progress?.Report($"Converting {Path.GetFileName(scene)} (FBX2glTF, a few minutes for a big scene)");
-                        raw = await ManaFbxConverter.ConvertAsync(converter, scene, sceneFolder, token).ConfigureAwait(false);
-                    }
+                    progress?.Report($"Converting {Path.GetFileName(scene)}");
+                    var raw = ManaFbxConverter.Convert(scene, sceneFolder);
 
                     progress?.Report($"{name}: materials");
                     var gltf = ManaGltfDocument.Load(raw);
