@@ -301,6 +301,7 @@ namespace Mana.Code.UI.ManaUi
                 SilkKey.F4 => UiKey.F4,
                 SilkKey.F => UiKey.F,
                 SilkKey.H => UiKey.H,
+                SilkKey.E => UiKey.E,
                 SilkKey.F3 => UiKey.F3,
                 _ => UiKey.None
             };

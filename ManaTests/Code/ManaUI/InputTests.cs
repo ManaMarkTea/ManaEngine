@@ -395,6 +395,41 @@ public static class WheelChecks
             $"{afterSecond:0} -> {viewer.Offset.Y:0}");
 
         Pen(fonts, check);
+        WindowShortcuts(fonts, check);
+    }
+
+    // An app that wants shortcuts everywhere makes its root focusable: a click on a plain area (a canvas) then focuses the root
+    // instead of clearing focus, and keys keep reaching the root's preview handler. With nothing focused they reach no one.
+    private static void WindowShortcuts(ManaFontManager fonts, Action<string, bool, string> check)
+    {
+        var root = new UiRoot(fonts);
+        var canvas = new Border { Width = 200, Height = 100, Background = UiColor.White };
+        var shell = new StackPanel { Focusable = true }.Children(canvas);
+        root.Content = shell;
+        root.UpdateLayout(new Vector2(300, 300));
+        root.Render();
+        var keys = 0;
+        shell.PreviewKeyDown += (_, e) => keys++;
+
+        var plain = new UiRoot(fonts);
+        var plainCanvas = new Border { Width = 200, Height = 100, Background = UiColor.White };
+        var plainShell = new StackPanel().Children(plainCanvas);
+        plain.Content = plainShell;
+        plain.UpdateLayout(new Vector2(300, 300));
+        plain.Render();
+        var plainKeys = 0;
+        plainShell.PreviewKeyDown += (_, e) => plainKeys++;
+
+        foreach (var (r, at) in new[] { (root, new Vector2(50, 50)), (plain, new Vector2(50, 50)) })
+        {
+            r.Input.InjectPointerMoved(at);
+            r.Input.InjectPointerPressed(at, PointerButton.Left, 0.0);
+            r.Input.InjectPointerReleased(at, PointerButton.Left);
+            r.Input.InjectKeyDown(UiKey.Z, UiModifiers.Control);
+        }
+        check("a click on a plain area focuses a focusable root, so window shortcuts still arrive",
+            root.FocusManager.Focused == shell && keys == 1, $"focused {root.FocusManager.Focused?.GetType().Name}, keys {keys}");
+        check("without one, the click clears focus and the key reaches nothing", plain.FocusManager.Focused == null && plainKeys == 0, "");
     }
 
     // The host's tablet input reaches pointer events: kind, pressure, eraser, and the samples between events.
