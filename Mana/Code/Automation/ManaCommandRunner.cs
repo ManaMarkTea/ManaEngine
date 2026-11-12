@@ -430,6 +430,23 @@ namespace Mana.Code.Automation
             });
 
             // Off, Fxaa, Smaa or Msaa (ManaAntiAliasing).
+            // The retro screen filter over whatever is open: name a look, count its lines; visible false takes it off again.
+            Register("retro", command =>
+            {
+                if (command.Visible == false)
+                {
+                    Context.World.RetroFilterOverride = null;
+                    return;
+                }
+                var look = ManaCore.Graphics.ManaRetroFilterSettings.Preset(command.Name)
+                    ?? throw new InvalidOperationException($"retro: '{command.Name}' is not one of {string.Join(", ", ManaCore.Graphics.ManaRetroFilterSettings.PresetNames)}.");
+                if (command.Count > 0)
+                {
+                    look = look with { Lines = command.Count };
+                }
+                Context.World.RetroFilterOverride = look;
+            });
+
             Register("anti_aliasing", command =>
             {
                 if (!Enum.TryParse<ManaCore.Graphics.ManaAntiAliasing>(command.Name, true, out var mode))

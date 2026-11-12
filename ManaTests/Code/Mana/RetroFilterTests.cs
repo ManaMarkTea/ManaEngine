@@ -33,6 +33,16 @@ public static class RetroFilterChecks
         filter.Enabled = false;
         Check("a disabled script turns it off", world.FindRetroFilter() == null);
 
+        filter.Enabled = true;
+        world.RetroFilterOverride = ManaRetroFilterSettings.Preset("vhs");
+        Check("the script command's look wins over a script", world.RetroFilterOverride is { Glitch: > 0.5f }
+            && ManaRetroFilterSettings.PresetNames.All(name => ManaRetroFilterSettings.Preset(name) != null)
+            && ManaRetroFilterSettings.Preset("sepia") == null);
+
+        Check("a portrait window size reads as width by height",
+            ManaLaunchOptions.ParseWindowSize("1080x1920") == (1080, 1920) && ManaLaunchOptions.ParseWindowSize("1080") == null
+                && ManaLaunchOptions.ParseWindowSize("0x0") == null);
+
         var settings = new ManaRetroFilterSettings { Lines = 240 };
         Check("big pixels are whole screen pixels",
             settings.PixelSize(1080) == 5 && settings.PixelSize(2160) == 9 && settings.PixelSize(100) == 1,

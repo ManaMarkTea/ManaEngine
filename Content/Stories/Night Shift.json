@@ -1,0 +1,33 @@
+{
+  "title": "NIGHT SHIFT",
+  "subtitle": "a ManaEngine story",
+  "size": [1080, 1920],
+  "fps": 30,
+  "retro": "VHS",
+  "shots": [
+    {
+      "level": "Content/Levels/Light Show.manalevel",
+      "from": { "position": [64, 6.5, 80], "target": [64, 2.5, 48] },
+      "to": { "position": [64, 4, 66], "target": [64, 2.5, 48] },
+      "fov": 70,
+      "seconds": 4,
+      "caption": "11:58 PM. The lights are still on."
+    },
+    {
+      "level": "Content/Levels/Particle Garden.manalevel",
+      "from": { "position": [50, 8, 140], "target": [50, 4, 105] },
+      "to": { "position": [58, 6, 124], "target": [50, 4, 105] },
+      "fov": 70,
+      "seconds": 4,
+      "caption": "The fountains never clock out."
+    },
+    {
+      "level": "Content/Levels/Night Sky.manalevel",
+      "from": { "position": [90, 1.7, 98], "target": [90, 9, 70] },
+      "to": { "position": [90, 1.7, 98], "target": [96, 12, 70] },
+      "fov": 75,
+      "seconds": 4,
+      "caption": "And nobody watches the stars but me."
+    }
+  ]
+}

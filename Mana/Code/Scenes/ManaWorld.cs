@@ -404,6 +404,12 @@ namespace Mana
             return null;
         }
 
+        /// <summary>
+        /// A retro filter for the whole world that wins over any RetroFilter script -- the <c>retro</c> script command sets
+        /// it, so a video can be shot through the filter without changing the level. Never saved.
+        /// </summary>
+        public ManaRetroFilterSettings? RetroFilterOverride { get; set; }
+
         /// <summary>The first enabled RetroFilter script in any scene: the whole screen goes through one.</summary>
         public ManaRetroFilterSettings? FindRetroFilter()
         {
@@ -579,7 +585,7 @@ namespace Mana
                 SunColor = sun.Found ? sun.Color : Vector4.One,
                 SunCastsShadows = sun.Found && sun.CastsShadows,
                 ProbeVolume = FindProbeVolume(),
-                RetroFilter = FindRetroFilter()
+                RetroFilter = RetroFilterOverride ?? FindRetroFilter()
             };
         }
 

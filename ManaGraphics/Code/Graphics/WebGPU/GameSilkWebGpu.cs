@@ -43,6 +43,10 @@ namespace ManaGraphics.Code.Graphics
         {
             _title = title;
             _windowSize = windowSize ?? new Vector2D<int>(1920, 1080);
+            if (windowSize == null && ManaLaunchOptions.WindowSize is { } requested)
+            {
+                _windowSize = new Vector2D<int>(requested.Width, requested.Height);
+            }
             _requestedBackend = requestedBackend;
             _renderSceneProvider = renderSceneProvider;
             _inputReady = inputReady;

@@ -38,6 +38,45 @@ namespace ManaCore.Graphics
         /// <summary>Colour: 0 grey, 1 as drawn, above 1 more vivid.</summary>
         public float Saturation { get; init; } = 0.85f;
 
+        /// <summary>The looks the <c>retro</c> script command names, Default first.</summary>
+        public static readonly string[] PresetNames = { "Default", "VHS", "Console", "CRT" };
+
+        /// <summary>
+        /// A named look: Default (as a new RetroFilter script), VHS (a worn tape: fringes, wobble, grain), Console (a
+        /// clean 1990s console picture, chunky and dithered) or CRT (a TV's curved glass and strong scanlines). Null for
+        /// any other name.
+        /// </summary>
+        public static ManaRetroFilterSettings? Preset(string? name)
+        {
+            switch (name?.Trim().ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "default":
+                    return new ManaRetroFilterSettings();
+                case "vhs":
+                    return new ManaRetroFilterSettings
+                    {
+                        Lines = 240, ColorLevels = 12, Dither = 0.8f, Scanlines = 0.25f, ChromaticAberration = 1.0f,
+                        Noise = 0.35f, Glitch = 0.6f, Vignette = 0.4f, Saturation = 0.8f
+                    };
+                case "console":
+                    return new ManaRetroFilterSettings
+                    {
+                        Lines = 200, ColorLevels = 8, Dither = 1.0f, Scanlines = 0.0f, ChromaticAberration = 0.0f,
+                        Noise = 0.0f, Glitch = 0.0f, Vignette = 0.0f, Saturation = 1.0f
+                    };
+                case "crt":
+                    return new ManaRetroFilterSettings
+                    {
+                        Lines = 270, ColorLevels = 16, Dither = 0.6f, Scanlines = 0.6f, ChromaticAberration = 0.5f,
+                        Noise = 0.15f, Glitch = 0.1f, Vignette = 0.5f, Curvature = 0.5f, Saturation = 0.95f
+                    };
+                default:
+                    return null;
+            }
+        }
+
         /// <summary>Screen pixels across one big pixel for a window <paramref name="height"/> tall: whole, so every block is alike.</summary>
         public int PixelSize(uint height)
         {

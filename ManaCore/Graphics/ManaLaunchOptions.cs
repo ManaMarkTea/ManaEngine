@@ -32,6 +32,12 @@ namespace ManaCore.Graphics
         /// <summary>Set by <c>--mute</c> (or <c>MANA_MUTE=1</c>): no sound at all -- scripted test runs pass it.</summary>
         public bool Mute { get; private init; }
 
+        /// <summary>
+        /// Set by <c>--window-size 1080x1920</c> (or <c>MANA_WINDOW_SIZE</c>): the main window's size in pixels -- a
+        /// portrait window for phone videos, say. Process-wide, as there is one main window; null keeps 1920 x 1080.
+        /// </summary>
+        public static (int Width, int Height)? WindowSize { get; private set; }
+
         public static ManaLaunchOptions Parse(string[] args)
         {
             var graphicsBackend = ParseGraphicsBackend(Environment.GetEnvironmentVariable("MANA_GRAPHICS_BACKEND"));
@@ -43,6 +49,10 @@ namespace ManaCore.Graphics
             string? importPath = null;
             var playMenu = false;
             var mute = Environment.GetEnvironmentVariable("MANA_MUTE") is "1" or "true";
+            if (ParseWindowSize(Environment.GetEnvironmentVariable("MANA_WINDOW_SIZE")) is { } sizeFromEnvironment)
+            {
+                WindowSize = sizeFromEnvironment;
+            }
 
             for (var i = 0; i < args.Length; i++)
             {
@@ -103,6 +113,13 @@ namespace ManaCore.Graphics
                     continue;
                 }
 
+                if (TryReadOptionValue(args, ref i, "--window-size", out var windowSizeValue))
+                {
+                    WindowSize = ParseWindowSize(windowSizeValue)
+                        ?? throw new ArgumentException($"--window-size '{windowSizeValue}' is not WIDTHxHEIGHT, e.g. 1080x1920.");
+                    continue;
+                }
+
                 if (TryReadOptionValue(args, ref i, "--command-file", out var commandFileValue))
                 {
                     commandFilePath = commandFileValue;
@@ -121,6 +138,24 @@ namespace ManaCore.Graphics
                 Mute = mute,
                 PlayMenu = playMenu
             };
+        }
+
+        /// <summary>"1080x1920" as (1080, 1920); null for anything else.</summary>
+        public static (int Width, int Height)? ParseWindowSize(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+            var parts = value.Trim().ToLowerInvariant().Split('x');
+            if (parts.Length != 2
+                || !int.TryParse(parts[0], out var width)
+                || !int.TryParse(parts[1], out var height)
+                || width < 64 || height < 64 || width > 16384 || height > 16384)
+            {
+                return null;
+            }
+            return (width, height);
         }
 
         private static ManaGraphicsBackendKind ParseGraphicsBackend(string? value)
