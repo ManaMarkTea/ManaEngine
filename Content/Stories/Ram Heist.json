@@ -1,73 +1,372 @@
 {
   "title": "RAM HEIST",
   "retro": "VHS",
-  "music": { "path": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav", "volume": 0.45 },
+  "music": {
+    "path": "Assets/Audio/Music/Pixel Peeker Polka - faster.wav",
+    "volume": 0.6
+  },
   "shots": [
     {
       "level": "Content/Levels/Stages/Empty Stage.manalevel",
       "set": [
-        { "name": "Window 1", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb", "position": [43, 0, 43], "scale": 2.5 },
-        { "name": "Window 2", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb", "position": [45.5, 0, 43], "scale": 2.5 },
-        { "name": "Window 3", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window-banner.glb", "position": [48, 0, 43], "scale": 2.5 },
-        { "name": "Window 4", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb", "position": [50.5, 0, 43], "scale": 2.5 },
-        { "name": "Window 5", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb", "position": [53, 0, 43], "scale": 2.5 },
-        { "name": "Console Left", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-system.glb", "position": [45, 0, 45.2], "scale": 2 },
-        { "name": "Console Middle", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-screen.glb", "position": [48, 0, 45.2], "scale": 2 },
-        { "name": "Console Right", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-system.glb", "position": [51, 0, 45.2], "scale": 2 },
-        { "name": "RAM Rack", "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/container-tall.glb", "position": [44, 0, 48.5], "yaw": 30, "scale": 2 },
-        { "name": "Mio", "asset": "zip:kenney_blocky-characters_20.zip/Models/GLB format/character-a.glb", "position": [41, 0, 50], "yaw": 90, "scale": 0.65 },
-        { "name": "Guard", "asset": "zip:kenney_blocky-characters_20.zip/Models/GLB format/character-l.glb", "position": [51, 0, 46.6], "yaw": 180, "scale": 0.65 }
+        {
+          "name": "Window 1",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb",
+          "position": [
+            43,
+            0,
+            43
+          ],
+          "scale": 2.5
+        },
+        {
+          "name": "Window 2",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb",
+          "position": [
+            45.5,
+            0,
+            43
+          ],
+          "scale": 2.5
+        },
+        {
+          "name": "Window 3",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window-banner.glb",
+          "position": [
+            48,
+            0,
+            43
+          ],
+          "scale": 2.5
+        },
+        {
+          "name": "Window 4",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb",
+          "position": [
+            50.5,
+            0,
+            43
+          ],
+          "scale": 2.5
+        },
+        {
+          "name": "Window 5",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/wall-window.glb",
+          "position": [
+            53,
+            0,
+            43
+          ],
+          "scale": 2.5
+        },
+        {
+          "name": "Console Left",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-system.glb",
+          "position": [
+            45,
+            0,
+            45.2
+          ],
+          "scale": 2
+        },
+        {
+          "name": "Console Middle",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-screen.glb",
+          "position": [
+            48,
+            0,
+            45.2
+          ],
+          "scale": 2
+        },
+        {
+          "name": "Console Right",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/computer-system.glb",
+          "position": [
+            51,
+            0,
+            45.2
+          ],
+          "scale": 2
+        },
+        {
+          "name": "RAM Rack",
+          "asset": "zip:kenney_space-station-kit.zip/Models/GLB format/container-tall.glb",
+          "position": [
+            44,
+            0,
+            48.5
+          ],
+          "yaw": 30,
+          "scale": 2
+        },
+        {
+          "name": "Mio",
+          "asset": "zip:kenney_blocky-characters_20.zip/Models/GLB format/character-a.glb",
+          "position": [
+            41,
+            0,
+            50
+          ],
+          "yaw": 90,
+          "scale": 0.65
+        },
+        {
+          "name": "Guard",
+          "asset": "zip:kenney_blocky-characters_20.zip/Models/GLB format/character-l.glb",
+          "position": [
+            51,
+            0,
+            46.6
+          ],
+          "yaw": 180,
+          "scale": 0.65
+        }
       ],
-      "from": { "position": [48, 2.4, 57], "target": [48, 1.4, 45] },
-      "to": { "position": [48, 2.0, 54], "target": [48, 1.4, 45] },
+      "from": {
+        "position": [
+          48,
+          2.4,
+          57
+        ],
+        "target": [
+          48,
+          1.4,
+          45
+        ]
+      },
+      "to": {
+        "position": [
+          48,
+          2.0,
+          54
+        ],
+        "target": [
+          48,
+          1.4,
+          45
+        ]
+      },
       "fov": 62,
       "seconds": 3.5,
-      "title": { "text": "RAM HEIST", "position": [0, 0.55], "scale": 0.09 },
+      "title": {
+        "text": "RAM HEIST",
+        "position": [
+          0,
+          0.55
+        ],
+        "scale": 0.09
+      },
       "caption": "Sam Altman took my RAM.",
-      "sounds": [ { "path": "Assets/Audio/Starter/UI/notification.wav", "at": 0.6, "volume": 0.8 } ]
+      "sounds": [
+        {
+          "path": "Assets/Audio/Starter/UI/notification.wav",
+          "at": 0.6,
+          "volume": 0.8
+        }
+      ]
     },
     {
       "level": "Content/Levels/Stages/Empty Stage.manalevel",
-      "from": { "position": [46, 1.8, 53.5], "target": [46, 1.2, 47] },
-      "to": { "position": [46.5, 1.6, 51.8], "target": [46.5, 1.2, 46.5] },
+      "from": {
+        "position": [
+          45.5,
+          1.9,
+          55
+        ],
+        "target": [
+          46,
+          1.1,
+          47
+        ]
+      },
+      "to": {
+        "position": [
+          46,
+          1.8,
+          53.5
+        ],
+        "target": [
+          46.5,
+          1.1,
+          47
+        ]
+      },
       "fov": 60,
       "seconds": 4,
       "actions": [
-        { "at": 0.2, "type": "walk", "name": "Mio", "position": [46.8, 0, 47.2], "seconds": 2.3 },
-        { "at": 2.6, "type": "face", "name": "Mio", "target": [48, 1, 45] },
-        { "at": 2.9, "type": "animate", "name": "Mio", "clip": "interact-right", "loop": false }
+        {
+          "at": 0.2,
+          "type": "walk",
+          "name": "Mio",
+          "position": [
+            46.8,
+            0,
+            47.2
+          ],
+          "seconds": 2.3
+        },
+        {
+          "at": 2.6,
+          "type": "face",
+          "name": "Mio",
+          "target": [
+            48,
+            1,
+            45
+          ]
+        },
+        {
+          "at": 2.9,
+          "type": "animate",
+          "name": "Mio",
+          "clip": "interact-right",
+          "loop": false
+        }
       ],
       "caption": "So I went to get it back.",
-      "sounds": [ { "path": "Assets/Audio/Starter/UI/click.wav", "at": 3.0, "volume": 0.9 } ]
+      "sounds": [
+        {
+          "path": "Assets/Audio/Starter/UI/click.wav",
+          "at": 3.0,
+          "volume": 0.9
+        }
+      ]
     },
     {
       "level": "Content/Levels/Stages/Empty Stage.manalevel",
-      "from": { "position": [51.6, 1.8, 50.8], "target": [50.8, 1.3, 46.5] },
-      "to": { "position": [51.3, 1.6, 50], "target": [50.8, 1.3, 46.5] },
+      "from": {
+        "position": [
+          52.6,
+          2.0,
+          52.6
+        ],
+        "target": [
+          50.6,
+          1.2,
+          46.6
+        ]
+      },
+      "to": {
+        "position": [
+          52.2,
+          1.9,
+          51.6
+        ],
+        "target": [
+          50.6,
+          1.2,
+          46.6
+        ]
+      },
       "fov": 58,
       "seconds": 3,
       "actions": [
-        { "at": 0.4, "type": "face", "name": "Guard", "target": [46.8, 1, 47.2], "seconds": 0.5 },
-        { "at": 1.0, "type": "animate", "name": "Guard", "clip": "emote-no" }
+        {
+          "at": 0.4,
+          "type": "face",
+          "name": "Guard",
+          "target": [
+            46.8,
+            1,
+            47.2
+          ],
+          "seconds": 0.5
+        },
+        {
+          "at": 1.0,
+          "type": "animate",
+          "name": "Guard",
+          "clip": "emote-no"
+        }
       ],
       "caption": "Security was not thrilled.",
-      "sounds": [ { "path": "Assets/Audio/SampleCourse/Enemies/alert.wav", "at": 0.6, "volume": 0.9 } ]
+      "sounds": [
+        {
+          "path": "Assets/Audio/SampleCourse/Enemies/alert.wav",
+          "at": 0.6,
+          "volume": 0.9
+        }
+      ]
     },
     {
       "level": "Content/Levels/Stages/Empty Stage.manalevel",
-      "from": { "position": [47, 3, 58], "target": [46, 1.2, 47] },
-      "to": { "position": [46, 2.6, 56], "target": [45, 1.2, 48] },
+      "from": {
+        "position": [
+          46,
+          2.6,
+          56
+        ],
+        "target": [
+          45,
+          1.1,
+          48
+        ]
+      },
+      "to": {
+        "position": [
+          45.5,
+          2.4,
+          54.5
+        ],
+        "target": [
+          44.5,
+          1.1,
+          48.5
+        ]
+      },
       "fov": 62,
       "seconds": 3.5,
       "actions": [
-        { "at": 0.1, "type": "animate", "name": "Mio", "clip": "pick-up", "loop": false },
-        { "at": 1.2, "type": "walk", "name": "Mio", "position": [39, 0, 53], "seconds": 1.6, "clip": "sprint" }
+        {
+          "at": 0.1,
+          "type": "animate",
+          "name": "Mio",
+          "clip": "pick-up",
+          "loop": false
+        },
+        {
+          "at": 1.6,
+          "type": "face",
+          "name": "Mio",
+          "target": [
+            42,
+            0,
+            51
+          ],
+          "seconds": 0.3
+        },
+        {
+          "at": 2.0,
+          "type": "walk",
+          "name": "Mio",
+          "position": [
+            42,
+            0,
+            51
+          ],
+          "seconds": 1.3,
+          "clip": "sprint"
+        }
       ],
-      "title": { "text": "64 GB", "position": [0, 0.55], "scale": 0.1 },
+      "title": {
+        "text": "64 GB",
+        "position": [
+          0,
+          0.55
+        ],
+        "scale": 0.1
+      },
       "caption": "Worth it.",
       "sounds": [
-        { "path": "Assets/Audio/Starter/Gameplay/pickup.wav", "at": 0.5 },
-        { "path": "Assets/Audio/Starter/Gameplay/whoosh.wav", "at": 1.3 }
+        {
+          "path": "Assets/Audio/Starter/Gameplay/pickup.wav",
+          "at": 0.5
+        },
+        {
+          "path": "Assets/Audio/Starter/Gameplay/whoosh.wav",
+          "at": 1.3
+        }
       ]
     }
   ]

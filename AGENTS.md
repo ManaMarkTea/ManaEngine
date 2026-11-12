@@ -117,6 +117,10 @@ dotnet build ManaEditor -o Artifacts/AutomationBin      # a separate output, so 
 | `save_as` | `path` | Saves the open level to `path` as File > Save Level As does (renamed to match, editing carries on in the copy); without `path`, drops the Save As box down |
 | `debug_view` | `name` | The PBR debug view by name or number (Scene Inspector > PBR debug): `Light Count`, `Light Cells`, `Shadow Cascades`, `View Depth`, `Ambient Occlusion`, `World Normal`... `Off` for the shaded picture. Fixture: `Tools/Automation/Checks/debug-views.json` |
 | `measure` | `name`, `position` | The measuring tool: `distance`/`radius`/`path`/`ray` (turn it on in that mode; `ray_out`/`ray_up`/`ray_down` set the ray), `click`/`hover` at a world `position` (projected to the screen and snapped exactly as the pointer would be; logs what it snapped to and the last measurement), `finish`, `clear`, `stay`/`free`, `metric`/`imperial`, `off` |
+| `retro` | `name` (`Default`, `VHS`, `Console`, `CRT`), `count` (lines), `visible` | The retro filter over whatever is open, winning over any RetroFilter script; `visible: false` takes it off (`ManaWorld.RetroFilterOverride`, never saved) |
+| `place` / `remove` | `name`, `path` (model or `.manaprefab`), `position`, `yaw` (degrees), `scale` / `name` (`*` clears) | Stories: puts a model, character or prefab in a never-saved "Story" scene (`StoryCommands`); characters start on `idle` |
+| `animate` / `walk` / `face` | `name`, `clip`, `loop`, `speed` / `position`, `frames`, `clip`, `background` / `target`, `frames` | Stories: plays a clip; walks there (walk clip, then idle; 1.4 m/s without frames); turns to face a point |
+| `title` | `name`, `path` (PNG), `position` (screen x, y in -1..1), `scale` (share of screen height), `visible` | Stories: a picture held in the scene just in front of the camera, so the retro filter pixelates it |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 
 Reference scenes for rendering checks live in `Content/Levels/Tests/` (not in the web selector), with the scripts that
@@ -139,6 +143,11 @@ Patterns that work:
   they keep moving along their path.
 - **A picture of play:** `play`, `wait` ~120 frames, `screenshot`. Editor screenshots include the panels: crop to
   the viewport, whose rectangle depends on the layout (open the PNG once and read it off).
+- **Story videos** (portrait MP4s for Instagram/TikTok): `Tools/Stories/` -- `generate.py "<idea>"` has Claude write a
+  story (`Content/Stories/*.json`: shots with sets, an action timeline, titles, captions, music, sounds) against
+  `catalog.py`'s list of what exists, checks it, films a small preview and lets Claude fix what it sees; `story.py`
+  renders it (`--window-size 1080x1920`, xvfb and lavapipe on a headless server) and encodes it. `Tools/Stories/README.md`.
+  `Content/Levels/Stages/Empty Stage.manalevel` is the bare floor sets are built on.
 - Scripts worth keeping -- tours, highlight reels, demos -- live in `Content/Scripts/` (`Highlights/Showcase Levels.json`,
   `Highlights/Sample Course Tour.json` shoot DevPhotos with `@@PHOTO@@`); one-off scripts and every output belong in
   `Artifacts/` or the session scratchpad.

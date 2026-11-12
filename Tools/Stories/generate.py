@@ -11,6 +11,7 @@ answers with a story as JSON. story.py's checker reads it; whatever it finds wro
 three times. The story lands in Content/Stories/<title>.json -- edit it by hand and re-run story.py as much as you like.
 """
 import argparse
+import base64
 import json
 import re
 import sys
@@ -105,8 +106,20 @@ def ask(client, messages):
     return response, text
 
 
-def generate(idea, seconds, retro=None, client=None):
-    """A checked story for the idea, or exits explaining why there is none."""
+REVIEW = """\
+Here is how your story films: three frames from each shot (its start, middle and end), rendered small. Look at them as
+a director would. Is each shot's subject in the middle of the frame, whole, at a sensible size -- not cut off, not too
+close, not lost in the distance? Are the people in scale with the set, standing on the floor? Can you see each action
+happen (a walk, a turn, a gesture), or does it happen off screen? Does a title cover a face? Does the set look like the
+place the story says it is?
+
+If the shots work, answer with the single word UNCHANGED. Otherwise answer with the whole corrected story as JSON --
+move cameras, props and people, change scales and timings -- keeping what works.
+"""
+
+
+def generate(idea, seconds, retro=None, client=None, reviews=1, preview=None):
+    """A checked (and, with reviews, looked-at) story for the idea, or exits explaining why there is none."""
     if client is None:
         import anthropic
 
@@ -115,23 +128,55 @@ def generate(idea, seconds, retro=None, client=None):
     if retro:
         request += f" Use the {retro} retro look."
     messages = [{"role": "user", "content": request}]
+    story = converse(client, messages)
+    preview = preview or (lambda draft: story_tool.make(draft, preview=True))
+    for review in range(1, reviews + 1):
+        print(f"Filming a preview for review {review} ...")
+        frames_dir = preview(story)
+        messages.append({"role": "user", "content": review_content(story, frames_dir)})
+        revised = converse(client, messages, allow_unchanged=True)
+        if revised is None:
+            print("  Claude is happy with the shots.")
+            break
+        story = revised
+    return story
+
+
+def converse(client, messages, allow_unchanged=False):
+    """Asks until the answer is a story the checker passes (or, when allowed, UNCHANGED, returned as None)."""
     problems = ["(no answer yet)"]
-    story = None
     for attempt in range(1, ATTEMPTS + 1):
         print(f"Asking {MODEL} (attempt {attempt}) ...")
         response, text = ask(client, messages)
         messages.append({"role": "assistant", "content": response.content})
+        if allow_unchanged and text.strip().strip("`").strip().upper().startswith("UNCHANGED"):
+            return None
         try:
             story = story_tool.normalize(extract_json(text))
             problems = story_tool.validate(story)
         except (json.JSONDecodeError, ValueError) as error:
-            story, problems = None, [f"The answer was not valid JSON ({error}). Answer with the whole story as JSON."]
+            problems = [f"The answer was not valid JSON ({error}). Answer with the whole story as JSON."]
         if not problems:
             return story
         print("  The story has problems; sending them back:\n    " + "\n    ".join(problems))
         messages.append({"role": "user", "content": "The checker found these problems. Fix every one and answer with "
                          "the whole corrected story as JSON:\n- " + "\n- ".join(problems)})
-    sys.exit("Claude's story still had problems after " f"{ATTEMPTS} tries:\n  " + "\n  ".join(problems))
+    sys.exit(f"Claude's story still had problems after {ATTEMPTS} tries:\n  " + "\n  ".join(problems))
+
+
+def review_content(story, frames_dir):
+    """The review request: the director's notes prompt, then each shot's caption and three frames."""
+    content = [{"type": "text", "text": REVIEW}]
+    for index, frames in enumerate(story_tool.preview_frames(frames_dir, story)):
+        shot = story["shots"][index]
+        label = f"Shot {index + 1} ({shot['seconds']}s)"
+        if shot.get("caption"):
+            label += f": \"{shot['caption']}\""
+        content.append({"type": "text", "text": label})
+        for frame in frames:
+            data = base64.standard_b64encode(Path(frame).read_bytes()).decode("ascii")
+            content.append({"type": "image", "source": {"type": "base64", "media_type": "image/jpeg", "data": data}})
+    return content
 
 
 def main():
@@ -140,11 +185,13 @@ def main():
     parser.add_argument("--seconds", type=int, default=15, help="roughly how long (default 15)")
     parser.add_argument("--retro", choices=story_tool.RETRO_LOOKS, help="insist on a retro look")
     parser.add_argument("--out", help="where to save the story (default Content/Stories/<title>.json)")
+    parser.add_argument("--reviews", type=int, default=1,
+                        help="times Claude looks at a small preview of its shots and fixes them (0 skips; default 1)")
     parser.add_argument("--draft", action="store_true", help="then render a quick half-size preview")
     parser.add_argument("--render", action="store_true", help="then render the full-size MP4")
     options = parser.parse_args()
 
-    story = generate(options.idea, options.seconds, options.retro)
+    story = generate(options.idea, options.seconds, options.retro, reviews=options.reviews)
     out = Path(options.out) if options.out else ROOT / "Content" / "Stories" / f"{story['title'].title()}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(story, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

@@ -428,7 +428,7 @@ def encode_shot(story, index, shot, folder, clip, ffmpeg, size):
     if index == 0 and story.get("subtitle") and not shot.get("title"):
         texts.append((story["subtitle"], int(caption_size * 0.7), "h*0.12"))
     if shot.get("caption"):
-        lines = wrap(shot["caption"], int(story.get("captionWidth", 22)))
+        lines = wrap(shot["caption"], int(story.get("captionWidth", 26)))
         top = f"h*0.74-{len(lines) * caption_size * 0.6:.0f}"
         for number, line in enumerate(lines):
             texts.append((line, caption_size, f"{top}+{number * int(caption_size * 1.2)}"))
@@ -527,12 +527,17 @@ def encode(story, frames_dir, out_path, ffmpeg):
 
 # ----- the whole run ------------------------------------------------------------------------------------------------
 
-def make(story, *, draft=False, out=None, script_only=False, encode_only=False, rebuild=False,
+def make(story, *, draft=False, preview=False, out=None, script_only=False, encode_only=False, rebuild=False,
          timeout=3 * 3600, ffmpeg=None):
     problems = validate(story)
     if problems:
         sys.exit("The story has problems:\n  " + "\n  ".join(problems))
-    name = slug(story["title"]) + ("-draft" if draft else "")
+    suffix = ""
+    if draft:
+        suffix = "-draft"
+    if preview:
+        suffix = "-preview"
+    name = slug(story["title"]) + suffix
     frames_dir = ROOT / "Artifacts" / "Stories" / name
     out_path = Path(out) if out else ROOT / "Artifacts" / "Stories" / f"{name}.mp4"
     script_path = frames_dir / "script.json"
@@ -540,6 +545,9 @@ def make(story, *, draft=False, out=None, script_only=False, encode_only=False, 
     render_size = list(story["size"])
     if draft:
         render_size = [story["size"][0] // 2, story["size"][1] // 2]
+    if preview:
+        # The generator's look at its own shots: small and quick, frames only, no video.
+        render_size = [story["size"][0] // 4, story["size"][1] // 4]
 
     if not encode_only:
         frames_dir.mkdir(parents=True, exist_ok=True)
@@ -551,11 +559,26 @@ def make(story, *, draft=False, out=None, script_only=False, encode_only=False, 
         if script_only:
             return None
         render(render_size, script_path, rebuild, timeout)
+    if preview:
+        return frames_dir
     ffmpeg = ffmpeg or os.environ.get("FFMPEG") or shutil.which("ffmpeg")
     if not ffmpeg:
         sys.exit("No ffmpeg: install it, pass --ffmpeg or set FFMPEG.")
     encode(story, frames_dir, out_path, ffmpeg)
     return out_path
+
+
+def preview_frames(frames_dir, story, per_shot=3):
+    """Paths of a few frames from each rendered shot -- its start, middle and end -- in shot order."""
+    picked = []
+    for index in range(len(story["shots"])):
+        frames = sorted((frames_dir / f"{index + 1:02d}").glob("*.jpg"))
+        if not frames:
+            picked.append([])
+            continue
+        step = max(1, (len(frames) - 1) // max(1, per_shot - 1))
+        picked.append([frames[min(len(frames) - 1, i * step)] for i in range(per_shot)])
+    return picked
 
 
 def main():

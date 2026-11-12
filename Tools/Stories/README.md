@@ -4,7 +4,9 @@ Three tools turn an idea into a 1080 x 1920 MP4 for Instagram or TikTok stories,
 filter:
 
 - `generate.py "<idea>"` asks Claude for a story (JSON, the format below), checks it against what the engine has and
-  sends any problems back to be fixed, then saves it in `Content/Stories/`. Needs an Anthropic API key.
+  sends any problems back to be fixed, then films a small preview (270 x 480, about a minute) and shows Claude three
+  frames of each shot to fix framing, scale and blocking (`--reviews N`, 1 by default, 0 to skip), and saves it in
+  `Content/Stories/`. Needs an Anthropic API key; a story costs roughly a few tens of cents.
 - `story.py <story.json>` checks a story, writes the ManaEditor command script, renders it in a portrait window
   (`--window-size 1080x1920`), and captions, crossfades, mixes music and sound, and encodes it with ffmpeg.
 - `catalog.py` prints what a story can use: levels, every placeable model with its size, characters and their
