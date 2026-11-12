@@ -404,6 +404,44 @@ namespace Mana
             return null;
         }
 
+        /// <summary>The first enabled RetroFilter script in any scene: the whole screen goes through one.</summary>
+        public ManaRetroFilterSettings? FindRetroFilter()
+        {
+            ManaRetroFilterSettings? Find(ManaSceneNode node)
+            {
+                foreach (var component in node.Components)
+                {
+                    if (component is Mana.Code.Components.ManaRetroFilterComponent { Enabled: true } filter)
+                    {
+                        return filter.Settings();
+                    }
+                }
+                foreach (var child in node.Children)
+                {
+                    if (Find(child) is { } found)
+                    {
+                        return found;
+                    }
+                }
+                return null;
+            }
+
+            lock (SceneLock)
+            {
+                foreach (var scene in Scenes)
+                {
+                    foreach (var node in scene.Children)
+                    {
+                        if (Find(node) is { } found)
+                        {
+                            return found;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         /// <summary>The placed point lights -- lamps, glows -- as a render scene gets them: xyz position, w range; colour.</summary>
         public List<(Vector4 Position, Vector4 Color)> CollectPlacedLights()
         {
@@ -540,7 +578,8 @@ namespace Mana
                 SunDirection = sun.Found ? sun.Direction : -Vector3.UnitY,
                 SunColor = sun.Found ? sun.Color : Vector4.One,
                 SunCastsShadows = sun.Found && sun.CastsShadows,
-                ProbeVolume = FindProbeVolume()
+                ProbeVolume = FindProbeVolume(),
+                RetroFilter = FindRetroFilter()
             };
         }
 

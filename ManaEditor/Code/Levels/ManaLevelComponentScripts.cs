@@ -145,6 +145,12 @@ namespace ManaEditor.Code.Levels
                 },
                 new()
                 {
+                    Type = "RetroFilter",
+                    ComponentType = typeof(Mana.Code.Components.ManaRetroFilterComponent),
+                    Create = node => new Mana.Code.Components.ManaRetroFilterComponent(node)
+                },
+                new()
+                {
                     Type = "Light",
                     ComponentType = typeof(ManaLightSourceComponent),
                     Create = node => new ManaLightSourceComponent(node),

@@ -50,6 +50,9 @@ namespace ManaCore.Graphics
         public Vector4 SunColor { get; init; } = Vector4.One;
         public bool SunCastsShadows { get; init; }
 
+        /// <summary>The retro screen filter a RetroFilter script asks for; null shows the picture as usual.</summary>
+        public ManaRetroFilterSettings? RetroFilter { get; init; }
+
         /// <summary>The level's baked light probes, when it has a ProbeVolume; null otherwise.</summary>
         public ManaProbeVolumeSettings? ProbeVolume { get; init; }
 

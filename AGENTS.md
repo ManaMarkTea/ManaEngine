@@ -126,7 +126,8 @@ their material is in the level; compare each shot with the matching `-sky` one),
 under a raking lamp: made normal maps on the left, flat on the right; `sprite-normals.json`), `Terrain` (hills, a path and a
 pond; opens clean, footing on the slopes, a scripted sculpt; `terrain.json`), `Cloth` (flags, a banner and a sheet in
 still air, a breeze and a gale; `cloth.json`), `Pixel FX` (a row of imported pixelfx effects facing the camera, day and night; `pixel-fx.json`), `Point Shadows` (two shadow-casting lamps in a dark room, one inside its
-glowing shade as imported fixtures are; the light icons; the AO view; `point-shadows.json`). Add a scene and a
+glowing shade as imported fixtures are; the light icons; the AO view; `point-shadows.json`), `Retro Filter` (the
+RetroFilter script over a few coloured shapes; `retro-filter.json`). Add a scene and a
 script there whenever a rendering bug is fixed.
 Game-mode checks (Train Yard Wars' bots, Foundry, the Code Screensaver) live with the games, in the ManaGames repo.
 
@@ -409,6 +410,12 @@ dark when it casts shadows, which a click selects; the selected light's range as
   `depth_resolve.wgsl` copies sample 0 into the surface depth for the passes after. Everything drawn in the scene pass
   builds for `ManaWebGpuFrame.SampleCount` (material pipelines key on it; overlays, sky and particles rebuild on a
   change); the always-on-top pass after it stays single-sampled.
+- **Retro filter:** a `RetroFilter` script (`ManaRetroFilterComponent`, anywhere in a level or prefab; the first enabled
+  one wins, `ManaWorld.FindRetroFilter` -> `ManaRenderScene.RetroFilter`) puts the whole screen through
+  `ManaWebGpuRetroFilter` / `retro_filter.wgsl` in place of the tone map and anti-aliasing: big pixels (`lines` tall,
+  whole screen pixels each), `colorLevels` per channel with a 4x4 Bayer `dither` (in gamma space), then `scanlines`,
+  `chromaticAberration` (big pixels), `noise`, `glitch` (VHS line jitter, a rolling tracking band, a torn bottom strip),
+  `vignette`, `curvature`, `saturation`. UI and the selection outline stay sharp above it.
 - **Point-light shadows:** a point `Light` with `castsShadows` gets a shadow slot when it is among the 8 nearest the
   camera (`ManaRenderScene.AssignPointShadows`, the slot in its colour's w): six 90-degree depth faces of 512 in one
   array (`ManaWebGpuPointShadowMap`), drawn by `ManaWebGpuPointShadowPass` through the depth-only drawer only when the

@@ -96,6 +96,7 @@ public static class TestRunner
         ("Mana", "panel window placement", WindowPlacementChecks.Run),
         ("Mana", "pickup motion", PickupMotionChecks.Run),
         ("Mana", "stage animation", StageAnimationChecks.Run),
+        ("Mana", "retro filter", RetroFilterChecks.Run),
         ("Mana", "material render instances", MaterialRenderInstanceChecks.Run),
         ("Mana", "cloth", ClothChecks.Run),
         ("Mana", "scatter", ScatterChecks.Run),

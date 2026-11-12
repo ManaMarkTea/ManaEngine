@@ -24,6 +24,9 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private ManaWebGpuMsaaTargets? _msaa;
         private ManaWebGpuSmaa? _smaa;
         private ManaAntiAliasing _antiAliasing = ManaAntiAliasing.Smaa;
+        // Made the first time a RetroFilter script asks for it; while one does, it stands in for the tone map and anti-aliasing.
+        private ManaWebGpuRetroFilter? _retro;
+        private bool _retroActive;
         private ManaWebGpuLightClusters? _lights;
         private Vector2D<int> _size;
         private readonly ManaWebGpuHdrPostProcessor _hdr;
@@ -265,13 +268,24 @@ namespace ManaGraphics.Code.Graphics.Renderers
             }
             LastDrawMs = drawStopwatch.Elapsed.TotalMilliseconds;
 
+            _retroActive = false;
             if (useHdr)
             {
                 using (ManaFrameProfiler.Measure("GPU: Outline + HDR Post"))
                 {
                     _hdr.Process(encoder);
                 }
-                if (_antiAliasing == ManaAntiAliasing.Smaa && !suspended)
+                _retroActive = scene.RetroFilter != null && !suspended;
+                if (_retroActive)
+                {
+                    using (ManaFrameProfiler.Measure("GPU: Retro Filter"))
+                    {
+                        _retro ??= new ManaWebGpuRetroFilter(Gpu, Gpu.SurfaceFormat);
+                        _retro.Encode(encoder, _hdr, scene.RetroFilter!, frame.Width, frame.Height, seconds);
+                    }
+                }
+                // Big pixels make smoothed edges pointless, so SMAA sits out under the retro filter.
+                else if (_antiAliasing == ManaAntiAliasing.Smaa && !suspended)
                 {
                     using (ManaFrameProfiler.Measure("GPU: SMAA"))
                     {
@@ -310,6 +324,11 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// <summary>Tone-maps the HDR scene into the surface pass the UI then draws over.</summary>
         public void DrawToneMap(RenderPassEncoder* pass)
         {
+            if (_retroActive && _retro is { Ready: true })
+            {
+                _retro.DrawPresent(pass);
+                return;
+            }
             // SMAA's last pass is the tone map's stand-in: its blend, with the outline drawn over it.
             if (_antiAliasing == ManaAntiAliasing.Smaa && _smaa is { Ready: true })
             {
@@ -364,6 +383,8 @@ namespace ManaGraphics.Code.Graphics.Renderers
             _msaa = null;
             _smaa?.Dispose();
             _smaa = null;
+            _retro?.Dispose();
+            _retro = null;
         }
     }
 }

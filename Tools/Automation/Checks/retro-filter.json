@@ -1,0 +1,11 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Retro Filter.manalevel"},
+  {"type":"wait","frames":120},
+  {"type":"sky","name":"Day"},
+  {"type":"gizmos","visible":false},
+  {"type":"move_camera","position":[48,3.2,58],"target":[48,1,44]},
+  {"type":"wait","frames":30},
+  {"type":"screenshot","path":"@@OUT@@","clean":true},
+  {"type":"wait","frames":5},
+  {"type":"quit"}
+]
