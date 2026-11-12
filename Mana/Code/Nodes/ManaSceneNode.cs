@@ -217,6 +217,18 @@ namespace Mana.Code.Nodes
             child._worldComputedForParentVersion = -1;
         }
 
+        /// <summary>Adds a child at a place among the others (clamped), as <see cref="AddChild"/> does at the end.</summary>
+        public void InsertChild(int index, ManaSceneNode child)
+        {
+            if (child.Parent != null)
+            {
+                child.Parent.RemoveChild(child);
+            }
+            Children.Insert(Math.Clamp(index, 0, Children.Count), child);
+            child.Parent = this;
+            child._worldComputedForParentVersion = -1;
+        }
+
         public void RemoveChild(ManaSceneNode child)
         {
             Children.Remove(child);

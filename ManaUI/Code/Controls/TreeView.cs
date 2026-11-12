@@ -590,6 +590,17 @@ namespace ManaUI
         {
             ItemActivated?.Invoke(this, item);
         }
+
+        /// <summary>
+        /// A row was pressed and selected (not its expander). The row handles the press itself, so its content never
+        /// sees it: this is where content starts a drag of the row -- capture the pointer from here.
+        /// </summary>
+        public event EventHandler<UiPointerEventArgs>? RowPressed;
+
+        internal void NotifyRowPressed(UiPointerEventArgs e)
+        {
+            RowPressed?.Invoke(this, e);
+        }
     }
 
     /// <summary>One row: indent, expander, and the templated content.</summary>
@@ -713,6 +724,7 @@ namespace ManaUI
             }
 
             _owner.SelectedItem = _item;
+            _owner.NotifyRowPressed(e);
 
             // Double-click on a parent is the other common way to expand it, alongside the arrow.
             if (e.ClickCount >= 2)

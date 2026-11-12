@@ -163,7 +163,7 @@ namespace ManaEditor.Code.UI.ManaUi
                 {
                     if (inspector.Engine != null)
                     {
-                        SceneEditorOperations.DeleteNode(inspector.Engine.World, inspector.Selection, node);
+                        SceneNodeEditing.Delete(inspector.Engine.World, inspector.Selection ?? inspector.Engine.World.Selection, inspector.History, node);
                     }
                 });
             delete.BindPolled(

@@ -62,7 +62,7 @@ namespace ManaEditor.Code.UI.ManaUi.Inspectors
                 var row = InspectorControls.Row(
                     context,
                     Humanise(property.Name),
-                    Editor(subject, property, theme, context.Engine),
+                    Editor(subject, property, theme, context.Engine, context.History),
                     XmlDocSummaries.For(property));
 
                 // Saved script fields are the property names in camelCase, which is what an override's path holds.
@@ -238,7 +238,7 @@ namespace ManaEditor.Code.UI.ManaUi.Inspectors
             return combo;
         }
 
-        private static UiElement Editor(object subject, PropertyInfo property, UiTheme theme, ManaContext? engine)
+        private static UiElement Editor(object subject, PropertyInfo property, UiTheme theme, ManaContext? engine, EditorUndoHistory? history)
         {
             var type = property.PropertyType;
 
@@ -256,7 +256,7 @@ namespace ManaEditor.Code.UI.ManaUi.Inspectors
                 }
             }
 
-            void Write(object? value)
+            void Set(object? value)
             {
                 try
                 {
@@ -268,6 +268,19 @@ namespace ManaEditor.Code.UI.ManaUi.Inspectors
                 catch (ArgumentException)
                 {
                 }
+            }
+
+            // Every change goes on the undo history; a run of them on this property (a slider dragged) folds into one.
+            void Write(object? value)
+            {
+                var before = Read();
+                Set(value);
+                var after = Read();
+                if (history == null || Equals(before, after))
+                {
+                    return;
+                }
+                history.RecordMerging((subject, property), $"Change {Humanise(property.Name)}", () => Set(before), () => Set(after));
             }
 
             if (type == typeof(ManaComponentReference) && subject is ManaComponent self)

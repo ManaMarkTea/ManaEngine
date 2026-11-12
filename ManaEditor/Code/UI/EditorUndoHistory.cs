@@ -63,7 +63,15 @@ namespace ManaEditor.Code.UI
         private readonly Stack<Entry> _redo = new();
         private bool _isApplying;
 
-        private sealed record Entry(string Description, Action Undo, Action Redo);
+        private sealed record Entry(string Description, Action Undo, Action Redo)
+        {
+            // Set for an edit later ones can fold into (a slider dragged): what it edits, and when it last did.
+            public object? MergeKey { get; init; }
+            public long MergedAt { get; init; }
+        }
+
+        /// <summary>How long after one change to a value a further change still folds into the same undo step.</summary>
+        public const int MergeWindowMilliseconds = 800;
 
         public bool CanUndo => _undo.Count > 0;
         public bool CanRedo => _redo.Count > 0;
@@ -92,6 +100,31 @@ namespace ManaEditor.Code.UI
                 {
                     _undo.Push(newestFirst[index]);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Records a change to one value, folded into the last step when that was the same value (<paramref name="key"/>)
+        /// changed under <see cref="MergeWindowMilliseconds"/> ago: a slider dragged, or a number nudged, is one undo
+        /// step back to where it started rather than one per frame.
+        /// </summary>
+        public void RecordMerging(object key, string description, Action undo, Action redo)
+        {
+            var now = Environment.TickCount64;
+            if (!_isApplying && _undo.TryPeek(out var top) && top.MergeKey != null && top.MergeKey.Equals(key)
+                && now - top.MergedAt < MergeWindowMilliseconds)
+            {
+                Levels.SceneDirtyCache.Touch();
+                _undo.Pop();
+                _undo.Push(top with { Redo = redo, MergedAt = now });
+                _redo.Clear();
+                return;
+            }
+            Record(description, undo, redo);
+            if (!_isApplying && _undo.TryPeek(out var recorded) && ReferenceEquals(recorded.Undo, undo))
+            {
+                _undo.Pop();
+                _undo.Push(recorded with { MergeKey = key, MergedAt = now });
             }
         }
 

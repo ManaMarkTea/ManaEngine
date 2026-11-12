@@ -228,6 +228,58 @@ public static class OutlinerChecks
         var after = root.Render();
         Check("outliner still renders after edits", after.InstanceCount > 5, $"{after.InstanceCount}");
         Check("still one draw call", after.Batches.Count == 1, $"{after.Batches.Count} batches");
+
+        // ---------------------------------------------------------------- dragging rows to re-parent
+        // A tree of its own, linked through AddChild (the one above is built without parents).
+        var dragRoot = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Drag Root" };
+        var dragA = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Drag A" };
+        var dragB = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Drag B" };
+        dragRoot.AddChild(dragA);
+        dragRoot.AddChild(dragB);
+        scene.Children.Add(dragRoot);
+        root.UpdateLayout(new Vector2(360, 640));
+        tree.Expand(dragRoot);
+        root.UpdateLayout(new Vector2(360, 640));
+
+        UiRect RowOf(string name)
+        {
+            for (UiElement? element = FindAll<TextBlock>(root).First(text => text.Text == name); element != null; element = element.Parent)
+            {
+                if (element.GetType().Name == "OutlinerActionRow")
+                {
+                    return element.Bounds;
+                }
+            }
+            return UiRect.Empty;
+        }
+
+        // Pressing selects the row, which rebuilds the tree: the layout runs between events, as it does a frame apart.
+        void Drag(string name, Func<Vector2> to)
+        {
+            var from = RowOf(name).Center;
+            root.Input.InjectPointerMoved(from);
+            root.Input.InjectPointerPressed(from, PointerButton.Left, 10.0);
+            root.UpdateLayout(new Vector2(360, 640));
+            root.Input.InjectPointerMoved(from + new Vector2(0.0f, 8.0f));
+            root.UpdateLayout(new Vector2(360, 640));
+            var target = to();
+            root.Input.InjectPointerMoved(target);
+            root.Input.InjectPointerReleased(target, PointerButton.Left);
+            root.UpdateLayout(new Vector2(360, 640));
+        }
+
+        Drag("Drag B", () => RowOf("Drag A").Center);
+        Check("dropping a row on the middle of another puts it inside", dragB.Parent == dragA, dragB.Parent?.Name ?? "top");
+
+        tree.Expand(dragA);
+        root.UpdateLayout(new Vector2(360, 640));
+        Drag("Drag B", () => new Vector2(RowOf("Drag Root").Center.X, RowOf("Drag Root").Y + 2.0f));
+        Check("dropping on a row's top edge puts it before, at that level",
+            dragB.Parent == null && scene.Children.IndexOf(dragB) >= 0 && scene.Children.IndexOf(dragB) == scene.Children.IndexOf(dragRoot) - 1,
+            string.Join(", ", scene.Children.Select(node => node.Name)));
+
+        Drag("Drag Root", () => RowOf("Drag A").Center);
+        Check("a node cannot be dropped into its own child", dragRoot.Parent == null && dragA.Parent == dragRoot);
     }
 
     private static string DescribeItem(object item)

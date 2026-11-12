@@ -65,6 +65,18 @@ namespace ManaEditor.Code.UI.ManaUi
 
             // Followed rather than captured: opening a level or a prefab replaces the list, not its contents.
             tree.BindPolled(t => t.ItemsSource, () => prefabs.EditingScenes ?? (System.Collections.IEnumerable)world.Scenes);
+            // The row takes the press to select; a drag of it starts from here (OutlinerActionRow.BeginDrag).
+            tree.RowPressed += (_, e) =>
+            {
+                for (var element = e.Source; element != null; element = element.Parent)
+                {
+                    if (element is OutlinerActionRow row)
+                    {
+                        row.BeginPress(e.Position);
+                        return;
+                    }
+                }
+            };
             tree.SelectionChanged += (_, item) =>
             {
                 if (!tree.IsApplyingBinding)
@@ -411,6 +423,188 @@ namespace ManaEditor.Code.UI.ManaUi
 
             protected override bool IsSelfHitTestVisible => true;
 
+            // ---- Dragging a node onto another row: the top quarter puts it before, the bottom after, the middle inside.
+            // The state is shared by every row: selecting the pressed row rebuilds the tree, so the row that saw the
+            // press is gone a moment later, and whichever row has the pointer carries the drag on.
+
+            private enum DropZone { Before, Into, After }
+
+            private const float DragThreshold = 6.0f;
+
+            private static ManaSceneNode? _pressedNode;
+            private static Vector2 _pressedAt;
+            private static bool _dragging;
+            private static UiRoot? _dragRoot;
+            private static UiDragGhost? _ghost;
+
+            // The row the pointer is over during a drag, and where on it: drawn by that row, acted on at the release.
+            private static OutlinerActionRow? _dropRow;
+            private static DropZone _dropZone;
+            private static bool _dropAllowed;
+
+            /// <summary>A left press on this row, which the tree selected it for (TreeView.RowPressed).</summary>
+            public void BeginPress(Vector2 position)
+            {
+                EndDrag();
+                if (_item is not ManaSceneNode node || !SceneEditorOperations.CanDeleteNode(_world, node))
+                {
+                    return;
+                }
+                _pressedNode = node;
+                _pressedAt = position;
+                _dragRoot = Root;
+                CapturePointer();
+            }
+
+            protected override void OnRenderOverlay(ManaUiDrawList drawList)
+            {
+                base.OnRenderOverlay(drawList);
+                if (!ReferenceEquals(_dropRow, this) || Root is not { } root)
+                {
+                    return;
+                }
+                var colour = _dropAllowed ? root.Theme.Accent : root.Theme.Danger;
+                var box = Bounds;
+                switch (_dropZone)
+                {
+                    case DropZone.Before:
+                        drawList.FillRect(new UiRect(box.X, box.Y - 1.0f, box.Width, 2.0f), colour);
+                        break;
+                    case DropZone.After:
+                        drawList.FillRect(new UiRect(box.X, box.Bottom - 1.0f, box.Width, 2.0f), colour);
+                        break;
+                    default:
+                        drawList.DrawBorder(box, colour, 1.5f, new CornerRadius(3.0f));
+                        break;
+                }
+            }
+
+            protected override void OnPointerMoved(UiPointerEventArgs e)
+            {
+                base.OnPointerMoved(e);
+                if (_pressedNode is not { } node)
+                {
+                    return;
+                }
+                // The row that captured may have been rebuilt away; this one follows the gesture from here.
+                if (!HasPointerCapture)
+                {
+                    CapturePointer();
+                }
+                if (!_dragging)
+                {
+                    if (Vector2.Distance(e.Position, _pressedAt) < DragThreshold)
+                    {
+                        return;
+                    }
+                    _dragging = true;
+                    if (_dragRoot is { } root)
+                    {
+                        _ghost = new UiDragGhost(root);
+                        _ghost.Show(new Border().Fill(root.Theme.SurfaceRaised).Outline(root.Theme.Accent, 1.0f)
+                            .Rounded(root.Theme.CornerRadius).PaddingOf(8.0f, 4.0f)
+                            .Content(new TextBlock().Text(Fallback(node.Name, node.GetType().Name))), e.Position);
+                    }
+                }
+                _ghost?.Move(e.Position);
+                TrackDropTarget(node, e.Position);
+            }
+
+            protected override void OnPointerReleased(UiPointerEventArgs e)
+            {
+                base.OnPointerReleased(e);
+                if (_pressedNode is not { } node)
+                {
+                    return;
+                }
+                if (_dragging && _dropRow != null && _dropAllowed && _dropRow.DropPlace(node, _dropRow._item, _dropZone) is { } place)
+                {
+                    SceneNodeEditing.Move(_world, _selection, _history, node, place.Scene, place.Parent, place.Index);
+                }
+                ReleasePointerCapture();
+                EndDrag();
+            }
+
+            private static void EndDrag()
+            {
+                _ghost?.Hide();
+                _ghost = null;
+                _dropRow?.InvalidateVisual();
+                _dropRow = null;
+                _pressedNode = null;
+                _dragging = false;
+                _dragRoot = null;
+            }
+
+            // Hit-tested rather than taken from the router, which reports the captured row for the whole gesture.
+            private void TrackDropTarget(ManaSceneNode node, Vector2 position)
+            {
+                OutlinerActionRow? row = null;
+                for (var element = _dragRoot?.HitTest(position.X, position.Y); element != null; element = element.Parent)
+                {
+                    if (element is OutlinerActionRow found)
+                    {
+                        row = found;
+                        break;
+                    }
+                }
+                _dropRow?.InvalidateVisual();
+                _dropRow = row;
+                if (row == null)
+                {
+                    return;
+                }
+                var share = (position.Y - row.Bounds.Y) / MathF.Max(1.0f, row.Bounds.Height);
+                _dropZone = DropZone.Into;
+                if (row._item is ManaSceneNode && share < 0.25f)
+                {
+                    _dropZone = DropZone.Before;
+                }
+                else if (row._item is ManaSceneNode && share > 0.75f)
+                {
+                    _dropZone = DropZone.After;
+                }
+                _dropAllowed = !ReferenceEquals(row._item, node) && row.DropPlace(node, row._item, _dropZone) is { } place
+                    && SceneEditorOperations.CanMoveNode(_world, node, place.Scene, place.Parent);
+                row.InvalidateVisual();
+            }
+
+            /// <summary>Where dropping <paramref name="node"/> on a row puts it, before it is taken out of where it is now.</summary>
+            private SceneNodePlace? DropPlace(ManaSceneNode node, object target, DropZone zone)
+            {
+                switch (target)
+                {
+                    case ManaScene scene:
+                        return new SceneNodePlace(scene, null, scene.Children.Count);
+                    case ManaSceneNode other when zone == DropZone.Into:
+                        if (SceneEditorOperations.FindOwningScene(_world, other) is not { } owner)
+                        {
+                            return null;
+                        }
+                        return new SceneNodePlace(owner, other, other.Children.Count);
+                    case ManaSceneNode other:
+                        if (SceneEditorOperations.PlaceOf(_world, other) is not { } beside)
+                        {
+                            return null;
+                        }
+                        var index = beside.Index;
+                        if (zone == DropZone.After)
+                        {
+                            index++;
+                        }
+                        // Coming out of the same list from in front of the target shifts it back one.
+                        var siblings = beside.Parent?.Children ?? beside.Scene.Children;
+                        var current = siblings.IndexOf(node);
+                        if (current >= 0 && current < index)
+                        {
+                            index--;
+                        }
+                        return beside with { Index = index };
+                    default:
+                        return null;
+                }
+            }
+
             protected override void OnPointerPressed(UiPointerEventArgs e)
             {
                 if (e.Button != PointerButton.Right)
@@ -443,7 +637,10 @@ namespace ManaEditor.Code.UI.ManaUi
                 {
                     MenuItem.Label(Fallback(scene.Name, "Scene")),
                     MenuItem.Separator(),
-                    BuildAddNodeMenu(scene, parent: null)
+                    BuildAddNodeMenu(scene, parent: null),
+                    new MenuItem("Paste", () => Paste(scene))
+                        .EnabledWhen(() => SceneNodeEditing.CanPaste)
+                        .WithTooltip("Paste the copied node at the top of this scene (Ctrl+V).")
                 };
 
                 if (_saveScene != null && !string.IsNullOrWhiteSpace(scene.LevelPath))
@@ -480,11 +677,27 @@ namespace ManaEditor.Code.UI.ManaUi
                     new MenuItem("Make Prefab", () => ProjectAssetViewModel.For(_world).CreatePrefab(node))
                         .EnabledWhen(() => ProjectAssetViewModel.For(_world).CanCreatePrefab(node)),
                     MenuItem.Separator(),
-                    new MenuItem("Delete Node",
-                            () => SceneEditorOperations.DeleteNode(_world, _selection, node))
+                    new MenuItem("Copy", () => SceneNodeEditing.Copy(node)).WithTooltip("Ctrl+C"),
+                    new MenuItem("Paste", () => SceneNodeEditing.Paste(_world, _selection, _history))
+                        .EnabledWhen(() => SceneNodeEditing.CanPaste)
+                        .WithTooltip("Paste the copied node after this one (Ctrl+V)."),
+                    new MenuItem("Duplicate", () => SceneNodeEditing.Duplicate(_world, _selection, _history, node))
                         .EnabledWhen(() => SceneEditorOperations.CanDeleteNode(_world, node))
-                        .WithTooltip("Delete this node and its children from the scene.")
+                        .WithTooltip("A copy right after this one (Ctrl+D)."),
+                    MenuItem.Separator(),
+                    new MenuItem("Delete Node",
+                            () => SceneNodeEditing.Delete(_world, _selection, _history, node))
+                        .EnabledWhen(() => SceneEditorOperations.CanDeleteNode(_world, node))
+                        .WithTooltip("Delete this node and its children from the scene (Delete).")
                 };
+            }
+
+            private void Paste(ManaScene scene)
+            {
+                _selection.SelectedNode = null;
+                _selection.SelectedComponent = null;
+                _selection.SelectedScene = scene;
+                SceneNodeEditing.Paste(_world, _selection, _history);
             }
 
             private MenuItem BuildAddNodeMenu(ManaScene scene, ManaSceneNode? parent) =>

@@ -23,6 +23,9 @@ namespace Mana.Code.GameModes
         private bool _redoKeyWasDown;
         private bool _saveKeyWasDown;
         private bool _deleteKeyWasDown;
+        private bool _copyKeyWasDown;
+        private bool _pasteKeyWasDown;
+        private bool _duplicateKeyWasDown;
 
         /// <summary>Remembered so a second window launches on the backend this one is running.</summary>
         private string? _requestedWebGpuBackend;
@@ -170,6 +173,9 @@ namespace Mana.Code.GameModes
                 _redoKeyWasDown = false;
                 _saveKeyWasDown = false;
                 _deleteKeyWasDown = false;
+                _copyKeyWasDown = false;
+                _pasteKeyWasDown = false;
+                _duplicateKeyWasDown = false;
                 return;
             }
 
@@ -209,16 +215,38 @@ namespace Mana.Code.GameModes
             _redoKeyWasDown = redoKeyDown;
             _saveKeyWasDown = saveKeyDown;
 
-            // Same "Delete Node" command the outliner's context menu and the inspector's delete button
-            // already use -- see SceneEditorOperations.DeleteNode.
+            // The same undoable commands the outliner's menu and the inspector's delete button use (SceneNodeEditing).
+            var selection = Context.World.Selection;
             var deleteKeyDown = keyboard.IsKeyPressed(Key.Delete);
             if (canEdit && deleteKeyDown && !_deleteKeyWasDown)
             {
-                var selection = Context.World.Selection;
-                Mana.Code.UI.SceneEditorOperations.DeleteNode(Context.World, selection, selection.SelectedNode);
+                SceneNodeEditing.Delete(Context.World, selection, _viewModel.History, selection.SelectedNode);
+            }
+
+            var copyKeyDown = control && !shift && keyboard.IsKeyPressed(Key.C);
+            if (canEdit && copyKeyDown && !_copyKeyWasDown && SceneNodeEditing.Copy(selection.SelectedNode))
+            {
+                _viewModel.Levels.SetStatus(SceneNodeEditing.LastMessage ?? "Copied.");
+            }
+
+            var pasteKeyDown = control && !shift && keyboard.IsKeyPressed(Key.V);
+            if (canEdit && pasteKeyDown && !_pasteKeyWasDown)
+            {
+                SceneNodeEditing.Paste(Context.World, selection, _viewModel.History);
+                _viewModel.Levels.SetStatus(SceneNodeEditing.LastMessage ?? string.Empty);
+            }
+
+            var duplicateKeyDown = control && !shift && keyboard.IsKeyPressed(Key.D);
+            if (canEdit && duplicateKeyDown && !_duplicateKeyWasDown)
+            {
+                SceneNodeEditing.Duplicate(Context.World, selection, _viewModel.History, selection.SelectedNode);
+                _viewModel.Levels.SetStatus(SceneNodeEditing.LastMessage ?? string.Empty);
             }
 
             _deleteKeyWasDown = deleteKeyDown;
+            _copyKeyWasDown = copyKeyDown;
+            _pasteKeyWasDown = pasteKeyDown;
+            _duplicateKeyWasDown = duplicateKeyDown;
         }
 
         /// <summary>What the play HUD reads out, so the controls are on screen rather than in a menu.</summary>

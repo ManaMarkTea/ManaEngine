@@ -33,6 +33,44 @@ namespace Mana.Code.Components
 
         }
 
+        // The body as it was when suspended, to add back on resume; the shape stays registered meanwhile.
+        private BodyDescription? _suspended;
+
+        /// <summary>Whether <see cref="SuspendBody"/> has taken the body out of the simulation.</summary>
+        public bool IsSuspended => _suspended != null;
+
+        /// <summary>
+        /// Takes the body out of the simulation but keeps this component and its shape, so <see cref="ResumeBody"/> can
+        /// put it back: a node deleted with undo, or a paste undone.
+        /// </summary>
+        public void SuspendBody()
+        {
+            var physics = Context.Physics;
+            if (physics == null || _suspended != null || !physics.Simulation.Bodies.BodyExists(Body))
+            {
+                return;
+            }
+            physics.Simulation.Bodies.GetDescription(Body, out var description);
+            _suspended = description;
+            physics.PhysicsMap.Remove(Body);
+            physics.DirectBodies.Remove(Body);
+            physics.Simulation.Bodies.Remove(Body);
+        }
+
+        /// <summary>Puts a suspended body back where its node is now.</summary>
+        public void ResumeBody()
+        {
+            var physics = Context.Physics;
+            if (physics == null || _suspended is not { } description)
+            {
+                return;
+            }
+            _suspended = null;
+            description.Pose = CreateBodyPose(Owner, Position);
+            Body = physics.Simulation.Bodies.Add(description);
+            physics.PhysicsMap[Body] = this;
+        }
+
         public static RigidPose CreateBodyPose(ManaSceneNode owner, Vector3 localOffset)
         {
             if (!Matrix4x4.Decompose(owner.WorldTransform, out _, out var orientation, out _))
