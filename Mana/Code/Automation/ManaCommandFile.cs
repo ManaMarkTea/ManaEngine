@@ -78,6 +78,23 @@ namespace Mana.Code.Automation
 
         /// <summary>ambient_occlusion: how far it reaches, in metres.</summary>
         public float? Radius { get; set; }
+
+        // Story commands (place, animate, walk, face, remove, title -- StoryCommands in ManaEditor).
+
+        /// <summary>animate, walk: the animation clip to play ("idle", "walk", "sit", "emote-yes"...).</summary>
+        public string? Clip { get; set; }
+
+        /// <summary>place: which way it faces, in degrees turned from facing +Z (toward the default camera) round +Y.</summary>
+        public float? Yaw { get; set; }
+
+        /// <summary>place: uniform scale. title: the picture's height as a share of the screen's.</summary>
+        public float? Scale { get; set; }
+
+        /// <summary>animate: false plays a clip once and holds its last pose; loops by default.</summary>
+        public bool? Loop { get; set; }
+
+        /// <summary>animate, walk: animation playback speed (1 as authored).</summary>
+        public float? Speed { get; set; }
     }
 
     public static class ManaCommandFile

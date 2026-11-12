@@ -219,6 +219,22 @@ namespace Mana.Code.Automation
             _glideSteps.Add(0);
         }
 
+        /// <summary>
+        /// Like <see cref="AddGlide"/>, but <paramref name="apply"/> gets the plain 0..1 share of the frames gone (a walk
+        /// keeps an even pace) rather than the eased one.
+        /// </summary>
+        public void AddLinearGlide(Action<float> apply, int frames, bool blocking)
+        {
+            AddGlide(eased => apply(Uneased(eased)), frames, blocking);
+        }
+
+        // Undoes smoothstep (t * t * (3 - 2t)), which StepGlides applies: the inverse is 0.5 - sin(asin(1 - 2y) / 3).
+        private static float Uneased(float eased)
+        {
+            var y = Math.Clamp(eased, 0.0f, 1.0f);
+            return 0.5f - MathF.Sin(MathF.Asin(1.0f - 2.0f * y) / 3.0f);
+        }
+
         // ----- the commands every app has -------------------------------------------------------------
 
         private void RegisterBuiltIns()

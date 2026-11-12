@@ -873,6 +873,7 @@ namespace Mana.Code.GameModes
                         }
                     },
                     DropSelectedToFloor);
+                StoryCommands.Register(_commandRunner);
                 // Steps out of (or back into) the running match, as F8 does.
                 _commandRunner.Register("eject", _ => ToggleEject());
                 _commandRunner.Register("measure", command => MeasureInput.RunMeasureCommand(command.Name, command.Position));
