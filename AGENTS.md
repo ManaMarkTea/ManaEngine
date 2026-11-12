@@ -84,6 +84,7 @@ dotnet build ManaEditor -o Artifacts/AutomationBin      # a separate output, so 
 | `screenshot` | `path`, `clean` | Writes the next frame to a PNG (WebGPU only); `clean` leaves out every panel and the HUD -- the scene across the whole window |
 | `wind` | `position` (speed m/s, direction degrees, gustiness) | Sets the world wind (`ManaWind`): 0 is a glassy pond, 2.5 the default breeze, 4 a fresh one, 12+ chop |
 | `gizmos` | `visible` | Editor helpers (axes, markers) on or off -- off for pictures |
+| `post_fx` | `visible` | The viewport's Post FX switch: screen effects (a RetroFilter...) while editing; toggles without `visible` |
 | `wireframe` | `visible`, `name` | The View menu's wireframe overlay on or off (toggles without `visible`); `name: "normals"` does the vertex normals |
 | `record` / `stop_record` | `path` (folder), `frames` (fps, 30), `clean`, `visible` | Saves every frame as `<path>/00000.jpg..` at a fixed step (1/fps a frame, so a slow save never speeds the game up); `record` with no path changes `clean`, and `visible: false` holds capture without ending the take. `Tools/Automation/sizzle.py` joins the takes of `Content/Scripts/Sizzle Reel.json` into an MP4 |
 | `play` / `stop_play` | | Enters and leaves play mode (F5) |
@@ -131,7 +132,8 @@ under a raking lamp: made normal maps on the left, flat on the right; `sprite-no
 pond; opens clean, footing on the slopes, a scripted sculpt; `terrain.json`), `Cloth` (flags, a banner and a sheet in
 still air, a breeze and a gale; `cloth.json`), `Pixel FX` (a row of imported pixelfx effects facing the camera, day and night; `pixel-fx.json`), `Point Shadows` (two shadow-casting lamps in a dark room, one inside its
 glowing shade as imported fixtures are; the light icons; the AO view; `point-shadows.json`), `Retro Filter` (the
-RetroFilter script over a few coloured shapes; `retro-filter.json`). Add a scene and a
+RetroFilter script over a few coloured shapes; `retro-filter.json`), `Retro Filter Scoped` (a Children-scoped one over one
+group, the rest sharp; then Post FX off; `retro-filter-scoped.json`). Add a scene and a
 script there whenever a rendering bug is fixed.
 Game-mode checks (Train Yard Wars' bots, Foundry, the Code Screensaver) live with the games, in the ManaGames repo.
 
@@ -419,12 +421,21 @@ dark when it casts shadows, which a click selects; the selected light's range as
   `depth_resolve.wgsl` copies sample 0 into the surface depth for the passes after. Everything drawn in the scene pass
   builds for `ManaWebGpuFrame.SampleCount` (material pipelines key on it; overlays, sky and particles rebuild on a
   change); the always-on-top pass after it stays single-sampled.
-- **Retro filter:** a `RetroFilter` script (`ManaRetroFilterComponent`, anywhere in a level or prefab; the first enabled
-  one wins, `ManaWorld.FindRetroFilter` -> `ManaRenderScene.RetroFilter`) puts the whole screen through
+- **Post effects:** screen effect scripts derive from `ManaPostEffectComponent` (`enabled`, `scope`: `Screen`, `Scene` --
+  its level, `Children` -- its node and below, `Siblings` -- everything under its parent) and own a slot in `ManaPostEffects`
+  (`Retro` is 0; up to 8). Collecting meshes marks each `ManaRenderMeshInstance.PostEffects` with the slots covering it;
+  `ManaRenderScene.ScopedPostEffects` names the slots no enabled script gives the whole screen, and
+  `ManaWebGpuPostEffectMaskPass` draws an R8 mask per such slot (depth-tested, `post_effect_mask.wgsl`; `MaskView(slot)`)
+  for the effect's shader to read. The viewport bar's Post FX switch (`ManaEditorGizmos.PostEffects`, Display menu,
+  `post_fx` command) hides them while editing; play always shows them. A new effect: a component with the next slot, a
+  settings record on the render scene, and a renderer reading its mask.
+- **Retro filter:** a `RetroFilter` script (`ManaRetroFilterComponent`, a post effect; the first enabled one sets the look,
+  `ManaWorld.FindPostEffects` -> `ManaRenderScene.RetroFilter`) puts the screen (or, scoped, the masked pixels) through
   `ManaWebGpuRetroFilter` / `retro_filter.wgsl` in place of the tone map and anti-aliasing: big pixels (`lines` tall,
   whole screen pixels each), `colorLevels` per channel with a 4x4 Bayer `dither` (in gamma space), then `scanlines`,
   `chromaticAberration` (big pixels), `noise`, `glitch` (VHS line jitter, a rolling tracking band, a torn bottom strip),
-  `vignette`, `curvature`, `saturation`. UI and the selection outline stay sharp above it.
+  `vignette`, `curvature`, `saturation`. Scoped, a big pixel is filtered when its centre is masked (covered edges go
+  blocky), the rest is the plain picture, and curvature is left out. UI and the selection outline stay sharp above it.
 - **Point-light shadows:** a point `Light` with `castsShadows` gets a shadow slot when it is among the 8 nearest the
   camera (`ManaRenderScene.AssignPointShadows`, the slot in its colour's w): six 90-degree depth faces of 512 in one
   array (`ManaWebGpuPointShadowMap`), drawn by `ManaWebGpuPointShadowPass` through the depth-only drawer only when the

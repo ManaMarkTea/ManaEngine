@@ -43,6 +43,8 @@ namespace ManaEditor.Code.UI.ManaUi
                     () => ManaEditorGizmos.ShowRoom, () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom),
                 ToolbarIcons.IconButton(theme, DrawWireframe, "Wireframe.",
                     () => editor.ShowWireframe, () => editor.ShowWireframe = !editor.ShowWireframe),
+                ToolbarIcons.IconButton(theme, DrawPostEffects, "Post FX: screen effects such as a RetroFilter script. Off while editing shows the scene plain; play always shows them.",
+                    () => ManaEditorGizmos.PostEffects, () => ManaEditorGizmos.PostEffects = !ManaEditorGizmos.PostEffects),
                 ToolbarIcons.IconButton(theme, DrawLightBulb, "Light icons: click one to select its light; the selected one shows its range.",
                     () => ManaEditorGizmos.ShowLights, () => ManaEditorGizmos.ShowLights = !ManaEditorGizmos.ShowLights));
 
@@ -182,6 +184,25 @@ namespace ManaEditor.Code.UI.ManaUi
             drawList.DrawLine(P(0.42f, 0.8f), P(0.58f, 0.8f), color, thickness);
         }
 
+        /// <summary>A square of big pixels, half filled: the picture through a screen effect.</summary>
+        private static void DrawPostEffects(ManaUiDrawList drawList, UiRect box, Vector4 color)
+        {
+            Vector2 P(float x, float y) => ToolbarIcons.P(box, x, y);
+            var frame = UiRect.FromEdges(P(0.16f, 0.16f).X, P(0.16f, 0.16f).Y, P(0.84f, 0.84f).X, P(0.84f, 0.84f).Y);
+            drawList.DrawBorder(frame, color, 1.4f, new CornerRadius(2.0f));
+            var cell = frame.Width / 4.0f;
+            for (var row = 0; row < 4; row++)
+            {
+                for (var column = 0; column < 4; column++)
+                {
+                    if ((row + column) % 2 == 0)
+                    {
+                        drawList.FillRect(new UiRect(frame.X + column * cell, frame.Y + row * cell, cell, cell), color);
+                    }
+                }
+            }
+        }
+
         private static void DrawWireframe(ManaUiDrawList drawList, UiRect box, Vector4 color)
         {
             const float thickness = 1.4f;
@@ -232,6 +253,7 @@ namespace ManaEditor.Code.UI.ManaUi
                     Toggle("Wireframe", () => editor.ShowWireframe, () => editor.ShowWireframe = !editor.ShowWireframe),
                     Toggle("Vertex normals", () => editor.ShowVertexNormals, () => editor.ShowVertexNormals = !editor.ShowVertexNormals),
                     Toggle("Shade by normal", () => editor.ShowNormals, () => editor.ShowNormals = !editor.ShowNormals),
+                    Toggle("Post FX", () => ManaEditorGizmos.PostEffects, () => ManaEditorGizmos.PostEffects = !ManaEditorGizmos.PostEffects),
                     MenuItem.Separator(),
                     Toggle("Gizmos", () => ManaEditorGizmos.Visible, () => ManaEditorGizmos.Visible = !ManaEditorGizmos.Visible),
                     Toggle("Room walls", () => ManaEditorGizmos.ShowRoom, () => ManaEditorGizmos.ShowRoom = !ManaEditorGizmos.ShowRoom),

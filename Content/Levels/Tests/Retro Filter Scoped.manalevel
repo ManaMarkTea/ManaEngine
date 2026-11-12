@@ -1,0 +1,17 @@
+{
+  "format": "mana-level",
+  "version": 2,
+  "name": "Retro Filter Scoped",
+  "camera": { "position": [48, 3.2, 58], "rotation": [-0.12, 0, 0] },
+  "nodes": [
+    { "id": "scoped-floor", "name": "Floor", "kind": "Shape", "position": [48, -0.1, 46], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.55, 0.57, 0.62, 1], "size": [16, 0.2, 16] },
+    { "id": "scoped-plain-pillar", "name": "Plain Pillar", "kind": "Shape", "position": [53, 1.5, 49], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.3, 0.6, 0.85, 1], "size": [0.6, 3, 0.6] },
+    { "id": "scoped-plain-sphere", "name": "Plain Sphere", "kind": "Shape", "position": [51, 1, 46], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Sphere", "color": [0.85, 0.3, 0.3, 1], "size": [2, 2, 2] },
+    { "id": "scoped-group", "name": "Filtered", "kind": "Group", "position": [44, 0, 47], "rotation": [0, 0, 0], "scale": [1, 1, 1],
+      "scripts": [ { "id": "scoped-filter-script", "type": "RetroFilter", "properties": { "scope": "Children", "lines": 120 } } ],
+      "children": [
+        { "id": "scoped-ball", "name": "Ball", "kind": "Shape", "position": [0, 1.2, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1], "shape": "Sphere", "color": [0.45, 0.35, 0.85, 1], "size": [2.4, 2.4, 2.4] },
+        { "id": "scoped-crate", "name": "Crate", "kind": "Shape", "position": [-1, 0.9, 2], "rotation": [0, 0.4, 0], "scale": [1, 1, 1], "shape": "Cube", "color": [0.85, 0.65, 0.35, 1], "size": [1.8, 1.8, 1.8] }
+      ] }
+  ]
+}

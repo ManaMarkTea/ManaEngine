@@ -30,6 +30,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
         private TextureView* _colorView;
         private BindGroup* _group;
         private TextureView* _outlineMask;
+        private TextureView* _retroMask;
         private uint _width;
         private uint _height;
 
@@ -52,15 +53,28 @@ namespace ManaGraphics.Code.Graphics.Renderers
         public bool Ready => _group != null;
 
         /// <summary>Tone-maps the scene into the filter's own texture and sets this frame's look.</summary>
-        public void Encode(CommandEncoder* encoder, ManaWebGpuHdrPostProcessor hdr, ManaRetroFilterSettings settings, uint width, uint height, float seconds)
+        /// <param name="mask">Where a scoped filter applies (ManaWebGpuPostEffectMaskPass); null filters the whole screen.</param>
+        public void Encode(CommandEncoder* encoder, ManaWebGpuHdrPostProcessor hdr, ManaRetroFilterSettings settings, TextureView* mask,
+            uint width, uint height, float seconds)
         {
             if (width == 0 || height == 0 || hdr.OutlineMaskView == null)
             {
                 return;
             }
-            if (width != _width || height != _height || hdr.OutlineMaskView != _outlineMask)
+            // The shader always reads a mask; unscoped, any texture will do and the outline mask is at hand.
+            var scoped = mask != null;
+            if (!scoped)
             {
-                Resize(width, height, hdr.OutlineMaskView);
+                mask = hdr.OutlineMaskView;
+            }
+            if (width != _width || height != _height || hdr.OutlineMaskView != _outlineMask || mask != _retroMask)
+            {
+                Resize(width, height, hdr.OutlineMaskView, mask);
+            }
+            var scopedFlag = 0.0f;
+            if (scoped)
+            {
+                scopedFlag = 1.0f;
             }
 
             // The texture decodes to linear in an sRGB window; the shader cuts colours in gamma space either way.
@@ -74,7 +88,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 Screen = new Vector4(width, height, settings.PixelSize(height), seconds % 3600.0f),
                 Look = new Vector4(Math.Clamp(settings.ColorLevels, 2, 256), settings.Dither, settings.Scanlines, settings.ChromaticAberration),
                 Wear = new Vector4(settings.Noise, settings.Glitch, settings.Vignette, settings.Curvature),
-                Colour = new Vector4(settings.Saturation, decodesToLinear, 0.0f, 0.0f)
+                Colour = new Vector4(settings.Saturation, decodesToLinear, scopedFlag, 0.0f)
             };
             Api.QueueWriteBuffer(Queue, _params, 0, &values, (nuint)sizeof(Params));
 
@@ -121,12 +135,13 @@ namespace ManaGraphics.Code.Graphics.Renderers
             }
         }
 
-        private void Resize(uint width, uint height, TextureView* outlineMask)
+        private void Resize(uint width, uint height, TextureView* outlineMask, TextureView* retroMask)
         {
             ReleaseTargets();
             _width = width;
             _height = height;
             _outlineMask = outlineMask;
+            _retroMask = retroMask;
 
             var textureDescriptor = new TextureDescriptor
             {
@@ -145,11 +160,12 @@ namespace ManaGraphics.Code.Graphics.Renderers
             }
 
             var layout = Api.RenderPipelineGetBindGroupLayout(_pipeline, 0);
-            var entries = stackalloc BindGroupEntry[3];
+            var entries = stackalloc BindGroupEntry[4];
             entries[0] = new BindGroupEntry { Binding = 0, Buffer = _params, Size = (ulong)sizeof(Params) };
             entries[1] = new BindGroupEntry { Binding = 1, TextureView = _colorView };
             entries[2] = new BindGroupEntry { Binding = 2, TextureView = outlineMask };
-            var groupDescriptor = new BindGroupDescriptor { Layout = layout, EntryCount = 3, Entries = entries };
+            entries[3] = new BindGroupEntry { Binding = 3, TextureView = retroMask };
+            var groupDescriptor = new BindGroupDescriptor { Layout = layout, EntryCount = 4, Entries = entries };
             _group = Api.DeviceCreateBindGroup(Device, &groupDescriptor);
             Api.BindGroupLayoutRelease(layout);
             if (_group == null)
@@ -165,6 +181,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             if (_color != null) { Api.TextureRelease(_color); _color = null; }
             _width = 0;
             _height = 0;
+            _retroMask = null;
         }
 
         public override void Dispose()

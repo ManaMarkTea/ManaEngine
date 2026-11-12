@@ -38,6 +38,12 @@ namespace ManaCore.Graphics
         /// <summary>Colour: 0 grey, 1 as drawn, above 1 more vivid.</summary>
         public float Saturation { get; init; } = 0.85f;
 
+        /// <summary>
+        /// Only the meshes its slot marks (<see cref="ManaPostEffects.Retro"/>) go through it, the rest of the picture shown
+        /// as usual; screen-wide parts (curvature) are left out then. False filters the whole screen.
+        /// </summary>
+        public bool Scoped { get; init; }
+
         /// <summary>The looks the <c>retro</c> script command names, Default first.</summary>
         public static readonly string[] PresetNames = { "Default", "VHS", "Console", "CRT" };
 

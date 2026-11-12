@@ -410,26 +410,47 @@ namespace Mana
         /// </summary>
         public ManaRetroFilterSettings? RetroFilterOverride { get; set; }
 
-        /// <summary>The first enabled RetroFilter script in any scene: the whole screen goes through one.</summary>
-        public ManaRetroFilterSettings? FindRetroFilter()
+        /// <summary>The world's retro filter, as <see cref="FindPostEffects"/> finds it.</summary>
+        public ManaRetroFilterSettings? FindRetroFilter() => FindPostEffects(null, out _);
+
+        /// <summary>
+        /// Walks every enabled post effect script: returns the first RetroFilter's look (scoped unless some enabled one
+        /// covers the screen), <paramref name="scoped"/> the slots no script gives the whole screen, and fills
+        /// <paramref name="sceneBits"/>, when given, with the slots each scene's Scene-scoped scripts cover.
+        /// </summary>
+        public ManaRetroFilterSettings? FindPostEffects(Dictionary<ManaScene, byte>? sceneBits, out byte scoped)
         {
-            ManaRetroFilterSettings? Find(ManaSceneNode node)
+            ManaRetroFilterSettings? retro = null;
+            byte enabled = 0;
+            byte screen = 0;
+
+            void Find(ManaScene scene, ManaSceneNode node)
             {
                 foreach (var component in node.Components)
                 {
-                    if (component is Mana.Code.Components.ManaRetroFilterComponent { Enabled: true } filter)
+                    if (component is not Mana.Code.Components.ManaPostEffectComponent { Enabled: true } effect)
                     {
-                        return filter.Settings();
+                        continue;
+                    }
+                    var bit = ManaPostEffects.Bit(effect.Slot);
+                    enabled |= bit;
+                    if (effect.Scope == ManaPostEffectScope.Screen)
+                    {
+                        screen |= bit;
+                    }
+                    else if (effect.Scope == ManaPostEffectScope.Scene && sceneBits != null)
+                    {
+                        sceneBits[scene] = (byte)(sceneBits.GetValueOrDefault(scene) | bit);
+                    }
+                    if (effect is Mana.Code.Components.ManaRetroFilterComponent filter)
+                    {
+                        retro ??= filter.Settings();
                     }
                 }
                 foreach (var child in node.Children)
                 {
-                    if (Find(child) is { } found)
-                    {
-                        return found;
-                    }
+                    Find(scene, child);
                 }
-                return null;
             }
 
             lock (SceneLock)
@@ -438,14 +459,16 @@ namespace Mana
                 {
                     foreach (var node in scene.Children)
                     {
-                        if (Find(node) is { } found)
-                        {
-                            return found;
-                        }
+                        Find(scene, node);
                     }
                 }
             }
-            return null;
+            scoped = (byte)(enabled & ~screen);
+            if (retro == null)
+            {
+                return null;
+            }
+            return retro with { Scoped = ManaPostEffects.Has(scoped, ManaPostEffects.Retro) };
         }
 
         /// <summary>The placed point lights -- lamps, glows -- as a render scene gets them: xyz position, w range; colour.</summary>
@@ -475,6 +498,9 @@ namespace Mana
             var localLights = new List<(Vector4 Position, Vector4 Color)>();
             var shadowCasters = new List<int>();
             (bool Found, Vector3 Direction, Vector4 Color, bool CastsShadows) sun = default;
+            ManaRetroFilterSettings? retroFilter = null;
+            byte scopedPostEffects = 0;
+            var postEffectScenes = new Dictionary<ManaScene, byte>();
 
             var collectStopwatch = Stopwatch.StartNew();
             // Separately scoped from the walk below because they fail differently: waiting on SceneLock means
@@ -488,9 +514,20 @@ namespace Mana
             {
                 using (ManaCore.Diagnostics.ManaFrameProfiler.Measure("Scene: Collect Meshes"))
                 {
+                    // The view's Post FX switch hides screen filters while editing; play always shows them.
+                    if (Mana.Code.UI.ManaEditorGizmos.PostEffects || IsPlaying)
+                    {
+                        retroFilter = FindPostEffects(postEffectScenes, out scopedPostEffects);
+                        // The script command's look covers the whole screen.
+                        if (RetroFilterOverride != null)
+                        {
+                            retroFilter = RetroFilterOverride;
+                            scopedPostEffects &= (byte)~ManaPostEffects.Bit(ManaPostEffects.Retro);
+                        }
+                    }
                     foreach (var scene in Scenes)
                     {
-                        scene.CollectRenderMeshInstances(meshes);
+                        scene.CollectRenderMeshInstances(meshes, postEffectScenes.GetValueOrDefault(scene));
                         foreach (var node in scene.Children) node.CollectGpuParticles(gpuParticles);
                     }
                 }
@@ -585,7 +622,8 @@ namespace Mana
                 SunColor = sun.Found ? sun.Color : Vector4.One,
                 SunCastsShadows = sun.Found && sun.CastsShadows,
                 ProbeVolume = FindProbeVolume(),
-                RetroFilter = RetroFilterOverride ?? FindRetroFilter()
+                RetroFilter = retroFilter,
+                ScopedPostEffects = scopedPostEffects
             };
         }
 

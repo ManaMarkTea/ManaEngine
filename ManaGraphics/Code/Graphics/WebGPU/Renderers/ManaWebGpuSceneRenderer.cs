@@ -38,6 +38,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
         private readonly ManaWebGpuProbeVolumePass _probes = null!;
         private readonly ManaWebGpuAmbientOcclusionPass _ambientOcclusion = null!;
+        private readonly ManaWebGpuPostEffectMaskPass _postEffectMasks = null!;
 
         public ManaWebGpuSceneRenderer(
             ManaWebGpuDevice gpu, ManaWebGpuEnvironment environment, ManaWebGpuSceneMeshes meshes, Vector2D<int> size,
@@ -85,6 +86,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 AddPass(new ManaWebGpuSelectionWireframeOverlay(gpu, _bindings, sceneColor));
                 AddPass(new ManaWebGpuNormalLinesOverlay(gpu, _bindings, sceneColor));
                 AddPass(new ManaWebGpuOutlinePass(gpu, _bindings));
+                _postEffectMasks = AddPass(new ManaWebGpuPostEffectMaskPass(gpu, _bindings));
             }
             catch
             {
@@ -281,7 +283,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                     using (ManaFrameProfiler.Measure("GPU: Retro Filter"))
                     {
                         _retro ??= new ManaWebGpuRetroFilter(Gpu, Gpu.SurfaceFormat);
-                        _retro.Encode(encoder, _hdr, scene.RetroFilter!, frame.Width, frame.Height, seconds);
+                        _retro.Encode(encoder, _hdr, scene.RetroFilter!, _postEffectMasks.MaskView(ManaPostEffects.Retro), frame.Width, frame.Height, seconds);
                     }
                 }
                 // Big pixels make smoothed edges pointless, so SMAA sits out under the retro filter.

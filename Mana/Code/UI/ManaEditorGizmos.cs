@@ -29,5 +29,8 @@ namespace Mana.Code.UI
 
         /// <summary>An icon at each placed light, which a click selects; the selected one shows its range.</summary>
         public static bool ShowLights { get; set; } = true;
+
+        /// <summary>Screen filters (the retro filter) while editing; off shows the scene plain. Play always shows them.</summary>
+        public static bool PostEffects { get; set; } = true;
     }
 }

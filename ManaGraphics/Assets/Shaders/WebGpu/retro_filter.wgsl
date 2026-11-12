@@ -10,13 +10,15 @@ struct RetroParams {
     look : vec4<f32>,
     // noise, glitch, vignette, curvature.
     wear : vec4<f32>,
-    // saturation, 1 when the colour texture decodes to linear (an sRGB window), unused, unused.
+    // saturation, 1 when the colour texture decodes to linear (an sRGB window), 1 when scoped (effect_mask says where), unused.
     colour : vec4<f32>,
 };
 
 @group(0) @binding(0) var<uniform> params : RetroParams;
 @group(0) @binding(1) var color_tex : texture_2d<f32>;
 @group(0) @binding(2) var outline_mask : texture_2d<f32>;
+// The post effect mask (ManaWebGpuPostEffectMaskPass): where a scoped filter applies. Unscoped, unread.
+@group(0) @binding(3) var effect_mask : texture_2d<f32>;
 
 #include "include/outline_composite.wgsl"
 
@@ -84,11 +86,12 @@ fn fs_present(input : VertexOutput) -> @location(0) vec4<f32> {
     let seconds = params.screen.w;
     let blocks = ceil(size / pixel_size);
     let glitch = params.wear.y;
+    let scoped = params.colour.z > 0.5;
 
-    // The CRT's glass: the picture bulges out, and what falls past its edge is black.
+    // The CRT's glass: the picture bulges out, and what falls past its edge is black. Not when only some things are filtered.
     var uv = input.uv;
     let centred = uv * 2.0 - vec2<f32>(1.0);
-    let curvature = params.wear.w;
+    let curvature = select(params.wear.w, 0.0, scoped);
     let bulge = centred + centred * (centred.yx * centred.yx) * (curvature * 0.25);
     uv = bulge * 0.5 + vec2<f32>(0.5);
     let inside = all(uv >= vec2<f32>(0.0)) && all(uv <= vec2<f32>(1.0));
@@ -108,6 +111,16 @@ fn fs_present(input : VertexOutput) -> @location(0) vec4<f32> {
 
     let screen_pixel = shifted * size;
     let block = floor(screen_pixel / pixel_size);
+
+    // Scoped: a big pixel is filtered when what its centre shows is covered, so the covered things' edges go blocky too;
+    // everything else is the picture as drawn.
+    if (scoped) {
+        let centre = clamp(block * pixel_size + vec2<f32>(pixel_size * 0.5), vec2<f32>(0.0), size - vec2<f32>(1.0));
+        if (textureLoad(effect_mask, vec2<i32>(centre), 0).r < 0.5) {
+            let here = clamp(input.uv * size, vec2<f32>(0.0), size - vec2<f32>(1.0));
+            return mana_outline_composite(textureLoad(color_tex, vec2<i32>(here), 0).rgb, input.uv, outline_mask);
+        }
+    }
     let fringe = vec2<f32>(round(params.look.w * (1.0 + band * 3.0)), 0.0);
     var colour = vec3<f32>(
         block_colour(block + fringe).r,

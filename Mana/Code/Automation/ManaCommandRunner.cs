@@ -427,6 +427,12 @@ namespace Mana.Code.Automation
                 Mana.Code.UI.ManaEditorGizmos.FullWindowView = false;
             });
 
+            // The viewport's Post FX switch: screen effects while editing.
+            Register("post_fx", command =>
+            {
+                Mana.Code.UI.ManaEditorGizmos.PostEffects = command.Visible ?? !Mana.Code.UI.ManaEditorGizmos.PostEffects;
+            });
+
             Register("gizmos", command =>
             {
                 Mana.Code.UI.ManaEditorGizmos.Visible = command.Visible ?? !Mana.Code.UI.ManaEditorGizmos.Visible;

@@ -298,15 +298,17 @@ namespace Mana.Code.Nodes
             foreach (var child in Children) child.CollectGpuParticles(output);
         }
 
-        public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
+        /// <param name="postEffects">Post effects covering this whole subtree already (a scene's), a bit per slot.</param>
+        public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, byte postEffects = 0)
         {
-            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null, null);
+            CollectRenderMeshInstances(output, IncludeInEnvironmentCapture, null, null, postEffects);
         }
 
         // `glow` is the nearest enabled Glow on this node or above it: it replaces the emission of every mesh
         // beneath (see ManaGlowComponent), leaving the shared materials untouched.
-        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture, Components.ManaGlowComponent? glow, string? staticBatchKey)
+        private void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, bool includeInEnvironmentCapture, Components.ManaGlowComponent? glow, string? staticBatchKey, byte postEffects)
         {
+            postEffects |= global::Mana.Code.Components.ManaPostEffectComponent.Bits(this, ManaPostEffectScope.Children);
             foreach (var component in Components)
             {
                 if (component is Components.ManaGlowComponent { Enabled: true } own)
@@ -361,6 +363,7 @@ namespace Mana.Code.Nodes
                         AlphaCutoff = (float)renderer.Material.AlphaCutoff,
                         AlwaysOnTop = renderer.AlwaysOnTop,
                         OutlineEnabled = renderer.RenderOutlineEnabled,
+                        PostEffects = postEffects,
                         OutlineColor = renderer.RenderOutlineColor,
                         OutlineWidth = renderer.RenderOutlineWidth,
                         SelectionWireframe = renderer.EditorWireframe && meshData.Indexes.Length / 3 <= MeshRendererComponent.MaxSelectionWireframeTriangles,
@@ -387,10 +390,16 @@ namespace Mana.Code.Nodes
                 }
             }
 
+            // A Siblings script on any child covers all of this node's children.
+            var childrenEffects = postEffects;
+            foreach (var child in Children)
+            {
+                childrenEffects |= global::Mana.Code.Components.ManaPostEffectComponent.Bits(child, ManaPostEffectScope.Siblings);
+            }
             foreach (var child in Children)
             {
                 var part = IsPartOfLook(child);
-                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, part ? glow : null, part ? staticBatchKey : null);
+                child.CollectRenderMeshInstances(output, includeInEnvironmentCapture && child.IncludeInEnvironmentCapture, part ? glow : null, part ? staticBatchKey : null, childrenEffects);
             }
         }
 

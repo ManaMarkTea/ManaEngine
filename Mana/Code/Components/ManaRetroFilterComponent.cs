@@ -5,14 +5,14 @@ using Mana.Code.Nodes;
 namespace Mana.Code.Components
 {
     /// <summary>
-    /// Puts the whole screen through the retro filter while its level is open -- big pixels, a few dithered colours, and
-    /// a worn CRT or VHS look (see <see cref="ManaRetroFilterSettings"/>). Where it sits does not matter; one per world
-    /// (the first enabled one found), in the editor as in play. The editor's panels and a game's HUD stay sharp above it.
+    /// Puts the screen -- or, by <see cref="Scope"/>, only its scene, its node's subtree or its siblings' -- through the
+    /// retro filter: big pixels, a few dithered colours, and a worn CRT or VHS look (see <see cref="ManaRetroFilterSettings"/>).
+    /// The first enabled one found sets the look for the world; every enabled one adds what it covers. The editor's panels
+    /// and a game's HUD stay sharp above it.
     /// </summary>
-    public sealed class ManaRetroFilterComponent : ManaComponent
+    public sealed class ManaRetroFilterComponent : ManaPostEffectComponent
     {
-        /// <summary>Off, the picture is shown as usual.</summary>
-        public bool Enabled { get; set; } = true;
+        public override int Slot => ManaPostEffects.Retro;
 
         /// <summary>The picture's height in big pixels: 240 is a 1990s console on a TV, 120 very chunky.</summary>
         [Range(60, 1080)]

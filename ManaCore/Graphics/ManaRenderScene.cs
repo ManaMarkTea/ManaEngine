@@ -53,6 +53,9 @@ namespace ManaCore.Graphics
         /// <summary>The retro screen filter a RetroFilter script asks for; null shows the picture as usual.</summary>
         public ManaRetroFilterSettings? RetroFilter { get; init; }
 
+        /// <summary>The post effects on this frame that cover only some meshes, a bit per slot: each gets a mask drawn.</summary>
+        public byte ScopedPostEffects { get; init; }
+
         /// <summary>The level's baked light probes, when it has a ProbeVolume; null otherwise.</summary>
         public ManaProbeVolumeSettings? ProbeVolume { get; init; }
 

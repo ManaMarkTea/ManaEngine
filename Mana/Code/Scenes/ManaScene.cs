@@ -55,11 +55,17 @@ namespace Mana
             }
         }
 
-        public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output)
+        /// <param name="postEffects">Post effects whose Scene-scoped scripts cover this scene, a bit per slot.</param>
+        public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, byte postEffects = 0)
         {
+            // A Siblings script on a top-level node covers the whole scene, its parent.
             foreach (var node in Children)
             {
-                node.CollectRenderMeshInstances(output);
+                postEffects |= Mana.Code.Components.ManaPostEffectComponent.Bits(node, ManaPostEffectScope.Siblings);
+            }
+            foreach (var node in Children)
+            {
+                node.CollectRenderMeshInstances(output, postEffects);
             }
         }
 

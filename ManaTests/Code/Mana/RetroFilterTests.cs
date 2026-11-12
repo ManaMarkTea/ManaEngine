@@ -34,6 +34,30 @@ public static class RetroFilterChecks
         Check("a disabled script turns it off", world.FindRetroFilter() == null);
 
         filter.Enabled = true;
+        world.FindPostEffects(null, out var screenScoped);
+        Check("a Screen script covers the whole screen", world.FindRetroFilter() is { Scoped: false } && screenScoped == 0);
+
+        filter.Scope = ManaPostEffectScope.Children;
+        var sceneBits = new Dictionary<ManaScene, byte>();
+        var scopedLook = world.FindPostEffects(sceneBits, out var childrenScoped);
+        Check("a Children script scopes its slot, and no scene as a whole",
+            scopedLook is { Scoped: true } && ManaPostEffects.Has(childrenScoped, ManaPostEffects.Retro) && sceneBits.Count == 0);
+        Check("its bits are found on its own node only for its own scope",
+            ManaPostEffectComponent.Bits(holder, ManaPostEffectScope.Children) == ManaPostEffects.Bit(ManaPostEffects.Retro)
+                && ManaPostEffectComponent.Bits(holder, ManaPostEffectScope.Siblings) == 0);
+
+        filter.Scope = ManaPostEffectScope.Scene;
+        world.FindPostEffects(sceneBits, out _);
+        Check("a Scene script marks its scene", ManaPostEffects.Has(sceneBits.GetValueOrDefault(scene), ManaPostEffects.Retro));
+
+        // A second, Screen-scoped script anywhere makes the whole screen go through.
+        var second = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Second" };
+        second.Components.Add(new ManaRetroFilterComponent(second));
+        scene.Children.Add(second);
+        Check("any Screen script unscopes it", world.FindRetroFilter() is { Scoped: false });
+        scene.Children.Remove(second);
+        filter.Scope = ManaPostEffectScope.Screen;
+
         world.RetroFilterOverride = ManaRetroFilterSettings.Preset("vhs");
         Check("the script command's look wins over a script", world.RetroFilterOverride is { Glitch: > 0.5f }
             && ManaRetroFilterSettings.PresetNames.All(name => ManaRetroFilterSettings.Preset(name) != null)
