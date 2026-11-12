@@ -55,6 +55,7 @@ namespace Mana
             }
         }
 
+        /// <param name="output">Gets a render instance per visible mesh in the scene.</param>
         /// <param name="postEffects">Post effects whose Scene-scoped scripts cover this scene, a bit per slot.</param>
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, byte postEffects = 0)
         {

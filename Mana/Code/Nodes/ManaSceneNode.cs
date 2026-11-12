@@ -298,6 +298,7 @@ namespace Mana.Code.Nodes
             foreach (var child in Children) child.CollectGpuParticles(output);
         }
 
+        /// <param name="output">Gets a render instance per visible mesh in this subtree.</param>
         /// <param name="postEffects">Post effects covering this whole subtree already (a scene's), a bit per slot.</param>
         public void CollectRenderMeshInstances(List<ManaRenderMeshInstance> output, byte postEffects = 0)
         {
