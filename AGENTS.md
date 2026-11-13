@@ -443,6 +443,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
   A caster whose bounds hold the light is its own fixture and casts nothing for it. Needs a 17th sampled texture a
   stage: desktop asks the adapter for its limits (`SupportsPointShadows`, MANA_POINT_SHADOWS); browsers without the room
   build without it and lights cast none. Reference: `Content/Levels/Tests/Point Shadows.manalevel`.
+- **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
+  tracks as a dart coloured by altitude (`altitudeScale`, `markerSize` a share of camera distance), flown on by dead
+  reckoning between fetches. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
+  `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
+  reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

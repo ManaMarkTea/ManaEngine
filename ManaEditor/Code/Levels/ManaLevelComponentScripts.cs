@@ -88,6 +88,13 @@ namespace ManaEditor.Code.Levels
                     ComponentType = typeof(Mana.Code.Components.ManaParallaxComponent),
                     Create = node => new Mana.Code.Components.ManaParallaxComponent(node)
                 },
+                // Live air traffic over a planet (ManaGeoTools); draws nothing on any other node.
+                new()
+                {
+                    Type = ManaGeoTools.Code.Flights.FlightTrafficComponent.ScriptType,
+                    ComponentType = typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent),
+                    Create = node => new ManaGeoTools.Code.Flights.FlightTrafficComponent(node)
+                },
                 new()
                 {
                     Type = "Platformer2D",
@@ -271,6 +278,7 @@ namespace ManaEditor.Code.Levels
         }
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaUiCanvasComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]

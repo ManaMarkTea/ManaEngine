@@ -25,7 +25,10 @@
         "oceanResolution": 97,
         "autoLodEnabled": false,
         "nearOceanEnabled": true
-      }
+      },
+      "scripts": [
+        { "id": "c2830423bcd047ee9d0b3b3e0e3da982", "type": "FlightTraffic", "properties": {} }
+      ]
     }
   ]
 }
