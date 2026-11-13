@@ -25,6 +25,7 @@ public static class OutlinerChecks
 
         ManaScene? savedScene = null;
         var sceneDirty = false;
+        var history = new ManaEditor.Code.UI.EditorUndoHistory();
         var scene = new ManaScene(context) { Name = "Default Scene", LevelPath = "C:/levels/default.manalevel" };
         var parent = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Parent" };
         var childA = new ManaSceneNode(context, Matrix4x4.Identity) { Name = "Child A" };
@@ -53,7 +54,7 @@ public static class OutlinerChecks
                     savedScene = sceneToSave;
                     sceneDirty = false;
                 },
-                sceneToCheck => sceneDirty && ReferenceEquals(sceneToCheck, scene));
+                sceneToCheck => sceneDirty && ReferenceEquals(sceneToCheck, scene), history);
             Check("outliner constructs over a real world", true);
         }
         catch (Exception ex)
@@ -95,6 +96,34 @@ public static class OutlinerChecks
         world.Selection.SelectedNode = parent;
         world.Selection.SelectedScene = null;
         root.UpdateLayout(new Vector2(360, 640));
+        tree.Focus();
+        root.Input.InjectKeyDown(UiKey.F2);
+        var renameBox = root.FocusManager.Focused as TextBox;
+        Check("F2 edits the selected node inline with its name selected",
+            renameBox?.SelectedText == "Parent");
+        if (renameBox != null)
+        {
+            renameBox.Text = "Renamed parent";
+            root.Input.InjectKeyDown(UiKey.Enter);
+            root.UpdateLayout(new Vector2(360, 640));
+            Check("Enter commits rename and restores tree focus",
+                parent.Name == "Renamed parent" && ReferenceEquals(root.FocusManager.Focused, tree));
+            Check("the renamed label updates", FindAll<TextBlock>(tree).Any(t => t.Text == "Renamed parent"));
+            history.Undo();
+            Check("rename can be undone", parent.Name == "Parent");
+            history.Redo();
+            Check("rename can be redone", parent.Name == "Renamed parent");
+            root.UpdateLayout(new Vector2(360, 640));
+            root.Input.InjectKeyDown(UiKey.F2);
+            if (root.FocusManager.Focused is TextBox cancelBox) cancelBox.Text = "Discard me";
+            root.Input.InjectKeyDown(UiKey.Escape);
+            Check("Escape cancels rename", parent.Name == "Renamed parent");
+            root.Input.InjectKeyDown(UiKey.F2);
+            if (root.FocusManager.Focused is TextBox blurBox) blurBox.Text = "Parent";
+            tree.Focus();
+            Check("leaving the field commits rename", parent.Name == "Parent");
+            root.UpdateLayout(new Vector2(360, 640));
+        }
         saveButton = FindAll<Button>(root).FirstOrDefault(button => button.Text == "Save*");
 
         if (saveButton != null)

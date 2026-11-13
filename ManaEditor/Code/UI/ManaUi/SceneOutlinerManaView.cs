@@ -62,6 +62,14 @@ namespace ManaEditor.Code.UI.ManaUi
             };
 
             tree.BindPolled(t => t.RevealedSelectedItem, () => CurrentSelectionItem(selection));
+            tree.KeyDown += (_, e) =>
+            {
+                if (e.Key == UiKey.F2 && e.Modifiers == UiModifiers.None
+                    && selection.SelectedNode is { } node && BeginRename(tree, node))
+                {
+                    e.Handled = true;
+                }
+            };
 
             // Followed rather than captured: opening a level or a prefab replaces the list, not its contents.
             tree.BindPolled(t => t.ItemsSource, () => prefabs.EditingScenes ?? (System.Collections.IEnumerable)world.Scenes);
@@ -168,19 +176,22 @@ namespace ManaEditor.Code.UI.ManaUi
             Func<ManaScene, bool>? sceneHasChanges,
             EditorUndoHistory? history)
         {
-            var (label, color, muted, icon) = Describe(item);
+            var (_, color, muted, icon) = Describe(item);
 
             var labelRow = new Grid().Columns("Auto, *, Auto", 6.0f).Rows("*");
             labelRow.Children.Add(new OutlinerIcon(icon, color)
                 .CenterV()
                 .WithTooltip(IconTooltip(item))
                 .GridColumn(0));
-            labelRow.Children.Add(new TextBlock()
-                    .Text(label)
+            var nameLabel = new TextBlock()
+                    .BindTextPolled(() => Describe(item).Label)
                     .Foreground(muted ? theme.TextMuted : theme.Text)
                     .Ellipsis()
-                    .CenterV()
-                    .GridColumn(1));
+                    .CenterV();
+            labelRow.Children.Add((item is ManaSceneNode node
+                    ? new NodeNameEditor(node, selection, history) { Child = nameLabel }
+                    : (UiElement)nameLabel)
+                .GridColumn(1));
 
             if (InlineComponentIcons(item, theme) is { } inlineIcons)
             {
@@ -210,6 +221,71 @@ namespace ManaEditor.Code.UI.ManaUi
                 saveButton.GridColumn(1));
 
             return new OutlinerActionRow(world, selection, item, row, saveScene, history);
+        }
+
+        private static bool BeginRename(UiElement element, ManaSceneNode node)
+        {
+            if (element is NodeNameEditor editor && ReferenceEquals(editor.Node, node))
+            {
+                editor.BeginRename();
+                return true;
+            }
+            foreach (var child in element.VisualChildren)
+            {
+                if (BeginRename(child, node)) return true;
+            }
+            return false;
+        }
+
+        private sealed class NodeNameEditor(
+            ManaSceneNode node, SceneSelectionState selection, EditorUndoHistory? history) : Decorator
+        {
+            public ManaSceneNode Node => node;
+
+            public void BeginRename()
+            {
+                if (Child is TextBox) return;
+                var label = Child;
+                var before = node.Name;
+                var box = new TextBox { Text = before };
+                var finished = false;
+                void Apply(string name)
+                {
+                    node.Name = name;
+                    selection.NotifySceneGraphChanged();
+                }
+                void Finish(bool commit, bool returnFocus)
+                {
+                    if (finished) return;
+                    finished = true;
+                    if (commit && !string.IsNullOrWhiteSpace(box.Text) && box.Text != before)
+                    {
+                        var after = box.Text;
+                        Apply(after);
+                        history?.Record("Rename node", () => Apply(before), () => Apply(after));
+                    }
+                    // Move focus before removing the field so it cannot keep consuming editor shortcuts.
+                    if (returnFocus)
+                    {
+                        for (var parent = Parent; parent != null; parent = parent.Parent)
+                        {
+                            if (parent is TreeView tree) { tree.Focus(); break; }
+                        }
+                    }
+                    Child = label;
+                }
+                box.PreviewKeyDown += (_, e) =>
+                {
+                    if (e.Key is UiKey.Escape or UiKey.Enter)
+                    {
+                        Finish(e.Key == UiKey.Enter, true);
+                        e.Handled = true;
+                    }
+                };
+                box.TextCommitted += (_, _) => Finish(true, false);
+                Child = box;
+                box.Focus();
+            }
         }
 
         private static string SaveLabel(ManaScene scene, Func<ManaScene, bool>? sceneHasChanges)
