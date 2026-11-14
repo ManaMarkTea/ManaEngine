@@ -45,6 +45,7 @@ namespace Mana.Code.GameModes
         public void Reset()
         {
             DetachKmlAirspace();
+            ReleaseCamera();
             Planet = null;
             lock (_drapedOverlays)
             {
@@ -56,6 +57,7 @@ namespace Mana.Code.GameModes
         public void Adopt(PlanetNode? planet)
         {
             Planet = planet;
+            HoldCamera();
             if (Planet != null && _viewModel.ShowKmlAirspace)
             {
                 AttachKmlAirspace();
@@ -345,6 +347,92 @@ namespace Mana.Code.GameModes
         // lets the expensive rebuild coalesce into one (see PlanetDrapedLines.RebuildSettleFrames).
         private const int DrapePointsPerFrame = 8192;
 
+        // Fly speed is divided by this per unit of height: at the default speed of 50 the camera covers about half
+        // its own height a second, from orbit down to rooftops; the speed slider and right-drag scroll scale it.
+        private const float SpeedHeightReference = 5.0f;
+
+        // Near plane as a share of the height above the surface, so the depth buffer's range follows the camera
+        // down instead of spreading 24 bits over a whole planet.
+        private const float NearClipHeightShare = 0.005f;
+
+        private float? _farClipBeforePlanet;
+        private float? _nearClipBeforePlanet;
+        private CameraComponent? _heldCamera;
+
+        /// <summary>A planet came: flying slows towards its surface, and the clip planes follow the height.</summary>
+        private void HoldCamera()
+        {
+            var camera = _context.World.MainCamera;
+            if (Planet == null || camera == null)
+            {
+                return;
+            }
+
+            _heldCamera = camera;
+            _farClipBeforePlanet = camera.FarClipPlane;
+            _nearClipBeforePlanet = camera.NearClipPlane;
+            camera.MovementSpeedScale = position => PlanetHeight(position) / SpeedHeightReference;
+            FitCameraToPlanet();
+        }
+
+        private void ReleaseCamera()
+        {
+            if (_heldCamera == null)
+            {
+                return;
+            }
+
+            _heldCamera.MovementSpeedScale = null;
+            if (_farClipBeforePlanet is { } far && _nearClipBeforePlanet is { } near)
+            {
+                _heldCamera.FarClipPlane = far;
+                _heldCamera.NearClipPlane = near;
+                _heldCamera.UpdateProjection();
+            }
+
+            _heldCamera = null;
+            _farClipBeforePlanet = null;
+            _nearClipBeforePlanet = null;
+        }
+
+        /// <summary>Height above the planet's sea-level sphere, in world units; a sliver above zero inside it.</summary>
+        private float PlanetHeight(Vector3 worldPosition)
+        {
+            var planet = Planet;
+            if (planet == null)
+            {
+                return SpeedHeightReference;
+            }
+
+            var distance = Vector3.Distance(worldPosition, planet.WorldTransform.Translation);
+            return MathF.Max(distance - planet.Radius, planet.Radius * 1e-6f);
+        }
+
+        /// <summary>Far plane just past the horizon (with the level's own far as a floor), near plane a small share of the height.</summary>
+        private void FitCameraToPlanet()
+        {
+            var camera = _heldCamera;
+            var planet = Planet;
+            // A loaded region sets its own clip planes (ProcessPendingRegionRequest).
+            if (camera == null || planet == null || Region != null || _farClipBeforePlanet is not { } baseFar || _nearClipBeforePlanet is not { } baseNear)
+            {
+                return;
+            }
+
+            var distance = Vector3.Distance(camera.Owner.Position, planet.WorldTransform.Translation);
+            var height = PlanetHeight(camera.Owner.Position);
+            var horizon = MathF.Sqrt(MathF.Max(0.0f, distance * distance - planet.Radius * planet.Radius));
+            // A tenth of a radius past the horizon keeps mountains and the far limb from being cut.
+            var far = MathF.Max(baseFar, horizon + planet.Radius * 0.1f);
+            var near = MathF.Max(baseNear, height * NearClipHeightShare);
+            if (MathF.Abs(far - camera.FarClipPlane) > far * 0.01f || MathF.Abs(near - camera.NearClipPlane) > near * 0.01f)
+            {
+                camera.FarClipPlane = far;
+                camera.NearClipPlane = near;
+                camera.UpdateProjection();
+            }
+        }
+
         // Every per-frame streaming step that has to happen on the main thread, in dependency order:
         // decide what to refine, then adopt whatever finished, then feed the overlays that read the
         // results. Each step is individually budgeted per frame, so calling this more than once per frame
@@ -368,6 +456,8 @@ namespace Mana.Code.GameModes
             // source with a different fix, and the whole point is to find out which.
             using (ManaFrameProfiler.Measure("Streaming: Total"))
             {
+                FitCameraToPlanet();
+
                 // Must run on the main thread -- finalizing a completed patch split touches the scene
                 // graph (AddChild/RemoveChild), which can't safely happen from the background fetch task
                 // that detects a split is ready (see PlanetNode.UpresPendingChildrenAsync's comment).

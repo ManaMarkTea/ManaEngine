@@ -63,7 +63,8 @@ namespace ManaCore.Graphics
             InverseProjection = inverse;
             Forward = Vector3.Normalize(new Vector3(-camera.View.M13, -camera.View.M23, -camera.View.M33));
             Near = MathF.Max(camera.NearClipPlane, 0.05f);
-            var far = Math.Clamp(camera.FarClipPlane, Near * 2.0f, FarthestSlice);
+            // Not Math.Clamp: a planet-sized near plane can pass FarthestSlice, which Clamp throws on.
+            var far = MathF.Max(MathF.Min(camera.FarClipPlane, FarthestSlice), Near * 2.0f);
             SliceScale = Slices / MathF.Log(far / Near);
 
             LightCount = Math.Min(lights.Count, ManaRenderScene.MaxLocalLights);

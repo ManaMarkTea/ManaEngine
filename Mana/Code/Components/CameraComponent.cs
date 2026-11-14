@@ -59,6 +59,12 @@ namespace Mana
 
 
         float _MovementSpeed = 50;
+
+        /// <summary>
+        /// Multiplies fly speed by what it returns for the camera's world position, every frame. A planet makes it
+        /// the height above its surface, so the same key press crosses a continent from orbit and a town near the ground.
+        /// </summary>
+        public Func<Vector3, float>? MovementSpeedScale { get; set; }
         public float MovementSpeed
         {
             get => _MovementSpeed;
@@ -850,6 +856,11 @@ namespace Mana
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
+            var flySpeed = _MovementSpeed;
+            if (MovementSpeedScale != null)
+            {
+                flySpeed *= MovementSpeedScale(position);
+            }
 
             // Evaluated as two separate calls rather than one short-circuited "||" expression: each button
             // owns its own latch, and short-circuiting after the first true result would skip clearing the
@@ -863,22 +874,22 @@ namespace Mana
             {
                 if (KeyboardState.IsKeyPressed(Key.W))
                 {
-                    position += forward * +delta * _MovementSpeed;
+                    position += forward * +delta * flySpeed;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.S))
                 {
-                    position += forward * -delta * _MovementSpeed;
+                    position += forward * -delta * flySpeed;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.A))
                 {
-                    position += right * -delta * _MovementSpeed;
+                    position += right * -delta * flySpeed;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.D))
                 {
-                    position += right * delta * _MovementSpeed;
+                    position += right * delta * flySpeed;
                 }
             }
 
@@ -886,12 +897,12 @@ namespace Mana
             {
                 if (KeyboardState.IsKeyPressed(Key.E))
                 {
-                    position += worldUp * +delta * _MovementSpeed;
+                    position += worldUp * +delta * flySpeed;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.Q))
                 {
-                    position += worldUp * -delta * _MovementSpeed;
+                    position += worldUp * -delta * flySpeed;
                 }
             }
 

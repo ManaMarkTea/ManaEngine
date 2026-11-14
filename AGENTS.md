@@ -443,8 +443,12 @@ dark when it casts shadows, which a click selects; the selected light's range as
   A caster whose bounds hold the light is its own fixture and casts nothing for it. Needs a 17th sampled texture a
   stage: desktop asks the adapter for its limits (`SupportsPointShadows`, MANA_POINT_SHADOWS); browsers without the room
   build without it and lights cast none. Reference: `Content/Levels/Tests/Point Shadows.manalevel`.
+- **Planet scale:** `Planet Showcase` is Earth at true size (radius 6,371,000 units, a metre each, auto-LOD streaming).
+  While a level has a planet, `EditorPlanetScenery` scales fly speed by height above it (`CameraComponent.MovementSpeedScale`)
+  and fits the clip planes to the height and horizon each frame. Float precision is ~0.5 m at that radius: fine from
+  aircraft height, not for walking. The sky still draws as seen from the ground at any height.
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
-  tracks as a dart coloured by altitude (`altitudeScale`, `markerSize` a share of camera distance), flown on by dead
+  tracks as a dart coloured by altitude (`altitudeScale`, 1 = true height; `markerSize` a share of camera distance), flown on by dead
   reckoning between fetches. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
   `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
   reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).

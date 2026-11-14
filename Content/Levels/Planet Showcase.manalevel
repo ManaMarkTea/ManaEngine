@@ -6,8 +6,8 @@
     "publish": false
   },
   "camera": {
-    "position": [32, 52, 144],
-    "rotation": [-0.08, 0, 0]
+    "position": [32, 40, 19113032],
+    "rotation": [0, 0, 0]
   },
   "nodes": [
     {
@@ -19,11 +19,11 @@
       "asset": "Assets/Planet/baseline.tif",
       "planet": {
         "patchesPerFaceEdge": 6,
-        "radius": 40,
+        "radius": 6371000,
         "resolution": 24,
         "heightExaggeration": 1,
         "oceanResolution": 97,
-        "autoLodEnabled": false,
+        "autoLodEnabled": true,
         "nearOceanEnabled": true
       },
       "scripts": [

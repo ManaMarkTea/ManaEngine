@@ -1153,9 +1153,10 @@ namespace ManaGeoTools.Code.Planet
 
                 var mergeCandidateParents = new HashSet<PatchKey>();
 
-                foreach (var (key, leaf) in _leaves)
+                // A copy: a split or up-res served from the tile cache can finish inside this loop and change the leaves.
+                foreach (var (key, leaf) in _leaves.ToArray())
                 {
-                    if (_splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
+                    if (!_leaves.ContainsKey(key) || _splitPending.ContainsKey(key) || _mergePending.ContainsKey(key))
                     {
                         continue;
                     }

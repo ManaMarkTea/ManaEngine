@@ -563,11 +563,13 @@ public static class LevelSerializationChecks
                 && node.Asset?.EndsWith("Captain.vox", StringComparison.OrdinalIgnoreCase) == true) == true);
 
         var planetShowcase = builtInLevels.FirstOrDefault(item => item.Name == "Planet Showcase");
+        // True size: a metre a unit, streaming detail as the camera comes down.
         Check("the planet showcase carries authored streaming settings",
             planetShowcase?.Nodes.SingleOrDefault(node => node.Kind == ManaLevelSourceKind.Planet)?.Planet is
             {
                 PatchesPerFaceEdge: 6,
-                Radius: 40.0f
+                Radius: 6371000.0f,
+                AutoLodEnabled: true
             });
 
         var gallery = builtInLevels.FirstOrDefault(item => item.Name == "PBR Gallery");

@@ -23,8 +23,8 @@ namespace ManaGeoTools.Code.Flights
         /// <summary>Seconds between fetches; 0 picks by account: 90 with an OpenSky API client, 900 without (400 credits a day, 4 a fetch).</summary>
         public float UpdateSeconds { get; set; }
 
-        /// <summary>How many times their true height aircraft fly, so cruise at 11 km clears a planet the size of a room.</summary>
-        public float AltitudeScale { get; set; } = 25.0f;
+        /// <summary>How many times their true height aircraft fly: 1 on a true-size planet, more to lift them off a small one.</summary>
+        public float AltitudeScale { get; set; } = 1.0f;
 
         /// <summary>Marker length as a share of its distance from the camera, so it holds its size on screen at any zoom.</summary>
         public float MarkerSize { get; set; } = 0.006f;
