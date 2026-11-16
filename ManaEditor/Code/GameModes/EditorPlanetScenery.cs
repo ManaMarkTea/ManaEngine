@@ -407,6 +407,7 @@ namespace Mana.Code.GameModes
                 using (ManaFrameProfiler.Measure("Streaming: AutoLod"))
                 {
                     Planet?.UpdateAutoLod(_context.World.MainCamera);
+                    Planet?.UpdateHorizonCulling(_context.World.MainCamera);
                 }
 
                 using (ManaFrameProfiler.Measure("Streaming: NearOcean"))

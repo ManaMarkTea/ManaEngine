@@ -195,7 +195,8 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        // Nearest tiles first, a few at a time; a failed one is not asked for again this run.
+        // Nearest tiles first, a few at a time; a failed one is not asked for again this run. A download for a place the
+        // camera has left is called off (it starts again if the camera comes back), so the nearest ones are not kept waiting.
         private void StartFetches(Dictionary<string, int> order)
         {
             var running = 0;
@@ -203,6 +204,13 @@ namespace ManaGeoTools.Code.Planet
             {
                 if (tile.Work is { IsCompleted: false })
                 {
+                    if (!order.TryGetValue(tile.Spec.Key, out var wanted) || wanted >= KeepTiles)
+                    {
+                        tile.Cancel?.Cancel();
+                        tile.Cancel = null;
+                        tile.Work = null;
+                        continue;
+                    }
                     running++;
                 }
                 else if (tile.Work is { } finished && tile.Path == null && !tile.Failed)
@@ -229,7 +237,8 @@ namespace ManaGeoTools.Code.Planet
                 {
                     continue;
                 }
-                var token = _cancel.Token;
+                tile.Cancel = CancellationTokenSource.CreateLinkedTokenSource(_cancel.Token);
+                var token = tile.Cancel.Token;
                 tile.Work = Task.Run(() => _build(tile.Spec, token), token);
                 running++;
             }
@@ -329,6 +338,7 @@ namespace ManaGeoTools.Code.Planet
             public string? Path { get; set; }
             public bool Failed { get; set; }
             public bool Worn { get; set; }
+            public CancellationTokenSource? Cancel { get; set; }
 
             public PlanetImageryDetail? Detail
             {

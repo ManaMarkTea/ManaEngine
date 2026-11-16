@@ -54,6 +54,9 @@ namespace Mana
         private string? _instanceKey;
         public string InstanceKey => _instanceKey ??= $"meshRenderer:{_instanceId:x16}";
 
+        /// <summary>See <see cref="ManaCore.Graphics.ManaRenderMeshInstance.HandoverGroup"/>: meshes that replace one another share one.</summary>
+        public string? HandoverGroup { get; set; }
+
         // The last data returned by ApplyMaterialTextures, kept so a repeat call with the same inputs hands
         // back the same object. The renderers reconcile by reference when a mesh has no version, so a fresh
         // copy every frame would have them rebuilding GPU buffers every frame.

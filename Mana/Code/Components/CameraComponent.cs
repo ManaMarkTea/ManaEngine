@@ -78,6 +78,7 @@ namespace Mana
         private float _framedYaw;
         private float _framedPitch;
         private Vector3? _framedRotation;
+        private Quaternion _framedWorld = Quaternion.Identity;
         public float MovementSpeed
         {
             get => _MovementSpeed;
@@ -972,7 +973,8 @@ namespace Mana
             }
             if (framed)
             {
-                rotationEuler = FramedLook().ToEuler();
+                _framedWorld = FramedLook();
+                rotationEuler = _framedWorld.ToEuler();
                 _framedRotation = rotationEuler;
             }
 
@@ -989,10 +991,18 @@ namespace Mana
 
         }
 
-        // Turns the frame to the up here. Flying carries the look along with it; when something else turned the camera
-        // (a teleport, move_camera) its look is read against the new frame instead, so it keeps facing where it was put.
+        // Turns the frame to the up here and reads the look against it. The look keeps pointing where it did in the world
+        // (carrying it along with the up pitched the view by itself as the up blended in on the way down); only the roll
+        // is levelled to the new horizon.
         private void AdvanceUpFrame(Vector3 position, Vector3 rotation)
         {
+            var world = rotation.ToQuaternionFromEuler();
+            if (_framedRotation == rotation)
+            {
+                // Our own last pose, exactly: the Euler angles stored in Rotation lose it when looking straight along +-Y.
+                world = _framedWorld;
+            }
+
             var desired = UpDirection!(position);
             if (desired.LengthSquared() > 1e-12f)
             {
@@ -1001,13 +1011,16 @@ namespace Mana
                 _frameUp = desired;
             }
 
-            if (_framedRotation != rotation)
+            var local = Quaternion.Inverse(_upFrame) * world;
+            var look = Vector3.Transform(-Vector3.UnitZ, local);
+            // Straight up or down the look has no heading of its own; the top of the screen has it.
+            var heading = look;
+            if (look.X * look.X + look.Z * look.Z < 1e-4f)
             {
-                var local = Quaternion.Inverse(_upFrame) * rotation.ToQuaternionFromEuler();
-                var look = Vector3.Transform(-Vector3.UnitZ, local);
-                _framedPitch = MathF.Asin(Math.Clamp(look.Y, -1.0f, 1.0f)).Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
-                _framedYaw = MathF.Atan2(-look.X, -look.Z);
+                heading = Vector3.Transform(Vector3.UnitY, local) * -MathF.Sign(look.Y);
             }
+            _framedPitch = MathF.Asin(Math.Clamp(look.Y, -1.0f, 1.0f)).Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
+            _framedYaw = MathF.Atan2(-heading.X, -heading.Z);
         }
 
         private Quaternion FramedLook() => _upFrame * Quaternion.CreateFromYawPitchRoll(_framedYaw, _framedPitch, 0.0f);

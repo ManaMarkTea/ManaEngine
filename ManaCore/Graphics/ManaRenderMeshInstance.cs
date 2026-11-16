@@ -9,6 +9,12 @@ namespace ManaCore.Graphics
         public string? StaticBatchKey { get; init; }
 
         public string? InstanceKey { get; init; }
+
+        /// <summary>
+        /// Meshes that replace one another (a terrain patch and the finer ones it splits into): one that goes away keeps
+        /// drawing while a newcomer of its group still waits for its upload, so the swap leaves no hole for a frame.
+        /// </summary>
+        public string? HandoverGroup { get; init; }
         public string? MeshKey { get; init; }
         public ulong MeshVersion { get; init; }
         public required string Name { get; init; }

@@ -684,6 +684,7 @@ namespace Mana.Code.GameModes
             }
             _planetCamera?.Update();
             _planet?.UpdateAutoLod(Context.World.MainCamera);
+            _planet?.UpdateHorizonCulling(Context.World.MainCamera);
             _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();
             _planet?.ProcessPendingSplits();

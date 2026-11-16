@@ -54,6 +54,10 @@ namespace ManaGraphics.Code.Graphics.Resources
         // In-place rewrites at least this big wait for budget like new meshes do.
         private const ulong BudgetedInPlaceIndexes = 60_000;
 
+        // Frames a departed mesh may keep drawing while its handover group's newcomers wait for upload budget.
+        private const ulong MaxLingerFrames = 60;
+        private readonly Dictionary<string, ulong> _lingeringSince = new(StringComparer.Ordinal);
+
         /// <summary>Retires every resident mesh: after the in-flight frames by default, now when <paramref name="immediate"/>.</summary>
         public void ReleaseAll(bool immediate = false)
         {
@@ -141,11 +145,47 @@ namespace ManaGraphics.Code.Graphics.Resources
             List<string>? changedMeshSummaries = null;
             var uploadClock = System.Diagnostics.Stopwatch.StartNew();
 
+            // First-time uploads take the budget first: they have nothing on screen yet, while a changed mesh keeps
+            // drawing its old self. Groups with one still waiting keep their departed meshes drawn (see below).
+            HashSet<string>? waitingNew = null;
+            HashSet<string>? waitingGroups = null;
+            for (var i = 0; i < renderableMeshes.Count; i++)
+            {
+                var instance = renderableMeshes[i];
+                var key = GetSceneMeshKey(instance, i);
+                if (_sceneMeshMap.ContainsKey(key))
+                {
+                    continue;
+                }
+                if (IsUploadBudgetSpent(uploadedCount, uploadedIndexes, uploadClock))
+                {
+                    deferredCount++;
+                    (waitingNew ??= new HashSet<string>(StringComparer.Ordinal)).Add(key);
+                    if (instance.HandoverGroup != null)
+                    {
+                        (waitingGroups ??= new HashSet<string>(StringComparer.Ordinal)).Add(instance.HandoverGroup);
+                    }
+                    continue;
+                }
+                ManaWebGpuSceneMesh fresh;
+                using (ManaFrameProfiler.Measure("GPU: Mesh Buffer Upload"))
+                {
+                    fresh = Create(instance, scene, bindings);
+                }
+                _sceneMeshMap[key] = fresh;
+                uploadedCount++;
+                uploadedIndexes += fresh.Mesh.IndexCount;
+            }
+
             for (var i = 0; i < renderableMeshes.Count; i++)
             {
                 var instance = renderableMeshes[i];
                 var key = GetSceneMeshKey(instance, i);
                 activeKeys.Add(key);
+                if (waitingNew != null && waitingNew.Contains(key))
+                {
+                    continue;
+                }
 
                 if (_sceneMeshMap.TryGetValue(key, out var existing))
                 {
@@ -226,6 +266,22 @@ namespace ManaGraphics.Code.Graphics.Resources
                 .ToArray();
             foreach (var staleKey in staleKeys)
             {
+                // A patch split away keeps drawing until its replacements are up, so the swap leaves no hole; never for long.
+                if (_sceneMeshMap.TryGetValue(staleKey, out var lingering) && lingering.Instance.HandoverGroup is { } group
+                    && waitingGroups != null && waitingGroups.Contains(group))
+                {
+                    if (!_lingeringSince.TryGetValue(staleKey, out var since))
+                    {
+                        since = _frameSerial;
+                        _lingeringSince[staleKey] = since;
+                    }
+                    if (_frameSerial - since < MaxLingerFrames)
+                    {
+                        nextSceneMeshes.Add(lingering);
+                        continue;
+                    }
+                }
+                _lingeringSince.Remove(staleKey);
                 if (_sceneMeshMap.Remove(staleKey, out var staleMesh))
                 {
                     removedCount++;

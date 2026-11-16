@@ -405,29 +405,21 @@ namespace ManaGeoTools.Code.Planet
 
             var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
             var axisB = Vector3.Cross(FaceNormal, axisA);
+            var n = Resolution;
+            var gridCount = n * n;
+            // The grid (row by row, index y * n + x), then a skirt vertex under each edge vertex, edge by edge.
+            // Flat arrays straight into the mesh data: an object per vertex and two per quad (the geometry container)
+            // was a quarter of a million allocations a patch, and the collections they forced were the flight's hitches.
+            var vertexCount = gridCount + 4 * n;
+            var positions = new Vector3[vertexCount];
+            var normals = new Vector3[vertexCount];
+            var texCoords = new Vector2[vertexCount];
+            var colors = new Vector4[vertexCount];
 
-            // Phase 1 (parallel): the actual expensive part -- height-tile lookup, trig, LatLong/UV/color
-            // computation -- writes only to each vertex's own (x,y) slot in plain arrays, so it's safe to
-            // spread across cores. HeightLibrary is never mutated during this call (every call site that
-            // adds a tile holds PlanetNode's _rebuildLock for the full duration of whatever triggered this
-            // GenerateData(), same as this call itself), so concurrent reads here have no concurrent
-            // writer to race with -- exactly .NET's documented safe case for unsynchronized Dictionary/
-            // List reads.
-            var positions = new Vector3[Resolution, Resolution];
-            var placeholderNormals = new Vector3[Resolution, Resolution];
-            var texCoords = new Vector2[Resolution, Resolution];
-            var colors = new Vector4[Resolution, Resolution];
-
-            // Consumed here (not a per-vertex lookup below) -- GPU path already sampled every vertex's
-            // height in one batched compute dispatch (see IHeightSamplingComputeDevice/
-            // PlanetNode.UpresPatchAsync); this whole loop still needs to run either way, since UV/color
-            // computation and the position/pointOnUnitSphere math don't depend on WHERE the height came
-            // from, only the per-vertex HeightLibrary.FindCurrentTile/GetHeightAtLatLong call is skipped.
+            // Heights from the GPU sampler when it ran (indexed [x, y]); otherwise looked up per vertex below.
             var precomputedHeights = _pendingPrecomputedHeights;
             _pendingPrecomputedHeights = null;
 
-            // Built before the parallel loop below so every row can read it lock-free. Null when the
-            // Natural Earth data isn't present, which falls back to elevation-only colouring.
             // Only the biome colours read it, and rasterizing the coastlines is the costly part of a small patch.
             GeoWaterLookup? waterLookup = null;
             if (ImageryPath == null)
@@ -446,21 +438,18 @@ namespace ManaGeoTools.Code.Planet
             }
 
             var computeSphereTime = Stopwatch.GetTimestamp();
-
-            ForEachRow(Resolution, y =>
+            // Each row writes only its own vertices, so rows run in parallel; the height library is never written
+            // meanwhile (its writers hold PlanetNode's rebuild lock, as the caller of this does).
+            ForEachRow(n, y =>
             {
-                var ty = (float)y / (Resolution - 1);
-                var v = float.Lerp(MinV, MaxV, ty);
-
-                for (var x = 0; x < Resolution; x++)
+                var v = float.Lerp(MinV, MaxV, (float)y / (n - 1));
+                for (var x = 0; x < n; x++)
                 {
-                    var tx = (float)x / (Resolution - 1);
-                    var u = float.Lerp(MinU, MaxU, tx);
+                    var u = float.Lerp(MinU, MaxU, (float)x / (n - 1));
+                    var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(FaceNormal + (u * axisA) + (v * axisB));
+                    var uv = GlobalUv(pointOnUnitSphere);
 
-                    var pointOnUnitCube = FaceNormal + (u * axisA) + (v * axisB);
-                    var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
-                    var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
-
+                    LatLong? latLong = null;
                     float? rawHeightMeters;
                     if (precomputedHeights != null)
                     {
@@ -468,202 +457,142 @@ namespace ManaGeoTools.Code.Planet
                     }
                     else
                     {
-                        var tile = HeightLibrary?.FindCurrentTile(latLong);
-                        rawHeightMeters = tile?.GetHeightAtLatLong(latLong);
+                        latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+                        rawHeightMeters = HeightLibrary?.FindCurrentTile(latLong)?.GetHeightAtLatLong(latLong);
                     }
 
-                    var displacement = (rawHeightMeters ?? 0f) * HeightScale;
-                    positions[x, y] = pointOnUnitSphere * (Radius + displacement);
-                    // Placeholder normal -- overwritten below once every vertex's displaced position
-                    // is known, from the actual built geometry rather than the undisplaced sphere.
-                    placeholderNormals[x, y] = pointOnUnitSphere;
-                    var uv = latLong.ToUv();
+                    var index = y * n + x;
+                    positions[index] = pointOnUnitSphere * (Radius + (rawHeightMeters ?? 0f) * HeightScale);
                     if (imagery)
                     {
-                        texCoords[x, y] = PictureCoordinate(uv, centerU, detail);
-                        colors[x, y] = Vector4.One;
+                        texCoords[index] = PictureCoordinate(uv, centerU, detail);
+                        colors[index] = Vector4.One;
                         continue;
                     }
 
-                    texCoords[x, y] = uv;
-                    colors[x, y] = PlanetColors.GetBiomeColor(
+                    latLong ??= LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+                    texCoords[index] = uv;
+                    colors[index] = PlanetColors.GetBiomeColor(
                         rawHeightMeters,
                         latLong.Latitude,
                         WaterDepthAt(waterLookup, latLong.Longitude, latLong.Latitude));
                 }
             });
-
             ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Compute sphere time", computeSphereTime);
 
-            // Phase 2 (sequential): AddPoint appends to DynamicGeometryContainer's shared Verts list and
-            // assigns sequential Index values, so this part can't be parallelized -- but it's now pure
-            // array-to-container copying with no lookups/trig/allocation left in it.
-            var vertexGenerationStart = Stopwatch.GetTimestamp();
-            
-            var verts = new ManaGeometryVertex[Resolution, Resolution];
-            for (var y = 0; y < Resolution; y++)
+            // Each normal is the average of the quads touching the vertex, from the displaced positions, so the
+            // shading follows the real slope (the undisplaced radial direction reads as faceted).
+            ForEachRow(n, y =>
             {
-                for (var x = 0; x < Resolution; x++)
+                for (var x = 0; x < n; x++)
                 {
-                    var vert = DynamicGeometryContainer.AddPoint(positions[x, y], placeholderNormals[x, y]);
-                    vert.TexCoord0 = texCoords[x, y];
-                    vert.Color = colors[x, y];
-                    verts[x, y] = vert;
-                }
-            }
-
-            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Vertex generation time", vertexGenerationStart);
-
-            // Real elevation displacement can be substantial (HeightExaggeration commonly pushes it
-            // well past what's visually negligible), so lighting the surface with the raw undisplaced
-            // sphere-radial direction (the old behavior) noticeably mismatches the actual geometry --
-            // it reads as faceted/triangulated because the shading doesn't track the true local slope.
-            // Fix: replace each vertex's normal with the average of the face normals of every quad
-            // that touches it, computed directly from the already-displaced positions above -- this
-            // guarantees the lighting normal can never disagree with what's actually rendered (unlike
-            // a separate finite-difference estimate against the height function, which would introduce
-            // its own subtly different notion of the surface).
-            //
-            // Safe to parallelize like phase 1 above: every iteration only READS neighboring verts[,]
-            // positions (fixed since phase 2 finished) and writes its OWN vertex's .Normal -- two threads
-            // never touch the same ManaGeometryVertex instance.
-            
-            var normalCalculationStart = Stopwatch.GetTimestamp();
-            
-            ForEachRow(Resolution, y =>
-            {
-                for (var x = 0; x < Resolution; x++)
-                {
-                    var normalSum = Vector3.Zero;
+                    var sum = Vector3.Zero;
                     if (x > 0 && y > 0)
                     {
-                        normalSum += QuadNormal(verts[x - 1, y - 1], verts[x, y - 1], verts[x - 1, y]);
+                        sum += QuadNormal(positions, n, x - 1, y - 1);
                     }
-                    if (x < Resolution - 1 && y > 0)
+                    if (x < n - 1 && y > 0)
                     {
-                        normalSum += QuadNormal(verts[x, y - 1], verts[x + 1, y - 1], verts[x, y]);
+                        sum += QuadNormal(positions, n, x, y - 1);
                     }
-                    if (x > 0 && y < Resolution - 1)
+                    if (x > 0 && y < n - 1)
                     {
-                        normalSum += QuadNormal(verts[x - 1, y], verts[x, y], verts[x - 1, y + 1]);
+                        sum += QuadNormal(positions, n, x - 1, y);
                     }
-                    if (x < Resolution - 1 && y < Resolution - 1)
+                    if (x < n - 1 && y < n - 1)
                     {
-                        normalSum += QuadNormal(verts[x, y], verts[x + 1, y], verts[x, y + 1]);
+                        sum += QuadNormal(positions, n, x, y);
                     }
-                    verts[x, y].Normal = Vector3.Normalize(normalSum);
+                    normals[y * n + x] = Vector3.Normalize(sum);
                 }
             });
-            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Normal calculation time", normalCalculationStart);
 
-            // (x,y),(x+1,y),(x+1,y+1),(x,y+1) is CCW-as-seen-from-outside for every one of the 6
-            // axis-aligned face normals (axisA x axisB == FaceNormal algebraically for all of them),
-            // axis-aligned face normals (axisA x axisB == FaceNormal algebraically for all of them),
-            // so one consistent quad order works regardless of which face this patch is on.
-            var faceGenStart = Stopwatch.GetTimestamp();
-
-            for (var y = 0; y < Resolution - 1; y++)
+            // (x,y),(x+1,y),(x+1,y+1),(x,y+1) is CCW seen from outside on all six faces (axisA x axisB is the face normal).
+            var indexes = new uint[(n - 1) * (n - 1) * 6 + 4 * (n - 1) * 6];
+            var next = 0;
+            for (var y = 0; y < n - 1; y++)
             {
-                for (var x = 0; x < Resolution - 1; x++)
+                for (var x = 0; x < n - 1; x++)
                 {
-                    var a = verts[x, y];
-                    var b = verts[x + 1, y];
-                    var c = verts[x + 1, y + 1];
-                    var d = verts[x, y + 1];
-                    DynamicGeometryContainer.CreateFacesFromQuad(a, b, c, d);
+                    var a = (uint)(y * n + x);
+                    next = AddQuad(indexes, next, a, a + 1, a + 1 + (uint)n, a + (uint)n);
                 }
             }
-            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Face generation time", faceGenStart);
 
-
-            // Skirts: a thin wall of extra geometry hanging inward (toward the planet center) from
-            // each of the patch's 4 edges. Adjacent patches' shared boundary vertices land on
-            // identical world positions when both sides compute them from the same cube-space input at
-            // the same resolution (see this class's doc comment) -- but that guarantee breaks the
-            // moment two neighbors have DIFFERENT resolution along their shared edge (e.g. one has been
-            // on-demand up-res'd via ApplyHeightDataWithResolution and the other hasn't), since the
-            // finer side's in-between edge vertices then have no partner on the coarser side, leaving a
-            // visible crack. Skirts don't fix the underlying mismatch, they just fill the gap with
-            // geometry so it isn't visible -- always added, on every patch, since any patch could end
-            // up neighboring a differently-resolved one at any time. CullMode.None is used for every
-            // procedural mesh pipeline in this engine (confirmed in ManaWebGpuContext.Pipelines.cs), so
-            // the skirt quads' winding direction doesn't need to be carefully oriented.
-            var skirtGenStart = Stopwatch.GetTimestamp();
+            // Skirts: a wall hanging straight down toward the centre from each edge, filling the crack where two
+            // neighbours of different resolution meet (their in-between edge vertices have no partner). Culling is
+            // off for procedural meshes, so the walls' winding does not matter.
+            var skirtDepth = HeightScale * SkirtDepthMeters;
+            for (var edge = 0; edge < 4; edge++)
             {
-                var skirtDepth = HeightScale * SkirtDepthMeters;
-                AddSkirtStrip(GetColumn(verts, row: 0), skirtDepth);
-                AddSkirtStrip(GetColumn(verts, row: Resolution - 1), skirtDepth);
-                AddSkirtStrip(GetRow(verts, col: 0), skirtDepth);
-                AddSkirtStrip(GetRow(verts, col: Resolution - 1), skirtDepth);
+                var skirtStart = gridCount + edge * n;
+                for (var i = 0; i < n; i++)
+                {
+                    var source = EdgeVertex(edge, i, n);
+                    var position = positions[source];
+                    positions[skirtStart + i] = position - Vector3.Normalize(position) * skirtDepth;
+                    normals[skirtStart + i] = normals[source];
+                    texCoords[skirtStart + i] = texCoords[source];
+                    colors[skirtStart + i] = colors[source];
+                }
+                for (var i = 0; i < n - 1; i++)
+                {
+                    next = AddQuad(indexes, next, (uint)EdgeVertex(edge, i, n), (uint)EdgeVertex(edge, i + 1, n),
+                        (uint)(skirtStart + i + 1), (uint)(skirtStart + i));
+                }
             }
-            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Skirt generation time", skirtGenStart);
 
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
 
-            // Explicit SetCpuData (now public) so ApplyHeightData()/Rebuild() calling GenerateData()
-            // again after the mesh has already rendered once actually takes effect — see
-            // GeoTiffTerrainMesh for the fuller explanation of why this matters.
-            var cpuDataGenStart = Stopwatch.GetTimestamp();
-            // Every patch is its own piece of ground: fingerprinting half a million vertices for instancing that can
-            // never match cost tens of milliseconds on the render thread per streamed patch.
-            PublishGeneratedGeometry(unshared: true);
-            ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] CPU data generation time", cpuDataGenStart);
+            // Every patch is its own piece of ground: fingerprinting it for instancing that can never match cost tens
+            // of milliseconds on the render thread per streamed patch.
+            SetCpuData(new ManaMeshCpuData
+            {
+                Indexes = indexes,
+                Positions = positions,
+                Normals = normals,
+                Colors = colors,
+                TextureCoordinates0 = texCoords,
+                TextureCoordinates1 = texCoords,
+                Unshared = true
+            });
+            ReleaseGeometryBuildData();
         }
 
-        private static ManaGeometryVertex[] GetColumn(ManaGeometryVertex[,] verts, int row)
+        // Edge vertices: the y = 0 and y = n-1 rows, then the x = 0 and x = n-1 columns.
+        private static int EdgeVertex(int edge, int i, int n)
         {
-            var result = new ManaGeometryVertex[verts.GetLength(0)];
-            for (var x = 0; x < result.Length; x++)
+            switch (edge)
             {
-                result[x] = verts[x, row];
-            }
-            return result;
-        }
-
-        private static ManaGeometryVertex[] GetRow(ManaGeometryVertex[,] verts, int col)
-        {
-            var result = new ManaGeometryVertex[verts.GetLength(1)];
-            for (var y = 0; y < result.Length; y++)
-            {
-                result[y] = verts[col, y];
-            }
-            return result;
-        }
-
-        private void AddSkirtStrip(ManaGeometryVertex[] edgeVerts, float skirtDepth)
-        {
-            for (var i = 0; i < edgeVerts.Length - 1; i++)
-            {
-                var a = edgeVerts[i];
-                var b = edgeVerts[i + 1];
-                var skirtA = AddSkirtVertex(a, skirtDepth);
-                var skirtB = AddSkirtVertex(b, skirtDepth);
-                DynamicGeometryContainer.CreateFacesFromQuad(a, b, skirtB, skirtA);
+                case 0:
+                    return i;
+                case 1:
+                    return (n - 1) * n + i;
+                case 2:
+                    return i * n;
+                default:
+                    return i * n + n - 1;
             }
         }
 
-        // Position is pointOnUnitSphere scaled by a positive factor (Radius + displacement), so
-        // normalizing it recovers that original outward radial direction exactly -- pushing inward
-        // along it (rather than along the vertex's own shaded/averaged Normal) keeps the skirt going
-        // straight toward the planet's center regardless of local terrain slope.
-        private ManaGeometryVertex AddSkirtVertex(ManaGeometryVertex source, float skirtDepth)
+        // Two triangles (a, b, c) and (a, c, d), as the geometry container made them.
+        private static int AddQuad(uint[] indexes, int next, uint a, uint b, uint c, uint d)
         {
-            var radialDirection = Vector3.Normalize(source.Position);
-            var skirtPosition = source.Position - (radialDirection * skirtDepth);
-            var skirtVert = DynamicGeometryContainer.AddPoint(skirtPosition, source.Normal);
-            skirtVert.TexCoord0 = source.TexCoord0;
-            skirtVert.Color = source.Color;
-            return skirtVert;
+            indexes[next] = a;
+            indexes[next + 1] = b;
+            indexes[next + 2] = c;
+            indexes[next + 3] = a;
+            indexes[next + 4] = c;
+            indexes[next + 5] = d;
+            return next + 6;
         }
 
-        // Outward-facing flat normal of quad (a,b,c,d) in the same CCW-as-seen-from-outside vertex
-        // order used everywhere else in this file -- cross(b-a, d-a) is the right-hand-rule normal for
-        // that winding (verified against the axis-aligned case: a=(0,0,0), b=(1,0,0), d=(0,1,0) gives
-        // cross((1,0,0),(0,1,0)) = (0,0,1), the correct outward +Z for a CCW square viewed from +Z).
-        private static Vector3 QuadNormal(ManaGeometryVertex a, ManaGeometryVertex b, ManaGeometryVertex d)
+        // Outward normal of the quad whose low corner is (x, y): cross(b - a, d - a) for the CCW order above.
+        private static Vector3 QuadNormal(Vector3[] positions, int n, int x, int y)
         {
-            return Vector3.Cross(b.Position - a.Position, d.Position - a.Position);
+            var a = positions[y * n + x];
+            return Vector3.Cross(positions[y * n + x + 1] - a, positions[(y + 1) * n + x] - a);
         }
 
         // Baseline/never-up-res'd patches (the common case -- see DefaultBaselineMaxPatchMeshResolution =

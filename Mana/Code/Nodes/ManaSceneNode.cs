@@ -349,6 +349,7 @@ namespace Mana.Code.Nodes
                     {
                         StaticBatchKey = staticBatchKey,
                         InstanceKey = renderer.InstanceKey,
+                        HandoverGroup = renderer.HandoverGroup,
                         MeshKey = renderer.Mesh.RenderKey,
                         MeshVersion = renderer.Mesh.CpuDataVersion,
                         Name = string.IsNullOrWhiteSpace(Name) ? renderer.Mesh.Name : Name,

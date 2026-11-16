@@ -277,6 +277,8 @@ namespace ManaGeoTools.Code.Planet
                         // node count never grows past what's created here.
                         var node = new ManaMeshSceneNode(context, mesh) { Name = $"Terrain Root F{face}/R{row}/C{col}" };
                         node.MeshRenderer.Name = PatchName(key, meshResolution: mesh.Resolution);
+                        // Every patch of one root hands over to the next without a gap while the GPU uploads it.
+                        node.MeshRenderer.HandoverGroup = $"planet:{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this):x}:{node.Name}";
                         AddChild(node);
                         var localBounds = ComputePatchLocalBoundsSphere(normal, minU, minU + step, minV, minV + step, radius);
                         _leaves[key] = new PatchLeaf { Mesh = mesh, Renderer = node.MeshRenderer, RootNode = node, LocalBoundsSphere = localBounds };
@@ -670,7 +672,8 @@ namespace ManaGeoTools.Code.Planet
 
                 var childRenderer = new MeshRendererComponent(rootNode, childMesh)
                 {
-                    Name = PatchName(child.Key, parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel)
+                    Name = PatchName(child.Key, parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel),
+                    HandoverGroup = parentLeaf.Renderer.HandoverGroup
                 };
                 rootNode.Components.Add(childRenderer);
 
@@ -1093,6 +1096,7 @@ namespace ManaGeoTools.Code.Planet
             var mergedRenderer = new MeshRendererComponent(rootNode, mergedMesh)
             {
                 Name = PatchName(pending.MergedKey, pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel),
+                HandoverGroup = pending.ChildLeaves[0].Renderer.HandoverGroup,
             };
             rootNode.Components.Add(mergedRenderer);
 
@@ -1250,6 +1254,52 @@ namespace ManaGeoTools.Code.Planet
                     if (unionGroundDistance > deactivationRadius)
                     {
                         TryMergeSiblingGroup(parentKey);
+                    }
+                }
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
+        // The tallest ground the horizon test allows for, so a peak just past the camera's horizon still shows over it.
+        private const float HorizonPeakMeters = 9000.0f;
+
+        /// <summary>
+        /// Once a frame: hides the patches wholly past the horizon (allowing for the tallest mountain), so near the
+        /// ground the far side of the planet is neither drawn nor shadowed. Skipped for a frame while the rebuild lock is busy.
+        /// </summary>
+        public void UpdateHorizonCulling(CameraComponent camera)
+        {
+            if (_retired || !Monitor.TryEnter(_rebuildLock))
+            {
+                return;
+            }
+            try
+            {
+                if (!Matrix4x4.Invert(WorldTransform, out var worldToLocal))
+                {
+                    return;
+                }
+                var cameraLocal = Vector3.Transform(camera.Owner.Position, worldToLocal);
+                var distance = cameraLocal.Length();
+                var cameraDirection = cameraLocal / MathF.Max(distance, 1e-6f);
+                // Inside the sea-level sphere everything may be in view (a valley, a test camera at the centre).
+                var limit = MathF.PI;
+                if (distance > Radius)
+                {
+                    var peakRadius = Radius + HorizonPeakMeters * MathF.Max(ComputeHeightScale(), 1e-6f);
+                    limit = MathF.Acos(Radius / distance) + MathF.Acos(Radius / peakRadius);
+                }
+                foreach (var leaf in _leaves.Values)
+                {
+                    var bounds = leaf.LocalBoundsSphere;
+                    var angle = MathF.Acos(Math.Clamp(Vector3.Dot(Vector3.Normalize(bounds.LocalCenter), cameraDirection), -1.0f, 1.0f));
+                    var visible = angle - bounds.LocalRadius / Radius <= limit;
+                    if (leaf.Renderer.IsVisible != visible)
+                    {
+                        leaf.Renderer.IsVisible = visible;
                     }
                 }
             }
