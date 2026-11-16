@@ -287,7 +287,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 _ => Vector3.UnitY
             };
 
-            var view = Matrix4x4.CreateLookAt(position, position + direction, up);
+            var view = Matrix4x4.CreateLookTo(position, direction, up);
             var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI * 0.5f, 1.0f, nearPlane, farPlane);
             return new ManaCameraData(view, projection, position, nearPlane, farPlane);
         }

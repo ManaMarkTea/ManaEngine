@@ -589,7 +589,9 @@ namespace Mana
             }
             Vector3 forward = Owner.Forward.Normalized();
             Vector3 up = Owner.Up.Normalized();
-            _ViewMatrix = Matrix4x4.CreateLookAt(Owner.Position, Owner.Position + forward, up);
+            // LookTo, not LookAt(position, position + forward): far from the origin (a true-size planet) the sum rounds
+            // to the float grid there, a unit or two, and the view snaps between directions as the mouse turns it.
+            _ViewMatrix = Matrix4x4.CreateLookTo(Owner.Position, forward, up);
         }
 
         // When set, this camera stops flying and takes its pose from a rig (a boom, a game's framing). The

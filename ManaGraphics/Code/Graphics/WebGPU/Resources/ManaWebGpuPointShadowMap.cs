@@ -52,7 +52,7 @@ namespace ManaGraphics.Code.Graphics.Resources
         public static Matrix4x4 FaceViewProjection(Vector3 position, float range, int face)
         {
             var (forward, up) = Faces[face];
-            var view = Matrix4x4.CreateLookAt(position, position + forward, up);
+            var view = Matrix4x4.CreateLookTo(position, forward, up);
             var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathF.PI / 2.0f, 1.0f, Near, MathF.Max(range, Near * 2.0f));
             return view * projection;
         }
