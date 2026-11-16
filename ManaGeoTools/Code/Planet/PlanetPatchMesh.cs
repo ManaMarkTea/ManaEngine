@@ -167,7 +167,8 @@ namespace ManaGeoTools.Code.Planet
                 Normals = current.Normals,
                 Colors = colors,
                 TextureCoordinates0 = coordinates,
-                TextureCoordinates1 = coordinates
+                TextureCoordinates1 = coordinates,
+                Unshared = true
             });
             if (Materials.Length > 0)
             {
@@ -352,7 +353,12 @@ namespace ManaGeoTools.Code.Planet
 
             // Built before the parallel loop below so every row can read it lock-free. Null when the
             // Natural Earth data isn't present, which falls back to elevation-only colouring.
-            var waterLookup = BuildWaterLookup();
+            // Only the biome colours read it, and rasterizing the coastlines is the costly part of a small patch.
+            GeoWaterLookup? waterLookup = null;
+            if (ImageryPath == null)
+            {
+                waterLookup = BuildWaterLookup();
+            }
 
             // Under a picture the colours are white, and longitudes are kept on the patch centre's side of the
             // date line so a patch across it samples one stretch of the picture, not the whole width backwards.
@@ -527,7 +533,9 @@ namespace ManaGeoTools.Code.Planet
             // again after the mesh has already rendered once actually takes effect — see
             // GeoTiffTerrainMesh for the fuller explanation of why this matters.
             var cpuDataGenStart = Stopwatch.GetTimestamp();
-            PublishGeneratedGeometry();
+            // Every patch is its own piece of ground: fingerprinting half a million vertices for instancing that can
+            // never match cost tens of milliseconds on the render thread per streamed patch.
+            PublishGeneratedGeometry(unshared: true);
             ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] CPU data generation time", cpuDataGenStart);
         }
 

@@ -28,6 +28,7 @@ namespace ManaCore.Diagnostics
 
         /// <summary>Frames a hitch report waits before it may fire again, so a bad patch of frames can't flood the log (and make itself worse).</summary>
         private const int HitchLogCooldownFrames = 30;
+        private const double StallMs = 250.0;
 
         private const double BytesPerMegabyte = 1024.0 * 1024.0;
 
@@ -219,7 +220,8 @@ namespace ManaCore.Diagnostics
                 }
 
                 // Built before the cursor advances, so the report describes the frame that just ended.
-                if (isHitch && _frameIndex - _lastHitchFrame >= HitchLogCooldownFrames)
+                // The cooldown keeps a run of small hitches from flooding the log; a stall is always reported.
+                if (isHitch && (_frameIndex - _lastHitchFrame >= HitchLogCooldownFrames || frameMs >= StallMs))
                 {
                     _lastHitchFrame = _frameIndex;
                     hitchReport = BuildHitchReportLocked(frameMs);

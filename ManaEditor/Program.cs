@@ -21,6 +21,9 @@ namespace Mana
         {
             try
             {
+                // An interactive app streaming terrain churns a heap of gigabytes: keep the collector from
+                // blocking every thread for a full collection mid-flight (ManaEditor.csproj picks server GC).
+                System.Runtime.GCSettings.LatencyMode = System.Runtime.GCLatencyMode.SustainedLowLatency;
                 ManaUiDensity.RestorePreset();
 
                 var launchOptions = ManaLaunchOptions.Parse(args);

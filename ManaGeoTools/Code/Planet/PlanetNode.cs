@@ -196,6 +196,15 @@ namespace ManaGeoTools.Code.Planet
         // point, scaled by altitude expressed as a fraction of Radius (not raw world units) so these
         // multipliers mean the same thing at any planet scale. Deactivation > activation gives real
         // hysteresis so a patch that just got more detail doesn't immediately qualify to lose it.
+        // Refinements (an up-res or a split) auto-LOD starts in one frame; the nearest go first.
+        private const int AutoLodStartsPerFrame = 1;
+
+        // Vertices across a split's child until its own data arrives.
+        private const int SplitPlaceholderResolution = 33;
+
+        // Screen pixels between terrain samples that still read as full detail; each step of two is a quarter the vertices.
+        private const float AutoLodPixelsPerSample = 4.0f;
+
         private const float AutoLodActivationRadiusMultiplier = 3.0f;
         private const float AutoLodDeactivationRadiusMultiplier = 5.0f;
 
@@ -650,9 +659,11 @@ namespace ManaGeoTools.Code.Planet
             for (var index = 0; index < children.Count; index++)
             {
                 var child = children[index];
+                // A small stand-in, refined off this thread as the finer data arrives: built at the parent's resolution
+                // (769 and up) every child of a split cost the main thread whole seconds and gigabytes.
                 var childMesh = new PlanetPatchMesh(
                     Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius,
-                    parentLeaf.Mesh.Resolution, heightScale, HeightLibrary, _imageryPath);
+                    Math.Min(parentLeaf.Mesh.Resolution, SplitPlaceholderResolution), heightScale, HeightLibrary, _imageryPath);
 
                 pending.ChildKeys[index] = child.Key;
                 pending.ChildMeshes[index] = childMesh;
@@ -947,7 +958,7 @@ namespace ManaGeoTools.Code.Planet
             var (lonMin, lonMax, latMin, latMax) = ComputePatchLonLatBounds(faceNormal, minU, maxU, minV, maxV);
             var sourceResolution = EstimateSourceResolutionForZoom(lonMin, lonMax, latMin, latMax, targetZoom);
             var sourceMetersPerPixel = EstimateSourceMetersPerPixel(latMin, latMax, targetZoom);
-            var meshResolution = Math.Min(sourceResolution, MaxPatchMeshResolution);
+            var meshResolution = Math.Min(sourceResolution, MaxPatchVertices);
             return (targetZoom, meshResolution, sourceResolution, sourceMetersPerPixel);
         }
 
@@ -1158,6 +1169,7 @@ namespace ManaGeoTools.Code.Planet
                 var targetMetersPerPixel = ComputeTargetMetersPerPixel(camera, MathF.Max(0.001f, altitude));
 
                 var mergeCandidateParents = new HashSet<PatchKey>();
+                var refinements = new List<(PatchKey Key, float Distance, bool Upres)>();
 
                 // A copy: a split or up-res served from the tile cache can finish inside this loop and change the leaves.
                 foreach (var (key, leaf) in _leaves.ToArray())
@@ -1179,23 +1191,42 @@ namespace ManaGeoTools.Code.Planet
                     {
                         // Proximity alone isn't enough to escalate once the patch's current source data
                         // already resolves finer than the screen can show at this altitude.
-                        if (IsSourceResolutionAlreadySufficientForAltitude(leaf.SourceMetersPerPixel, targetMetersPerPixel))
+                        // A sample every few pixels, judged at this patch's own distance: one a pixel straight down meant
+                        // 769-vertex patches (30 MB each, a render-thread stall apiece) all the way to the horizon.
+                        var reach = MathF.Sqrt(altitude * altitude + groundDistance * groundDistance) / MathF.Max(0.001f, altitude);
+                        var patchTarget = targetMetersPerPixel * reach * AutoLodPixelsPerSample;
+                        if (IsSourceResolutionAlreadySufficientForAltitude(leaf.SourceMetersPerPixel, patchTarget))
                         {
                             continue;
                         }
 
-                        if (status != PatchUpresStatus.Done)
-                        {
-                            TryBeginPatchUpres(key);
-                        }
-                        else if (CanSplitPatch(key))
-                        {
-                            TrySplitPatch(key);
-                        }
+                        refinements.Add((key, groundDistance, status != PatchUpresStatus.Done));
                     }
                     else if (groundDistance > deactivationRadius && !key.IsRoot && status == PatchUpresStatus.Done)
                     {
                         mergeCandidateParents.Add(key.Parent());
+                    }
+                }
+
+                // Nearest first, and only a few a frame: starting every eligible patch at once (each split building
+                // dozens of children) took whole seconds in one frame. The rest are picked up again next frame.
+                refinements.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
+                var started = 0;
+                foreach (var (key, _, upres) in refinements)
+                {
+                    if (started >= AutoLodStartsPerFrame)
+                    {
+                        break;
+                    }
+                    if (upres)
+                    {
+                        TryBeginPatchUpres(key);
+                        started++;
+                    }
+                    else if (CanSplitPatch(key))
+                    {
+                        TrySplitPatch(key);
+                        started++;
                     }
                 }
 

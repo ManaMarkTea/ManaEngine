@@ -101,9 +101,9 @@ namespace Mana.Code.Shapes
         /// the same container per edit).
         /// </para>
         /// </summary>
-        public ManaMeshCpuData PublishGeneratedGeometry()
+        public ManaMeshCpuData PublishGeneratedGeometry(bool unshared = false)
         {
-            var cpuData = DynamicGeometryContainer.CreateCpuData();
+            var cpuData = DynamicGeometryContainer.CreateCpuData(unshared);
             SetCpuData(cpuData);
             ReleaseGeometryBuildData();
             return cpuData;

@@ -53,7 +53,8 @@ namespace Mana.Code
         /// and one dereference of each vertex instead of five.
         /// </para>
         /// </summary>
-        public ManaMeshCpuData CreateCpuData()
+        /// <param name="unshared">Geometry that never matches another mesh (terrain): skips the instancing fingerprint.</param>
+        public ManaMeshCpuData CreateCpuData(bool unshared = false)
         {
             var vertexCount = Verts.Count;
             var positions = new Vector3[vertexCount];
@@ -88,7 +89,8 @@ namespace Mana.Code
                 Colors = colors,
                 TextureCoordinates0 = texCoords0,
                 TextureCoordinates1 = texCoords1,
-                Indexes = indexes
+                Indexes = indexes,
+                Unshared = unshared
             };
         }
 

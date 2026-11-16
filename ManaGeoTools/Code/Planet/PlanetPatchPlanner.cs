@@ -11,6 +11,10 @@ namespace ManaGeoTools.Code.Planet
         public const int FallbackPatchResolution = 160;
         // This limits each leaf; subdivision preserves the requested source sample density.
         public const int MaxPatchMeshResolution = 1025;
+
+        // Vertices across a patch, whatever its source holds: a 769-vertex patch was a single 20-30 MB upload and shadow
+        // rebuild on the render thread, 100 ms or more. Closer up, patches split, so detail still arrives.
+        public const int MaxPatchVertices = 257;
         private const int MaxDirectSourceMatchDepth = 3;
 
         public sealed class PatchUpresPlan
@@ -126,7 +130,7 @@ namespace ManaGeoTools.Code.Planet
             return new PatchUpresPlan
             {
                 Zoom = zoom.Value,
-                MeshResolution = Math.Min(sourceResolution, MaxPatchMeshResolution),
+                MeshResolution = Math.Min(sourceResolution, MaxPatchVertices),
                 SourceResolution = sourceResolution,
                 SourceMetersPerPixel = EstimateSourceMetersPerPixel(latMin, latMax, zoom.Value),
                 TileIndices = tileIndices

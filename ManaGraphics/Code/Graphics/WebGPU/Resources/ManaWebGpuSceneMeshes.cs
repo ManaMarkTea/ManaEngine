@@ -51,6 +51,9 @@ namespace ManaGraphics.Code.Graphics.Resources
         // Indexes, for the size-proportional cost of a burst of large terrain patches.
         private const ulong MaxSceneMeshIndexUploadsPerFrame = 4_000_000;
 
+        // In-place rewrites at least this big wait for budget like new meshes do.
+        private const ulong BudgetedInPlaceIndexes = 60_000;
+
         /// <summary>Retires every resident mesh: after the in-flight frames by default, now when <paramref name="immediate"/>.</summary>
         public void ReleaseAll(bool immediate = false)
         {
@@ -154,13 +157,32 @@ namespace ManaGraphics.Code.Graphics.Resources
                     }
 
                     // Same mesh with new vertices (skinned characters, every frame): rewrite geometry, keep the bindings.
-                    if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance) &&
-                        existing.Mesh.TryUpdateGeometryInPlace(Queue, instance.MeshData))
+                    // Under the same budget as new meshes: streamed terrain rewrites dozens of patches in place at once.
+                    if (CanUpdateSceneMeshGeometryInPlace(existing.Instance, instance))
                     {
-                        existing.Instance = instance;
-                        existing.InvalidateDerivedGeometry();
-                        nextSceneMeshes.Add(existing);
-                        continue;
+                        // Small ones (a character's skin) always go, or animation would stutter a frame behind.
+                        if ((ulong)instance.MeshData.Indexes.Length >= BudgetedInPlaceIndexes
+                            && IsUploadBudgetSpent(uploadedCount, uploadedIndexes, uploadClock))
+                        {
+                            deferredCount++;
+                            nextSceneMeshes.Add(existing);
+                            continue;
+                        }
+
+                        bool updated;
+                        using (ManaFrameProfiler.Measure("GPU: Mesh Buffer Upload"))
+                        {
+                            updated = existing.Mesh.TryUpdateGeometryInPlace(Queue, instance.MeshData);
+                        }
+                        if (updated)
+                        {
+                            existing.Instance = instance;
+                            existing.InvalidateDerivedGeometry();
+                            nextSceneMeshes.Add(existing);
+                            uploadedCount++;
+                            uploadedIndexes += existing.Mesh.IndexCount;
+                            continue;
+                        }
                     }
 
                     // Over budget: keep drawing the old mesh; the swap retries next frame.
