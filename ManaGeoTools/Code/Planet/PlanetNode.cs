@@ -663,7 +663,7 @@ namespace ManaGeoTools.Code.Planet
                 // (769 and up) every child of a split cost the main thread whole seconds and gigabytes.
                 var childMesh = new PlanetPatchMesh(
                     Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius,
-                    Math.Min(parentLeaf.Mesh.Resolution, SplitPlaceholderResolution), heightScale, HeightLibrary, _imageryPath);
+                    Math.Min(parentLeaf.Mesh.Resolution, SplitPlaceholderResolution), heightScale, HeightLibrary, _imageryPath, parentMesh.Detail);
 
                 pending.ChildKeys[index] = child.Key;
                 pending.ChildMeshes[index] = childMesh;
@@ -1185,7 +1185,7 @@ namespace ManaGeoTools.Code.Planet
                         continue;
                     }
 
-                    var groundDistance = GreatCircleDistanceFromCameraDirection(leaf.LocalBoundsSphere.LocalCenter, cameraDirection);
+                    var groundDistance = NearestGroundDistance(leaf.LocalBoundsSphere, cameraDirection);
 
                     if (groundDistance < activationRadius)
                     {
@@ -1246,7 +1246,7 @@ namespace ManaGeoTools.Code.Planet
                     var mergedMinV = childLeaves.Min(l => l.Mesh.MinV);
                     var mergedMaxV = childLeaves.Max(l => l.Mesh.MaxV);
                     var unionLocalBounds = ComputePatchLocalBoundsSphere(faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius);
-                    var unionGroundDistance = GreatCircleDistanceFromCameraDirection(unionLocalBounds.LocalCenter, cameraDirection);
+                    var unionGroundDistance = NearestGroundDistance(unionLocalBounds, cameraDirection);
                     if (unionGroundDistance > deactivationRadius)
                     {
                         TryMergeSiblingGroup(parentKey);
@@ -1272,6 +1272,13 @@ namespace ManaGeoTools.Code.Planet
         // the camera, both expressed purely as directions from the planet's local origin -- this only
         // needs the ANGLE between them (great-circle geometry), never an actual lat/long conversion, so
         // it sidesteps pole/antimeridian degeneracies entirely.
+        // To the patch's nearest edge, not its centre: a camera dropped low over a big patch is inside it, while its
+        // centre can lie several activation radii away -- nothing near the camera ever refined.
+        private float NearestGroundDistance(PlanetPatchGeometry.PatchBoundsSphere bounds, Vector3 cameraDirection)
+        {
+            return MathF.Max(0.0f, GreatCircleDistanceFromCameraDirection(bounds.LocalCenter, cameraDirection) - bounds.LocalRadius);
+        }
+
         private float GreatCircleDistanceFromCameraDirection(Vector3 patchLocalCenter, Vector3 cameraDirection)
         {
             var patchDirection = Vector3.Normalize(patchLocalCenter);
@@ -1679,6 +1686,70 @@ namespace ManaGeoTools.Code.Planet
 
         private volatile string? _requestedImageryPath;
         private int _imageryGeneration;
+
+        private bool IsLeafMesh(PlanetPatchMesh mesh)
+        {
+            foreach (var leaf in _leaves.Values)
+            {
+                if (ReferenceEquals(leaf.Mesh, mesh))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>The patches drawn now, or null while the rebuild lock is busy (try again next frame).</summary>
+        public PlanetPatchMesh[]? TryGetLeafMeshes()
+        {
+            if (_retired || !Monitor.TryEnter(_rebuildLock))
+            {
+                return null;
+            }
+            try
+            {
+                var meshes = new PlanetPatchMesh[_leaves.Count];
+                var index = 0;
+                foreach (var leaf in _leaves.Values)
+                {
+                    meshes[index++] = leaf.Mesh;
+                }
+                return meshes;
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
+        /// <summary>
+        /// Puts each patch's sharper picture on (or takes it off) on a worker, a patch at a time under the rebuild lock
+        /// as <see cref="SetImagery"/> does; <paramref name="done"/> hears of each patch once it is settled.
+        /// </summary>
+        public void DressDetail(IReadOnlyList<(PlanetPatchMesh Mesh, PlanetImageryDetail? Detail)> changes, Action<PlanetPatchMesh> done)
+        {
+            Task.Run(() =>
+            {
+                foreach (var (mesh, detail) in changes)
+                {
+                    try
+                    {
+                        lock (_rebuildLock)
+                        {
+                            // A patch split or merged away meanwhile is gone; its successors are judged afresh.
+                            if (!_retired && mesh.ImageryPath != null && IsLeafMesh(mesh))
+                            {
+                                mesh.TryDressDetail(detail);
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        done(mesh);
+                    }
+                }
+            });
+        }
 
         private void RebuildAllPatches()
         {

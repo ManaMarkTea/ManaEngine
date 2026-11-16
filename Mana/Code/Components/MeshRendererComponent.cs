@@ -125,7 +125,8 @@ namespace Mana
                 RoughnessTexturePath = roughness,
                 OcclusionTexturePath = ambient,
                 OpacityTexturePath = opacity,
-                NearestFiltering = meshData.NearestFiltering
+                NearestFiltering = meshData.NearestFiltering,
+                Unshared = meshData.Unshared
             };
 
             _texturedSource = meshData;

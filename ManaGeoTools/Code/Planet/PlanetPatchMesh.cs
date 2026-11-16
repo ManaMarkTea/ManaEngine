@@ -59,10 +59,12 @@ namespace ManaGeoTools.Code.Planet
             int resolution,
             float heightScale,
             GeoTiffLibrary? heightLibrary,
-            string? imageryPath = null)
+            string? imageryPath = null,
+            PlanetImageryDetail? detail = null)
             : base(context)
         {
             ImageryPath = imageryPath;
+            Detail = detail;
             FaceNormal = faceNormal;
             MinU = minU;
             MaxU = maxU;
@@ -139,27 +141,51 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public bool TryDressInPlace(string imageryPath)
         {
+            if (CpuData == null)
+            {
+                return false;
+            }
+            ImageryPath = imageryPath;
+            return Dress();
+        }
+
+        /// <summary>
+        /// A sharper picture of this patch's stretch (null: back to the planet's whole picture), put on as
+        /// <see cref="TryDressInPlace"/> does; it stays on through later regenerations. Run under the planet's rebuild lock.
+        /// </summary>
+        public bool TryDressDetail(PlanetImageryDetail? detail)
+        {
+            Detail = detail;
+            if (ImageryPath == null || CpuData == null)
+            {
+                return false;
+            }
+            return Dress();
+        }
+
+        private bool Dress()
+        {
             if (CpuData is not { } current)
             {
                 return false;
             }
 
-            var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
-            var axisB = Vector3.Cross(FaceNormal, axisA);
-            var middle = CubeSphere.WarpCubeToSphere(FaceNormal + (0.5f * (MinU + MaxU) * axisA) + (0.5f * (MinV + MaxV) * axisB));
-            var centerU = LatLong.FromPointOnSphere(middle, 1f, 0f).ToUv().X;
+            var centerU = CenterU();
+            var detail = PictureDetail;
             var positions = current.Positions;
             var coordinates = new Vector2[positions.Length];
             var colors = new Vector4[positions.Length];
             Array.Fill(colors, Vector4.One);
             // The same coordinates GenerateData gives under a picture; skirts hang straight down, so their direction matches the edge's.
-            for (var i = 0; i < positions.Length; i++)
+            Parallel.For(0, (positions.Length + 4095) / 4096, block =>
             {
-                var uv = LatLong.FromPointOnSphere(Vector3.Normalize(positions[i]), 1f, 0f).ToUv();
-                coordinates[i] = new Vector2(UnwrapU(uv.X, centerU), 1f - uv.Y);
-            }
+                var end = Math.Min(positions.Length, (block + 1) * 4096);
+                for (var i = block * 4096; i < end; i++)
+                {
+                    coordinates[i] = PictureCoordinate(GlobalUv(positions[i]), centerU, detail);
+                }
+            });
 
-            ImageryPath = imageryPath;
             SetCpuData(new ManaMeshCpuData
             {
                 Indexes = current.Indexes,
@@ -177,6 +203,50 @@ namespace ManaGeoTools.Code.Planet
             return true;
         }
 
+        /// <summary>The sharper picture this patch wears over the planet's whole one, if any.</summary>
+        public PlanetImageryDetail? Detail { get; private set; }
+
+        // Only worn while the planet wears a picture at all.
+        private PlanetImageryDetail? PictureDetail
+        {
+            get
+            {
+                if (ImageryPath == null)
+                {
+                    return null;
+                }
+                return Detail;
+            }
+        }
+
+        private float CenterU()
+        {
+            var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
+            var axisB = Vector3.Cross(FaceNormal, axisA);
+            var middle = CubeSphere.WarpCubeToSphere(FaceNormal + (0.5f * (MinU + MaxU) * axisA) + (0.5f * (MinV + MaxV) * axisB));
+            return GlobalUv(middle).X;
+        }
+
+        /// <summary><see cref="LatLong.ToUv"/> of a point's direction from the centre, without making a LatLong: u east from -180, v south from the north pole.</summary>
+        public static Vector2 GlobalUv(Vector3 point)
+        {
+            var direction = Vector3.Normalize(point);
+            var longitude = MathF.Atan2(-direction.X, -direction.Z);
+            var latitude = MathF.Asin(Math.Clamp(direction.Y, -1.0f, 1.0f));
+            return new Vector2((longitude / MathF.PI + 1.0f) * 0.5f, 0.5f - latitude / MathF.PI);
+        }
+
+        // Pictures are uploaded bottom row first, so north is at the top of v.
+        private static Vector2 PictureCoordinate(Vector2 globalUv, float centerU, PlanetImageryDetail? detail)
+        {
+            var u = UnwrapU(globalUv.X, centerU);
+            if (detail != null)
+            {
+                return detail.Map(u, globalUv.Y);
+            }
+            return new Vector2(u, 1.0f - globalUv.Y);
+        }
+
         private void ApplyImagery(ManaMaterial material)
         {
             if (ImageryPath == null)
@@ -185,7 +255,12 @@ namespace ManaGeoTools.Code.Planet
                 return;
             }
 
-            material.Albedo.TextureValue = new ManaTexture(Context) { OriginalFilename = ImageryPath, Name = "Planet Imagery" };
+            var path = ImageryPath;
+            if (PictureDetail is { } detail)
+            {
+                path = detail.Path;
+            }
+            material.Albedo.TextureValue = new ManaTexture(Context) { OriginalFilename = path, Name = "Planet Imagery" };
         }
 
         /// <summary>Updates the height displacement scale (e.g. from an Inspector edit) and regenerates.</summary>
@@ -363,11 +438,11 @@ namespace ManaGeoTools.Code.Planet
             // Under a picture the colours are white, and longitudes are kept on the patch centre's side of the
             // date line so a patch across it samples one stretch of the picture, not the whole width backwards.
             var imagery = ImageryPath != null;
+            var detail = PictureDetail;
             var centerU = 0.5f;
             if (imagery)
             {
-                var middle = CubeSphere.WarpCubeToSphere(FaceNormal + (0.5f * (MinU + MaxU) * axisA) + (0.5f * (MinV + MaxV) * axisB));
-                centerU = LatLong.FromPointOnSphere(middle, 1f, 0f).ToUv().X;
+                centerU = CenterU();
             }
 
             var computeSphereTime = Stopwatch.GetTimestamp();
@@ -405,10 +480,7 @@ namespace ManaGeoTools.Code.Planet
                     var uv = latLong.ToUv();
                     if (imagery)
                     {
-                        // Pictures are uploaded bottom row first, so north is at v = 1.
-                        uv.X = UnwrapU(uv.X, centerU);
-                        uv.Y = 1f - uv.Y;
-                        texCoords[x, y] = uv;
+                        texCoords[x, y] = PictureCoordinate(uv, centerU, detail);
                         colors[x, y] = Vector4.One;
                         continue;
                     }
@@ -617,5 +689,14 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// A sharper picture of one stretch of a planet, and where it lies in the whole picture's coordinates (u east from
+    /// -180, v south from the north pole, both 0..1; u unwrapped as the patches unwrap it).
+    /// </summary>
+    public sealed record PlanetImageryDetail(string Key, string Path, float MinU, float MaxU, float MinV, float MaxV)
+    {
+        public Vector2 Map(float u, float v) => new((u - MinU) / (MaxU - MinU), 1.0f - (v - MinV) / (MaxV - MinV));
     }
 }

@@ -65,5 +65,36 @@ public static class FlightTrafficChecks
         check("a patch across the date line keeps its longitudes on one side of it",
             MathF.Abs(PlanetPatchMesh.UnwrapU(0.02f, 0.99f) - 1.02f) < 1e-6f && MathF.Abs(PlanetPatchMesh.UnwrapU(0.98f, 0.01f) + 0.02f) < 1e-6f
             && PlanetPatchMesh.UnwrapU(0.4f, 0.5f) == 0.4f, "");
+
+        // A tile's picture covers 0..20 E, 10 S..10 N: a border at 10 E lands down its middle, not where the whole planet's would.
+        var tile = new ManaCore.Imaging.ManaImage(200, 200);
+        PlanetBorderPainter.Paint(tile, [new List<(double, double)> { (10, -5), (10, 5) }], 30.0f, new Vector4(1, 1, 1, 1), new GeoArea(0, 20, -10, 10));
+        byte TileRed(int x, int y) => tile.Pixels[(y * 200 + x) * 4];
+        check("a border in a tile lands at its longitude within the tile", TileRed(100, 100) > 200 && TileRed(150, 100) == 0 && TileRed(100, 10) == 0,
+            $"{TileRed(100, 100)} {TileRed(150, 100)} {TileRed(100, 10)}");
+
+        var tokyo = new LatLong(139.7f, 35.7f);
+        var uv = PlanetPatchMesh.GlobalUv(tokyo.ToUnitSphere() * 6371000);
+        check("a point's picture coordinate matches LatLong's", Vector2.Distance(uv, tokyo.ToUv()) < 1e-5f, $"{uv} {tokyo.ToUv()}");
+
+        // A tile's window maps its own corners to the picture's: west edge u 0, north edge v 1 (pictures upload bottom row first).
+        var window = new PlanetImageryDetail("k", "p", 0.25f, 0.5f, 0.2f, 0.4f);
+        check("a tile maps its north-west corner to (0, 1) and its south-east to (1, 0)",
+            Vector2.Distance(window.Map(0.25f, 0.2f), new Vector2(0, 1)) < 1e-6f && Vector2.Distance(window.Map(0.5f, 0.4f), new Vector2(1, 0)) < 1e-6f, "");
+        check("tiles on Earth are a root patch quartered (about 420 km)",
+            MathF.Abs(PlanetDetailImagery.TileCubeSize(6, PlanetLoader.EarthRadiusMeters) - 1.0f / 12.0f) < 1e-6f, "");
+
+        // Over 0 N 0 E (planet -Z), facing +Y is north and -X east.
+        var over = new Vector3(0, 0, -1);
+        check("heading is 0 facing north and 90 facing east",
+            MathF.Abs(ManaEditor.Code.UI.ManaUi.PlanetReadoutManaView.HeadingOf(over, Vector3.UnitY) ?? -1) < 1e-3f
+            && MathF.Abs((ManaEditor.Code.UI.ManaUi.PlanetReadoutManaView.HeadingOf(over, -Vector3.UnitX) ?? -1) - 90) < 1e-3f, "");
+        check("looking straight down has no heading", ManaEditor.Code.UI.ManaUi.PlanetReadoutManaView.HeadingOf(over, -over) == null, "");
+
+        foreach (var (from, to) in new[] { (Vector3.UnitY, Vector3.Normalize(new Vector3(1, 1, 0))), (Vector3.UnitY, -Vector3.UnitY), (Vector3.UnitX, Vector3.UnitX) })
+        {
+            var turned = Vector3.Transform(from, Mana.CameraComponent.RotationBetween(from, to));
+            check($"the camera's up turns from {from} onto {to}", Vector3.Distance(turned, to) < 1e-5f, $"{turned}");
+        }
     }
 }

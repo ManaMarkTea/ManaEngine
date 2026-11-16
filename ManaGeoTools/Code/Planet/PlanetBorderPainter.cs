@@ -14,36 +14,49 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>
         /// Draws each ring (closed) <paramref name="widthKilometres"/> wide in <paramref name="color"/> (alpha is
         /// its strength). Overlapping lines take the stronger coverage rather than adding, so shared borders --
-        /// a state's edge on its country's -- are drawn once.
+        /// a state's edge on its country's -- are drawn once. The picture covers <paramref name="area"/> (the whole
+        /// planet when null, wrapping round at the date line); its pixels must be square in degrees.
         /// </summary>
         public static void Paint(
             ManaImage image,
             IEnumerable<IReadOnlyList<(double Longitude, double Latitude)>> rings,
             float widthKilometres,
-            Vector4 color)
+            Vector4 color,
+            GeoArea? area = null)
         {
+            var bounds = area ?? new GeoArea(-180.0, 180.0, -90.0, 90.0);
+            var wrap = area == null;
             var width = image.Width;
             var height = image.Height;
             var coverage = new byte[width * height];
-            var halfWidth = 0.5f * widthKilometres / (EquatorKilometres / width);
+            var lonSpan = bounds.MaxLongitude - bounds.MinLongitude;
+            var latSpan = bounds.MaxLatitude - bounds.MinLatitude;
+            var halfWidth = 0.5f * widthKilometres / (float)(EquatorKilometres * lonSpan / 360.0 / width);
+            // Segments wholly beyond the picture (and the line's reach) are skipped before any pixel work.
+            var margin = (halfWidth + 2.0) * latSpan / height;
             foreach (var ring in rings)
             {
                 for (var i = 0; i < ring.Count; i++)
                 {
                     var (lon0, lat0) = ring[i];
                     var (lon1, lat1) = ring[(i + 1) % ring.Count];
-                    var x0 = (float)((lon0 + 180.0) / 360.0 * width);
-                    var y0 = (float)((90.0 - lat0) / 180.0 * height);
-                    var x1 = (float)((lon1 + 180.0) / 360.0 * width);
-                    var y1 = (float)((90.0 - lat1) / 180.0 * height);
                     // A segment across the date line is the ring closing round the back; it is not a border.
-                    if (MathF.Abs(x1 - x0) > width * 0.5f)
+                    if (Math.Abs(lon1 - lon0) > 180.0)
+                    {
+                        continue;
+                    }
+                    if (!wrap && (Math.Max(lat0, lat1) < bounds.MinLatitude - margin || Math.Min(lat0, lat1) > bounds.MaxLatitude + margin
+                        || Math.Max(lon0, lon1) < bounds.MinLongitude - margin * 4.0 || Math.Min(lon0, lon1) > bounds.MaxLongitude + margin * 4.0))
                     {
                         continue;
                     }
 
+                    var x0 = (float)((lon0 - bounds.MinLongitude) / lonSpan * width);
+                    var y0 = (float)((bounds.MaxLatitude - lat0) / latSpan * height);
+                    var x1 = (float)((lon1 - bounds.MinLongitude) / lonSpan * width);
+                    var y1 = (float)((bounds.MaxLatitude - lat1) / latSpan * height);
                     var squeeze = MathF.Max(0.05f, MathF.Cos((float)((lat0 + lat1) * 0.5 * Math.PI / 180.0)));
-                    PaintSegment(coverage, width, height, x0, y0, x1, y1, halfWidth, squeeze);
+                    PaintSegment(coverage, width, height, x0, y0, x1, y1, halfWidth, squeeze, wrap);
                 }
             }
 
@@ -52,11 +65,16 @@ namespace ManaGeoTools.Code.Planet
 
         // In the picture an east-west pixel is `squeeze` as wide on the ground, so distances are measured with x
         // shrunk by it; the box searched widens to match.
-        private static void PaintSegment(byte[] coverage, int width, int height, float x0, float y0, float x1, float y1, float halfWidth, float squeeze)
+        private static void PaintSegment(byte[] coverage, int width, int height, float x0, float y0, float x1, float y1, float halfWidth, float squeeze, bool wrap)
         {
             var reach = halfWidth + 1.0f;
             var minX = (int)MathF.Floor(MathF.Min(x0, x1) - reach / squeeze);
             var maxX = (int)MathF.Ceiling(MathF.Max(x0, x1) + reach / squeeze);
+            if (!wrap)
+            {
+                minX = Math.Max(0, minX);
+                maxX = Math.Min(width - 1, maxX);
+            }
             var minY = Math.Max(0, (int)MathF.Floor(MathF.Min(y0, y1) - reach));
             var maxY = Math.Min(height - 1, (int)MathF.Ceiling(MathF.Max(y0, y1) + reach));
             var ax = x0 * squeeze;
@@ -122,4 +140,7 @@ namespace ManaGeoTools.Code.Planet
             });
         }
     }
+
+    /// <summary>A latitude/longitude box in degrees.</summary>
+    public readonly record struct GeoArea(double MinLongitude, double MaxLongitude, double MinLatitude, double MaxLatitude);
 }

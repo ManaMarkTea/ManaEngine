@@ -446,7 +446,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
   build without it and lights cast none. Reference: `Content/Levels/Tests/Point Shadows.manalevel`.
 - **Planet scale:** `Planet Showcase` is Earth at true size (radius 6,371,000 units, a metre each, auto-LOD streaming).
   While a level has a planet, `EditorPlanetScenery` scales fly speed by height above it (`CameraComponent.MovementSpeedScale`)
-  and fits the clip planes to the height and horizon each frame. Float precision is ~0.5 m at that radius: fine from
+  and fits the clip planes to the height and horizon each frame (`PlanetCameraFit`). In `--play` the free camera's up
+  turns from world +Y to the way out from the planet's centre below ~3,000 km (`CameraComponent.UpDirection`, carried
+  frame to frame so it never spins at a pole), so the horizon stays level and Q/E climb. Auto-LOD judges a patch by its
+  nearest edge, so a camera dropped low refines at once. `PlanetReadoutManaView` shows altitude above sea level, the
+  latitude/longitude below and the heading, bottom left, in the editor and in play. Float precision is ~0.5 m at that radius: fine from
   aircraft height, not for walking. The sky still draws as seen from the ground at any height.
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
   tracks as a plane in one colour (`oneColor`/`color`; off shades by altitude; `altitudeScale`, 1 = true height; `markerSize` a share of
@@ -470,7 +474,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
   (`PlanetBorderPainter`; `borders`/`states`, colours, widths in km) and keeps one JPEG in `Library/PlanetImagery/` (~5 MB plus the
   3 MB download). `PlanetNode.SetImagery` puts it on every patch (white vertex colours, lat/long UVs unwrapped across the date
   line) and drops the water meshes, whose blocky coasts would cut into the picture's own seas. The streaming patch outline
-  shows only while the planet is selected (aircraft in front of an outlined patch get outlined too). Desktop only.
+  shows only while the planet is selected (aircraft in front of an outlined patch get outlined too). Close up (`detail`,
+  on by default) patches wear sharper tiles instead (`PlanetDetailImagery`): fixed cube cells of ~420 km fetched from GIBS
+  for their lat/long box at the layer's own 500 m, 10 m Natural Earth borders drawn thin, cached in
+  `Library/PlanetImagery/Tiles/`; at most 16 worn at once, nearest first, each one GPU texture shared by every patch in
+  it (`PlanetPatchMesh.Detail` maps its window). Desktop only.
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

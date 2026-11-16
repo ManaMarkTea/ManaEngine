@@ -219,6 +219,7 @@ namespace Mana.Code.GameModes
             // A planet's flight traffic: airport rings, and picking a flight by click or callsign, as in the editor.
             hud.Children.Add(new AirportTrafficOverlay(() => Context.World.MainCamera));
             hud.Children.Add(new FlightSelectionOverlay(host.Root.Theme, () => Context.World.MainCamera));
+            hud.Children.Add(PlanetReadoutManaView.Build(host.Root.Theme, () => Context.World.MainCamera));
             if (SafeArea != null || ControlsBar != null)
             {
                 hud.BindPolled(el => el.Margin, () =>
@@ -328,7 +329,7 @@ namespace Mana.Code.GameModes
             _planet = result.Planet;
             if (_planet != null && Context.World.MainCamera is { } planetCamera)
             {
-                _planetCamera = new PlanetCameraFit(planetCamera, _planet);
+                _planetCamera = new PlanetCameraFit(planetCamera, _planet, surfaceUp: true);
             }
 #endif
 
@@ -679,7 +680,7 @@ namespace Mana.Code.GameModes
             if (_planet != null && Context.World.MainCamera is { } liveCamera && _planetCamera?.Camera != liveCamera)
             {
                 _planetCamera?.Release();
-                _planetCamera = new PlanetCameraFit(liveCamera, _planet);
+                _planetCamera = new PlanetCameraFit(liveCamera, _planet, surfaceUp: true);
             }
             _planetCamera?.Update();
             _planet?.UpdateAutoLod(Context.World.MainCamera);

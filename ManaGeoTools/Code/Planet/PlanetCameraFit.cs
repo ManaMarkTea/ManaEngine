@@ -17,18 +17,27 @@ namespace ManaGeoTools.Code.Planet
         // instead of spreading 24 bits over a whole planet.
         private const float NearClipHeightShare = 0.005f;
 
+        // Up follows the ground below this height (a share of the radius, ~640 km on Earth) and is world +Y above the
+        // outer one (~3,200 km), turning between: from orbit the globe stays upright, near it the horizon is level.
+        private const float SurfaceUpInnerShare = 0.1f;
+        private const float SurfaceUpOuterShare = 0.5f;
+
         private readonly CameraComponent _camera;
         private readonly PlanetNode _planet;
         private readonly float _baseFar;
         private readonly float _baseNear;
 
-        public PlanetCameraFit(CameraComponent camera, PlanetNode planet)
+        public PlanetCameraFit(CameraComponent camera, PlanetNode planet, bool surfaceUp = false)
         {
             _camera = camera;
             _planet = planet;
             _baseFar = camera.FarClipPlane;
             _baseNear = camera.NearClipPlane;
             camera.MovementSpeedScale = position => Height(position) / SpeedHeightReference;
+            if (surfaceUp)
+            {
+                camera.UpDirection = Up;
+            }
             Update();
         }
 
@@ -38,6 +47,7 @@ namespace ManaGeoTools.Code.Planet
         public void Release()
         {
             _camera.MovementSpeedScale = null;
+            _camera.UpDirection = null;
             _camera.FarClipPlane = _baseFar;
             _camera.NearClipPlane = _baseNear;
             _camera.UpdateProjection();
@@ -48,6 +58,23 @@ namespace ManaGeoTools.Code.Planet
         {
             var distance = Vector3.Distance(worldPosition, _planet.WorldTransform.Translation);
             return MathF.Max(distance - _planet.Radius, _planet.Radius * 1e-6f);
+        }
+
+        /// <summary>The camera's up at a world position: the way out from the planet's centre near it, world +Y far off.</summary>
+        public Vector3 Up(Vector3 worldPosition)
+        {
+            var outward = worldPosition - _planet.WorldTransform.Translation;
+            if (outward.LengthSquared() < 1e-6f)
+            {
+                return Vector3.UnitY;
+            }
+            outward = Vector3.Normalize(outward);
+            var share = Height(worldPosition) / _planet.Radius;
+            var t = Math.Clamp((SurfaceUpOuterShare - share) / (SurfaceUpOuterShare - SurfaceUpInnerShare), 0.0f, 1.0f);
+            t = t * t * (3.0f - 2.0f * t);
+            // Turned part way from +Y toward the outward direction (a lerp of the two vanishes over the south pole).
+            var turn = Quaternion.Slerp(Quaternion.Identity, CameraComponent.RotationBetween(Vector3.UnitY, outward), t);
+            return Vector3.Transform(Vector3.UnitY, turn);
         }
 
         /// <summary>Once a frame: far plane just past the horizon (the level's own far a floor), near plane a share of the height.</summary>

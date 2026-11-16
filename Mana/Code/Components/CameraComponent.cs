@@ -65,6 +65,19 @@ namespace Mana
         /// the height above its surface, so the same key press crosses a continent from orbit and a town near the ground.
         /// </summary>
         public Func<Vector3, float>? MovementSpeedScale { get; set; }
+
+        /// <summary>
+        /// The free camera's up at a world position (null: world +Y). A planet makes it the way out from its centre near
+        /// the ground, so the horizon stays level and Q/E climb; the look is carried along as the up turns.
+        /// </summary>
+        public Func<Vector3, Vector3>? UpDirection { get; set; }
+
+        // World +Y turned onto the current up, moved by the smallest turn each frame so the view never spins round a pole.
+        private Quaternion _upFrame = Quaternion.Identity;
+        private Vector3 _frameUp = Vector3.UnitY;
+        private float _framedYaw;
+        private float _framedPitch;
+        private Vector3? _framedRotation;
         public float MovementSpeed
         {
             get => _MovementSpeed;
@@ -851,10 +864,23 @@ namespace Mana
             float roll = rotationEuler.Z;
 
             var rotationMatrix = Matrix4x4.CreateFromYawPitchRoll(yaw, pitch, roll);
+            var worldUp = new Vector3(0, 1, 0);
+            var framed = UpDirection != null;
+            if (framed)
+            {
+                AdvanceUpFrame(position, rotation);
+                rotationMatrix = Matrix4x4.CreateFromQuaternion(FramedLook());
+                worldUp = _frameUp;
+            }
+            else
+            {
+                _upFrame = Quaternion.Identity;
+                _frameUp = Vector3.UnitY;
+                _framedRotation = null;
+            }
+
             Vector3 forward = Vector3.TransformNormal(-Vector3.UnitZ, rotationMatrix);
             Vector3 right = Vector3.TransformNormal(Vector3.UnitX, rotationMatrix);
-
-            var worldUp = new Vector3(0, 1, 0);
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
@@ -933,11 +959,21 @@ namespace Mana
             transform *= Matrix4x4.CreateTranslation(position);
             Owner.LocalTransform = transform;
 
-            if (rightGestureActive)
+            if (rightGestureActive && framed)
+            {
+                _framedYaw += dxAvg * 0.4f;
+                _framedPitch = (_framedPitch + dyAvg * 0.4f).Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
+            }
+            else if (rightGestureActive)
             {
                 rotationEuler.Y += dxAvg * 0.4f;
                 rotationEuler.X += dyAvg * 0.4f;
                 rotationEuler.X = rotationEuler.X.Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
+            }
+            if (framed)
+            {
+                rotationEuler = FramedLook().ToEuler();
+                _framedRotation = rotationEuler;
             }
 
             if (rightGestureActive && MouseState.ScrollWheels[0].Y != 0)
@@ -951,6 +987,50 @@ namespace Mana
             Owner.Rotation = rotationEuler;
             UpdateViewMatrix();
 
+        }
+
+        // Turns the frame to the up here. Flying carries the look along with it; when something else turned the camera
+        // (a teleport, move_camera) its look is read against the new frame instead, so it keeps facing where it was put.
+        private void AdvanceUpFrame(Vector3 position, Vector3 rotation)
+        {
+            var desired = UpDirection!(position);
+            if (desired.LengthSquared() > 1e-12f)
+            {
+                desired = Vector3.Normalize(desired);
+                _upFrame = Quaternion.Normalize(RotationBetween(_frameUp, desired) * _upFrame);
+                _frameUp = desired;
+            }
+
+            if (_framedRotation != rotation)
+            {
+                var local = Quaternion.Inverse(_upFrame) * rotation.ToQuaternionFromEuler();
+                var look = Vector3.Transform(-Vector3.UnitZ, local);
+                _framedPitch = MathF.Asin(Math.Clamp(look.Y, -1.0f, 1.0f)).Clamp(-89.0f.ToRadians(), 89.0f.ToRadians());
+                _framedYaw = MathF.Atan2(-look.X, -look.Z);
+            }
+        }
+
+        private Quaternion FramedLook() => _upFrame * Quaternion.CreateFromYawPitchRoll(_framedYaw, _framedPitch, 0.0f);
+
+        /// <summary>The smallest turn taking unit vector <paramref name="from"/> onto unit vector <paramref name="to"/>.</summary>
+        public static Quaternion RotationBetween(Vector3 from, Vector3 to)
+        {
+            var dot = Vector3.Dot(from, to);
+            if (dot > 0.999999f)
+            {
+                return Quaternion.Identity;
+            }
+            if (dot < -0.999999f)
+            {
+                var axis = Vector3.Cross(Vector3.UnitX, from);
+                if (axis.LengthSquared() < 1e-6f)
+                {
+                    axis = Vector3.Cross(Vector3.UnitZ, from);
+                }
+                return Quaternion.CreateFromAxisAngle(Vector3.Normalize(axis), MathF.PI);
+            }
+            var cross = Vector3.Cross(from, to);
+            return Quaternion.Normalize(new Quaternion(cross.X, cross.Y, cross.Z, 1.0f + dot));
         }
 
         /// <summary>

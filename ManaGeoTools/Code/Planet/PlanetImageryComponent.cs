@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.IO.Compression;
 using System.Text.Json.Serialization;
 using Mana;
@@ -48,6 +49,13 @@ namespace ManaGeoTools.Code.Planet
 
         public float StateWidth { get; set; } = 6.0f;
 
+        /// <summary>
+        /// Sharper pictures of the ground near the camera: tiles of a few hundred kilometres at the layer's own
+        /// resolution (Blue Marble's 500 m, ten times the whole picture's), fetched as the camera goes and kept in
+        /// Library/PlanetImagery/Tiles.
+        /// </summary>
+        public bool Detail { get; set; } = true;
+
         [JsonIgnore]
         public string Status { get; private set; } = "Starting";
 
@@ -56,6 +64,14 @@ namespace ManaGeoTools.Code.Planet
         private Task<string?>? _work;
         private string? _builtKey;
         private string? _readyPath;
+        private PlanetDetailImagery? _detail;
+        private string _lastDetailCounts = "";
+
+        // The 10 m Natural Earth lines, read once (on the first tile's worker) for every tile after.
+        private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailCountries =
+            new(() => ReadRings("ne_10m_admin_0_countries").ToList());
+        private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailStates =
+            new(() => ReadRings("ne_10m_admin_1_states_provinces").ToList());
 
         public PlanetImageryComponent(ManaSceneNode owner) : base(owner)
         {
@@ -106,12 +122,78 @@ namespace ManaGeoTools.Code.Planet
             {
                 planet.SetImagery(_readyPath);
             }
+
+            if (_readyPath != null && planet.ImageryPath == _readyPath && Context.World.MainCamera is { } camera && !OperatingSystem.IsBrowser())
+            {
+                if (Detail)
+                {
+                    _detail ??= new PlanetDetailImagery(BuildTileAsync);
+                }
+                _detail?.Update(planet, camera, key, PictureWidth, Detail);
+                if (_detail != null)
+                {
+                    var (ready, fetching, failed) = _detail.Counts;
+                    var counts = $"{ready} sharp tiles, {fetching} coming, {failed} failed";
+                    if (counts != _lastDetailCounts && fetching == 0)
+                    {
+                        Console.WriteLine($"[Imagery] {counts}");
+                    }
+                    _lastDetailCounts = counts;
+                }
+            }
+        }
+
+        // One sharper picture: the layer for the tile's box from GIBS, borders from the 10 m lines drawn a couple of
+        // pixels wide (the 50 m ones would miss the coast by kilometres at this scale), saved, decoded and mip-mapped here.
+        private async Task<string?> BuildTileAsync(PlanetImageryTileSpec spec, CancellationToken cancellation)
+        {
+            try
+            {
+                var split = spec.Key.IndexOf('/');
+                var folder = Path.Combine(CacheFolder, "Tiles", Safe(spec.Key[..split]));
+                var path = Path.Combine(folder, Safe(spec.Key[(split + 1)..]) + ".jpg");
+                if (File.Exists(path))
+                {
+                    ManaTexturePrefetch.Prepare(path);
+                    return path;
+                }
+
+                var area = spec.Area;
+                var box = string.Create(CultureInfo.InvariantCulture,
+                    $"{area.MinLatitude:0.######},{area.MinLongitude:0.######},{area.MaxLatitude:0.######},{area.MaxLongitude:0.######}");
+                var bytes = await FetchAsync(Layer, box, spec.Width, spec.Height, cancellation).ConfigureAwait(false);
+                var image = ManaImageCodec.Load(bytes);
+                var kilometresPerPixel = (float)((area.MaxLongitude - area.MinLongitude) / 360.0 * 40075.0 / spec.Width);
+                if (States)
+                {
+                    PlanetBorderPainter.Paint(image, DetailStates.Value, MathF.Min(StateWidth, 1.6f * kilometresPerPixel), StateColor, area);
+                }
+                if (Borders)
+                {
+                    PlanetBorderPainter.Paint(image, DetailCountries.Value, MathF.Min(BorderWidth, 2.2f * kilometresPerPixel), BorderColor, area);
+                }
+
+                Directory.CreateDirectory(folder);
+                ManaImageCodec.SavePng(image, path, jpegQuality: 90);
+                ManaTexturePrefetch.Store(path, image);
+                return path;
+            }
+            catch (OperationCanceledException)
+            {
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Imagery] Tile {spec.Key} failed: {ex.Message}");
+                return null;
+            }
         }
 
         public override void OnRemoved()
         {
             base.OnRemoved();
             _cancel.Cancel();
+            _detail?.Cancel();
             if (Owner is PlanetNode planet && planet.ImageryPath != null && planet.ImageryPath == _readyPath)
             {
                 planet.SetImagery(null);
@@ -154,7 +236,7 @@ namespace ManaGeoTools.Code.Planet
                 {
                     Status = $"Fetching {Layer} ({width} x {width / 2}) from NASA GIBS";
                     Console.WriteLine($"[Imagery] {Status}");
-                    var bytes = await FetchAsync(Layer, width, cancellation).ConfigureAwait(false);
+                    var bytes = await FetchAsync(Layer, "-90,-180,90,180", width, width / 2, cancellation).ConfigureAwait(false);
                     await File.WriteAllBytesAsync(download, bytes, cancellation).ConfigureAwait(false);
                 }
 
@@ -186,10 +268,11 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        private static async Task<byte[]> FetchAsync(string layer, int width, CancellationToken cancellation)
+        // WMS 1.3.0 in EPSG:4326 takes the box latitude first: south, west, north, east.
+        private static async Task<byte[]> FetchAsync(string layer, string box, int width, int height, CancellationToken cancellation)
         {
             var url = $"{GibsUrl}?SERVICE=WMS&REQUEST=GetMap&VERSION=1.3.0&LAYERS={Uri.EscapeDataString(layer)}&STYLES=" +
-                $"&CRS=EPSG:4326&BBOX=-90,-180,90,180&WIDTH={width}&HEIGHT={width / 2}&FORMAT=image/jpeg";
+                $"&CRS=EPSG:4326&BBOX={box}&WIDTH={width}&HEIGHT={height}&FORMAT=image/jpeg";
             using var response = await Http.GetAsync(url, cancellation).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
             var bytes = await response.Content.ReadAsByteArrayAsync(cancellation).ConfigureAwait(false);
