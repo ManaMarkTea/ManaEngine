@@ -446,7 +446,7 @@ dark when it casts shadows, which a click selects; the selected light's range as
   build without it and lights cast none. Reference: `Content/Levels/Tests/Point Shadows.manalevel`.
 - **Planet scale:** `Planet Showcase` is Earth at true size (radius 6,371,000 units, a metre each, auto-LOD streaming).
   While a level has a planet, `EditorPlanetScenery` scales fly speed by height above it (`CameraComponent.MovementSpeedScale`)
-  and fits the clip planes to the height and horizon each frame (`PlanetCameraFit`). In `--play` the free camera's up
+  and fits the clip planes to the height and horizon each frame (`PlanetCameraFit`). The free camera's up (editor and `--play`)
   turns from world +Y to the way out from the planet's centre below ~3,000 km (`CameraComponent.UpDirection`, carried
   frame to frame so it never spins at a pole), so the horizon stays level and Q/E climb. Auto-LOD judges a patch by its
   nearest edge, so a camera dropped low refines at once. `PlanetReadoutManaView` shows altitude above sea level, the

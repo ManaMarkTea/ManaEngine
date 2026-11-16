@@ -358,7 +358,7 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            _cameraFit = new PlanetCameraFit(camera, Planet);
+            _cameraFit = new PlanetCameraFit(camera, Planet, surfaceUp: true);
         }
 
         private void ReleaseCamera()

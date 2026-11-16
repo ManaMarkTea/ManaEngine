@@ -365,7 +365,9 @@ namespace ManaGeoTools.Code.Planet
             // channels. Assign it explicitly instead, mirroring ManaWaterPlane.GenerateMaterial().
             var material = new ManaMaterial(Context) { Name = "Planet Patch Material" };
             material.Shader = new ManaPbrShader(Context);
-            material.FlatShaded = true;
+            // Smooth: the vertex normals are averaged from the terrain itself. Flat shading derives each pixel's normal from
+            // screen derivatives of the world position, which at Earth's radius is good to half a metre -- the dashed noise.
+            material.FlatShaded = false;
             material.Albedo.Value = DefaultVertexColor;
             ApplyImagery(material);
             material.EnsureShaderMetadataDefaults();
