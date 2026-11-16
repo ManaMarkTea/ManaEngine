@@ -13,7 +13,8 @@ namespace ManaGeoTools.Code.Flights
         float TrackDegrees,
         float VerticalRateMetersPerSecond,
         double PositionTime,
-        bool OnGround);
+        bool OnGround,
+        byte Category = 0);
 
     /// <summary>Every aircraft in one reply, and the reply's own time (Unix seconds).</summary>
     public sealed record FlightSnapshot(double Time, FlightState[] States);
@@ -21,7 +22,8 @@ namespace ManaGeoTools.Code.Flights
     /// <summary>
     /// Reads OpenSky's <c>/api/states/all</c> reply: <c>{"time", "states": [[icao24, callsign, country, time_position,
     /// last_contact, longitude, latitude, baro_altitude, on_ground, velocity, true_track, vertical_rate, sensors,
-    /// geo_altitude, ...]]}</c>, any field possibly null. Rows with no position are skipped.
+    /// geo_altitude, squawk, spi, position_source, category]]}</c> (category only with <c>extended=1</c>), any field
+    /// possibly null. Rows with no position are skipped.
     /// </summary>
     public static class OpenSkyStates
     {
@@ -68,6 +70,11 @@ namespace ManaGeoTools.Code.Flights
                 }
 
                 var positionTime = Number(row[3]) ?? Number(row[4]) ?? time;
+                byte category = 0;
+                if (row.GetArrayLength() > 17 && Number(row[17]) is { } emitter)
+                {
+                    category = (byte)Math.Clamp(emitter, 0.0, 255.0);
+                }
                 result.Add(new FlightState(
                     Text(row[0]),
                     Text(row[1]).Trim(),
@@ -78,7 +85,8 @@ namespace ManaGeoTools.Code.Flights
                     (float)(Number(row[10]) ?? 0.0),
                     (float)(Number(row[11]) ?? 0.0),
                     positionTime,
-                    row[8].ValueKind == JsonValueKind.True));
+                    row[8].ValueKind == JsonValueKind.True,
+                    category));
             }
 
             return new FlightSnapshot(time, result.ToArray());

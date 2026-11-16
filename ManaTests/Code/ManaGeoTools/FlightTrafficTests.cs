@@ -28,6 +28,23 @@ public static class FlightTrafficChecks
         check("grounded aircraft read as grounded, with no altitude", snapshot.States[1].OnGround && snapshot.States[1].AltitudeMeters == 0, "");
         check("a missing states list is no aircraft, not a failure", OpenSkyStates.Parse("{\"time\":1,\"states\":null}"u8).States.Length == 0, "");
 
+        // Extended rows carry the emitter category after position_source; it picks the model drawn close up.
+        const string extended = """
+            {"time":1,"states":[
+              ["a1","N123AB","US",1,1,-120.0,37.0,900,false,45,90,0,null,910,null,false,0,2],
+              ["a2","UAL1","US",1,1,-120.0,37.0,11000,false,240,90,0,null,11000,null,false,0,6],
+              ["a3","HELI1","US",1,1,-120.0,37.0,300,false,50,90,0,null,300,null,false,0,8]
+            ]}
+            """;
+        var kinds = OpenSkyStates.Parse(Encoding.UTF8.GetBytes(extended)).States;
+        check("the emitter category is read from extended rows", kinds.Length == 3 && kinds[0].Category == 2 && kinds[1].Category == 6, string.Join(", ", kinds.Select(k => k.Category)));
+        check("light aircraft and helicopters are drawn as the light model, heavies as the airliner",
+            FlightTrafficModels.KindOf(kinds[0]) == AircraftKind.Light && FlightTrafficModels.KindOf(kinds[2]) == AircraftKind.Light
+            && FlightTrafficModels.KindOf(kinds[1]) == AircraftKind.Airliner, "");
+        check("with no category, slow and low is light and an airliner on approach stays an airliner",
+            FlightTrafficModels.KindOf(first with { SpeedMetersPerSecond = 45, AltitudeMeters = 600 }) == AircraftKind.Light
+            && FlightTrafficModels.KindOf(first with { SpeedMetersPerSecond = 72, AltitudeMeters = 600 }) == AircraftKind.Airliner, "");
+
         // Due east along the equator at 250 m/s for an hour: 900 km, about 8.09 degrees of longitude.
         var east = new FlightState("x", "", 10, 0, 10000, 250, 90, 0, 0, false);
         var (direction, heading) = FlightDeadReckoning.Advance(east, 3600);

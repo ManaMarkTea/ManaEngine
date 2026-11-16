@@ -455,7 +455,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
   tracks as a plane in one colour (`oneColor`/`color`; off shades by altitude; `altitudeScale`, 1 = true height; `markerSize` a share of
   camera distance), flown on by dead reckoning between fetches, rewritten 10 times a second while the camera is still (the mesh is
-  `ManaMeshCpuData.Unshared`: never fingerprinted for instancing). `showAirports` rings the busiest airports with the aircraft below
+  `ManaMeshCpuData.Unshared`: never fingerprinted for instancing). The nearest `modelCount` (24) within `modelRange` km, and
+  the selected one, are models instead (`FlightTrafficModels`, `modelScale` times a marker's length, never under true size):
+  `Content/Prefabs/Aircraft/Airliner.manaprefab`, or `Light Aircraft` (the An-2) for OpenSky's light, rotorcraft, glider and
+  ultralight categories -- or, as most aircraft report none, slower than 60 m/s below 3 km (`Assets/Models/Aircraft/`,
+  CC0, credits in its README). `showAirports` rings the busiest airports with the aircraft below
   `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
   `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. `FlightSelectionOverlay` picks one aircraft
   (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,

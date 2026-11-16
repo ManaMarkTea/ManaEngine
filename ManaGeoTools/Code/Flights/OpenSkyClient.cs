@@ -33,7 +33,8 @@ namespace ManaGeoTools.Code.Flights
     /// </summary>
     public sealed class OpenSkyClient
     {
-        private const string StatesUrl = "https://opensky-network.org/api/states/all";
+        // Extended: each row also says what kind of aircraft it is (OpenSky's emitter category), for the close-up models.
+        private const string StatesUrl = "https://opensky-network.org/api/states/all?extended=1";
 
         /// <summary>The relay ManaServers runs on hera (role flight_relay): /states, /tracks?icao24=, /health.</summary>
         public const string DefaultRelayUrl = "https://hera.manamarktea.com/flights";

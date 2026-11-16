@@ -1913,6 +1913,8 @@ In `Assets/Models`, beside the packs: placed as `Assets/Models/<path>`.
 
 | Model | W | H | D | Sits at (when off centre) | Clips |
 |---|---:|---:|---:|---|---|
+| `Aircraft/airliner.glb` | 19.91 | 5.6 | 15.53 | x -10.58..9.32, y -1.57..4.03, z -7.76..7.76 |  |
+| `Aircraft/biplane.glb` | 18.2 | 12.65 | 5.98 | x -9.1..9.1, y -3.78..8.87, z -3.71..2.27 |  |
 | `AnimatedCube/glTF/AnimatedCube.gltf` | 2 | 2 | 2 | x -1..1, y -1..1, z -1..1 | animation_AnimatedCube |
 | `Donut/Donut.glb` | 0.73 | 0.26 | 0.74 | x -0.36..0.36, y -0.04..0.23, z -0.36..0.38 |  |
 | `FlightHelmet/glTF/FlightHelmet.gltf` | 0.34 | 0.67 | 0.35 | x -0.15..0.19, y -0.44..0.23, z -0.19..0.16 |  |
@@ -2028,6 +2030,13 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Prefab | `Prefabs/Rocket.manaprefab` |
 | Prefab | `Prefabs/Spikes 2D.manaprefab` |
 | Prefab | `Prefabs/Spring 2D.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Crate.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Fence Run.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Moving Target.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Pea Shooter.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Pea.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Target On Post.manaprefab` |
+| Prefab | `Prefabs/Target Practice/Target.manaprefab` |
 | Sprite sheet | `Sprites/Blob.manasheet` |
 | Sprite sheet | `Sprites/Characters/Beige Alien.manasheet` |
 | Sprite sheet | `Sprites/Characters/Green Alien.manasheet` |
@@ -2105,6 +2114,8 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Level | `Levels/Planet Showcase.manalevel` |
 | Level | `Levels/Prefab Lamps.manalevel` |
 | Level | `Levels/Sample Course.manalevel` |
+| Level | `Levels/Stages/Empty Stage.manalevel` |
+| Level | `Levels/Target Practice.manalevel` |
 | Level | `Levels/Tests/Anti Aliasing.manalevel` |
 | Level | `Levels/Tests/Cloth.manalevel` |
 | Level | `Levels/Tests/Many Lights.manalevel` |
@@ -2114,6 +2125,8 @@ In `Content/`, referenced by their path under it, and each game's `Games/<Name>/
 | Level | `Levels/Tests/Pixel FX.manalevel` |
 | Level | `Levels/Tests/Point Shadows.manalevel` |
 | Level | `Levels/Tests/Reflections.manalevel` |
+| Level | `Levels/Tests/Retro Filter Scoped.manalevel` |
+| Level | `Levels/Tests/Retro Filter.manalevel` |
 | Level | `Levels/Tests/Shadow Contact.manalevel` |
 | Level | `Levels/Tests/Sprite Normals.manalevel` |
 | Level | `Levels/Tests/Terrain.manalevel` |

@@ -25,7 +25,7 @@ What is still to do in the engine. Finished work, with notes on how it was built
 [ ] - Other platforms: the iPhone/iPad host and a macOS check of the web build.
 
 [ ] - Planet (Planet Showcase): the planet in the browser (compiled out with `MANA_BROWSER`; the flight relay on hera
-    is ready, the GeoTIFF baseline, Natural Earth and imagery caching are not); aircraft models by type (a CC0
-    set of ~8 silhouettes -- narrow/wide-body, regional, turboprop, business jet, light, helicopter -- picked by the
-    adsbdb type, in place of the one marker shape); sharper imagery below ~5 km than Blue Marble's 500 m (Sentinel-2
+    is ready, the GeoTIFF baseline, Natural Earth and imagery caching are not); more aircraft models (two so far,
+    an airliner and the An-2 for light aircraft, `FlightTrafficModels`: wide-bodies, business jets and a helicopter
+    would want CC0 models of their own; 95% of OpenSky's rows carry no category, so the adsbdb type could pick them); sharper imagery below ~5 km than Blue Marble's 500 m (Sentinel-2
     cloudless is 10 m, stricter licence); the two ~100 ms stalls in the first seconds after loading.

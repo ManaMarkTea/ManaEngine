@@ -29,6 +29,18 @@ namespace ManaGeoTools.Code.Flights
         /// <summary>Marker length as a share of its distance from the camera, so it holds its size on screen at any zoom.</summary>
         public float MarkerSize { get; set; } = 0.006f;
 
+        /// <summary>The nearest aircraft drawn as models (an airliner, or an An-2 for light ones) instead of markers.</summary>
+        public bool Models { get; set; } = true;
+
+        /// <summary>How many of the nearest aircraft are drawn as models.</summary>
+        public int ModelCount { get; set; } = 24;
+
+        /// <summary>Kilometres from the camera within which an aircraft may be a model; the selected one always is.</summary>
+        public float ModelRange { get; set; } = 150.0f;
+
+        /// <summary>A model's length against its marker's: at a marker's dozen pixels a model reads no better than one.</summary>
+        public float ModelScale { get; set; } = 3.0f;
+
         public bool ShowGrounded { get; set; }
 
         /// <summary>Every aircraft in <see cref="Color"/>, or false to shade each by its height (green low to magenta at cruise).</summary>
@@ -237,6 +249,10 @@ namespace ManaGeoTools.Code.Flights
         private MeshRendererComponent? _renderer;
         // The markers' own node, kept out of shadows and reflections: thousands of darts would speckle the globe.
         private ManaSceneNode? _markers;
+        private FlightTrafficModels? _models;
+        private readonly List<Nearest> _nearest = [];
+
+        private readonly record struct Nearest(int Index, float DistanceSquared, Vector3 Center, Vector3 Heading, Vector3 Up, float Size, Vector4 Color);
 
         public FlightTrafficComponent(ManaSceneNode owner) : base(owner)
         {
@@ -316,6 +332,7 @@ namespace ManaGeoTools.Code.Flights
                     Owner.RemoveChild(_markers);
                 }
                 _markers = null;
+                _models = null;
                 _renderer = null;
             }
         }
@@ -473,6 +490,7 @@ namespace ManaGeoTools.Code.Flights
                 _drawnIndexes = new int[states.Length];
                 _drawnCenters = new Vector3[states.Length];
             }
+            _nearest.Clear();
             var index = -1;
             foreach (ref readonly var state in states.AsSpan())
             {
@@ -513,11 +531,46 @@ namespace ManaGeoTools.Code.Flights
                 {
                     color = AltitudeColor(altitude, state.OnGround);
                 }
+                var distanceSquared = Vector3.DistanceSquared(camera, center);
+                var range = ModelRange * 1000.0f * planet.Radius / PlanetLoader.EarthRadiusMeters;
+                if (Models && ModelCount > 0 && (distanceSquared < range * range || state.Icao24 == SelectedIcao24))
+                {
+                    // The selected aircraft first, then nearest first.
+                    if (state.Icao24 == SelectedIcao24)
+                    {
+                        distanceSquared = -1.0f;
+                    }
+                    _nearest.Add(new Nearest(index, distanceSquared, center, heading, direction, size, color));
+                    continue;
+                }
                 mesh.SetMarker(shown, center, heading, direction, size, color);
                 _drawnIndexes[shown] = index;
                 _drawnCenters[shown] = center;
                 shown++;
             }
+
+            // The nearest few as models, the rest as markers; a model that cannot load leaves its marker.
+            _models ??= new FlightTrafficModels(Owner.Context, _markers!);
+            _models.Begin();
+            if (_nearest.Count > 0)
+            {
+                _nearest.Sort(static (a, b) => a.DistanceSquared.CompareTo(b.DistanceSquared));
+                for (var i = 0; i < _nearest.Count; i++)
+                {
+                    var near = _nearest[i];
+                    var size = near.Size;
+                    if (i < ModelCount && _models.Place(FlightTrafficModels.KindOf(states[near.Index]), near.Center, near.Heading, near.Up, near.Size * ModelScale))
+                    {
+                        // Its marker folds to nothing; the slot stays, so picking still finds the aircraft.
+                        size = 0.0f;
+                    }
+                    mesh.SetMarker(shown, near.Center, near.Heading, near.Up, size, near.Color);
+                    _drawnIndexes[shown] = near.Index;
+                    _drawnCenters[shown] = near.Center;
+                    shown++;
+                }
+            }
+            _models.End();
 
             mesh.Publish(shown);
             _drawnCount = shown;

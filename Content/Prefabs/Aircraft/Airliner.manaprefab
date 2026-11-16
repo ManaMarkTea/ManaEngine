@@ -1,0 +1,50 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "1dca72d1792e46b8b7e959c44b9f0581",
+  "name": "Airliner",
+  "root": {
+    "id": "3b89c736426c4fb2842849f4be76855f",
+    "name": "Airliner",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "1f7c4ead26da4e318e13c9316e8a5f9d",
+        "name": "Body",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          0,
+          1.570796,
+          0
+        ],
+        "scale": [
+          1.9,
+          1.9,
+          1.9
+        ],
+        "asset": "Assets/Models/Aircraft/airliner.glb"
+      }
+    ]
+  },
+  "properties": []
+}

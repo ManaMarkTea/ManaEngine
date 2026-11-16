@@ -1,0 +1,50 @@
+{
+  "format": "mana-prefab",
+  "version": 1,
+  "id": "ea1edc3e352e4075a5d35014c4a5813f",
+  "name": "Light Aircraft",
+  "root": {
+    "id": "1cc60715fc4f45ddaa81f8520bc10632",
+    "name": "Light Aircraft",
+    "kind": "Group",
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "children": [
+      {
+        "id": "b94b6c859d9549c69e8e74500ff13caa",
+        "name": "Body",
+        "kind": "Mesh",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "asset": "Assets/Models/Aircraft/biplane.glb"
+      }
+    ]
+  },
+  "properties": []
+}
