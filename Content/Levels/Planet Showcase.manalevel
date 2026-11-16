@@ -6,8 +6,8 @@
     "publish": false
   },
   "camera": {
-    "position": [32, 40, 19113032],
-    "rotation": [0, 0, 0]
+    "position": [11983026, 9413750, 1259495],
+    "rotation": [-0.66323, 1.46608, 0]
   },
   "nodes": [
     {

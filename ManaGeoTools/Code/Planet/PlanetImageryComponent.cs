@@ -142,6 +142,8 @@ namespace ManaGeoTools.Code.Planet
                 var finished = Path.Combine(CacheFolder, Safe(key) + ".jpg");
                 if (File.Exists(finished))
                 {
+                    // Decoded and mip-mapped here, so the render thread only uploads it.
+                    ManaTexturePrefetch.Prepare(finished);
                     Status = $"{Layer} from the saved picture";
                     return finished;
                 }
@@ -168,6 +170,7 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 ManaImageCodec.SavePng(image, finished, jpegQuality: 88);
+                ManaTexturePrefetch.Store(finished, image);
                 RemoveOtherPictures(finished, download);
                 Status = $"{Layer}, {width} x {width / 2}, borders painted";
                 return finished;

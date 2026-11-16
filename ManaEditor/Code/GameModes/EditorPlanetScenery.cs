@@ -347,17 +347,7 @@ namespace Mana.Code.GameModes
         // lets the expensive rebuild coalesce into one (see PlanetDrapedLines.RebuildSettleFrames).
         private const int DrapePointsPerFrame = 8192;
 
-        // Fly speed is divided by this per unit of height: at the default speed of 50 the camera covers about half
-        // its own height a second, from orbit down to rooftops; the speed slider and right-drag scroll scale it.
-        private const float SpeedHeightReference = 5.0f;
-
-        // Near plane as a share of the height above the surface, so the depth buffer's range follows the camera
-        // down instead of spreading 24 bits over a whole planet.
-        private const float NearClipHeightShare = 0.005f;
-
-        private float? _farClipBeforePlanet;
-        private float? _nearClipBeforePlanet;
-        private CameraComponent? _heldCamera;
+        private PlanetCameraFit? _cameraFit;
 
         /// <summary>A planet came: flying slows towards its surface, and the clip planes follow the height.</summary>
         private void HoldCamera()
@@ -368,68 +358,21 @@ namespace Mana.Code.GameModes
                 return;
             }
 
-            _heldCamera = camera;
-            _farClipBeforePlanet = camera.FarClipPlane;
-            _nearClipBeforePlanet = camera.NearClipPlane;
-            camera.MovementSpeedScale = position => PlanetHeight(position) / SpeedHeightReference;
-            FitCameraToPlanet();
+            _cameraFit = new PlanetCameraFit(camera, Planet);
         }
 
         private void ReleaseCamera()
         {
-            if (_heldCamera == null)
-            {
-                return;
-            }
-
-            _heldCamera.MovementSpeedScale = null;
-            if (_farClipBeforePlanet is { } far && _nearClipBeforePlanet is { } near)
-            {
-                _heldCamera.FarClipPlane = far;
-                _heldCamera.NearClipPlane = near;
-                _heldCamera.UpdateProjection();
-            }
-
-            _heldCamera = null;
-            _farClipBeforePlanet = null;
-            _nearClipBeforePlanet = null;
+            _cameraFit?.Release();
+            _cameraFit = null;
         }
 
-        /// <summary>Height above the planet's sea-level sphere, in world units; a sliver above zero inside it.</summary>
-        private float PlanetHeight(Vector3 worldPosition)
-        {
-            var planet = Planet;
-            if (planet == null)
-            {
-                return SpeedHeightReference;
-            }
-
-            var distance = Vector3.Distance(worldPosition, planet.WorldTransform.Translation);
-            return MathF.Max(distance - planet.Radius, planet.Radius * 1e-6f);
-        }
-
-        /// <summary>Far plane just past the horizon (with the level's own far as a floor), near plane a small share of the height.</summary>
         private void FitCameraToPlanet()
         {
-            var camera = _heldCamera;
-            var planet = Planet;
             // A loaded region sets its own clip planes (ProcessPendingRegionRequest).
-            if (camera == null || planet == null || Region != null || _farClipBeforePlanet is not { } baseFar || _nearClipBeforePlanet is not { } baseNear)
+            if (Region == null)
             {
-                return;
-            }
-
-            var distance = Vector3.Distance(camera.Owner.Position, planet.WorldTransform.Translation);
-            var height = PlanetHeight(camera.Owner.Position);
-            var horizon = MathF.Sqrt(MathF.Max(0.0f, distance * distance - planet.Radius * planet.Radius));
-            // A tenth of a radius past the horizon keeps mountains and the far limb from being cut.
-            var far = MathF.Max(baseFar, horizon + planet.Radius * 0.1f);
-            var near = MathF.Max(baseNear, height * NearClipHeightShare);
-            if (MathF.Abs(far - camera.FarClipPlane) > far * 0.01f || MathF.Abs(near - camera.NearClipPlane) > near * 0.01f)
-            {
-                camera.FarClipPlane = far;
-                camera.NearClipPlane = near;
-                camera.UpdateProjection();
+                _cameraFit?.Update();
             }
         }
 

@@ -1590,25 +1590,64 @@ namespace ManaGeoTools.Code.Planet
         private volatile string? _imageryPath;
 
         /// <summary>The equirectangular picture the surface wears (a PlanetImagery script's), or null for biome colours.</summary>
-        public string? ImageryPath => _imageryPath;
+        public string? ImageryPath => _requestedImageryPath;
 
-        /// <summary>Dresses every patch, and every one made from now on, in <paramref name="path"/>'s picture.</summary>
+        /// <summary>
+        /// Dresses every patch, and every one made from now on, in <paramref name="path"/>'s picture. Patches already
+        /// built are re-dressed in place one at a time on a worker, each under the rebuild lock for only its own few
+        /// milliseconds: done all at once on the main thread it froze the first frames for ten seconds.
+        /// </summary>
         public void SetImagery(string? path)
         {
-            lock (_rebuildLock)
+            // Only noted here: the rebuild lock can be held for seconds while heights load, and the main thread must not wait.
+            if (_retired || string.Equals(_requestedImageryPath, path, StringComparison.Ordinal))
             {
-                if (_retired || string.Equals(_imageryPath, path, StringComparison.Ordinal))
+                return;
+            }
+
+            _requestedImageryPath = path;
+            var generation = Interlocked.Increment(ref _imageryGeneration);
+            Task.Run(() =>
+            {
+                PatchLeaf[] leaves;
+                lock (_rebuildLock)
                 {
-                    return;
+                    if (_retired || generation != Volatile.Read(ref _imageryGeneration))
+                    {
+                        return;
+                    }
+
+                    _imageryPath = path;
+                    leaves = _leaves.Values.ToArray();
                 }
 
-                _imageryPath = path;
-                foreach (var leaf in _leaves.Values)
+                foreach (var leaf in leaves)
                 {
-                    leaf.Mesh.SetImagery(path);
+                    lock (_rebuildLock)
+                    {
+                        // A newer picture (or none) was asked for meanwhile; it carries on from here.
+                        if (_retired || generation != Volatile.Read(ref _imageryGeneration))
+                        {
+                            return;
+                        }
+
+                        if (string.Equals(leaf.Mesh.ImageryPath, path, StringComparison.Ordinal))
+                        {
+                            continue;
+                        }
+
+                        // Taking a picture off brings the biome colours back, which only a regeneration can.
+                        if (path == null || !leaf.Mesh.TryDressInPlace(path))
+                        {
+                            leaf.Mesh.SetImagery(path);
+                        }
+                    }
                 }
-            }
+            });
         }
+
+        private volatile string? _requestedImageryPath;
+        private int _imageryGeneration;
 
         private void RebuildAllPatches()
         {

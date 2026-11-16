@@ -46,6 +46,7 @@ namespace Mana.Code.GameModes
         private ManaWebGpuContext? _webGpuContext;
 #if !MANA_BROWSER
         private PlanetNode? _planet;
+        private PlanetCameraFit? _planetCamera;
 #endif
 
         /// <param name="levelPath">The level to play, or null to open on the level select (<see cref="OffersLevelSelect"/>).</param>
@@ -215,6 +216,9 @@ namespace Mana.Code.GameModes
             var hud = new Grid();
             hud.Children.Add(playHud);
             hud.Children.Add(_gameModes.HudLayer);
+            // A planet's flight traffic: airport rings, and picking a flight by click or callsign, as in the editor.
+            hud.Children.Add(new AirportTrafficOverlay(() => Context.World.MainCamera));
+            hud.Children.Add(new FlightSelectionOverlay(() => Context.World.MainCamera));
             if (SafeArea != null || ControlsBar != null)
             {
                 hud.BindPolled(el => el.Margin, () =>
@@ -322,6 +326,10 @@ namespace Mana.Code.GameModes
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
 #if !MANA_BROWSER
             _planet = result.Planet;
+            if (_planet != null && Context.World.MainCamera is { } planetCamera)
+            {
+                _planetCamera = new PlanetCameraFit(planetCamera, _planet);
+            }
 #endif
 
             foreach (var warning in result.Warnings)
@@ -488,6 +496,7 @@ namespace Mana.Code.GameModes
             _commandRunner.Register("open_level", command => ChooseLevel(Mana.Code.Automation.ManaCommandRunner.RequirePath(command)));
             _commandRunner.Register("levels", _ => ShowLevelSelect());
             _commandRunner.Register("ui_click", command => ClickLabel(command.Name));
+            FlightSelectionOverlay.RegisterCommand(_commandRunner, Context.World);
         }
 
         public override void Closing()
@@ -573,6 +582,8 @@ namespace Mana.Code.GameModes
                 }
             }
 #if !MANA_BROWSER
+            _planetCamera?.Release();
+            _planetCamera = null;
             _planet = null;
 #endif
             if (_ground != null)
@@ -664,6 +675,13 @@ namespace Mana.Code.GameModes
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             Context.World.GameState.Tick((float)deltaTime);
 #if !MANA_BROWSER
+            // Play may swap cameras after loading (the free debug camera); the fit follows whichever is current.
+            if (_planet != null && Context.World.MainCamera is { } liveCamera && _planetCamera?.Camera != liveCamera)
+            {
+                _planetCamera?.Release();
+                _planetCamera = new PlanetCameraFit(liveCamera, _planet);
+            }
+            _planetCamera?.Update();
             _planet?.UpdateAutoLod(Context.World.MainCamera);
             _planet?.UpdateNearOcean(Context.World.MainCamera);
             _planet?.UpdateDetailChase();

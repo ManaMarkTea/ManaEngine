@@ -201,6 +201,14 @@ namespace ManaGraphics.Code.Graphics.Resources
             uint height;
 
             var hasFile = !string.IsNullOrWhiteSpace(cpuData.AlbedoTexturePath) && File.Exists(cpuData.AlbedoTexturePath);
+            // Decoded and mip-mapped ahead on another thread: only the upload is left for this one.
+            if (hasFile && ManaCore.Imaging.ManaTexturePrefetch.TryTake(cpuData.AlbedoTexturePath!, out var prepared))
+            {
+                CreateRgba8Texture(prepared.Image.Pixels, (uint)prepared.Image.Width, (uint)prepared.Image.Height, "mesh",
+                    TextureFormat.Rgba8UnormSrgb, out meshTexture, out meshTextureView, prepared.Mips);
+                ManaConsole.WriteDiagnostic($"WebGPU mesh texture uploaded from a prefetch: {cpuData.AlbedoTexturePath}");
+                return;
+            }
             if (hasFile && TryCreateDdsTexture(() => File.ReadAllBytes(cpuData.AlbedoTexturePath!), srgb: true, "mesh", out meshTexture, out meshTextureView))
             {
                 return;
@@ -440,10 +448,11 @@ namespace ManaGraphics.Code.Graphics.Resources
                 : new[] { byte.MaxValue, byte.MaxValue, byte.MaxValue, byte.MaxValue };
         }
 
-        private void CreateRgba8Texture(byte[] pixels, uint width, uint height, string diagnosticName, TextureFormat format, out Texture* texture, out TextureView* textureView)
+        private void CreateRgba8Texture(byte[] pixels, uint width, uint height, string diagnosticName, TextureFormat format, out Texture* texture, out TextureView* textureView,
+            List<(byte[] Pixels, int Width, int Height)>? prebuiltMips = null)
         {
             // Every level down to 1 x 1: without them a texture tiled into the distance (ground, brick) shimmers.
-            var mips = ManaCore.Imaging.ManaMipChain.Build(pixels, (int)width, (int)height, format == TextureFormat.Rgba8UnormSrgb);
+            var mips = prebuiltMips ?? ManaCore.Imaging.ManaMipChain.Build(pixels, (int)width, (int)height, format == TextureFormat.Rgba8UnormSrgb);
             var levelCount = (uint)(mips.Count + 1);
             var textureDescriptor = new TextureDescriptor
             {

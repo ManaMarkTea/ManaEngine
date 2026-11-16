@@ -44,6 +44,32 @@ public sealed class FlightSelectionOverlay : Canvas
         Children.Add(_search);
     }
 
+    /// <summary>select_flight: a flight by callsign (or ICAO address), as the search box finds it; no name clears the pick.</summary>
+    public static void RegisterCommand(Mana.Code.Automation.ManaCommandRunner runner, ManaWorld world)
+    {
+        // A flight by callsign (or ICAO address), as the viewport's search box finds it; no name clears the pick.
+        runner.Register("select_flight", command =>
+        {
+            if (FindTraffic(world) is not { } found)
+            {
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic("Command file: select_flight found no flight traffic, skipping.");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(command.Name))
+            {
+                found.Traffic.Select(null);
+                return;
+            }
+            if (found.Traffic.Find(command.Name) is not { } state)
+            {
+                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: select_flight found no flight '{command.Name}'.");
+                return;
+            }
+            Focus(world.MainCamera, found.Planet, found.Traffic, state);
+            ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: flight {state.Callsign} ({state.Icao24}) selected.");
+        });
+    }
+
     /// <summary>The first planet in the world carrying flight traffic, if any.</summary>
     internal static (PlanetNode Planet, FlightTrafficComponent Traffic)? FindTraffic(ManaWorld world)
     {

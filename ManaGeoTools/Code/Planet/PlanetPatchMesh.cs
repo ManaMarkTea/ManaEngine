@@ -4,6 +4,7 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Shapes;
 using ManaCore.Diagnostics;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.Geo;
 using ManaGeoTools.Code.GeoTiff;
 
@@ -129,6 +130,50 @@ namespace ManaGeoTools.Code.Planet
                 ApplyImagery(Materials[0]);
             }
             GenerateData();
+        }
+
+        /// <summary>
+        /// Puts on a picture without rebuilding the geometry: the published vertices keep their positions and normals,
+        /// only their colours turn white and their coordinates become the picture's. A fraction of a regeneration, so
+        /// the planet can be dressed patch by patch off the main thread. False when there is nothing published yet.
+        /// </summary>
+        public bool TryDressInPlace(string imageryPath)
+        {
+            if (CpuData is not { } current)
+            {
+                return false;
+            }
+
+            var axisA = new Vector3(FaceNormal.Y, FaceNormal.Z, FaceNormal.X);
+            var axisB = Vector3.Cross(FaceNormal, axisA);
+            var middle = CubeSphere.WarpCubeToSphere(FaceNormal + (0.5f * (MinU + MaxU) * axisA) + (0.5f * (MinV + MaxV) * axisB));
+            var centerU = LatLong.FromPointOnSphere(middle, 1f, 0f).ToUv().X;
+            var positions = current.Positions;
+            var coordinates = new Vector2[positions.Length];
+            var colors = new Vector4[positions.Length];
+            Array.Fill(colors, Vector4.One);
+            // The same coordinates GenerateData gives under a picture; skirts hang straight down, so their direction matches the edge's.
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var uv = LatLong.FromPointOnSphere(Vector3.Normalize(positions[i]), 1f, 0f).ToUv();
+                coordinates[i] = new Vector2(UnwrapU(uv.X, centerU), 1f - uv.Y);
+            }
+
+            ImageryPath = imageryPath;
+            SetCpuData(new ManaMeshCpuData
+            {
+                Indexes = current.Indexes,
+                Positions = positions,
+                Normals = current.Normals,
+                Colors = colors,
+                TextureCoordinates0 = coordinates,
+                TextureCoordinates1 = coordinates
+            });
+            if (Materials.Length > 0)
+            {
+                ApplyImagery(Materials[0]);
+            }
+            return true;
         }
 
         private void ApplyImagery(ManaMaterial material)

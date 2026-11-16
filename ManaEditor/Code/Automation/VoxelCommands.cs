@@ -126,27 +126,7 @@ namespace ManaEditor.Code.Automation
                 EditorSelectionSnapshot.SelectNode(context.World.Selection, node, sceneGraphChanged: true);
             });
 
-            // A flight by callsign (or ICAO address), as the viewport's search box finds it; no name clears the pick.
-            runner.Register("select_flight", command =>
-            {
-                if (UI.ManaUi.FlightSelectionOverlay.FindTraffic(context.World) is not { } found)
-                {
-                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic("Command file: select_flight found no flight traffic, skipping.");
-                    return;
-                }
-                if (string.IsNullOrWhiteSpace(command.Name))
-                {
-                    found.Traffic.Select(null);
-                    return;
-                }
-                if (found.Traffic.Find(command.Name) is not { } state)
-                {
-                    ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: select_flight found no flight '{command.Name}'.");
-                    return;
-                }
-                UI.ManaUi.FlightSelectionOverlay.Focus(context.World.MainCamera, found.Planet, found.Traffic, state);
-                ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Command file: flight {state.Callsign} ({state.Icao24}) selected.");
-            });
+            UI.ManaUi.FlightSelectionOverlay.RegisterCommand(runner, context.World);
 
             runner.Register("open_prefab", command =>
             {
