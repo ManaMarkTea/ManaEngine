@@ -60,6 +60,46 @@
       }
     },
     {
+      "name": "Editor: Planet Showcase",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaEditor (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.dll",
+      "args": [
+        "--graphics",
+        "webgpu",
+        "--level",
+        "Content/Levels/Planet Showcase.manalevel"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "1. Editor",
+        "order": 4
+      }
+    },
+    {
+      "name": "Game: Planet Showcase",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "Build: ManaEditor (Debug)",
+      "program": "${workspaceFolder}/Artifacts/Bin/ManaEditor/Debug/net10.0/ManaEditor.dll",
+      "args": [
+        "--graphics",
+        "webgpu",
+        "--play",
+        "Content/Levels/Planet Showcase.manalevel"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "presentation": {
+        "group": "2. Game",
+        "order": 2
+      }
+    },
+    {
       "name": "Tests: all (headless)",
       "type": "coreclr",
       "request": "launch",

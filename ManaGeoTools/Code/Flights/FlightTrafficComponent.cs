@@ -58,6 +58,21 @@ namespace ManaGeoTools.Code.Flights
         [JsonIgnore]
         public int AircraftShown { get; private set; }
 
+        /// <summary>The relay to read (ManaServers' on hera); empty goes to OpenSky directly.</summary>
+        public string RelayUrl { get => _client.RelayUrl ?? ""; set => _client.RelayUrl = value; }
+
+        /// <summary>Set while traffic comes from a fallback because the usual source failed -- shown under the flight search.</summary>
+        [JsonIgnore]
+        public string? FeedNote { get; private set; }
+
+        /// <summary>Where the traffic shown came from; None until a fetch has answered.</summary>
+        [JsonIgnore]
+        public FlightFeedSource Source { get; private set; }
+
+        /// <summary>The last fetch brought traffic (false: what is shown is the saved reply, or nothing).</summary>
+        [JsonIgnore]
+        public bool Live { get; private set; }
+
         /// <summary>Airports with traffic round them, busiest first; recounted every <see cref="AirportRecountSeconds"/>.</summary>
         [JsonIgnore]
         public IReadOnlyList<AirportCount> BusyAirports { get; private set; } = [];
@@ -131,7 +146,8 @@ namespace ManaGeoTools.Code.Flights
             {
                 _detailsCancel = new CancellationTokenSource();
                 var token = _detailsCancel.Token;
-                _detailsWork = Task.Run(() => FlightDetailsLookup.FetchAsync(state, token));
+                var relay = RelayUrl;
+                _detailsWork = Task.Run(() => FlightDetailsLookup.FetchAsync(state, relay, token));
             }
         }
 
@@ -234,6 +250,12 @@ namespace ManaGeoTools.Code.Flights
                 if (UpdateSeconds > 0.0f)
                 {
                     return TimeSpan.FromSeconds(Math.Max(10.0f, UpdateSeconds));
+                }
+
+                // The relay refetches on its own timer; asking it every minute costs OpenSky nothing.
+                if (Source is FlightFeedSource.Relay or FlightFeedSource.None)
+                {
+                    return TimeSpan.FromSeconds(60);
                 }
 
                 if (_client.HasAccount)
@@ -372,11 +394,22 @@ namespace ManaGeoTools.Code.Flights
         {
             var reply = await _client.FetchAsync(_cancel.Token).ConfigureAwait(false);
             _creditsLeft = reply.CreditsLeft ?? _creditsLeft;
+            Source = reply.Source;
+            Live = reply.Json != null;
+            FeedNote = reply.FallbackReason;
+            if (reply.Json == null && OperatingSystem.IsBrowser())
+            {
+                FeedNote = $"Flight relay unreachable ({reply.Error}); the browser has no other way to OpenSky";
+            }
             if (reply.Json == null)
             {
                 var wait = reply.RetryAfter ?? TimeSpan.FromSeconds(120);
                 _nextFetchUtc = DateTime.UtcNow + wait;
                 Status = $"Fetch failed: {reply.Error}; trying again in {FormatAge(wait)}";
+                if (!OperatingSystem.IsBrowser())
+                {
+                    FeedNote = $"No live traffic ({reply.Error}); showing the last saved reply";
+                }
                 return null;
             }
 
@@ -392,11 +425,12 @@ namespace ManaGeoTools.Code.Flights
                 Console.WriteLine($"[Flights] Could not save the reply: {ex.Message}");
             }
 
-            var account = "anonymous";
-            if (_client.HasAccount)
+            var account = reply.Source switch
             {
-                account = "account";
-            }
+                FlightFeedSource.Relay => "relay",
+                FlightFeedSource.OpenSkyAccount => "account",
+                _ => "anonymous"
+            };
 
             var credits = "";
             if (_creditsLeft is { } left)
@@ -404,7 +438,13 @@ namespace ManaGeoTools.Code.Flights
                 credits = $", {left} credits left ({account})";
             }
 
-            Status = $"{snapshot.States.Length:N0} aircraft from OpenSky; next fetch in {FormatAge(Interval)}{credits}";
+            var from = reply.Source switch
+            {
+                FlightFeedSource.Relay => "the relay",
+                FlightFeedSource.OpenSkyAccount => "OpenSky (this machine's account)",
+                _ => "OpenSky (anonymous)"
+            };
+            Status = $"{snapshot.States.Length:N0} aircraft from {from}; next fetch in {FormatAge(Interval)}{credits}";
             return snapshot;
         }
 

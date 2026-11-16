@@ -457,9 +457,14 @@ dark when it casts shadows, which a click selects; the selected light's range as
   (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,
   airframe and route (`FlightDetailsLookup`: adsbdb.com, the callsign's usual route -- greyed with a "?" and not drawn when
   the aircraft is over 400 km off it), its flown path (OpenSky tracks) and a dashed great circle on to the destination.
-  Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
-  `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
-  reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).
+  Traffic comes from the relay on hera (`https://hera.manamarktea.com/flights`, `relayUrl`; the ManaServers repo's
+  `flight_relay` role: one fetch every 90 s with the OpenSky account, shared by every viewer, the browser's only way in)
+  and, when it fails, from OpenSky directly -- with an API client in `OPENSKY_CLIENT_ID`/`_SECRET` or
+  `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` (90 s; the relay uses the same account, so it is a fallback only)
+  or anonymously (15 min). The panel's pill says which (`FlightTrafficComponent.Source`/`FeedNote`, the story in its
+  tooltip). The flight UI is `FlightPanelManaView` (frosted panel: count, feed pill, search, the picked flight's card)
+  hosted by `FlightSelectionOverlay`, in the editor viewport and in `--play`. The last reply is kept in
+  `Library/FlightTraffic/`. Non-commercial use only.
 - **Planet imagery:** a `PlanetImagery` script on a Planet node fetches a NASA GIBS global layer once (`layer`, default
   `BlueMarble_ShadedRelief_Bathymetry`; `width` 8192), paints Natural Earth's coastlines, country and state borders into it
   (`PlanetBorderPainter`; `borders`/`states`, colours, widths in km) and keeps one JPEG in `Library/PlanetImagery/` (~5 MB plus the

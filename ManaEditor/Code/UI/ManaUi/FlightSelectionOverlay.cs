@@ -10,39 +10,36 @@ using ManaUI;
 namespace ManaEditor.Code.UI.ManaUi;
 
 /// <summary>
-/// Picks one aircraft out of a planet's flight traffic -- a click on its marker, or its callsign in the search box --
-/// and shows it: a card with its route, airframe and flight data, the path it has flown (OpenSky's track) and a
-/// dashed great circle on to its destination.
+/// Picks one aircraft out of a planet's flight traffic -- a click on its marker, or its callsign in the panel's search
+/// (<see cref="FlightPanelManaView"/>, hosted here) -- and draws it over the globe: the path it has flown (OpenSky's
+/// track), a dashed great circle on to its destination, the two airports and a ring round the aircraft.
 /// </summary>
 public sealed class FlightSelectionOverlay : Canvas
 {
     private const float PickReach = 10.0f;
     private const float Inset = 12.0f;
-    private const float CardWidth = 340.0f;
     private const int RouteSegments = 64;
 
     private static readonly Vector4 Shadow = new(0.0f, 0.0f, 0.0f, 0.65f);
-    private static readonly Vector4 Card = new(0.04f, 0.06f, 0.1f, 0.86f);
     private static readonly Vector4 Flown = new(1.0f, 1.0f, 1.0f, 0.95f);
     private static readonly Vector4 Ahead = new(1.0f, 0.75f, 0.3f, 0.9f);
     private static readonly Vector4 Dim = new(0.78f, 0.82f, 0.88f, 1.0f);
-    private static readonly Vector4 Stale = new(0.55f, 0.58f, 0.62f, 1.0f);
 
     private readonly Func<CameraComponent?> _camera;
-    private readonly TextBox _search;
-    private UiRect _card;
-    private UiRect _close;
-    private string? _notFound;
+    private readonly UiElement _panel;
 
-    public FlightSelectionOverlay(Func<CameraComponent?> camera)
+    public FlightSelectionOverlay(UiTheme theme, Func<CameraComponent?> camera)
     {
         _camera = camera;
         IsHitTestVisible = true;
-        _search = new TextBox { Placeholder = "Find a flight (callsign)", Width = 240.0f }.At(Inset, Inset);
-        _search.TextCommitted += (_, text) => Search(text);
-        _search.TextChanged += (_, _) => _notFound = null;
-        Children.Add(_search);
+        _panel = FlightPanelManaView.Build(theme, this).At(Inset, Inset);
+        Children.Add(_panel);
     }
+
+    /// <summary>What the last search found nothing for, said under the search field.</summary>
+    public string? NotFound { get; private set; }
+
+    public void ClearNotFound() => NotFound = null;
 
     /// <summary>select_flight: a flight by callsign (or ICAO address), as the search box finds it; no name clears the pick.</summary>
     public static void RegisterCommand(Mana.Code.Automation.ManaCommandRunner runner, ManaWorld world)
@@ -93,7 +90,7 @@ public sealed class FlightSelectionOverlay : Canvas
         return null;
     }
 
-    private (PlanetNode Planet, FlightTrafficComponent Traffic)? Current()
+    public (PlanetNode Planet, FlightTrafficComponent Traffic)? Current()
     {
         if (_camera() is not { } camera)
         {
@@ -104,16 +101,16 @@ public sealed class FlightSelectionOverlay : Canvas
 
     protected override Vector2 MeasureOverride(Vector2 availableSize)
     {
-        _search.Visibility = Visibility.Collapsed;
+        _panel.Visibility = Visibility.Collapsed;
         if (Current() != null)
         {
-            _search.Visibility = Visibility.Visible;
+            _panel.Visibility = Visibility.Visible;
         }
         base.MeasureOverride(availableSize);
         return Vector2.Zero;
     }
 
-    // The search box and the card take the pointer, and so does an aircraft under it; everywhere else goes on to the viewport.
+    // The panel takes the pointer, and so does an aircraft under it; everywhere else goes on to the viewport.
     public override UiElement? HitTest(Vector2 point)
     {
         if (!Bounds.Contains(point) || Current() is not { } found)
@@ -123,10 +120,6 @@ public sealed class FlightSelectionOverlay : Canvas
         if (base.HitTest(point) is { } child && child != this)
         {
             return child;
-        }
-        if (found.Traffic.SelectedIcao24 != null && _card.Contains(point))
-        {
-            return this;
         }
         if (PickAt(found, point) != null)
         {
@@ -139,15 +132,6 @@ public sealed class FlightSelectionOverlay : Canvas
     {
         if (e.Button != PointerButton.Left || Current() is not { } found)
         {
-            return;
-        }
-        if (found.Traffic.SelectedIcao24 != null && _card.Contains(e.Position))
-        {
-            if (_close.Contains(e.Position))
-            {
-                found.Traffic.Select(null);
-            }
-            e.Handled = true;
             return;
         }
         if (PickAt(found, e.Position) is { } icao24)
@@ -192,7 +176,8 @@ public sealed class FlightSelectionOverlay : Canvas
         };
     }
 
-    private void Search(string text)
+    /// <summary>Selects the flight a callsign names and puts the camera above it.</summary>
+    public void Search(string text)
     {
         if (Current() is not { } found || string.IsNullOrWhiteSpace(text))
         {
@@ -200,7 +185,7 @@ public sealed class FlightSelectionOverlay : Canvas
         }
         if (found.Traffic.Find(text) is not { } state)
         {
-            _notFound = $"No flight {text.Trim().ToUpperInvariant()} in the feed";
+            NotFound = $"No flight {text.Trim().ToUpperInvariant()} in the feed";
             return;
         }
         if (_camera() is { } camera)
@@ -229,7 +214,6 @@ public sealed class FlightSelectionOverlay : Canvas
 
     protected override void OnRender(ManaUiDrawList drawList)
     {
-        _card = default;
         if (Root == null || _camera() is not { } camera || Current() is not { } found)
         {
             return;
@@ -238,17 +222,12 @@ public sealed class FlightSelectionOverlay : Canvas
         drawList.PushClip(Bounds);
         try
         {
-            if (_notFound != null)
-            {
-                Text(drawList, _notFound, new Vector2(Bounds.X + Inset + 250.0f, Bounds.Y + Inset + 4.0f), Ahead, small: true);
-            }
             if (found.Traffic.Selected is not { } state)
             {
                 return;
             }
             var project = Projector(camera, found.Planet);
             DrawPaths(drawList, found.Planet, found.Traffic, state, project);
-            DrawCard(drawList, found.Traffic, state);
         }
         finally
         {
@@ -299,7 +278,7 @@ public sealed class FlightSelectionOverlay : Canvas
     // this, the route is shown as the usual one and not drawn.
     private const float OffRouteKilometres = 400.0f;
 
-    private static bool OnRoute(FlightDetails details, FlightState state)
+    public static bool OnRoute(FlightDetails details, FlightState state)
     {
         if (details.Origin is not { } origin || details.Destination is not { } destination)
         {
@@ -378,115 +357,6 @@ public sealed class FlightSelectionOverlay : Canvas
         Text(drawList, code, at + new Vector2(8.0f, -8.0f), colour, small: false);
     }
 
-    private void DrawCard(ManaUiDrawList drawList, FlightTrafficComponent traffic, FlightState state)
-    {
-        var details = traffic.SelectedDetails;
-        var lines = new List<(string Text, Vector4 Colour, bool Small)>();
-        var stale = -1;
-        var title = state.Callsign;
-        if (title.Length == 0)
-        {
-            title = state.Icao24.ToUpperInvariant();
-        }
-        if (details?.Airline is { } airline)
-        {
-            title += "  " + airline;
-        }
-        lines.Add((title, Vector4.One, false));
-
-        if (details == null)
-        {
-            lines.Add(("Looking up its route and path...", Dim, true));
-        }
-        else
-        {
-            if (details.Origin is { } origin && details.Destination is { } destination)
-            {
-                // A route the aircraft is nowhere near is the callsign's usual one, not this trip: greyed and badged.
-                var route = $"{origin.Code} {origin.City}  ->  {destination.Code} {destination.City}";
-                if (OnRoute(details, state))
-                {
-                    lines.Add((route, Ahead, true));
-                }
-                else
-                {
-                    stale = lines.Count;
-                    lines.Add((route, Stale, true));
-                }
-            }
-            else
-            {
-                lines.Add(("No route on record for this callsign", Dim, true));
-            }
-            var airframe = string.Join("  ", new[] { details.AircraftType, details.Registration }.Where(part => !string.IsNullOrEmpty(part)));
-            if (airframe.Length > 0)
-            {
-                lines.Add((airframe, Dim, true));
-            }
-        }
-
-        var feet = state.AltitudeMeters * 3.28084f;
-        var knots = state.SpeedMetersPerSecond * 1.94384f;
-        var climb = state.VerticalRateMetersPerSecond * 196.85f;
-        var vertical = "level";
-        if (climb > 100.0f)
-        {
-            vertical = $"climbing {climb:N0} ft/min";
-        }
-        else if (climb < -100.0f)
-        {
-            vertical = $"descending {-climb:N0} ft/min";
-        }
-        if (state.OnGround)
-        {
-            lines.Add(($"On the ground  {knots:N0} kt", Vector4.One, true));
-        }
-        else
-        {
-            lines.Add(($"{feet:N0} ft ({state.AltitudeMeters:N0} m)  {knots:N0} kt  heading {state.TrackDegrees:000}", Vector4.One, true));
-            lines.Add((vertical, Dim, true));
-        }
-        var age = Math.Max(0.0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 - state.PositionTime);
-        var track = "";
-        if (details is { Track.Length: > 0 })
-        {
-            track = $"  path of {details.Track.Length} points";
-        }
-        lines.Add(($"ICAO {state.Icao24}  reported {FormatAge(age)} ago{track}", Dim, true));
-
-        // Measured, then boxed under the search field.
-        const float pad = 10.0f;
-        var layouts = lines.Select(line => (Layout: Layout(line.Text, line.Small), line.Colour)).ToList();
-        var height = pad * 2 + layouts.Sum(line => line.Layout.Size.Y + 3.0f);
-        _card = new UiRect(Bounds.X + Inset, Bounds.Y + Inset + 40.0f, CardWidth, height);
-        drawList.FillRect(_card, Card, new CornerRadius(8.0f));
-        drawList.FillRect(new UiRect(_card.X, _card.Y, 3.0f, _card.Height), Flown, new CornerRadius(1.5f));
-        var y = _card.Y + pad;
-        for (var i = 0; i < layouts.Count; i++)
-        {
-            var (layout, colour) = layouts[i];
-            layout.Render(drawList, new UiRect(_card.X + pad + 4.0f, y, layout.Size.X, layout.Size.Y), colour);
-            if (i == stale)
-            {
-                Badge(drawList, new Vector2(_card.X + pad + 10.0f + layout.Size.X, y), layout.Size.Y);
-            }
-            y += layout.Size.Y + 3.0f;
-        }
-
-        _close = new UiRect(_card.Right - 26.0f, _card.Y + 6.0f, 20.0f, 20.0f);
-        var cross = Layout("x", small: false);
-        cross.Render(drawList, new UiRect(_close.Center - cross.Size * 0.5f, cross.Size), Dim);
-    }
-
-    // An amber "?" pill: the route beside it is probably not this trip's.
-    private void Badge(ManaUiDrawList drawList, Vector2 at, float height)
-    {
-        var mark = Layout("?", small: true);
-        var pill = new UiRect(at.X, at.Y, MathF.Max(height, mark.Size.X + 8.0f), height);
-        drawList.FillRect(pill, Ahead, new CornerRadius(height * 0.5f));
-        mark.Render(drawList, new UiRect(pill.Center - mark.Size * 0.5f, mark.Size), Card);
-    }
-
     private TextLayout Layout(string text, bool small)
     {
         var theme = Root!.Theme;
@@ -508,14 +378,5 @@ public sealed class FlightSelectionOverlay : Canvas
         var layout = Layout(text, small);
         layout.Render(drawList, new UiRect(at + new Vector2(1.5f, 1.5f), layout.Size), Shadow);
         layout.Render(drawList, new UiRect(at, layout.Size), colour);
-    }
-
-    private static string FormatAge(double seconds)
-    {
-        if (seconds >= 90.0)
-        {
-            return $"{seconds / 60.0:0} min";
-        }
-        return $"{seconds:0} s";
     }
 }

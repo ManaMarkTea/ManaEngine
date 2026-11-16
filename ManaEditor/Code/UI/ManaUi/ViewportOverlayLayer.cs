@@ -72,7 +72,7 @@ namespace ManaEditor.Code.UI.ManaUi
                 Add(new TerrainBrushOverlay(camera), ViewportSlot.Fill);
                 Add(new LightGizmoOverlay(camera), ViewportSlot.Fill);
                 Add(new AirportTrafficOverlay(camera), ViewportSlot.Fill);
-                Add(new FlightSelectionOverlay(camera), ViewportSlot.Fill);
+                Add(new FlightSelectionOverlay(theme, camera), ViewportSlot.Fill);
 #if !MANA_BROWSER
                 Add(new LiveScanOverlay(camera), ViewportSlot.Fill);
 #endif

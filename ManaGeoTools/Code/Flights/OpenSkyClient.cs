@@ -5,7 +5,25 @@ using System.Text.Json;
 namespace ManaGeoTools.Code.Flights
 {
     /// <summary>The outcome of one fetch: the reply's bytes, or how long OpenSky asked us to wait.</summary>
-    public sealed record OpenSkyReply(byte[]? Json, TimeSpan? RetryAfter, string? Error, int? CreditsLeft);
+    public sealed record OpenSkyReply(byte[]? Json, TimeSpan? RetryAfter, string? Error, int? CreditsLeft)
+    {
+        /// <summary>Where the reply came from.</summary>
+        public FlightFeedSource Source { get; init; }
+
+        /// <summary>The usual source failed and this came from the next one; why, for the UI.</summary>
+        public string? FallbackReason { get; init; }
+    }
+
+    public enum FlightFeedSource
+    {
+        None,
+        /// <summary>The ManaServers relay on hera: one shared copy for every viewer, and the only way a browser gets traffic.</summary>
+        Relay,
+        /// <summary>OpenSky itself with this machine's API client.</summary>
+        OpenSkyAccount,
+        /// <summary>OpenSky itself, anonymously: 400 credits a day for this address, a fetch every 15 minutes.</summary>
+        OpenSkyAnonymous
+    }
 
     /// <summary>
     /// Fetches every aircraft from OpenSky (non-commercial use; credit "The OpenSky Network" where shown).
@@ -16,6 +34,9 @@ namespace ManaGeoTools.Code.Flights
     public sealed class OpenSkyClient
     {
         private const string StatesUrl = "https://opensky-network.org/api/states/all";
+
+        /// <summary>The relay ManaServers runs on hera (role flight_relay): /states, /tracks?icao24=, /health.</summary>
+        public const string DefaultRelayUrl = "https://hera.manamarktea.com/flights";
         private const string TokenUrl = "https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token";
 
         private static readonly HttpClient Http = CreateHttp();
@@ -26,7 +47,61 @@ namespace ManaGeoTools.Code.Flights
 
         public bool HasAccount => _credentials != null;
 
+        /// <summary>The relay to read first; null or empty goes to OpenSky directly.</summary>
+        public string? RelayUrl { get; set; } = DefaultRelayUrl;
+
+        /// <summary>
+        /// Every aircraft: from the relay (one shared copy, no credits spent here), and when the relay fails, from OpenSky
+        /// itself -- with this machine's API client if it has one, anonymously if not. The relay uses the same account,
+        /// so asking OpenSky every time as well would spend its credits twice. The browser has only the relay.
+        /// </summary>
         public async Task<OpenSkyReply> FetchAsync(CancellationToken cancellation)
+        {
+            var relay = RelayUrl;
+            if (string.IsNullOrEmpty(relay))
+            {
+                return await FetchDirectAsync(cancellation).ConfigureAwait(false);
+            }
+
+            var reply = await FetchRelayAsync(relay, cancellation).ConfigureAwait(false);
+            if (reply.Json != null || OperatingSystem.IsBrowser())
+            {
+                return reply;
+            }
+            var direct = await FetchDirectAsync(cancellation).ConfigureAwait(false);
+            return direct with { FallbackReason = $"Relay unreachable ({reply.Error}); straight from OpenSky" };
+        }
+
+        private static async Task<OpenSkyReply> FetchRelayAsync(string relay, CancellationToken cancellation)
+        {
+            try
+            {
+                using var response = await Http.GetAsync($"{relay.TrimEnd('/')}/states", cancellation).ConfigureAwait(false);
+                if (!response.IsSuccessStatusCode)
+                {
+                    return new OpenSkyReply(null, null, $"relay said {(int)response.StatusCode}", null) { Source = FlightFeedSource.Relay };
+                }
+                var json = await response.Content.ReadAsByteArrayAsync(cancellation).ConfigureAwait(false);
+                return new OpenSkyReply(json, null, null, null) { Source = FlightFeedSource.Relay };
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellation.IsCancellationRequested)
+            {
+                return new OpenSkyReply(null, null, ex.Message, null) { Source = FlightFeedSource.Relay };
+            }
+        }
+
+        private async Task<OpenSkyReply> FetchDirectAsync(CancellationToken cancellation)
+        {
+            var source = FlightFeedSource.OpenSkyAnonymous;
+            if (HasAccount)
+            {
+                source = FlightFeedSource.OpenSkyAccount;
+            }
+            var reply = await FetchOpenSkyAsync(cancellation).ConfigureAwait(false);
+            return reply with { Source = source };
+        }
+
+        private async Task<OpenSkyReply> FetchOpenSkyAsync(CancellationToken cancellation)
         {
             try
             {
@@ -145,8 +220,22 @@ namespace ManaGeoTools.Code.Flights
 
         private static HttpClient CreateHttp()
         {
-            var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-FlightTraffic/1.0");
+            HttpClient http;
+            // The relay gzips the 1.5 MB reply; the browser's fetch unpacks it by itself.
+            if (OperatingSystem.IsBrowser())
+            {
+                http = new HttpClient();
+            }
+            else
+            {
+                http = new HttpClient(new HttpClientHandler { AutomaticDecompression = DecompressionMethods.All });
+            }
+            http.Timeout = TimeSpan.FromSeconds(60);
+            // Browsers refuse a page setting its own User-Agent.
+            if (!OperatingSystem.IsBrowser())
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-FlightTraffic/1.0");
+            }
             return http;
         }
     }

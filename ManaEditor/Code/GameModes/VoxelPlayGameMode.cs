@@ -218,7 +218,7 @@ namespace Mana.Code.GameModes
             hud.Children.Add(_gameModes.HudLayer);
             // A planet's flight traffic: airport rings, and picking a flight by click or callsign, as in the editor.
             hud.Children.Add(new AirportTrafficOverlay(() => Context.World.MainCamera));
-            hud.Children.Add(new FlightSelectionOverlay(() => Context.World.MainCamera));
+            hud.Children.Add(new FlightSelectionOverlay(host.Root.Theme, () => Context.World.MainCamera));
             if (SafeArea != null || ControlsBar != null)
             {
                 hud.BindPolled(el => el.Margin, () =>

@@ -27,9 +27,9 @@ namespace ManaGeoTools.Code.Flights
     {
         private static readonly HttpClient Http = CreateHttp();
 
-        public static async Task<FlightDetails> FetchAsync(FlightState state, CancellationToken cancellation)
+        public static async Task<FlightDetails> FetchAsync(FlightState state, string? relayUrl, CancellationToken cancellation)
         {
-            var track = FetchTrackAsync(state.Icao24, cancellation);
+            var track = FetchTrackAsync(state.Icao24, relayUrl, cancellation);
             var route = FetchJsonAsync($"https://api.adsbdb.com/v0/callsign/{Uri.EscapeDataString(state.Callsign)}", cancellation);
             var aircraft = FetchJsonAsync($"https://api.adsbdb.com/v0/aircraft/{Uri.EscapeDataString(state.Icao24)}", cancellation);
             string? airline = null;
@@ -75,10 +75,21 @@ namespace ManaGeoTools.Code.Flights
             return new FlightDetails(airline, origin, destination, type, registration, await track.ConfigureAwait(false), error);
         }
 
-        // OpenSky's track: [time, latitude, longitude, baro altitude, track, on ground] a waypoint.
-        private static async Task<TrackPoint[]> FetchTrackAsync(string icao24, CancellationToken cancellation)
+        // OpenSky's track: [time, latitude, longitude, baro altitude, track, on ground] a waypoint. The relay first
+        // (the browser's only way); OpenSky itself when the relay has nothing.
+        private static async Task<TrackPoint[]> FetchTrackAsync(string icao24, string? relayUrl, CancellationToken cancellation)
         {
-            using var json = await FetchJsonAsync($"https://opensky-network.org/api/tracks/all?icao24={Uri.EscapeDataString(icao24)}&time=0", cancellation).ConfigureAwait(false);
+            var id = Uri.EscapeDataString(icao24);
+            JsonDocument? json = null;
+            if (!string.IsNullOrEmpty(relayUrl))
+            {
+                json = await FetchJsonAsync($"{relayUrl.TrimEnd('/')}/tracks?icao24={id}", cancellation).ConfigureAwait(false);
+            }
+            if (json == null && !OperatingSystem.IsBrowser())
+            {
+                json = await FetchJsonAsync($"https://opensky-network.org/api/tracks/all?icao24={id}&time=0", cancellation).ConfigureAwait(false);
+            }
+            using var owned = json;
             if (json == null || !json.RootElement.TryGetProperty("path", out var path) || path.ValueKind != JsonValueKind.Array)
             {
                 return [];
@@ -146,7 +157,10 @@ namespace ManaGeoTools.Code.Flights
         private static HttpClient CreateHttp()
         {
             var http = new HttpClient { Timeout = TimeSpan.FromSeconds(30) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-FlightTraffic/1.0");
+            if (!OperatingSystem.IsBrowser())
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-FlightTraffic/1.0");
+            }
             return http;
         }
     }
