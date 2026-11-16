@@ -899,11 +899,28 @@ namespace Mana.Code.GameModes
         // so this avoids fighting the selection/active-voxel outline blocks above over the same
         // MeshRendererComponent. Component-grained (not node-grained), since several unrelated patches
         // can share one root node -- a streaming patch must not light up its idle siblings.
+        private bool IsPlanetSelected(ManaSceneNode planet)
+        {
+            for (var node = Context.World.Selection.SelectedNode; node != null; node = node.Parent)
+            {
+                if (node == planet)
+                {
+                    return true;
+                }
+            }
+
+            return Context.World.Selection.SelectedComponent?.Owner is { } owner && owner.Parent == planet;
+        }
+
         private void UpdateStreamingActivityOutlines(MeshRendererComponent? selectedComponent, ManaSceneNode? activeNode)
         {
-            var currentComponents = _planet != null
-                ? new HashSet<MeshRendererComponent>(_planet.GetStreamingActivityComponents())
-                : new HashSet<MeshRendererComponent>();
+            // Only while the planet (or a patch of it) is selected: anything in front of an outlined patch -- every
+            // aircraft of the flight traffic -- cuts holes in its mask and comes out outlined too.
+            var currentComponents = new HashSet<MeshRendererComponent>();
+            if (_planet != null && IsPlanetSelected(_planet))
+            {
+                currentComponents.UnionWith(_planet.GetStreamingActivityComponents());
+            }
 
             foreach (var component in _lastStreamingHighlightedComponents)
             {

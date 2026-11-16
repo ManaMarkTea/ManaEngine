@@ -26,16 +26,16 @@ public static partial class ManaImageCodec
 
     public static ManaImage Load(ReadOnlySpan<byte> bytes) => Load(bytes.ToArray());
 
-    /// <summary>Saves as PNG on desktop. In the browser, whose encoder is asynchronous too, as raw pixels that
+    /// <summary>Saves as PNG on desktop (JPEG at <paramref name="jpegQuality"/> when the path ends .jpg). In the browser, whose encoder is asynchronous too, as raw pixels that
     /// <see cref="Load(string)"/> reads back -- its files live in memory and are only ever read by this.</summary>
-    public static void SavePng(ManaImage image, string path)
+    public static void SavePng(ManaImage image, string path, int jpegQuality = 95)
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(path));
         if (!string.IsNullOrEmpty(directory))
         {
             Directory.CreateDirectory(directory);
         }
-        Encode(image, path);
+        Encode(image, path, jpegQuality);
     }
 
     /// <summary>Decodes a picture ahead of a synchronous <see cref="Load(byte[])"/> -- needed in the browser, a no-op elsewhere.</summary>

@@ -261,7 +261,7 @@ namespace ManaGeoTools.Code.Planet
                     {
                         var minU = -1f + (col * step);
                         var mesh = new PlanetPatchMesh(
-                            context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null);
+                            context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null, _imageryPath);
                         var key = PatchKey.Root(face, row, col);
                         // A permanent, shared container -- every patch this root's subtree ever splits
                         // into lives as a MeshRendererComponent on this SAME node, so the scene graph's
@@ -652,7 +652,7 @@ namespace ManaGeoTools.Code.Planet
                 var child = children[index];
                 var childMesh = new PlanetPatchMesh(
                     Context, parentMesh.FaceNormal, child.MinU, child.MaxU, child.MinV, child.MaxV, Radius,
-                    parentLeaf.Mesh.Resolution, heightScale, HeightLibrary);
+                    parentLeaf.Mesh.Resolution, heightScale, HeightLibrary, _imageryPath);
 
                 pending.ChildKeys[index] = child.Key;
                 pending.ChildMeshes[index] = childMesh;
@@ -967,7 +967,7 @@ namespace ManaGeoTools.Code.Planet
 
             var heightScale = ComputeHeightScale();
             var mergedMesh = new PlanetPatchMesh(
-                Context, faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius, resolution: 2, heightScale, heightLibrary: null);
+                Context, faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius, resolution: 2, heightScale, heightLibrary: null, _imageryPath);
 
             var pending = new PendingMerge
             {
@@ -1073,6 +1073,12 @@ namespace ManaGeoTools.Code.Planet
             }
 
             var mergedMesh = pending.MergedMesh;
+            // Built off the lock: the picture may have arrived since.
+            if (!string.Equals(mergedMesh.ImageryPath, _imageryPath, StringComparison.Ordinal))
+            {
+                mergedMesh.SetImagery(_imageryPath);
+            }
+
             var mergedRenderer = new MeshRendererComponent(rootNode, mergedMesh)
             {
                 Name = PatchName(pending.MergedKey, pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel),
@@ -1579,6 +1585,29 @@ namespace ManaGeoTools.Code.Planet
 
             splitPlan = new PatchSplitPlan { Children = children };
             return true;
+        }
+
+        private volatile string? _imageryPath;
+
+        /// <summary>The equirectangular picture the surface wears (a PlanetImagery script's), or null for biome colours.</summary>
+        public string? ImageryPath => _imageryPath;
+
+        /// <summary>Dresses every patch, and every one made from now on, in <paramref name="path"/>'s picture.</summary>
+        public void SetImagery(string? path)
+        {
+            lock (_rebuildLock)
+            {
+                if (_retired || string.Equals(_imageryPath, path, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                _imageryPath = path;
+                foreach (var leaf in _leaves.Values)
+                {
+                    leaf.Mesh.SetImagery(path);
+                }
+            }
         }
 
         private void RebuildAllPatches()

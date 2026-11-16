@@ -44,5 +44,26 @@ public static class FlightTrafficChecks
         check("a climb runs for a while, then levels off", FlightDeadReckoning.Altitude(climbing, 600) == 10000 + 10 * FlightDeadReckoning.VerticalRateSeconds, "");
         var descending = east with { AltitudeMeters = 100, VerticalRateMetersPerSecond = -10 };
         check("a descent never goes below the ground", FlightDeadReckoning.Altitude(descending, 60) == 0, "");
+
+        // Two fields 30 km apart: an arrival counts for the nearer one only; cruisers overhead and taxiing aircraft not at all.
+        Airport[] airports = [new("AAA", "A", 40.0f, -100.0f), new("BBB", "B", 40.0f, -99.65f), new("FAR", "F", 0.0f, 0.0f)];
+        FlightState Near(float longitude, float altitude, bool onGround = false) =>
+            new("x", "", longitude, 40.0f, altitude, 0, 0, 0, 100, onGround);
+        var traffic = new FlightSnapshot(100, [Near(-100.05f, 1500), Near(-99.95f, 2000), Near(-99.6f, 800), Near(-100.0f, 11000), Near(-100.0f, 0, onGround: true)]);
+        var busy = AirportTraffic.Count(airports, traffic, 100, 100, 4500);
+        check("aircraft coming and going count for their nearest airport, busiest first",
+            busy.Length == 2 && busy[0].Airport.Code == "AAA" && busy[0].Count == 2 && busy[1].Airport.Code == "BBB" && busy[1].Count == 1,
+            string.Join(", ", busy.Select(b => $"{b.Airport.Code} {b.Count}")));
+
+        // A border painted across a small picture lands where its longitude says, and nowhere else.
+        var picture = new ManaCore.Imaging.ManaImage(360, 180);
+        PlanetBorderPainter.Paint(picture, [new List<(double, double)> { (0, -60), (0, 60) }], 333.0f, new Vector4(1, 1, 1, 1));
+        byte Red(int x, int y) => picture.Pixels[(y * 360 + x) * 4];
+        check("a meridian border is painted along its longitude", Red(180, 90) > 200 && Red(179, 90) > 200, $"{Red(180, 90)} {Red(179, 90)}");
+        check("and leaves the rest of the picture alone", Red(185, 90) == 0 && Red(180, 10) == 0, $"{Red(185, 90)} {Red(180, 10)}");
+
+        check("a patch across the date line keeps its longitudes on one side of it",
+            MathF.Abs(PlanetPatchMesh.UnwrapU(0.02f, 0.99f) - 1.02f) < 1e-6f && MathF.Abs(PlanetPatchMesh.UnwrapU(0.98f, 0.01f) + 0.02f) < 1e-6f
+            && PlanetPatchMesh.UnwrapU(0.4f, 0.5f) == 0.4f, "");
     }
 }

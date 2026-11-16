@@ -31,6 +31,23 @@ namespace ManaGeoTools.Code.Flights
 
         public bool ShowGrounded { get; set; }
 
+        /// <summary>Every aircraft in <see cref="Color"/>, or false to shade each by its height (green low to magenta at cruise).</summary>
+        public bool OneColor { get; set; } = true;
+
+        public Vector4 Color { get; set; } = new(0.3f, 0.85f, 1.0f, 1.0f);
+
+        /// <summary>Rings round the busiest airports, sized by the aircraft coming and going (drawn by the editor's viewport).</summary>
+        public bool ShowAirports { get; set; } = true;
+
+        /// <summary>How far from an airport, in kilometres, an aircraft counts as one of its own.</summary>
+        public float AirportRadius { get; set; } = 100.0f;
+
+        /// <summary>Aircraft above this many metres are passing over, not coming or going.</summary>
+        public float AirportAltitude { get; set; } = 4500.0f;
+
+        /// <summary>How many of the busiest airports are ringed.</summary>
+        public int AirportCount { get; set; } = 40;
+
         /// <summary>Aircraft not heard from in this long are dropped rather than flown on blind.</summary>
         public float MaxAgeMinutes { get; set; } = 30.0f;
 
@@ -40,6 +57,20 @@ namespace ManaGeoTools.Code.Flights
 
         [JsonIgnore]
         public int AircraftShown { get; private set; }
+
+        /// <summary>Airports with traffic round them, busiest first; recounted every <see cref="AirportRecountSeconds"/>.</summary>
+        [JsonIgnore]
+        public IReadOnlyList<AirportCount> BusyAirports { get; private set; } = [];
+
+        private const double AirportRecountSeconds = 20.0;
+        private static readonly Lazy<Airport[]> Airports = new(() => AirportTraffic.Load(ManaTexture.ResolveTexturePath(Path.Combine("Assets", "GeoData", "airports.csv"))));
+        private Task<AirportCount[]>? _counting;
+        private DateTime _nextCountUtc;
+
+        private const long RedrawMilliseconds = 100;
+        private Vector3 _drawnFrom;
+        private FlightSnapshot? _drawnSnapshot;
+        private long _drawnAt;
 
         private readonly OpenSkyClient _client = new();
         private readonly CancellationTokenSource _cancel = new();
@@ -101,6 +132,7 @@ namespace ManaGeoTools.Code.Flights
             if (_snapshot != null)
             {
                 Draw(planet, _snapshot);
+                CountAirports(_snapshot);
             }
         }
 
@@ -129,6 +161,7 @@ namespace ManaGeoTools.Code.Flights
             if (_work.IsCompletedSuccessfully && _work.Result is { } snapshot)
             {
                 _snapshot = snapshot;
+                _nextCountUtc = DateTime.MinValue;
             }
 
             _work = null;
@@ -237,6 +270,11 @@ namespace ManaGeoTools.Code.Flights
             var mesh = _mesh!;
             Matrix4x4.Invert(Owner.WorldTransform, out var toLocal);
             var camera = Vector3.Transform(Owner.Context.World.CameraNode.WorldTransform.Translation, toLocal);
+            if (!DueForRedraw(planet, snapshot, camera))
+            {
+                return;
+            }
+
             var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
             var maxAge = MaxAgeMinutes * 60.0f;
             var heightScale = planet.Radius * AltitudeScale / PlanetLoader.EarthRadiusMeters;
@@ -261,15 +299,67 @@ namespace ManaGeoTools.Code.Flights
 
                 var (direction, heading) = FlightDeadReckoning.Advance(state, seconds);
                 var altitude = FlightDeadReckoning.Altitude(state, seconds);
+                // Over the horizon: hidden by the planet anyway, and half the traffic not rewritten every frame.
+                if (Vector3.Dot(direction, camera) < planet.Radius * 0.99f)
+                {
+                    continue;
+                }
+
                 var center = direction * (planet.Radius + altitude * heightScale);
                 var size = Vector3.Distance(camera, center) * MarkerSize;
-                mesh.SetMarker(shown, center, heading, direction, size, AltitudeColor(altitude, state.OnGround));
+                var color = Color;
+                if (!OneColor)
+                {
+                    color = AltitudeColor(altitude, state.OnGround);
+                }
+                mesh.SetMarker(shown, center, heading, direction, size, color);
                 shown++;
             }
 
-            mesh.ClearFrom(shown);
-            mesh.Publish();
+            mesh.Publish(shown);
             AircraftShown = shown;
+        }
+
+        // Aircraft creep across the screen, so a still camera needs them rewritten ten times a second, not every frame;
+        // a moving one (their size follows its distance) every frame.
+        private bool DueForRedraw(PlanetNode planet, FlightSnapshot snapshot, Vector3 camera)
+        {
+            var now = Environment.TickCount64;
+            var height = MathF.Max(camera.Length() - planet.Radius, planet.Radius * 1e-6f);
+            var moved = Vector3.Distance(camera, _drawnFrom) > height * 0.001f;
+            if (!moved && ReferenceEquals(snapshot, _drawnSnapshot) && now - _drawnAt < RedrawMilliseconds)
+            {
+                return false;
+            }
+
+            _drawnFrom = camera;
+            _drawnSnapshot = snapshot;
+            _drawnAt = now;
+            return true;
+        }
+
+        // Off the main thread: every low aircraft against a thousand airports is a few milliseconds.
+        private void CountAirports(FlightSnapshot snapshot)
+        {
+            if (_counting is { IsCompleted: true } done)
+            {
+                if (done.IsCompletedSuccessfully)
+                {
+                    BusyAirports = done.Result;
+                }
+                _counting = null;
+            }
+
+            if (!ShowAirports || _counting != null || DateTime.UtcNow < _nextCountUtc)
+            {
+                return;
+            }
+
+            _nextCountUtc = DateTime.UtcNow.AddSeconds(AirportRecountSeconds);
+            var radius = AirportRadius;
+            var altitude = AirportAltitude;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            _counting = Task.Run(() => AirportTraffic.Count(Airports.Value, snapshot, now, radius, altitude));
         }
 
         private void Rebuild(PlanetNode planet, int count)

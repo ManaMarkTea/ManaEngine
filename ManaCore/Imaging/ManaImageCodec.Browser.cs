@@ -47,7 +47,7 @@ public static partial class ManaImageCodec
         throw new InvalidDataException("The picture has not been decoded yet.");
     }
 
-    private static void Encode(ManaImage image, string path)
+    private static void Encode(ManaImage image, string path, int jpegQuality)
     {
         var bytes = new byte[RawHeader + image.Width * image.Height * 4];
         RawMagic.CopyTo(bytes);

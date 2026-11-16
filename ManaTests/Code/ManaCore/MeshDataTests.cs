@@ -26,6 +26,15 @@ public static class MeshDataChecks
         check("a moved vertex changes it", a.GeometryHash != Triangle(lift: 0.01f).GeometryHash, "");
         check("a vertex colour changes it", a.GeometryHash != Triangle(red: 0.5f).GeometryHash, "");
         check("the indices change it", a.GeometryHash != Triangle(last: 1).GeometryHash, "");
+        static ManaMeshCpuData Unshared(ManaMeshCpuData source) => new()
+        {
+            Positions = source.Positions, Normals = source.Normals, Colors = source.Colors,
+            TextureCoordinates0 = source.TextureCoordinates0, TextureCoordinates1 = source.TextureCoordinates1,
+            Indexes = source.Indexes, Unshared = true
+        };
+        var once = Unshared(a);
+        check("geometry rewritten every frame is never batched with another, even alike",
+            once.GeometryHash != Unshared(a).GeometryHash && once.GeometryHash != a.GeometryHash && once.GeometryHash == once.GeometryHash, "");
 
         var lifted = Triangle(lift: 2.0f);
         check("bounds round the positions", lifted.Bounds == (new Vector3(0, 0, 0), new Vector3(1, 2, 1)), $"{lifted.Bounds}");

@@ -27,6 +27,7 @@
         "nearOceanEnabled": true
       },
       "scripts": [
+        { "id": "f0c2966e119c444296cf5be2aa6ab008", "type": "PlanetImagery", "properties": {} },
         { "id": "c2830423bcd047ee9d0b3b3e0e3da982", "type": "FlightTraffic", "properties": {} }
       ]
     }

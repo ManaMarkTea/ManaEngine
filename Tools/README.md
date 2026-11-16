@@ -16,6 +16,7 @@ These are development tools, not runtime dependencies unless a build explicitly 
 | `Mobile` | iOS wgpu-native build, mobile asset selection and app-icon generation. |
 | `Native` | Builds ManaEditor's FBX reader (`ManaEditor/Native/Fbx`, ufbx): `build-mana-fbx.ps1` on Windows (MSVC), `build-mana-fbx.sh` on the Mac. Rebuild and commit both after changing `mana_fbx.c` or updating ufbx. |
 | `PixelFx` | `parity.mjs` writes pixelfx's own per-frame hashes of each ported effect (a checkout at `../References/pixelfx`) for `PixelFxParityChecks`. |
+| `Planet` | `make_baseline.py` builds the planet's whole-globe height baseline; `make_airports.py` writes `Assets/GeoData/airports.csv` (OurAirports' large airports) for the flight traffic's airport rings. |
 | `Profiling` | Collects desktop .NET performance traces. |
 | `Sky` | Generates the constellation data shared by shaders and C#. |
 | `Sprites` | Reproduces the bow/arrow sprite assets. |

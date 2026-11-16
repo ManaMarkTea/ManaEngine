@@ -122,9 +122,18 @@ namespace ManaGeoTools.Code.Planet
                 return;
             }
 
-            AttachFarOcean();
+            // A satellite picture has its own seas; the water meshes would only cut blocky coastlines into them.
+            var pictured = _planet.ImageryPath != null;
+            if (pictured)
+            {
+                DetachFarOcean();
+            }
+            else
+            {
+                AttachFarOcean();
+            }
 
-            if (!Enabled)
+            if (!Enabled || pictured)
             {
                 DetachNearOcean();
                 SetFarOceanNearFade(active: false, Vector3.Zero, 0f, 0f, depthLiftCoefficient, depthLiftMaxUnits);

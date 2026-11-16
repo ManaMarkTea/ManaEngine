@@ -95,6 +95,13 @@ namespace ManaEditor.Code.Levels
                     ComponentType = typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent),
                     Create = node => new ManaGeoTools.Code.Flights.FlightTrafficComponent(node)
                 },
+                // A planet's satellite picture with borders painted in (ManaGeoTools); nothing on any other node.
+                new()
+                {
+                    Type = ManaGeoTools.Code.Planet.PlanetImageryComponent.ScriptType,
+                    ComponentType = typeof(ManaGeoTools.Code.Planet.PlanetImageryComponent),
+                    Create = node => new ManaGeoTools.Code.Planet.PlanetImageryComponent(node)
+                },
                 new()
                 {
                     Type = "Platformer2D",
@@ -279,6 +286,7 @@ namespace ManaEditor.Code.Levels
 
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaUiCanvasComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Planet.PlanetImageryComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]

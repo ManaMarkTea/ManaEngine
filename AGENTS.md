@@ -448,10 +448,19 @@ dark when it casts shadows, which a click selects; the selected light's range as
   and fits the clip planes to the height and horizon each frame. Float precision is ~0.5 m at that radius: fine from
   aircraft height, not for walking. The sky still draws as seen from the ground at any height.
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
-  tracks as a dart coloured by altitude (`altitudeScale`, 1 = true height; `markerSize` a share of camera distance), flown on by dead
-  reckoning between fetches. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
+  tracks as a plane in one colour (`oneColor`/`color`; off shades by altitude; `altitudeScale`, 1 = true height; `markerSize` a share of
+  camera distance), flown on by dead reckoning between fetches, rewritten 10 times a second while the camera is still (the mesh is
+  `ManaMeshCpuData.Unshared`: never fingerprinted for instancing). `showAirports` rings the busiest airports with the aircraft below
+  `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
+  `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
   `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
   reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).
+- **Planet imagery:** a `PlanetImagery` script on a Planet node fetches a NASA GIBS global layer once (`layer`, default
+  `BlueMarble_ShadedRelief_Bathymetry`; `width` 8192), paints Natural Earth's coastlines, country and state borders into it
+  (`PlanetBorderPainter`; `borders`/`states`, colours, widths in km) and keeps one JPEG in `Library/PlanetImagery/` (~5 MB plus the
+  3 MB download). `PlanetNode.SetImagery` puts it on every patch (white vertex colours, lat/long UVs unwrapped across the date
+  line) and drops the water meshes, whose blocky coasts would cut into the picture's own seas. The streaming patch outline
+  shows only while the planet is selected (aircraft in front of an outlined patch get outlined too). Desktop only.
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

@@ -32,14 +32,14 @@ public static partial class ManaImageCodec
         }
     }
 
-    private static void Encode(ManaImage image, string path)
+    private static void Encode(ManaImage image, string path, int jpegQuality)
     {
         using var stream = File.Create(path);
         var writer = new ImageWriter();
         if (path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase))
         {
             // Recorded video frames: thousands of them, so small and quick beats lossless. JPEG has no alpha.
-            writer.WriteJpg(image.Pixels, image.Width, image.Height, WriteComponents.RedGreenBlueAlpha, stream, 95);
+            writer.WriteJpg(image.Pixels, image.Width, image.Height, WriteComponents.RedGreenBlueAlpha, stream, jpegQuality);
             return;
         }
         writer.WritePng(image.Pixels, image.Width, image.Height, WriteComponents.RedGreenBlueAlpha, stream);

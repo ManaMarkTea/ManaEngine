@@ -41,6 +41,13 @@ namespace ManaCore.Graphics
         public bool NearestFiltering { get; init; }
 
         private ulong? _geometryHash;
+        private static long _nextUniqueHash;
+
+        /// <summary>
+        /// Geometry rewritten every frame (aircraft markers, particles made on the CPU): it never matches another mesh,
+        /// so it is given a hash of its own instead of having megabytes of vertices fingerprinted per frame.
+        /// </summary>
+        public bool Unshared { get; init; }
 
         /// <summary>
         /// A fingerprint of the geometry -- every vertex stream and the indices -- so two meshes built alike (a thousand
@@ -55,32 +62,48 @@ namespace ManaCore.Graphics
                     return known;
                 }
 
-                // 64-bit FNV-1a, with the lengths mixed in so arrays that merely run into each other differ.
-                var hash = 14695981039346656037UL;
-                void Mix(ReadOnlySpan<byte> bytes)
+                if (Unshared)
                 {
-                    foreach (var value in bytes)
-                    {
-                        hash = (hash ^ value) * 1099511628211UL;
-                    }
+                    // Odd numbers from the top of the range, apart from any fingerprint likely to come up.
+                    var unique = ulong.MaxValue - 2UL * (ulong)Interlocked.Increment(ref _nextUniqueHash);
+                    _geometryHash = unique;
+                    return unique;
                 }
-                void Length(int length) => Mix(BitConverter.GetBytes(length));
 
-                Length(Positions.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(Positions.AsSpan()));
-                Length(Normals.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(Normals.AsSpan()));
-                Length(Colors.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(Colors.AsSpan()));
-                Length(TextureCoordinates0.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(TextureCoordinates0.AsSpan()));
-                Length(TextureCoordinates1.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(TextureCoordinates1.AsSpan()));
-                Length(Indexes.Length);
-                Mix(System.Runtime.InteropServices.MemoryMarshal.AsBytes(Indexes.AsSpan()));
+                var hash = 14695981039346656037UL;
+                Mix(ref hash, Positions);
+                Mix(ref hash, Normals);
+                Mix(ref hash, Colors);
+                Mix(ref hash, TextureCoordinates0);
+                Mix(ref hash, TextureCoordinates1);
+                Mix(ref hash, Indexes);
                 _geometryHash = hash;
                 return hash;
             }
+        }
+
+        // Eight bytes a step with a multiply-and-fold after each, the length mixed in first so arrays that merely run
+        // into each other differ. Byte-at-a-time FNV took 30 ms a frame on a 100k-vertex mesh.
+        private static void Mix<T>(ref ulong hash, T[] values) where T : unmanaged
+        {
+            var bytes = System.Runtime.InteropServices.MemoryMarshal.AsBytes(values.AsSpan());
+            hash = Step(hash, (ulong)bytes.Length);
+            var words = System.Runtime.InteropServices.MemoryMarshal.Cast<byte, ulong>(bytes);
+            foreach (var word in words)
+            {
+                hash = Step(hash, word);
+            }
+
+            for (var i = words.Length * 8; i < bytes.Length; i++)
+            {
+                hash = Step(hash, bytes[i]);
+            }
+        }
+
+        private static ulong Step(ulong hash, ulong word)
+        {
+            hash = (hash ^ word) * 0x9E3779B97F4A7C15UL;
+            return hash ^ (hash >> 29);
         }
 
         private (Vector3 Min, Vector3 Max)? _bounds;

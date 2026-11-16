@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Mana;
 using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Shapes;
@@ -56,9 +57,11 @@ namespace ManaGeoTools.Code.Planet
             float radius,
             int resolution,
             float heightScale,
-            GeoTiffLibrary? heightLibrary)
+            GeoTiffLibrary? heightLibrary,
+            string? imageryPath = null)
             : base(context)
         {
+            ImageryPath = imageryPath;
             FaceNormal = faceNormal;
             MinU = minU;
             MaxU = maxU;
@@ -112,6 +115,31 @@ namespace ManaGeoTools.Code.Planet
             Resolution = Math.Max(2, resolution);
             _pendingPrecomputedHeights = precomputedHeights;
             GenerateData();
+        }
+
+        /// <summary>An equirectangular picture of the whole planet the patch wears instead of its biome colours; null for those.</summary>
+        public string? ImageryPath { get; private set; }
+
+        /// <summary>Puts on (or takes off) the planet's picture and regenerates, so the vertex colours turn white under it.</summary>
+        public void SetImagery(string? imageryPath)
+        {
+            ImageryPath = imageryPath;
+            if (Materials.Length > 0)
+            {
+                ApplyImagery(Materials[0]);
+            }
+            GenerateData();
+        }
+
+        private void ApplyImagery(ManaMaterial material)
+        {
+            if (ImageryPath == null)
+            {
+                material.Albedo.TextureValue = null;
+                return;
+            }
+
+            material.Albedo.TextureValue = new ManaTexture(Context) { OriginalFilename = ImageryPath, Name = "Planet Imagery" };
         }
 
         /// <summary>Updates the height displacement scale (e.g. from an Inspector edit) and regenerates.</summary>
@@ -218,8 +246,25 @@ namespace ManaGeoTools.Code.Planet
             material.Shader = new ManaPbrShader(Context);
             material.FlatShaded = true;
             material.Albedo.Value = DefaultVertexColor;
+            ApplyImagery(material);
             material.EnsureShaderMetadataDefaults();
             return material;
+        }
+
+        /// <summary>The longitude coordinate <paramref name="u"/> moved by whole turns to within half a turn of <paramref name="centerU"/>.</summary>
+        public static float UnwrapU(float u, float centerU)
+        {
+            if (u - centerU > 0.5f)
+            {
+                return u - 1f;
+            }
+
+            if (u - centerU < -0.5f)
+            {
+                return u + 1f;
+            }
+
+            return u;
         }
 
         // -1 means "not water", which is what PlanetColors expects for the land ramp.
@@ -264,6 +309,16 @@ namespace ManaGeoTools.Code.Planet
             // Natural Earth data isn't present, which falls back to elevation-only colouring.
             var waterLookup = BuildWaterLookup();
 
+            // Under a picture the colours are white, and longitudes are kept on the patch centre's side of the
+            // date line so a patch across it samples one stretch of the picture, not the whole width backwards.
+            var imagery = ImageryPath != null;
+            var centerU = 0.5f;
+            if (imagery)
+            {
+                var middle = CubeSphere.WarpCubeToSphere(FaceNormal + (0.5f * (MinU + MaxU) * axisA) + (0.5f * (MinV + MaxV) * axisB));
+                centerU = LatLong.FromPointOnSphere(middle, 1f, 0f).ToUv().X;
+            }
+
             var computeSphereTime = Stopwatch.GetTimestamp();
 
             ForEachRow(Resolution, y =>
@@ -296,7 +351,18 @@ namespace ManaGeoTools.Code.Planet
                     // Placeholder normal -- overwritten below once every vertex's displaced position
                     // is known, from the actual built geometry rather than the undisplaced sphere.
                     placeholderNormals[x, y] = pointOnUnitSphere;
-                    texCoords[x, y] = latLong.ToUv();
+                    var uv = latLong.ToUv();
+                    if (imagery)
+                    {
+                        // Pictures are uploaded bottom row first, so north is at v = 1.
+                        uv.X = UnwrapU(uv.X, centerU);
+                        uv.Y = 1f - uv.Y;
+                        texCoords[x, y] = uv;
+                        colors[x, y] = Vector4.One;
+                        continue;
+                    }
+
+                    texCoords[x, y] = uv;
                     colors[x, y] = PlanetColors.GetBiomeColor(
                         rawHeightMeters,
                         latLong.Latitude,
