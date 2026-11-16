@@ -253,14 +253,16 @@ public sealed class FlightSelectionOverlay : Canvas
             Polyline(drawList, points, project, Flown, dashed: false);
         }
 
-        // Ahead: a great circle down to the destination, when the route on record is this trip's.
-        if (details?.Destination is { } destination && OnRoute(details, state))
+        // Ahead: a great circle down to the destination -- the scheduled one this aircraft is flying, or the airport
+        // ahead it is descending toward.
+        var route = traffic.SelectedRoute;
+        if (route?.To is { } destination)
         {
             var end = traffic.Place(planet, destination.Latitude, destination.Longitude, 0.0f);
             Polyline(drawList, GreatCircle(here, end), project, Ahead, dashed: true);
             Pin(drawList, end, destination.Code, project, Ahead);
         }
-        if (details?.Origin is { } origin)
+        if (route?.From is { } origin)
         {
             Pin(drawList, traffic.Place(planet, origin.Latitude, origin.Longitude, 0.0f), origin.Code, project, Dim);
         }
@@ -272,28 +274,6 @@ public sealed class FlightSelectionOverlay : Canvas
             drawList.DrawBorder(ring, Shadow, 4.0f, new CornerRadius(14.0f));
             drawList.DrawBorder(ring, Flown, 2.0f, new CornerRadius(14.0f));
         }
-    }
-
-    // adsbdb knows a callsign's usual route; a reused one can be on another trip. Off its great circle by more than
-    // this, the route is shown as the usual one and not drawn.
-    private const float OffRouteKilometres = 400.0f;
-
-    public static bool OnRoute(FlightDetails details, FlightState state)
-    {
-        if (details.Origin is not { } origin || details.Destination is not { } destination)
-        {
-            return false;
-        }
-        var from = new LatLong(origin.Longitude, origin.Latitude).ToUnitSphere();
-        var to = new LatLong(destination.Longitude, destination.Latitude).ToUnitSphere();
-        var here = new LatLong(state.Longitude, state.Latitude).ToUnitSphere();
-        var normal = Vector3.Cross(from, to);
-        if (normal.LengthSquared() < 1e-10f)
-        {
-            return true;
-        }
-        var off = MathF.Asin(Math.Clamp(MathF.Abs(Vector3.Dot(here, Vector3.Normalize(normal))), 0.0f, 1.0f)) * PlanetLoader.EarthRadiusMeters / 1000.0f;
-        return off < OffRouteKilometres;
     }
 
     // Along the sphere between two points, the height eased from the first's to the second's.

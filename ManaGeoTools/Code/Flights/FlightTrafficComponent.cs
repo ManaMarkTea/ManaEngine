@@ -140,6 +140,31 @@ namespace ManaGeoTools.Code.Flights
         [JsonIgnore]
         public bool SelectedDetailsLoading => _detailsWork != null;
 
+        /// <summary>The selection's trip: the callsign's route on record when the aircraft is flying it, else what its track shows.</summary>
+        [JsonIgnore]
+        public FlightRoute? SelectedRoute
+        {
+            get
+            {
+                if (Selected is not { } state)
+                {
+                    return null;
+                }
+                // Judged again only when a new report or the details come in.
+                if (!ReferenceEquals(_routeFor, SelectedDetails) || _routeAt != state.PositionTime)
+                {
+                    _routeFor = SelectedDetails;
+                    _routeAt = state.PositionTime;
+                    _route = FlightRouteJudge.Judge(SelectedDetails, state, Airports.Value);
+                }
+                return _route;
+            }
+        }
+
+        private FlightDetails? _routeFor;
+        private double _routeAt = double.NaN;
+        private FlightRoute? _route;
+
         /// <summary>Picks an aircraft (null clears the pick) and starts fetching its details.</summary>
         public void Select(string? icao24)
         {

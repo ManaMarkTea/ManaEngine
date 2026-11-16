@@ -114,6 +114,40 @@ public static class FlightTrafficChecks
             check($"the camera's up turns from {from} onto {to}", Vector3.Distance(turned, to) < 1e-5f, $"{turned}");
         }
 
+        // A callsign's route on record is believed only when the aircraft is flying it (the two cards that showed otherwise).
+        var sfo = new RouteAirport("SFO", "San Francisco", "", 37.619f, -122.375f);
+        var clt = new RouteAirport("CLT", "Charlotte", "", 35.214f, -80.943f);
+        Airport[] fields = [new("PHX", "Phoenix", 33.434f, -112.012f), new("LAS", "Las Vegas", 36.08f, -115.152f), new("CLT", "Charlotte", 35.214f, -80.943f)];
+        FlightDetails Usual(RouteAirport from, RouteAirport to, params TrackPoint[] track) =>
+            new("American Airlines", from, to, null, null, track, null);
+        var eastbound = new FlightState("a", "AAL2460", -100.0f, 36.5f, 11000, 230, 92, 0, 0, false);
+        var flying = FlightRouteJudge.Judge(Usual(sfo, clt, new TrackPoint(0, 37.62f, -122.37f, 0)), eastbound, fields);
+        check("a route the aircraft is flying is shown as scheduled", flying is { Scheduled: true, From.Code: "SFO", To.Code: "CLT" }, $"{flying}");
+
+        // AAL2460 near Phoenix, coming down south-west from Charlotte: the record says SFO -> CLT, the other way.
+        var intoPhoenix = new FlightState("b", "AAL2460", -111.5f, 33.9f, 6980, 191, 227, -11, 0, false);
+        var seen = FlightRouteJudge.Judge(Usual(sfo, clt, new TrackPoint(0, 35.22f, -80.95f, 300)), intoPhoenix, fields);
+        check("flying away from the destination on record, the card shows its own trip instead",
+            seen is { Scheduled: false, From.Code: "CLT", To.Code: "PHX", ToGuessed: true, Usual: "SFO → CLT" }, $"{seen}");
+
+        // AAL2978 over Mexico at cruise, the record says PHL -> PIT: nothing known, and the record named as usual.
+        var phl = new RouteAirport("PHL", "Philadelphia", "", 39.872f, -75.241f);
+        var pit = new RouteAirport("PIT", "Pittsburgh", "", 40.492f, -80.233f);
+        var overMexico = new FlightState("c", "AAL2978", -113.74f, 29.62f, 11476, 231, 332, 0, 0, false);
+        var unknown = FlightRouteJudge.Judge(Usual(phl, pit, new TrackPoint(0, 29.0f, -113.0f, 11400)), overMexico, fields);
+        check("far off the route on record at cruise, the route is unknown", unknown is { HasEnds: false, Usual: "PHL → PIT" }, $"{unknown}");
+
+        // DAL1936 50 km south-west of Minneapolis, coming down heading east-south-east: being turned in, MSP 40 degrees off its course.
+        Airport[] minneapolis = [new("MSP", "Minneapolis", 44.882f, -93.222f)];
+        var turningIn = new FlightState("d", "DAL1936", -93.75f, 44.62f, 4915, 210, 112, -11, 0, false);
+        check("being turned in near an airport, it is still the likely arrival",
+            FlightRouteJudge.ArrivingAt(turningIn, new LatLong(-93.75f, 44.62f).ToUnitSphere(), minneapolis)?.Code == "MSP", "");
+
+        var westbound = eastbound with { TrackDegrees = 272 };
+        check("on the line but flying the other way is not the route", FlightRouteJudge.Judge(Usual(sfo, clt), westbound, fields) is { Scheduled: false }, "");
+        var equator = new LatLong(0, 0).ToUnitSphere();
+        check("a bearing due east is 90 degrees", MathF.Abs(FlightRouteJudge.Bearing(equator, new LatLong(10, 0).ToUnitSphere()) - 90) < 0.01f, "");
+
         // Flying 700 km a few metres a frame: every tiny turn of the up must count, or the horizon tilts.
         var frame = Quaternion.Identity;
         var start = Vector3.Normalize(new Vector3(0.3f, 1.0f, 0.2f));

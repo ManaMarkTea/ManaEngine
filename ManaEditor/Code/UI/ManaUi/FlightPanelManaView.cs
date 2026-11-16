@@ -108,7 +108,7 @@ public static class FlightPanelManaView
                 .GridColumn(0),
             close.GridColumn(1));
 
-        var route = Route(theme, selected, details);
+        var route = Route(theme, () => traffic()?.SelectedRoute, details);
 
         var tiles = new Grid().Columns("*,*", 8.0f).Rows("Auto,Auto", 8.0f).Children(
             Tile(theme, "ALTITUDE", () => Value(selected(), Feet), () => Value(selected(), Metres)).GridCell(0, 0),
@@ -149,62 +149,87 @@ public static class FlightPanelManaView
         return new StackPanel().Vertical(10.0f).Children(divider, title, route, tiles, airframe, footer);
     }
 
-    // ORD Chicago -> LAX Los Angeles, in the accent when it is this trip's route; grey with a "?" when the aircraft is
-    // nowhere near it (adsbdb knows a callsign's usual route, not today's).
-    private static UiElement Route(UiTheme theme, Func<FlightState?> selected, Func<FlightDetails?> details)
+    // ORD Chicago -> LAX Los Angeles in the accent when it is the scheduled route and this aircraft is flying it. Otherwise
+    // what the aircraft shows, in grey with a "?": where its track took off, and the airport ahead it is coming down
+    // to ("likely"); a dash for an end not known. "usually PHL -> PIT" names a route on record that was turned down.
+    private static UiElement Route(UiTheme theme, Func<FlightRoute?> route, Func<FlightDetails?> details)
     {
-        bool Matches()
-        {
-            return details() is { } d && selected() is { } s && FlightSelectionOverlay.OnRoute(d, s);
-        }
-        Vector4 Tone()
-        {
-            if (Matches())
-            {
-                return theme.Accent;
-            }
-            return theme.TextMuted;
-        }
-        bool HasRoute() => details() is { Origin: not null, Destination: not null };
+        bool Scheduled() => route() is { Scheduled: true };
+        bool HasEnds() => route() is { HasEnds: true };
 
-        UiElement End(Func<RouteAirport?> airport)
+        UiElement End(Func<RouteAirport?> airport, Func<string> note)
         {
-            var code = Medium(theme, theme.FontSizeHeading + 2.0f, theme.Text).BindTextPolled(() => airport()?.Code ?? "");
+            var code = Medium(theme, theme.FontSizeHeading + 2.0f, theme.Text).BindTextPolled(() => airport()?.Code ?? "—");
             code.BindPolled(el => el.Foreground, () =>
             {
-                if (Matches())
+                if (Scheduled())
                 {
                     return theme.Text;
                 }
                 return theme.TextMuted;
             });
-            var city = Small(theme, theme.TextMuted).Ellipsis().BindTextPolled(() => airport()?.City ?? "");
+            var city = Small(theme, theme.TextMuted).Ellipsis().BindTextPolled(() =>
+            {
+                var name = airport()?.City ?? "unknown";
+                var extra = note();
+                if (extra.Length == 0)
+                {
+                    return name;
+                }
+                return $"{name} · {extra}";
+            });
             return new StackPanel().Vertical(0.0f).Children(code, city);
         }
 
+        string Likely()
+        {
+            if (route() is { ToGuessed: true })
+            {
+                return "likely";
+            }
+            return "";
+        }
+
         var arrow = Medium(theme, theme.FontSizeHeading, theme.Accent).Text("→").CenterV();
-        arrow.BindPolled(el => el.Foreground, () => Tone());
-        var stale = new Border().Rounded(9.0f).Size(18.0f, 18.0f).Fill(theme.Warning).CenterV()
+        arrow.BindPolled(el => el.Foreground, () =>
+        {
+            if (Scheduled())
+            {
+                return theme.Accent;
+            }
+            return theme.TextMuted;
+        });
+        var seen = new Border().Rounded(9.0f).Size(18.0f, 18.0f).Fill(theme.Warning).CenterV()
             .Content(Small(theme, theme.Background).Text("?").Center())
-            .WithTooltip("This callsign's usual route -- the aircraft is nowhere near it, so it is not drawn");
-        stale.BindPolled(el => el.Visibility, () => Shown(HasRoute() && !Matches()));
+            .WithTooltip("Not a schedule: where its track took off, and the airport it is coming down toward");
+        seen.BindPolled(el => el.Visibility, () => Shown(HasEnds() && !Scheduled()));
 
         var row = new Grid().Columns("*,Auto,*,Auto", 10.0f).Children(
-            End(() => details()?.Origin).GridColumn(0),
+            End(() => route()?.From, () => "").GridColumn(0),
             arrow.GridColumn(1),
-            End(() => details()?.Destination).GridColumn(2),
-            stale.GridColumn(3));
-        row.BindPolled(el => el.Visibility, () => Shown(HasRoute()));
+            End(() => route()?.To, Likely).GridColumn(2),
+            seen.GridColumn(3));
+        row.BindPolled(el => el.Visibility, () => Shown(HasEnds()));
 
-        var none = Small(theme, theme.TextMuted).BindTextPolled(() => Pending(details(), "No route on record for this callsign"));
-        none.BindPolled(el => el.Visibility, () => Shown(!HasRoute()));
+        var none = Small(theme, theme.TextMuted).BindTextPolled(() =>
+        {
+            if (route() is { Usual: not null })
+            {
+                return "Route unknown";
+            }
+            return Pending(details(), "No route on record for this callsign");
+        });
+        none.BindPolled(el => el.Visibility, () => Shown(!HasEnds()));
+
+        var usual = Small(theme, theme.TextMuted).Ellipsis().BindTextPolled(() => $"usually {route()?.Usual}  ·  not this trip");
+        usual.BindPolled(el => el.Visibility, () => Shown(route() is { Usual: not null }));
 
         return new Border()
             .Fill(theme.Frosted(theme.SurfaceAlt))
             .Outline(theme.Border, 1.0f)
             .Rounded(theme.CornerRadius)
             .PaddingOf(10.0f, 8.0f)
-            .Content(new StackPanel().Vertical(0.0f).Children(row, none));
+            .Content(new StackPanel().Vertical(2.0f).Children(row, none, usual));
     }
 
     private static UiElement Tile(UiTheme theme, string label, Func<string> value, Func<string> detail)
