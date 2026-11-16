@@ -266,6 +266,20 @@ namespace ManaGeoTools.Code.Planet
 
             var heightScale = ComputeHeightScale();
             var step = 2f / PatchesPerFaceEdge;
+            // The starting patches are built side by side (each one's colours and coastline raster are a few
+            // milliseconds; one after another they froze the level's opening for 1.4 s). Only the scene graph below
+            // waits for the main thread.
+            var perFace = PatchesPerFaceEdge * PatchesPerFaceEdge;
+            var meshes = new PlanetPatchMesh[CubeSphere.FaceNormals.Length * perFace];
+            Parallel.For(0, meshes.Length, index =>
+            {
+                var normal = CubeSphere.FaceNormals[index / perFace];
+                var minV = -1f + ((index % perFace) / PatchesPerFaceEdge * step);
+                var minU = -1f + ((index % PatchesPerFaceEdge) * step);
+                meshes[index] = new PlanetPatchMesh(
+                    context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null, _imageryPath);
+            });
+
             for (var face = 0; face < CubeSphere.FaceNormals.Length; face++)
             {
                 var normal = CubeSphere.FaceNormals[face];
@@ -275,8 +289,7 @@ namespace ManaGeoTools.Code.Planet
                     for (var col = 0; col < PatchesPerFaceEdge; col++)
                     {
                         var minU = -1f + (col * step);
-                        var mesh = new PlanetPatchMesh(
-                            context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null, _imageryPath);
+                        var mesh = meshes[face * perFace + row * PatchesPerFaceEdge + col];
                         var key = PatchKey.Root(face, row, col);
                         // A permanent, shared container -- every patch this root's subtree ever splits
                         // into lives as a MeshRendererComponent on this SAME node, so the scene graph's
