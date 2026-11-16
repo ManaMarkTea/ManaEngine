@@ -1802,6 +1802,41 @@ namespace ManaGeoTools.Code.Planet
             return false;
         }
 
+        /// <summary>The patch drawn below a world point: its height data's zoom and spacing, its mesh's vertex spacing and the picture it wears.</summary>
+        public readonly record struct PatchSurvey(int? Zoom, double? HeightMetresPerSample, float VertexMetres, PlanetImageryDetail? Detail);
+
+        /// <summary>What the ground straight below <paramref name="worldPosition"/> is drawn from; null while the rebuild lock is busy.</summary>
+        public PatchSurvey? SurveyBelow(Vector3 worldPosition)
+        {
+            if (_retired || !Matrix4x4.Invert(WorldTransform, out var worldToLocal)
+                || !CubeSphere.TryUnwarpSphereToFaceUv(Vector3.Transform(worldPosition, worldToLocal), out var face, out var u, out var v)
+                || !Monitor.TryEnter(_rebuildLock))
+            {
+                return null;
+            }
+            try
+            {
+                var normal = CubeSphere.FaceNormals[face];
+                foreach (var leaf in _leaves.Values)
+                {
+                    var mesh = leaf.Mesh;
+                    if (mesh.FaceNormal != normal || u < mesh.MinU || u > mesh.MaxU || v < mesh.MinV || v > mesh.MaxV)
+                    {
+                        continue;
+                    }
+                    // Across the patch's bounding sphere is ~1.41 times its side.
+                    var side = leaf.LocalBoundsSphere.LocalRadius * 2.0f / MathF.Sqrt(2.0f);
+                    var vertexMetres = side / MathF.Max(1, mesh.Resolution - 1) * (PlanetLoader.EarthRadiusMeters / Radius);
+                    return new PatchSurvey(leaf.Zoom, leaf.SourceMetersPerPixel ?? _baselineMetersPerPixel, vertexMetres, mesh.Detail);
+                }
+                return null;
+            }
+            finally
+            {
+                Monitor.Exit(_rebuildLock);
+            }
+        }
+
         /// <summary>The patches drawn now, or null while the rebuild lock is busy (try again next frame).</summary>
         public PlanetPatchMesh[]? TryGetLeafMeshes()
         {

@@ -450,7 +450,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   turns from world +Y to the way out from the planet's centre below ~3,000 km (`CameraComponent.UpDirection`, carried
   frame to frame so it never spins at a pole), so the horizon stays level and Q/E climb. Auto-LOD judges a patch by its
   nearest edge, so a camera dropped low refines at once. `PlanetReadoutManaView` shows altitude above sea level, the
-  latitude/longitude below and the heading, bottom left, in the editor and in play. Float precision is ~0.5 m at that radius: fine from
+  latitude/longitude below the heading, and how fine the ground below is drawn (GROUND: the
+  patch's mesh spacing, the imagery's metres a pixel -- `tile` for a detail tile, `global` for the whole picture -- and the
+  height data's zoom), bottom left, in the editor and in play. Float precision is ~0.5 m at that radius: fine from
   aircraft height, not for walking. The sky still draws as seen from the ground at any height.
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
   tracks as a plane in one colour (`oneColor`/`color`; off shades by altitude; `altitudeScale`, 1 = true height; `markerSize` a share of

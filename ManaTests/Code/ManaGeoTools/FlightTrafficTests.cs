@@ -113,5 +113,20 @@ public static class FlightTrafficChecks
             var turned = Vector3.Transform(from, Mana.CameraComponent.RotationBetween(from, to));
             check($"the camera's up turns from {from} onto {to}", Vector3.Distance(turned, to) < 1e-5f, $"{turned}");
         }
+
+        // Flying 700 km a few metres a frame: every tiny turn of the up must count, or the horizon tilts.
+        var frame = Quaternion.Identity;
+        var start = Vector3.Normalize(new Vector3(0.3f, 1.0f, 0.2f));
+        var stepAngle = 5.0f / PlanetLoader.EarthRadiusMeters;
+        frame = Mana.CameraComponent.RotationBetween(Vector3.UnitY, start);
+        for (var step = 1; step <= 140_000; step++)
+        {
+            var desired = Vector3.Transform(start, Quaternion.CreateFromAxisAngle(Vector3.UnitX, step * stepAngle));
+            var current = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, frame));
+            frame = Quaternion.Normalize(Mana.CameraComponent.RotationBetween(current, desired) * frame);
+        }
+        var finalUp = Vector3.Transform(start, Quaternion.CreateFromAxisAngle(Vector3.UnitX, 140_000 * stepAngle));
+        var frameUp = Vector3.Transform(Vector3.UnitY, frame);
+        check("the camera's up keeps up with 700 km of 5 m steps", Vector3.Dot(frameUp, finalUp) > 0.99999f, $"{frameUp} vs {finalUp}");
     }
 }

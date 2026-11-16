@@ -5,7 +5,7 @@ using Mana;
 namespace ManaGeoTools.Code.Planet
 {
     /// <summary>One sharper picture to fetch: its key, where it lies in the whole picture, its lat/long box and size.</summary>
-    public sealed record PlanetImageryTileSpec(string Key, float MinU, float MaxU, float MinV, float MaxV, GeoArea Area, int Width, int Height);
+    public sealed record PlanetImageryTileSpec(string Key, float MinU, float MaxU, float MinV, float MaxV, GeoArea Area, int Width, int Height, float MetresPerPixel = 0.0f);
 
     /// <summary>
     /// Sharper pictures near the camera. The planet's whole picture is about 5 km a pixel; close up, patches wear
@@ -322,7 +322,8 @@ namespace ManaGeoTools.Code.Planet
                 width = MaxTileWidth;
                 height = Math.Max(16, (int)Math.Round(width * latitudeSpan / longitudeSpan));
             }
-            return new PlanetImageryTileSpec(key, low.X, high.X, low.Y, high.Y, area, width, height);
+            var metresPerPixel = (float)(latitudeSpan * Math.PI / 180.0 * radius / height);
+            return new PlanetImageryTileSpec(key, low.X, high.X, low.Y, high.Y, area, width, height, metresPerPixel);
         }
 
         private static Vector3 CenterOf(PlanetPatchMesh mesh)
@@ -350,7 +351,7 @@ namespace ManaGeoTools.Code.Planet
                     {
                         return null;
                     }
-                    _detail ??= new PlanetImageryDetail(Spec.Key, Path, Spec.MinU, Spec.MaxU, Spec.MinV, Spec.MaxV);
+                    _detail ??= new PlanetImageryDetail(Spec.Key, Path, Spec.MinU, Spec.MaxU, Spec.MinV, Spec.MaxV, Spec.MetresPerPixel);
                     return _detail;
                 }
             }

@@ -1007,7 +1007,9 @@ namespace Mana
             if (desired.LengthSquared() > 1e-12f)
             {
                 desired = Vector3.Normalize(desired);
-                _upFrame = Quaternion.Normalize(RotationBetween(_frameUp, desired) * _upFrame);
+                // From the frame's own up, so rounding never builds up between it and _frameUp.
+                var current = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, _upFrame));
+                _upFrame = Quaternion.Normalize(RotationBetween(current, desired) * _upFrame);
                 _frameUp = desired;
             }
 
@@ -1028,11 +1030,9 @@ namespace Mana
         /// <summary>The smallest turn taking unit vector <paramref name="from"/> onto unit vector <paramref name="to"/>.</summary>
         public static Quaternion RotationBetween(Vector3 from, Vector3 to)
         {
+            // No "close enough is no turn" cut-off: flying, the up turns a few thousandths of a degree a frame, and
+            // dropping each of those tilted the horizon by however far the camera had flown (6 degrees over ~700 km).
             var dot = Vector3.Dot(from, to);
-            if (dot > 0.999999f)
-            {
-                return Quaternion.Identity;
-            }
             if (dot < -0.999999f)
             {
                 var axis = Vector3.Cross(Vector3.UnitX, from);

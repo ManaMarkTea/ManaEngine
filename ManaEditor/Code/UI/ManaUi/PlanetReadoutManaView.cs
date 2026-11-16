@@ -16,7 +16,9 @@ public static class PlanetReadoutManaView
     private const float FeetPerMetre = 3.28084f;
     private const float MetresPerMile = 1609.344f;
 
-    public readonly record struct Fix(float AltitudeMetres, float Latitude, float Longitude, float? Heading);
+    /// <summary>Where the camera is; <see cref="TerrainMetres"/> and <see cref="ImageryMetres"/> are how fine the ground below is drawn (0 unknown).</summary>
+    public readonly record struct Fix(float AltitudeMetres, float Latitude, float Longitude, float? Heading,
+        float TerrainMetres = 0.0f, float ImageryMetres = 0.0f, int? Zoom = null, bool DetailImagery = false);
 
     public static UiElement Build(UiTheme theme, Func<CameraComponent?> camera)
     {
@@ -30,7 +32,8 @@ public static class PlanetReadoutManaView
         var tiles = new StackPanel().Horizontal(8.0f).Children(
             Tile(theme, "ALTITUDE", () => Altitude(current), () => AltitudeDetail(current)),
             Tile(theme, "POSITION", () => Latitude(current), () => Longitude(current)),
-            Tile(theme, "HEADING", () => Heading(current), () => Compass(current)));
+            Tile(theme, "HEADING", () => Heading(current), () => Compass(current)),
+            Tile(theme, "GROUND", () => Ground(current), () => GroundDetail(current)));
 
         var panel = new Border()
             .Fill(theme.Frosted(theme.Surface))
@@ -70,7 +73,71 @@ public static class PlanetReadoutManaView
             return null;
         }
         var fix = LatLong.FromPointOnSphere(local, planet.Radius, 1.0f);
-        return new Fix(fix.Altitude, fix.Latitude, fix.Longitude, HeadingOf(Vector3.Normalize(local), Vector3.TransformNormal(camera.Owner.Forward, worldToLocal)));
+        var result = new Fix(fix.Altitude, fix.Latitude, fix.Longitude, HeadingOf(Vector3.Normalize(local), Vector3.TransformNormal(camera.Owner.Forward, worldToLocal)));
+        if (planet.SurveyBelow(camera.Owner.Position) is { } survey)
+        {
+            _lastSurvey = survey;
+        }
+        if (_lastSurvey is { } below)
+        {
+            var imagery = 0.0f;
+            if (below.Detail is { MetresPerPixel: > 0.0f } detail)
+            {
+                imagery = detail.MetresPerPixel;
+            }
+            else if (planet.ImageryPath != null && planet.GetComponent<PlanetImageryComponent>() is { Width: > 0 } whole)
+            {
+                imagery = 2.0f * MathF.PI * PlanetLoader.EarthRadiusMeters / whole.Width;
+            }
+            result = result with
+            {
+                TerrainMetres = below.VertexMetres,
+                ImageryMetres = imagery,
+                Zoom = below.Zoom,
+                DetailImagery = below.Detail != null
+            };
+        }
+        return result;
+    }
+
+    // The last survey, kept for the frames the planet's rebuild lock is busy.
+    private static PlanetNode.PatchSurvey? _lastSurvey;
+
+    private static string Ground(Fix? fix)
+    {
+        if (fix is not { TerrainMetres: > 0.0f } f)
+        {
+            return "--";
+        }
+        return "mesh " + Distance(f.TerrainMetres);
+    }
+
+    private static string GroundDetail(Fix? fix)
+    {
+        if (fix is not { } f || f.ImageryMetres <= 0.0f)
+        {
+            return "";
+        }
+        var source = "global";
+        if (f.DetailImagery)
+        {
+            source = "tile";
+        }
+        var zoom = "baseline";
+        if (f.Zoom is { } z)
+        {
+            zoom = string.Create(CultureInfo.InvariantCulture, $"z{z}");
+        }
+        return $"image {Distance(f.ImageryMetres)} {source} · {zoom}";
+    }
+
+    private static string Distance(float metres)
+    {
+        if (metres >= 1000.0f)
+        {
+            return string.Create(CultureInfo.InvariantCulture, $"{metres / 1000.0f:0.#} km");
+        }
+        return string.Create(CultureInfo.InvariantCulture, $"{metres:0} m");
     }
 
     /// <summary>Compass degrees (0 north, 90 east) of <paramref name="forward"/> over the point <paramref name="up"/>; null at a pole or looking straight down.</summary>

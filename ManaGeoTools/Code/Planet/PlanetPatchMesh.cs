@@ -632,7 +632,7 @@ namespace ManaGeoTools.Code.Planet
     /// A sharper picture of one stretch of a planet, and where it lies in the whole picture's coordinates (u east from
     /// -180, v south from the north pole, both 0..1; u unwrapped as the patches unwrap it).
     /// </summary>
-    public sealed record PlanetImageryDetail(string Key, string Path, float MinU, float MaxU, float MinV, float MaxV)
+    public sealed record PlanetImageryDetail(string Key, string Path, float MinU, float MaxU, float MinV, float MaxV, float MetresPerPixel = 0.0f)
     {
         public Vector2 Map(float u, float v) => new((u - MinU) / (MaxU - MinU), 1.0f - (v - MinV) / (MaxV - MinV));
     }
