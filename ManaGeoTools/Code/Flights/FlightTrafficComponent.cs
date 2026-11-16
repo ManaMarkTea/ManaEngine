@@ -72,6 +72,144 @@ namespace ManaGeoTools.Code.Flights
         private FlightSnapshot? _drawnSnapshot;
         private long _drawnAt;
 
+        // Where each aircraft drawn last went, for picking one with the pointer: its index in the snapshot and its local centre.
+        private int[] _drawnIndexes = [];
+        private Vector3[] _drawnCenters = [];
+        private int _drawnCount;
+        private CancellationTokenSource? _detailsCancel;
+        private Task<FlightDetails>? _detailsWork;
+
+        private static readonly Vector4 SelectedColor = new(1.0f, 1.0f, 1.0f, 1.0f);
+
+        /// <summary>The aircraft picked by a click or a search (its ICAO 24-bit address), or null.</summary>
+        [JsonIgnore]
+        public string? SelectedIcao24 { get; private set; }
+
+        /// <summary>The selected aircraft's latest report, while it is still in the feed.</summary>
+        [JsonIgnore]
+        public FlightState? Selected
+        {
+            get
+            {
+                if (SelectedIcao24 == null || _snapshot == null)
+                {
+                    return null;
+                }
+                foreach (ref readonly var state in _snapshot.States.AsSpan())
+                {
+                    if (state.Icao24 == SelectedIcao24)
+                    {
+                        return state;
+                    }
+                }
+                return null;
+            }
+        }
+
+        /// <summary>Route, airframe and path flown for the selection; null while they are fetched.</summary>
+        [JsonIgnore]
+        public FlightDetails? SelectedDetails { get; private set; }
+
+        [JsonIgnore]
+        public bool SelectedDetailsLoading => _detailsWork != null;
+
+        /// <summary>Picks an aircraft (null clears the pick) and starts fetching its details.</summary>
+        public void Select(string? icao24)
+        {
+            if (icao24 == SelectedIcao24)
+            {
+                return;
+            }
+
+            _detailsCancel?.Cancel();
+            _detailsCancel = null;
+            _detailsWork = null;
+            SelectedDetails = null;
+            SelectedIcao24 = icao24;
+            _drawnAt = 0;
+            if (Selected is { } state)
+            {
+                _detailsCancel = new CancellationTokenSource();
+                var token = _detailsCancel.Token;
+                _detailsWork = Task.Run(() => FlightDetailsLookup.FetchAsync(state, token));
+            }
+        }
+
+        /// <summary>
+        /// The aircraft a search names: a callsign (UAL2095, spaces ignored), its start, or an ICAO address. An exact
+        /// callsign wins over one it starts.
+        /// </summary>
+        public FlightState? Find(string text)
+        {
+            var wanted = text.Replace(" ", "").Trim();
+            if (_snapshot == null || wanted.Length == 0)
+            {
+                return null;
+            }
+
+            FlightState? starts = null;
+            foreach (ref readonly var state in _snapshot.States.AsSpan())
+            {
+                if (string.Equals(state.Callsign, wanted, StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(state.Icao24, wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    return state;
+                }
+                if (starts == null && state.Callsign.StartsWith(wanted, StringComparison.OrdinalIgnoreCase))
+                {
+                    starts = state;
+                }
+            }
+            return starts;
+        }
+
+        /// <summary>Where <paramref name="state"/> is now in the planet's local space, flown on from its report, and its heading.</summary>
+        public (Vector3 Center, Vector3 Heading) Locate(PlanetNode planet, in FlightState state)
+        {
+            var seconds = (float)Math.Max(0.0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 - state.PositionTime);
+            if (state.OnGround)
+            {
+                seconds = 0.0f;
+            }
+            var (direction, heading) = FlightDeadReckoning.Advance(state, seconds);
+            var altitude = FlightDeadReckoning.Altitude(state, seconds);
+            return (direction * (planet.Radius + altitude * HeightScale(planet)), heading);
+        }
+
+        /// <summary>A track point in the planet's local space, at the height aircraft are drawn.</summary>
+        public Vector3 Place(PlanetNode planet, float latitude, float longitude, float altitudeMeters)
+        {
+            return new LatLong(longitude, latitude).ToUnitSphere() * (planet.Radius + altitudeMeters * HeightScale(planet));
+        }
+
+        private float HeightScale(PlanetNode planet) => planet.Radius * AltitudeScale / PlanetLoader.EarthRadiusMeters;
+
+        /// <summary>The ICAO address of the drawn aircraft nearest <paramref name="toScreen"/>'s point within <paramref name="reach"/> pixels.</summary>
+        public string? Pick(Func<Vector3, Vector2?> toScreen, Vector2 point, float reach)
+        {
+            if (_snapshot == null)
+            {
+                return null;
+            }
+
+            string? best = null;
+            var bestDistance = reach;
+            for (var i = 0; i < _drawnCount; i++)
+            {
+                if (toScreen(_drawnCenters[i]) is not { } screen)
+                {
+                    continue;
+                }
+                var distance = Vector2.Distance(screen, point);
+                if (distance <= bestDistance && _drawnIndexes[i] < _snapshot.States.Length)
+                {
+                    bestDistance = distance;
+                    best = _snapshot.States[_drawnIndexes[i]].Icao24;
+                }
+            }
+            return best;
+        }
+
         private readonly OpenSkyClient _client = new();
         private readonly CancellationTokenSource _cancel = new();
         private Task<FlightSnapshot?>? _work;
@@ -128,6 +266,14 @@ namespace ManaGeoTools.Code.Flights
             }
 
             AdoptFinishedWork();
+            if (_detailsWork is { IsCompleted: true } details)
+            {
+                if (details.IsCompletedSuccessfully)
+                {
+                    SelectedDetails = details.Result;
+                }
+                _detailsWork = null;
+            }
             StartWorkIfDue();
             if (_snapshot != null)
             {
@@ -140,6 +286,7 @@ namespace ManaGeoTools.Code.Flights
         {
             base.OnRemoved();
             _cancel.Cancel();
+            _detailsCancel?.Cancel();
             if (_markers != null)
             {
                 lock (Owner.Context.World.SceneLock)
@@ -161,6 +308,8 @@ namespace ManaGeoTools.Code.Flights
             if (_work.IsCompletedSuccessfully && _work.Result is { } snapshot)
             {
                 _snapshot = snapshot;
+                // A new reply may hold the selection under a new index; the details stay.
+                _drawnAt = 0;
                 _nextCountUtc = DateTime.MinValue;
             }
 
@@ -279,8 +428,15 @@ namespace ManaGeoTools.Code.Flights
             var maxAge = MaxAgeMinutes * 60.0f;
             var heightScale = planet.Radius * AltitudeScale / PlanetLoader.EarthRadiusMeters;
             var shown = 0;
+            if (_drawnIndexes.Length < states.Length)
+            {
+                _drawnIndexes = new int[states.Length];
+                _drawnCenters = new Vector3[states.Length];
+            }
+            var index = -1;
             foreach (ref readonly var state in states.AsSpan())
             {
+                index++;
                 if (state.OnGround && !ShowGrounded)
                 {
                     continue;
@@ -308,15 +464,23 @@ namespace ManaGeoTools.Code.Flights
                 var center = direction * (planet.Radius + altitude * heightScale);
                 var size = Vector3.Distance(camera, center) * MarkerSize;
                 var color = Color;
+                if (state.Icao24 == SelectedIcao24)
+                {
+                    size *= 1.8f;
+                    color = SelectedColor;
+                }
                 if (!OneColor)
                 {
                     color = AltitudeColor(altitude, state.OnGround);
                 }
                 mesh.SetMarker(shown, center, heading, direction, size, color);
+                _drawnIndexes[shown] = index;
+                _drawnCenters[shown] = center;
                 shown++;
             }
 
             mesh.Publish(shown);
+            _drawnCount = shown;
             AircraftShown = shown;
         }
 

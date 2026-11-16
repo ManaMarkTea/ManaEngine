@@ -122,6 +122,7 @@ dotnet build ManaEditor -o Artifacts/AutomationBin      # a separate output, so 
 | `place` / `remove` | `name`, `path` (model or `.manaprefab`), `position`, `yaw` (degrees), `scale` / `name` (`*` clears) | Stories: puts a model, character or prefab in a never-saved "Story" scene (`StoryCommands`); characters start on `idle` |
 | `animate` / `walk` / `face` | `name`, `clip`, `loop`, `speed` / `position`, `frames`, `clip`, `background` / `target`, `frames` | Stories: plays a clip; walks there (walk clip, then idle; 1.4 m/s without frames); turns to face a point |
 | `title` | `name`, `path` (PNG), `position` (screen x, y in -1..1), `scale` (share of screen height), `visible` | Stories: a picture held in the scene just in front of the camera, so the retro filter pixelates it |
+| `select_flight` | `name` (callsign or ICAO address; none clears) | Picks a flight in a planet's traffic and puts the camera above it, as the viewport's flight search does |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 
 Reference scenes for rendering checks live in `Content/Levels/Tests/` (not in the web selector), with the scripts that
@@ -452,7 +453,10 @@ dark when it casts shadows, which a click selects; the selected light's range as
   camera distance), flown on by dead reckoning between fetches, rewritten 10 times a second while the camera is still (the mesh is
   `ManaMeshCpuData.Unshared`: never fingerprinted for instancing). `showAirports` rings the busiest airports with the aircraft below
   `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
-  `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
+  `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. `FlightSelectionOverlay` picks one aircraft
+  (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,
+  airframe and route (`FlightDetailsLookup`: adsbdb.com, the callsign's usual route -- flagged and not drawn when the aircraft is
+  over 400 km off it), its flown path (OpenSky tracks) and a dashed great circle on to the destination. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
   `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
   reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).
 - **Planet imagery:** a `PlanetImagery` script on a Planet node fetches a NASA GIBS global layer once (`layer`, default
