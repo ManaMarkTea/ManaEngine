@@ -23,3 +23,9 @@ What is still to do in the engine. Finished work, with notes on how it was built
     the lighting against the ORCA references.
 
 [ ] - Other platforms: the iPhone/iPad host and a macOS check of the web build.
+
+[ ] - Planet (Planet Showcase): the planet in the browser (compiled out with `MANA_BROWSER`; the flight relay on hera
+    is ready, the GeoTIFF baseline, Natural Earth and imagery caching are not); aircraft models by type (a CC0
+    set of ~8 silhouettes -- narrow/wide-body, regional, turboprop, business jet, light, helicopter -- picked by the
+    adsbdb type, in place of the one marker shape); sharper imagery below ~5 km than Blue Marble's 500 m (Sentinel-2
+    cloudless is 10 m, stricter licence); the two ~100 ms stalls in the first seconds after loading.
