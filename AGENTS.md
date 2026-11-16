@@ -455,8 +455,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
   `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. `FlightSelectionOverlay` picks one aircraft
   (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,
-  airframe and route (`FlightDetailsLookup`: adsbdb.com, the callsign's usual route -- flagged and not drawn when the aircraft is
-  over 400 km off it), its flown path (OpenSky tracks) and a dashed great circle on to the destination. Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
+  airframe and route (`FlightDetailsLookup`: adsbdb.com, the callsign's usual route -- greyed with a "?" and not drawn when
+  the aircraft is over 400 km off it), its flown path (OpenSky tracks) and a dashed great circle on to the destination.
+  Anonymous OpenSky allows ~100 global fetches a day (a fetch every 15 min); an API client in
   `OPENSKY_CLIENT_ID`/`_SECRET` or `%LOCALAPPDATA%/ManaRenderer/opensky-credentials.json` allows one every 90 s. The last
   reply is kept in `Library/FlightTraffic/`. Non-commercial use only; desktop only (OpenSky sends no CORS for other sites).
 - **Planet imagery:** a `PlanetImagery` script on a Planet node fetches a NASA GIBS global layer once (`layer`, default

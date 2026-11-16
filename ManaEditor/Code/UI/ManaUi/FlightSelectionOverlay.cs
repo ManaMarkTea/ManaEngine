@@ -26,6 +26,7 @@ public sealed class FlightSelectionOverlay : Canvas
     private static readonly Vector4 Flown = new(1.0f, 1.0f, 1.0f, 0.95f);
     private static readonly Vector4 Ahead = new(1.0f, 0.75f, 0.3f, 0.9f);
     private static readonly Vector4 Dim = new(0.78f, 0.82f, 0.88f, 1.0f);
+    private static readonly Vector4 Stale = new(0.55f, 0.58f, 0.62f, 1.0f);
 
     private readonly Func<CameraComponent?> _camera;
     private readonly TextBox _search;
@@ -355,6 +356,7 @@ public sealed class FlightSelectionOverlay : Canvas
     {
         var details = traffic.SelectedDetails;
         var lines = new List<(string Text, Vector4 Colour, bool Small)>();
+        var stale = -1;
         var title = state.Callsign;
         if (title.Length == 0)
         {
@@ -374,14 +376,16 @@ public sealed class FlightSelectionOverlay : Canvas
         {
             if (details.Origin is { } origin && details.Destination is { } destination)
             {
-                lines.Add(($"{origin.Code} {origin.City}  ->  {destination.Code} {destination.City}", Ahead, true));
+                // A route the aircraft is nowhere near is the callsign's usual one, not this trip: greyed and badged.
+                var route = $"{origin.Code} {origin.City}  ->  {destination.Code} {destination.City}";
                 if (OnRoute(details, state))
                 {
-                    lines.Add(("route as scheduled for this callsign", Dim, true));
+                    lines.Add((route, Ahead, true));
                 }
                 else
                 {
-                    lines.Add(("this callsign's usual route -- not where it is flying now", Dim, true));
+                    stale = lines.Count;
+                    lines.Add((route, Stale, true));
                 }
             }
             else
@@ -432,15 +436,29 @@ public sealed class FlightSelectionOverlay : Canvas
         drawList.FillRect(_card, Card, new CornerRadius(8.0f));
         drawList.FillRect(new UiRect(_card.X, _card.Y, 3.0f, _card.Height), Flown, new CornerRadius(1.5f));
         var y = _card.Y + pad;
-        foreach (var (layout, colour) in layouts)
+        for (var i = 0; i < layouts.Count; i++)
         {
+            var (layout, colour) = layouts[i];
             layout.Render(drawList, new UiRect(_card.X + pad + 4.0f, y, layout.Size.X, layout.Size.Y), colour);
+            if (i == stale)
+            {
+                Badge(drawList, new Vector2(_card.X + pad + 10.0f + layout.Size.X, y), layout.Size.Y);
+            }
             y += layout.Size.Y + 3.0f;
         }
 
         _close = new UiRect(_card.Right - 26.0f, _card.Y + 6.0f, 20.0f, 20.0f);
         var cross = Layout("x", small: false);
         cross.Render(drawList, new UiRect(_close.Center - cross.Size * 0.5f, cross.Size), Dim);
+    }
+
+    // An amber "?" pill: the route beside it is probably not this trip's.
+    private void Badge(ManaUiDrawList drawList, Vector2 at, float height)
+    {
+        var mark = Layout("?", small: true);
+        var pill = new UiRect(at.X, at.Y, MathF.Max(height, mark.Size.X + 8.0f), height);
+        drawList.FillRect(pill, Ahead, new CornerRadius(height * 0.5f));
+        mark.Render(drawList, new UiRect(pill.Center - mark.Size * 0.5f, mark.Size), Card);
     }
 
     private TextLayout Layout(string text, bool small)
