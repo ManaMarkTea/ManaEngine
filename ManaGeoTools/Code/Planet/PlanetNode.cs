@@ -174,7 +174,10 @@ namespace ManaGeoTools.Code.Planet
         // Terrarium serves native detail through z13; finer requests would oversample.
         private const int UpresMaxZoom = 13;
 
-        private const int InitialTerrariumUpresZoom = 7;
+        // The first Terrarium step above the baseline. Zoom 7 (~1.2 km) followed a 1.85 km ETOPO baseline; over today's
+        // 28 km one it was six times finer than 2,000 km up needs, in dozens of 257-vertex children per root -- 525
+        // patches, 100 million indices. Zoom 4 (~10 km at the equator) is one step finer than the baseline.
+        private const int InitialTerrariumUpresZoom = 4;
         public const int DefaultBaselineMaxPatchMeshResolution = 97;
 
         private const int PatchNameSplitPathTailDigits = 4;
@@ -198,6 +201,9 @@ namespace ManaGeoTools.Code.Planet
         // hysteresis so a patch that just got more detail doesn't immediately qualify to lose it.
         // Refinements (an up-res or a split) auto-LOD starts in one frame; the nearest go first.
         private const int AutoLodStartsPerFrame = 1;
+
+        // Merges started a frame; the rest are picked up next frame.
+        private const int AutoLodMergesPerFrame = 2;
 
         // Vertices across a split's child until its own data arrives.
         private const int SplitPlaceholderResolution = 33;
@@ -357,6 +363,7 @@ namespace ManaGeoTools.Code.Planet
 
                         var sourceResolution = EstimateGeoTiffSourceResolutionForPatch(tile, leaf.Mesh);
                         var sourceMetersPerPixel = EstimateGeoTiffMetersPerPixel(tile, leaf.Mesh);
+                        _baselineMetersPerPixel = Math.Max(_baselineMetersPerPixel ?? 0.0, sourceMetersPerPixel);
                         var meshResolution = Math.Max(
                             leaf.Mesh.Resolution,
                             Math.Min(sourceResolution, DefaultBaselineMaxPatchMeshResolution));
@@ -1109,7 +1116,7 @@ namespace ManaGeoTools.Code.Planet
                 RootNode = rootNode,
                 Zoom = pending.MergedZoom,
                 SourceResolution = pending.MergedSourceResolution,
-                SourceMetersPerPixel = pending.MergedSourceMetersPerPixel,
+                SourceMetersPerPixel = pending.MergedSourceMetersPerPixel ?? _baselineMetersPerPixel,
                 LocalBoundsSphere = localBounds,
             };
             _leaves[pending.MergedKey] = mergedLeaf;
@@ -1191,22 +1198,22 @@ namespace ManaGeoTools.Code.Planet
 
                     var groundDistance = NearestGroundDistance(leaf.LocalBoundsSphere, cameraDirection);
 
+                    var patchTarget = PatchTargetMetersPerPixel(targetMetersPerPixel, altitude, groundDistance);
                     if (groundDistance < activationRadius)
                     {
                         // Proximity alone isn't enough to escalate once the patch's current source data
-                        // already resolves finer than the screen can show at this altitude.
-                        // A sample every few pixels, judged at this patch's own distance: one a pixel straight down meant
-                        // 769-vertex patches (30 MB each, a render-thread stall apiece) all the way to the horizon.
-                        var reach = MathF.Sqrt(altitude * altitude + groundDistance * groundDistance) / MathF.Max(0.001f, altitude);
-                        var patchTarget = targetMetersPerPixel * reach * AutoLodPixelsPerSample;
-                        if (IsSourceResolutionAlreadySufficientForAltitude(leaf.SourceMetersPerPixel, patchTarget))
+                        // already resolves finer than the screen can show at this distance.
+                        if (!IsSourceResolutionAlreadySufficientForAltitude(leaf.SourceMetersPerPixel, patchTarget))
                         {
+                            refinements.Add((key, groundDistance, status != PatchUpresStatus.Done));
                             continue;
                         }
-
-                        refinements.Add((key, groundDistance, status != PatchUpresStatus.Done));
                     }
-                    else if (groundDistance > deactivationRadius && !key.IsRoot && status == PatchUpresStatus.Done)
+
+                    // Folded back when far away, or when finer than this distance needs: by distance alone everything
+                    // refined within the (~800 km) deactivation radius stayed so -- 525 patches, 120 million indices.
+                    if (!key.IsRoot && status == PatchUpresStatus.Done
+                        && (groundDistance > deactivationRadius || IsOverDetailed(leaf.SourceMetersPerPixel, patchTarget)))
                     {
                         mergeCandidateParents.Add(key.Parent());
                     }
@@ -1234,8 +1241,13 @@ namespace ManaGeoTools.Code.Planet
                     }
                 }
 
+                var merges = 0;
                 foreach (var parentKey in mergeCandidateParents)
                 {
+                    if (merges >= AutoLodMergesPerFrame)
+                    {
+                        break;
+                    }
                     if (!TryFindMergeableSiblingGroupLocked(parentKey, out _, out var childLeaves))
                     {
                         continue;
@@ -1251,8 +1263,15 @@ namespace ManaGeoTools.Code.Planet
                     var mergedMaxV = childLeaves.Max(l => l.Mesh.MaxV);
                     var unionLocalBounds = ComputePatchLocalBoundsSphere(faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius);
                     var unionGroundDistance = NearestGroundDistance(unionLocalBounds, cameraDirection);
-                    if (unionGroundDistance > deactivationRadius)
+                    // Folded for detail only when what the merge makes (one zoom coarser, or the baseline) is itself still
+                    // twice as fine as needed: the first refinement jumps from the 28 km baseline to zoom 7, and judging
+                    // by the children alone folded that straight back, split and merge in turn.
+                    var unionTarget = PatchTargetMetersPerPixel(targetMetersPerPixel, altitude, unionGroundDistance);
+                    var mergedSource = ComputeMergedPatchTarget(faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, childLeaves).SourceMetersPerPixel
+                        ?? _baselineMetersPerPixel;
+                    if (unionGroundDistance > deactivationRadius || (mergedSource.HasValue && mergedSource.Value * 2.0 <= unionTarget))
                     {
+                        merges++;
                         TryMergeSiblingGroup(parentKey);
                     }
                 }
@@ -1322,6 +1341,27 @@ namespace ManaGeoTools.Code.Planet
         // the camera, both expressed purely as directions from the planet's local origin -- this only
         // needs the ANGLE between them (great-circle geometry), never an actual lat/long conversion, so
         // it sidesteps pole/antimeridian degeneracies entirely.
+        // How fine the whole-globe baseline is, from the tiles that set the starting patches: a patch folded back to it is
+        // that fine. Left unknown it read as "not loaded yet, leave it alone" to auto-LOD and never refined again.
+        private double? _baselineMetersPerPixel;
+
+        // The terrain sample spacing a patch this far away needs: a sample every few pixels at its own distance (one a
+        // pixel straight down meant 769-vertex patches all the way to the horizon), and coarser again seen at a slant --
+        // toward the horizon a pixel spans `reach` times more ground in depth than across; half of that (its square
+        // root), as silhouettes there still want their height detail.
+        private static float PatchTargetMetersPerPixel(float targetMetersPerPixel, float altitude, float groundDistance)
+        {
+            var reach = MathF.Sqrt(altitude * altitude + groundDistance * groundDistance) / MathF.Max(0.001f, altitude);
+            return targetMetersPerPixel * reach * MathF.Sqrt(reach) * AutoLodPixelsPerSample;
+        }
+
+        // Finer than needed by more than a merge undoes (one level, twice as coarse) and then twice again, so a patch
+        // folded back is still well inside what its distance needs and does not split straight away.
+        private static bool IsOverDetailed(double? sourceMetersPerPixel, float targetMetersPerPixel)
+        {
+            return sourceMetersPerPixel.HasValue && sourceMetersPerPixel.Value * 4.0 <= targetMetersPerPixel;
+        }
+
         // To the patch's nearest edge, not its centre: a camera dropped low over a big patch is inside it, while its
         // centre can lie several activation radii away -- nothing near the camera ever refined.
         private float NearestGroundDistance(PlanetPatchGeometry.PatchBoundsSphere bounds, Vector3 cameraDirection)

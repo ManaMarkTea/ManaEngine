@@ -15,7 +15,7 @@ namespace ManaGeoTools.Code.Planet
         /// Draws each ring (closed) <paramref name="widthKilometres"/> wide in <paramref name="color"/> (alpha is
         /// its strength). Overlapping lines take the stronger coverage rather than adding, so shared borders --
         /// a state's edge on its country's -- are drawn once. The picture covers <paramref name="area"/> (the whole
-        /// planet when null, wrapping round at the date line); its pixels must be square in degrees.
+        /// planet when null, wrapping round at the date line), linearly in longitude and latitude.
         /// </summary>
         public static void Paint(
             ManaImage image,
@@ -31,7 +31,9 @@ namespace ManaGeoTools.Code.Planet
             var coverage = new byte[width * height];
             var lonSpan = bounds.MaxLongitude - bounds.MinLongitude;
             var latSpan = bounds.MaxLatitude - bounds.MinLatitude;
-            var halfWidth = 0.5f * widthKilometres / (float)(EquatorKilometres * lonSpan / 360.0 / width);
+            // Distances are measured in rows; a column is `aspect` rows of latitude wide, times cos(latitude) on the ground.
+            var aspect = (float)(lonSpan / width / (latSpan / height));
+            var halfWidth = 0.5f * widthKilometres / (float)(EquatorKilometres * 0.5 * latSpan / 180.0 / height);
             // Segments wholly beyond the picture (and the line's reach) are skipped before any pixel work.
             var margin = (halfWidth + 2.0) * latSpan / height;
             foreach (var ring in rings)
@@ -55,7 +57,7 @@ namespace ManaGeoTools.Code.Planet
                     var y0 = (float)((bounds.MaxLatitude - lat0) / latSpan * height);
                     var x1 = (float)((lon1 - bounds.MinLongitude) / lonSpan * width);
                     var y1 = (float)((bounds.MaxLatitude - lat1) / latSpan * height);
-                    var squeeze = MathF.Max(0.05f, MathF.Cos((float)((lat0 + lat1) * 0.5 * Math.PI / 180.0)));
+                    var squeeze = aspect * MathF.Max(0.05f, MathF.Cos((float)((lat0 + lat1) * 0.5 * Math.PI / 180.0)));
                     PaintSegment(coverage, width, height, x0, y0, x1, y1, halfWidth, squeeze, wrap);
                 }
             }
@@ -120,7 +122,7 @@ namespace ManaGeoTools.Code.Planet
             var r = color.X * 255.0f;
             var g = color.Y * 255.0f;
             var b = color.Z * 255.0f;
-            Parallel.For(0, image.Height, y =>
+            Parallel.For(0, image.Height, PlanetPatchMesh.BackgroundParallelism, y =>
             {
                 var row = y * image.Width;
                 for (var x = 0; x < image.Width; x++)

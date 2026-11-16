@@ -163,14 +163,15 @@ namespace ManaGeoTools.Code.Planet
                     $"{area.MinLatitude:0.######},{area.MinLongitude:0.######},{area.MaxLatitude:0.######},{area.MaxLongitude:0.######}");
                 var bytes = await FetchAsync(Layer, box, spec.Width, spec.Height, cancellation).ConfigureAwait(false);
                 var image = ManaImageCodec.Load(bytes);
-                var kilometresPerPixel = (float)((area.MaxLongitude - area.MinLongitude) / 360.0 * 40075.0 / spec.Width);
+                // Ground per pixel, north to south (pixels are square on the ground).
+                var kilometresPerPixel = (float)((area.MaxLatitude - area.MinLatitude) / 180.0 * 20037.5 / spec.Height);
                 if (States)
                 {
-                    PlanetBorderPainter.Paint(image, DetailStates.Value, MathF.Min(StateWidth, 1.6f * kilometresPerPixel), StateColor, area);
+                    PlanetBorderPainter.Paint(image, DetailStates.Value, MathF.Min(StateWidth, 1.1f * kilometresPerPixel), StateColor, area);
                 }
                 if (Borders)
                 {
-                    PlanetBorderPainter.Paint(image, DetailCountries.Value, MathF.Min(BorderWidth, 2.2f * kilometresPerPixel), BorderColor, area);
+                    PlanetBorderPainter.Paint(image, DetailCountries.Value, MathF.Min(BorderWidth, 1.5f * kilometresPerPixel), BorderColor, area);
                 }
 
                 Directory.CreateDirectory(folder);

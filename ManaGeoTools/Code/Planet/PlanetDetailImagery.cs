@@ -271,7 +271,7 @@ namespace ManaGeoTools.Code.Planet
             var minV = -1.0f + row * tileSize;
             var normal = mesh.FaceNormal;
             var face = $"{MathF.Round(normal.X):0}{MathF.Round(normal.Y):0}{MathF.Round(normal.Z):0}";
-            var key = $"{settingsKey}/{face}-{MathF.Round(2.0f / tileSize):0}-{column}-{row}";
+            var key = $"{settingsKey}/n{face}-{MathF.Round(2.0f / tileSize):0}-{column}-{row}";
             return Spec(key, normal, minU, minU + tileSize, minV, minV + tileSize, radius);
         }
 
@@ -312,9 +312,11 @@ namespace ManaGeoTools.Code.Planet
             var area = new GeoArea(low.X * 360.0 - 180.0, high.X * 360.0 - 180.0, minLatitude, maxLatitude);
             var latitudeSpan = area.MaxLatitude - area.MinLatitude;
             var longitudeSpan = area.MaxLongitude - area.MinLongitude;
-            // Pixels square in degrees (as the whole picture's are): as tall as the source resolution allows, as wide as that makes it.
+            // Pixels square on the ground at the tile's middle: square in degrees wasted a third of each tile at the
+            // Alps' latitude on east-west detail the source does not have (and its upload hitched).
             var height = (int)Math.Clamp(Math.Ceiling(latitudeSpan * Math.PI / 180.0 * radius / SourceMetresPerPixel), 64, MaxTileHeight);
-            var width = (int)Math.Round(height * longitudeSpan / latitudeSpan);
+            var middleLatitude = 0.5 * (area.MinLatitude + area.MaxLatitude) * Math.PI / 180.0;
+            var width = (int)Math.Max(16, Math.Round(height * longitudeSpan * Math.Cos(middleLatitude) / latitudeSpan));
             if (width > MaxTileWidth)
             {
                 width = MaxTileWidth;

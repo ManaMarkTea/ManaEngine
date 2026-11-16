@@ -177,7 +177,7 @@ namespace ManaGeoTools.Code.Planet
             var colors = new Vector4[positions.Length];
             Array.Fill(colors, Vector4.One);
             // The same coordinates GenerateData gives under a picture; skirts hang straight down, so their direction matches the edge's.
-            Parallel.For(0, (positions.Length + 4095) / 4096, block =>
+            Parallel.For(0, (positions.Length + 4095) / 4096, BackgroundParallelism, block =>
             {
                 var end = Math.Min(positions.Length, (block + 1) * 4096);
                 for (var i = block * 4096; i < end; i++)
@@ -606,11 +606,17 @@ namespace ManaGeoTools.Code.Planet
         // loop, even though a SINGLE large patch is much faster in isolation.
         private const int ParallelGenerationResolutionThreshold = 128;
 
+        /// <summary>
+        /// Half the cores at most for one patch's build: streaming builds several at once, and with every core taken the
+        /// main thread waited to be scheduled -- frames of 30-40 ms with nothing on the main thread to show for them.
+        /// </summary>
+        public static readonly ParallelOptions BackgroundParallelism = new() { MaxDegreeOfParallelism = Math.Max(1, Environment.ProcessorCount / 2) };
+
         private static void ForEachRow(int resolution, Action<int> body)
         {
             if (resolution >= ParallelGenerationResolutionThreshold)
             {
-                Parallel.For(0, resolution, body);
+                Parallel.For(0, resolution, BackgroundParallelism, body);
             }
             else
             {
