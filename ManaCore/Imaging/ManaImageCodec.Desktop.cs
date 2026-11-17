@@ -32,6 +32,8 @@ public static partial class ManaImageCodec
         }
     }
 
+    private static Task<ManaImage> DecodeOnceAsync(byte[] bytes) => Task.FromResult(Decode(bytes));
+
     private static void Encode(ManaImage image, string path, int jpegQuality)
     {
         using var stream = File.Create(path);

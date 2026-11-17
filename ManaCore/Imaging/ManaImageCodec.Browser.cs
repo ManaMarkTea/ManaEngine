@@ -18,6 +18,9 @@ public static partial class ManaImageCodec
     private static readonly Dictionary<string, Task> Decoding = new(StringComparer.Ordinal);
     private static readonly HashSet<string> ReportedMisses = new(StringComparer.Ordinal);
     private static readonly TimeSpan IdleBeforeTrim = TimeSpan.FromSeconds(30);
+    // Streaming never goes idle, so the idle trim alone let unpinned pictures fill the 2 GB heap.
+    private const long MaxUnpinnedBytes = 256L * 1024 * 1024;
+    private static long _unpinnedBytes;
     private static long _lastActivity;
     private static bool _trimScheduled;
 
@@ -45,6 +48,35 @@ public static partial class ManaImageCodec
             ManaLog.WriteDiagnostic($"[Images] a {bytes.Length}-byte picture was loaded before it was decoded; it shows once loaded again.");
         }
         throw new InvalidDataException("The picture has not been decoded yet.");
+    }
+
+    private static async Task<ManaImage> DecodeOnceAsync(byte[] bytes)
+    {
+        if (TryReadRaw(bytes) is { } raw)
+        {
+            return raw;
+        }
+
+        JSObject result;
+        try
+        {
+            result = await DecodeInBrowser(bytes);
+        }
+        catch (JSException exception)
+        {
+            throw new InvalidDataException($"The browser could not decode a {bytes.Length}-byte picture: {exception.Message}", exception);
+        }
+        using (result)
+        {
+            var width = result.GetPropertyAsInt32("width");
+            var height = result.GetPropertyAsInt32("height");
+            var pixels = result.GetPropertyAsByteArray("pixels");
+            if (width <= 0 || height <= 0 || pixels == null)
+            {
+                throw new InvalidDataException($"The browser decoded a {bytes.Length}-byte picture to nothing.");
+            }
+            return new ManaImage(width, height, pixels);
+        }
     }
 
     private static void Encode(ManaImage image, string path, int jpegQuality)
@@ -102,6 +134,7 @@ public static partial class ManaImageCodec
             if (pinned && !entry.Pinned)
             {
                 Decoded[key] = (entry.Image, true);
+                _unpinnedBytes -= entry.Image.Pixels.Length;
             }
             return;
         }
@@ -124,6 +157,11 @@ public static partial class ManaImageCodec
             if (width > 0 && height > 0 && pixels != null)
             {
                 Decoded[key] = (new ManaImage(width, height, pixels), pinned);
+                if (!pinned)
+                {
+                    _unpinnedBytes += pixels.Length;
+                    EvictOverBudget(key);
+                }
             }
         }
         catch (JSException exception)
@@ -193,7 +231,30 @@ public static partial class ManaImageCodec
         {
             Decoded.Remove(key);
         }
+        _unpinnedBytes = 0;
         _trimScheduled = false;
+    }
+
+    // Oldest first (a Dictionary enumerates in insertion order until something is removed, near enough here).
+    private static void EvictOverBudget(string keep)
+    {
+        if (_unpinnedBytes <= MaxUnpinnedBytes)
+        {
+            return;
+        }
+        foreach (var (key, entry) in Decoded.ToList())
+        {
+            if (_unpinnedBytes <= MaxUnpinnedBytes)
+            {
+                break;
+            }
+            if (entry.Pinned || key == keep)
+            {
+                continue;
+            }
+            Decoded.Remove(key);
+            _unpinnedBytes -= entry.Image.Pixels.Length;
+        }
     }
 }
 #endif

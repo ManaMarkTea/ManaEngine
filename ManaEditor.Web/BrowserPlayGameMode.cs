@@ -393,6 +393,21 @@ namespace ManaEditor.Web
             ManaBrowserInterop.HideLoadingScreen();
         }
 
+        // The tab's heap tops out at 2 GB; a [Memory] line every 10 s shows a climb before it ends in an out-of-memory.
+        private long _lastMemoryLog = Environment.TickCount64;
+
+        private void LogMemory()
+        {
+            var now = Environment.TickCount64;
+            if (now - _lastMemoryLog < 10_000)
+            {
+                return;
+            }
+            _lastMemoryLog = now;
+            var info = GC.GetGCMemoryInfo();
+            Console.WriteLine($"[Memory] managed {GC.GetTotalMemory(false) / 1048576} MB live, GC heap {info.HeapSizeBytes / 1048576} MB, committed {info.TotalCommittedBytes / 1048576} MB");
+        }
+
         public override void Update(double deltaTime)
         {
             _gameModes.Tick((float)deltaTime);
@@ -410,6 +425,7 @@ namespace ManaEditor.Web
             // UiWantsKeyboard, not a raw poll: when a text field has focus, WASD is typing, not walking.
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             _planet?.Tick(Context.World);
+            LogMemory();
             // The clock, deaths and respawns, as the desktop play mode runs them.
             var state = Context.World.GameState;
             state.Tick((float)deltaTime);

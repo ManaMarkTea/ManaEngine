@@ -227,6 +227,10 @@ Browser-specific lessons and limits:
 - RID-specific web hosts need referenced projects to declare `RuntimeIdentifiers=browser-wasm`, and their `ProjectReference`s need `SetTargetFramework` for that RID. Do not rely on `-r` propagation to select the browser target.
 - Mesh import is glTF/GLB only through SharpGLTF on every platform. The rigged glTF skinning/animation path still lacks a validated browser fixture.
 - The planet (Planet Showcase) plays in the browser: `ManaLevelAssetPreloader.PlanetAssets` fetches the Natural Earth files it reads (published from `Assets/GeoData` by `publish_assets.py`'s `PLANET_DATA` -- keep the two alike); its picture is 4096 wide there and detail tiles get the 50 m borders; GIBS, the Terrarium tiles, adsbdb and the relay all allow cross-origin reads. No GPU readback in the browser (`wgpuBufferMapAsync`'s callback cannot reach managed code), so `IHeightSamplingComputeDevice.CanSampleHeights` is false there and terrain heights are sampled on the CPU. `PlanetPlay` drives a planet level each frame in both play modes.
+- The tab's heap stops at 2 GB, and its files live in that heap: browser play logs `[Memory]` every 10 s. Pictures decoded
+  once and dropped (streamed tiles) use `ManaImageCodec.LoadOnceAsync`, not `PrepareAsync`, whose cache (capped at 256 MB)
+  is for assets loaded later. Nothing is cached to "disk" there (Terrarium tiles; detail tiles are deleted once
+  unwanted), and planet patches stop at 129 vertices across (257 on desktop): a low pass held 1.2 GB of vertex arrays.
 
 ## Deploying ManaLidar to the phone
 

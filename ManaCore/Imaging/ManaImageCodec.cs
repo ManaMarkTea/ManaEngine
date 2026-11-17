@@ -48,6 +48,19 @@ public static partial class ManaImageCodec
         return PrepareCore(bytes);
     }
 
+    /// <summary>
+    /// Decodes a picture used once, such as a streamed map tile. Unlike <see cref="PrepareAsync(byte[])"/> nothing is kept,
+    /// so a steady stream of them cannot pile up in the browser's decode cache.
+    /// </summary>
+    public static Task<ManaImage> LoadOnceAsync(byte[] bytes)
+    {
+        if (ManaDds.IsDds(bytes))
+        {
+            return Task.FromResult(ManaDds.Read(bytes).Decode());
+        }
+        return DecodeOnceAsync(bytes);
+    }
+
     /// <summary>The file's picture, decoded ahead; a missing or unreadable file is skipped.</summary>
     public static async Task PrepareFileAsync(string path)
     {

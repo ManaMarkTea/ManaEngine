@@ -14,7 +14,19 @@ namespace ManaGeoTools.Code.Planet
 
         // Vertices across a patch, whatever its source holds: a 769-vertex patch was a single 20-30 MB upload and shadow
         // rebuild on the render thread, 100 ms or more. Closer up, patches split, so detail still arrives.
-        public const int MaxPatchVertices = 257;
+        // In the browser a quarter of that: each leaf keeps its vertex arrays (~4.8 MB at 257), and a low pass over land
+        // holds ~250 leaves -- 1.2 GB of a tab's 2 GB heap, which ran it out of memory.
+        public static int MaxPatchVertices
+        {
+            get
+            {
+                if (OperatingSystem.IsBrowser())
+                {
+                    return 129;
+                }
+                return 257;
+            }
+        }
         private const int MaxDirectSourceMatchDepth = 3;
 
         public sealed class PatchUpresPlan

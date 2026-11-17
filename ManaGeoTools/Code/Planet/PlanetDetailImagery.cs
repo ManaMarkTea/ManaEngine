@@ -163,6 +163,11 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
+            if (OperatingSystem.IsBrowser())
+            {
+                ForgetUnwantedTiles(order, worn);
+            }
+
             StartFetches(order);
 
             var changes = new List<(PlanetPatchMesh Mesh, PlanetImageryDetail? Detail)>();
@@ -192,6 +197,36 @@ namespace ManaGeoTools.Code.Planet
             if (changes.Count > 0)
             {
                 planet.DressDetail(changes, mesh => _dressing.TryRemove(mesh, out _));
+            }
+        }
+
+        // The browser's files are raw pixels in the wasm heap, so a tile the camera has left is deleted and fetched
+        // again if it comes back; otherwise a long flight fills the tab's 2 GB.
+        private void ForgetUnwantedTiles(Dictionary<string, int> order, HashSet<string> worn)
+        {
+            foreach (var (key, tile) in _tiles.ToList())
+            {
+                if (order.ContainsKey(key) || worn.Contains(key) || tile.Failed || tile.Work is { IsCompleted: false })
+                {
+                    continue;
+                }
+                var path = tile.Path;
+                if (path == null && tile.Work is { IsCompletedSuccessfully: true } finished)
+                {
+                    path = finished.Result;
+                }
+                if (path != null)
+                {
+                    ManaCore.Imaging.ManaTexturePrefetch.TryTake(path, out _);
+                    try
+                    {
+                        File.Delete(path);
+                    }
+                    catch (IOException)
+                    {
+                    }
+                }
+                _tiles.Remove(key);
             }
         }
 

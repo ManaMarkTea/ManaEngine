@@ -167,9 +167,7 @@ namespace ManaGeoTools.Code.Planet
                 var box = string.Create(CultureInfo.InvariantCulture,
                     $"{area.MinLatitude:0.######},{area.MinLongitude:0.######},{area.MaxLatitude:0.######},{area.MaxLongitude:0.######}");
                 var bytes = await FetchAsync(Layer, box, spec.Width, spec.Height, cancellation).ConfigureAwait(false);
-                // The browser decodes only asynchronously, ahead of the synchronous load.
-                await ManaImageCodec.PrepareAsync(bytes).ConfigureAwait(false);
-                var image = ManaImageCodec.Load(bytes);
+                var image = await ManaImageCodec.LoadOnceAsync(bytes).ConfigureAwait(false);
                 // Ground per pixel, north to south (pixels are square on the ground).
                 var kilometresPerPixel = (float)((area.MaxLatitude - area.MinLatitude) / 180.0 * 20037.5 / spec.Height);
                 if (States)
@@ -267,8 +265,7 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 Status = "Painting borders";
-                await ManaImageCodec.PrepareAsync(source).ConfigureAwait(false);
-                var image = ManaImageCodec.Load(source);
+                var image = await ManaImageCodec.LoadOnceAsync(source).ConfigureAwait(false);
                 if (States)
                 {
                     PlanetBorderPainter.Paint(image, ReadRings("ne_50m_admin_1_states_provinces"), StateWidth, StateColor);

@@ -34,7 +34,9 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
             var cachePath = Path.Combine(CacheRoot, zoom.ToString(), tileX.ToString(), $"{tileY}.png");
 
             byte[] pngBytes;
-            if (File.Exists(cachePath))
+            // The browser's files live in the wasm heap: a tile cache there only grows until the tab runs out.
+            var useCache = !OperatingSystem.IsBrowser();
+            if (useCache && File.Exists(cachePath))
             {
                 pngBytes = await File.ReadAllBytesAsync(cachePath);
             }
@@ -51,24 +53,31 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
                     return null;
                 }
 
-                try
+                if (useCache)
                 {
-                    Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
-                    await File.WriteAllBytesAsync(cachePath, pngBytes);
-                }
-                catch (IOException ex)
-                {
-                    // Caching is an optimization, not a requirement -- a write failure (e.g. a locked
-                    // file from a concurrent fetch of the same tile) shouldn't stop this tile from
-                    // being usable this run.
-                    Console.WriteLine($"[Terrarium] Failed to cache tile {zoom}/{tileX}/{tileY}: {ex.Message}");
+                    try
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(cachePath)!);
+                        await File.WriteAllBytesAsync(cachePath, pngBytes);
+                    }
+                    catch (IOException ex)
+                    {
+                        // Caching is an optimization, not a requirement -- a write failure (e.g. a locked
+                        // file from a concurrent fetch of the same tile) shouldn't stop this tile from
+                        // being usable this run.
+                        Console.WriteLine($"[Terrarium] Failed to cache tile {zoom}/{tileX}/{tileY}: {ex.Message}");
+                    }
                 }
             }
 
+            return await DecodeAsync(zoom, tileX, tileY, pngBytes);
+        }
+
+        private static async Task<TerrariumHeightTile?> DecodeAsync(int zoom, int tileX, int tileY, byte[] pngBytes)
+        {
             try
             {
-                await ManaImageCodec.PrepareAsync(pngBytes);
-                return DecodeTile(zoom, tileX, tileY, pngBytes);
+                return DecodeTile(zoom, tileX, tileY, await ManaImageCodec.LoadOnceAsync(pngBytes));
             }
             catch (InvalidDataException ex)
             {
@@ -122,9 +131,8 @@ namespace ManaGeoTools.Code.GeoTiff.Terrarium
             }
         }
 
-        private static TerrariumHeightTile DecodeTile(int zoom, int tileX, int tileY, byte[] pngBytes)
+        private static TerrariumHeightTile DecodeTile(int zoom, int tileX, int tileY, ManaImage image)
         {
-            var image = ManaImageCodec.Load(pngBytes);
             var heights = new float[TerrariumHeightTile.TileSize * TerrariumHeightTile.TileSize];
             var pixels = image.Pixels;
             for (var y = 0; y < Math.Min(image.Height, TerrariumHeightTile.TileSize); y++)
