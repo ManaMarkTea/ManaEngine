@@ -6,6 +6,7 @@ using ManaGeoTools.Code;
 using ManaGeoTools.Code.Flights;
 using ManaGeoTools.Code.Planet;
 using ManaUI;
+using Silk.NET.Input;
 
 namespace ManaEditor.Code.UI.ManaUi;
 
@@ -121,11 +122,21 @@ public sealed class FlightSelectionOverlay : Canvas
         {
             return child;
         }
-        if (PickAt(found, point) != null)
+        if (!LookButtonDown() && PickAt(found, point) != null)
         {
             return this;
         }
         return null;
+    }
+
+    // Aircraft take only left clicks: a right or middle press on one (most of the map, zoomed out) is the camera's look or pan.
+    private bool LookButtonDown()
+    {
+        if (_camera() is not { Context: { } context } || context.Input.Mice.FirstOrDefault() is not { } mouse)
+        {
+            return false;
+        }
+        return mouse.IsButtonPressed(MouseButton.Right) || mouse.IsButtonPressed(MouseButton.Middle);
     }
 
     protected override void OnPointerPressed(UiPointerEventArgs e)
