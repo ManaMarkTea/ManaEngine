@@ -65,7 +65,12 @@ fn mana_cascade_shadow(cascade : u32, world_position : vec3<f32>, normal : vec3<
     let texel_metres = 2.0 / (min(scale_x, scale_y) * map_size.x);
     let depth_per_metre = length(vec3<f32>(m[0].z, m[1].z, m[2].z));
     let sin_light = sqrt(max(1.0 - ndotl * ndotl, 0.0));
-    let offset_position = world_position + normalize(normal) * texel_metres * (0.5 + 1.5 * sin_light);
+    // Far from the origin a float position is only good to its last bits (half a metre at a true-size planet's
+    // 6,400 km): receiver and shadow map then disagree by that much, so both offsets grow with it or the ground
+    // speckles. About three units in the last place; a tenth of a millimetre in an ordinary level.
+    let magnitude = max(max(abs(world_position.x), abs(world_position.y)), abs(world_position.z));
+    let precision_metres = magnitude * 2.4e-7;
+    let offset_position = world_position + normalize(normal) * (texel_metres * (0.5 + 1.5 * sin_light) + precision_metres);
 
     let light_clip = light_view_projection * vec4<f32>(offset_position, 1.0);
     if (light_clip.w <= 0.0) {
@@ -83,7 +88,7 @@ fn mana_cascade_shadow(cascade : u32, world_position : vec3<f32>, normal : vec3<
     let shadow_uv = light_ndc.xy * vec2<f32>(0.5, -0.5) + vec2<f32>(0.5, 0.5);
 
     // The normal offset above keeps a surface from shadowing itself; this covers what is left of a texel's depth.
-    let shadow_depth = light_ndc.z - texel_metres * 0.5 * depth_per_metre;
+    let shadow_depth = light_ndc.z - (texel_metres * 0.5 + precision_metres) * depth_per_metre;
 
     // A 3x3 tent of bilinear comparisons, done by hand over the 4x4 texels it touches: the comparison sampler is
     // Nearest (see CreateShadowMapResources), and plain nearest taps drew every edge as a staircase of texels.
