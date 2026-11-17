@@ -40,13 +40,13 @@ namespace ManaGeoTools.Code.Planet
         // usual" (every other caller/overload).
         private float[,]? _pendingPrecomputedHeights;
 
-        // How far (in real-world meters, scaled through HeightScale the same as actual elevation) the
-        // skirt geometry around this patch's 4 edges hangs inward toward the planet's center -- see the
-        // skirt-building block in GenerateData for why this exists. 500m comfortably covers the height
-        // differences that show up at a boundary between two patches sampling at different resolutions
-        // or from different data sources, without being large enough to visibly show through anywhere
-        // reasonable terrain would actually be viewed from.
+        // The deepest the skirts around a patch's edges hang toward the centre (real metres, scaled through HeightScale
+        // like elevation); see the skirt block in GenerateData.
         private const float SkirtDepthMeters = 500f;
+        // Per vertex the skirt is the height range within SkirtWindow edge vertices either side (a neighbour up to 8 times
+        // coarser spans that), plus a lip for heights read from different data on either side.
+        private const int SkirtWindow = 8;
+        private const float SkirtMinimumMeters = 20f;
 
         public PlanetPatchMesh(
             ManaContext context,
@@ -524,12 +524,28 @@ namespace ManaGeoTools.Code.Planet
             // Skirts: a wall hanging straight down toward the centre from each edge, filling the crack where two
             // neighbours of different resolution meet (their in-between edge vertices have no partner). Culling is
             // off for procedural meshes, so the walls' winding does not matter.
-            var skirtDepth = HeightScale * SkirtDepthMeters;
+            // Each hangs only as far as the crack can be deep there: a coarser neighbour's edge runs straight between some of
+            // these vertices, so it strays from them by at most the height range nearby. Flat ground gets a lip, not a wall.
+            var maxDepth = HeightScale * SkirtDepthMeters;
+            var minDepth = HeightScale * SkirtMinimumMeters;
+            var edgeRadii = new float[n];
             for (var edge = 0; edge < 4; edge++)
             {
                 var skirtStart = gridCount + edge * n;
                 for (var i = 0; i < n; i++)
                 {
+                    edgeRadii[i] = positions[EdgeVertex(edge, i, n)].Length();
+                }
+                for (var i = 0; i < n; i++)
+                {
+                    var low = edgeRadii[i];
+                    var high = low;
+                    for (var j = Math.Max(0, i - SkirtWindow); j <= Math.Min(n - 1, i + SkirtWindow); j++)
+                    {
+                        low = MathF.Min(low, edgeRadii[j]);
+                        high = MathF.Max(high, edgeRadii[j]);
+                    }
+                    var skirtDepth = Math.Clamp(high - low + minDepth, minDepth, maxDepth);
                     var source = EdgeVertex(edge, i, n);
                     var position = positions[source];
                     positions[skirtStart + i] = position - Vector3.Normalize(position) * skirtDepth;

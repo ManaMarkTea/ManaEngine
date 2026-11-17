@@ -1802,8 +1802,12 @@ namespace ManaGeoTools.Code.Planet
             return false;
         }
 
-        /// <summary>The patch drawn below a world point: its height data's zoom and spacing, its mesh's vertex spacing and the picture it wears.</summary>
-        public readonly record struct PatchSurvey(int? Zoom, double? HeightMetresPerSample, float VertexMetres, PlanetImageryDetail? Detail);
+        /// <summary>
+        /// The patch drawn below a world point: its height data's zoom and spacing, its mesh's vertex spacing, the picture
+        /// it wears and, when its mesh is built, the drawn ground's distance from the planet's centre (planet units).
+        /// </summary>
+        public readonly record struct PatchSurvey(int? Zoom, double? HeightMetresPerSample, float VertexMetres, PlanetImageryDetail? Detail,
+            float? GroundRadius = null);
 
         /// <summary>What the ground straight below <paramref name="worldPosition"/> is drawn from; null while the rebuild lock is busy.</summary>
         public PatchSurvey? SurveyBelow(Vector3 worldPosition)
@@ -1827,7 +1831,8 @@ namespace ManaGeoTools.Code.Planet
                     // Across the patch's bounding sphere is ~1.41 times its side.
                     var side = leaf.LocalBoundsSphere.LocalRadius * 2.0f / MathF.Sqrt(2.0f);
                     var vertexMetres = side / MathF.Max(1, mesh.Resolution - 1) * (PlanetLoader.EarthRadiusMeters / Radius);
-                    return new PatchSurvey(leaf.Zoom, leaf.SourceMetersPerPixel ?? _baselineMetersPerPixel, vertexMetres, mesh.Detail);
+                    return new PatchSurvey(leaf.Zoom, leaf.SourceMetersPerPixel ?? _baselineMetersPerPixel, vertexMetres, mesh.Detail,
+                        GroundRadius(mesh, u, v));
                 }
                 return null;
             }
@@ -1835,6 +1840,25 @@ namespace ManaGeoTools.Code.Planet
             {
                 Monitor.Exit(_rebuildLock);
             }
+        }
+
+        // The drawn grid's radius at (u, v), bilinear between its four vertices (the grid is even in u and v).
+        private static float? GroundRadius(PlanetPatchMesh mesh, float u, float v)
+        {
+            var n = mesh.Resolution;
+            if (n < 2 || mesh.CpuData?.Positions is not { } positions || positions.Length < n * n)
+            {
+                return null;
+            }
+            var fx = Math.Clamp((u - mesh.MinU) / (mesh.MaxU - mesh.MinU), 0.0f, 1.0f) * (n - 1);
+            var fy = Math.Clamp((v - mesh.MinV) / (mesh.MaxV - mesh.MinV), 0.0f, 1.0f) * (n - 1);
+            var x = Math.Min((int)fx, n - 2);
+            var y = Math.Min((int)fy, n - 2);
+            var tx = fx - x;
+            var ty = fy - y;
+            var top = float.Lerp(positions[y * n + x].Length(), positions[y * n + x + 1].Length(), tx);
+            var bottom = float.Lerp(positions[(y + 1) * n + x].Length(), positions[(y + 1) * n + x + 1].Length(), tx);
+            return float.Lerp(top, bottom, ty);
         }
 
         /// <summary>The patches drawn now, or null while the rebuild lock is busy (try again next frame).</summary>

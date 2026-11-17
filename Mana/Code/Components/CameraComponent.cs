@@ -955,6 +955,12 @@ namespace Mana
                 }
             }
 
+            // A move that overflowed (a speed scale gone wild) is dropped, not handed on to audio, culling and the view.
+            if (!float.IsFinite(position.X) || !float.IsFinite(position.Y) || !float.IsFinite(position.Z))
+            {
+                position = Owner.Position;
+            }
+
             var transform = Owner.LocalTransform;
             transform.Translation = Vector3.Zero;
             transform *= Matrix4x4.CreateTranslation(position);

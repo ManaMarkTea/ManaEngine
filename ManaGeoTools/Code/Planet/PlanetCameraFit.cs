@@ -22,10 +22,18 @@ namespace ManaGeoTools.Code.Planet
         private const float SurfaceUpInnerShare = 0.1f;
         private const float SurfaceUpOuterShare = 0.5f;
 
+        // Above this height (a share of the radius) flying gets no faster.
+        private const float MaxSpeedHeightShare = 2.0f;
+
+        // The free camera is kept this far above the drawn ground (metres): below it there is only the patches' undersides.
+        private const float GroundClearanceMeters = 5.0f;
+
         private readonly CameraComponent _camera;
         private readonly PlanetNode _planet;
         private readonly float _baseFar;
         private readonly float _baseNear;
+        // The drawn ground's distance from the centre below the camera, from the last survey (sea level until one).
+        private float _groundRadius;
 
         public PlanetCameraFit(CameraComponent camera, PlanetNode planet, bool surfaceUp = false)
         {
@@ -33,7 +41,9 @@ namespace ManaGeoTools.Code.Planet
             _planet = planet;
             _baseFar = camera.FarClipPlane;
             _baseNear = camera.NearClipPlane;
-            camera.MovementSpeedScale = position => Height(position) / SpeedHeightReference;
+            _groundRadius = planet.Radius;
+            // Capped: uncapped, each frame's climb raised the next frame's speed, and a fast climb overflowed in half a second.
+            camera.MovementSpeedScale = position => MathF.Min(Height(position), _planet.Radius * MaxSpeedHeightShare) / SpeedHeightReference;
             if (surfaceUp)
             {
                 camera.UpDirection = Up;
@@ -53,11 +63,11 @@ namespace ManaGeoTools.Code.Planet
             _camera.UpdateProjection();
         }
 
-        /// <summary>Height above the planet's sea-level sphere, in world units; a sliver above zero inside it.</summary>
+        /// <summary>Height above the ground below the camera (sea level until surveyed), in world units; never quite zero.</summary>
         public float Height(Vector3 worldPosition)
         {
             var distance = Vector3.Distance(worldPosition, _planet.WorldTransform.Translation);
-            return MathF.Max(distance - _planet.Radius, _planet.Radius * 1e-6f);
+            return MathF.Max(distance - _groundRadius, _planet.Radius * 1e-6f);
         }
 
         /// <summary>The camera's up at a world position: the way out from the planet's centre near it, world +Y far off.</summary>
@@ -80,6 +90,7 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>Once a frame: far plane just past the horizon (the level's own far a floor), near plane a share of the height.</summary>
         public void Update()
         {
+            KeepAboveGround();
             var position = _camera.Owner.Position;
             var distance = Vector3.Distance(position, _planet.WorldTransform.Translation);
             var horizon = MathF.Sqrt(MathF.Max(0.0f, distance * distance - _planet.Radius * _planet.Radius));
@@ -98,6 +109,25 @@ namespace ManaGeoTools.Code.Planet
             {
                 _camera.UpdateViewMatrix();
             }
+        }
+
+        // Surveys the ground below and lifts a free camera that has sunk into it straight up out of it.
+        private void KeepAboveGround()
+        {
+            var center = _planet.WorldTransform.Translation;
+            var position = _camera.Owner.Position;
+            if (_planet.SurveyBelow(position)?.GroundRadius is { } ground)
+            {
+                _groundRadius = ground;
+            }
+            var outward = position - center;
+            var distance = outward.Length();
+            var floor = _groundRadius + GroundClearanceMeters * _planet.Radius / PlanetLoader.EarthRadiusMeters;
+            if (_camera.AttachedRig != null || distance >= floor || distance < 1e-3f)
+            {
+                return;
+            }
+            _camera.Owner.Position = center + outward / distance * floor;
         }
     }
 }
