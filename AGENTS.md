@@ -465,8 +465,10 @@ dark when it casts shadows, which a click selects; the selected light's range as
   `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
   `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. `FlightSelectionOverlay` picks one aircraft
   (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,
-  airframe and route (`FlightDetailsLookup`: adsbdb.com, the callsign's usual route -- greyed with a "?" and not drawn when
-  the aircraft is over 400 km off it), its flown path (OpenSky tracks) and a dashed great circle on to the destination.
+  airframe and route (`FlightDetailsLookup`; `FlightRouteJudge` picks what the card shows: FlightAware's leg in the air
+  from the relay's `/route` when it has an AeroAPI key -- by registration, capped at 30 lookups a day, the $5 free tier --,
+  else adsbdb.com's usual route for the callsign when the aircraft is flying it, else its own trip: where its track took
+  off and the airport ahead when descending, greyed with a "?"), its flown path (OpenSky tracks) and a dashed great circle on to the destination.
   Traffic comes from the relay on hera (`https://hera.manamarktea.com/flights`, `relayUrl`; the ManaServers repo's
   `flight_relay` role: one fetch every 90 s with the OpenSky account, shared by every viewer, the browser's only way in)
   and, when it fails, from OpenSky directly -- with an API client in `OPENSKY_CLIENT_ID`/`_SECRET` or

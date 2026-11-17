@@ -8,7 +8,16 @@ namespace ManaGeoTools.Code.Flights
     /// <summary>A point the aircraft reported on its way: OpenSky's track, oldest first.</summary>
     public readonly record struct TrackPoint(double Time, float Latitude, float Longitude, float AltitudeMeters);
 
-    /// <summary>What is known about one aircraft beyond its position: the route its callsign flies, the airframe, the path flown.</summary>
+    /// <summary>
+    /// The trip the aircraft is flying now, from FlightAware through the relay: the leg off the ground and not yet
+    /// down. An end is null when its airport is not known (a flight with no plan).
+    /// </summary>
+    public sealed record LiveRoute(RouteAirport? Origin, RouteAirport? Destination, string? Status, bool Diverted);
+
+    /// <summary>
+    /// What is known about one aircraft beyond its position: the route its callsign usually flies, the airframe, the
+    /// path flown, and -- when the relay could ask FlightAware -- the trip it is on today.
+    /// </summary>
     public sealed record FlightDetails(
         string? Airline,
         RouteAirport? Origin,
@@ -16,7 +25,8 @@ namespace ManaGeoTools.Code.Flights
         string? AircraftType,
         string? Registration,
         TrackPoint[] Track,
-        string? Error);
+        string? Error,
+        LiveRoute? Live = null);
 
     /// <summary>
     /// Fetches a selected flight's details: the path flown from OpenSky's tracks (free, experimental), and the
@@ -72,7 +82,52 @@ namespace ManaGeoTools.Code.Flights
                 error = ex.Message;
             }
 
-            return new FlightDetails(airline, origin, destination, type, registration, await track.ConfigureAwait(false), error);
+            // After the airframe: by registration FlightAware finds the airframe's own leg, whatever number it flies under.
+            LiveRoute? live = null;
+            if (!string.IsNullOrEmpty(relayUrl) && (state.Callsign.Length > 0 || registration != null))
+            {
+                var query = $"callsign={Uri.EscapeDataString(state.Callsign.Trim())}";
+                if (registration != null)
+                {
+                    query += $"&registration={Uri.EscapeDataString(registration)}";
+                }
+                using var liveJson = await FetchJsonAsync($"{relayUrl.TrimEnd('/')}/route?{query}", cancellation).ConfigureAwait(false);
+                if (liveJson != null)
+                {
+                    live = ReadLiveRoute(liveJson.RootElement);
+                }
+            }
+
+            return new FlightDetails(airline, origin, destination, type, registration, await track.ConfigureAwait(false), error, live);
+        }
+
+        /// <summary>The relay's /route reply (its own shape, see ManaServers' flight_relay); null when it names neither end.</summary>
+        public static LiveRoute? ReadLiveRoute(JsonElement reply)
+        {
+            if (reply.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+            var from = ReadLiveAirport(reply, "origin");
+            var to = ReadLiveAirport(reply, "destination");
+            if (from == null && to == null)
+            {
+                return null;
+            }
+            var diverted = reply.TryGetProperty("diverted", out var flag) && flag.ValueKind == JsonValueKind.True;
+            return new LiveRoute(from, to, Text(reply, "status"), diverted);
+        }
+
+        private static RouteAirport? ReadLiveAirport(JsonElement reply, string name)
+        {
+            if (!reply.TryGetProperty(name, out var airport) || airport.ValueKind != JsonValueKind.Object
+                || !airport.TryGetProperty("latitude", out var latitude) || latitude.ValueKind != JsonValueKind.Number
+                || !airport.TryGetProperty("longitude", out var longitude) || longitude.ValueKind != JsonValueKind.Number)
+            {
+                return null;
+            }
+            return new RouteAirport(Text(airport, "code") ?? Text(airport, "icao") ?? "?", Text(airport, "city") ?? "",
+                Text(airport, "name") ?? "", latitude.GetSingle(), longitude.GetSingle());
         }
 
         // OpenSky's track: [time, latitude, longitude, baro altitude, track, on ground] a waypoint. The relay first

@@ -145,6 +145,19 @@ public static class FlightTrafficChecks
 
         var westbound = eastbound with { TrackDegrees = 272 };
         check("on the line but flying the other way is not the route", FlightRouteJudge.Judge(Usual(sfo, clt), westbound, fields) is { Scheduled: false }, "");
+        // The relay's /route reply (FlightAware's leg in the air, airports placed from OurAirports).
+        using var liveReply = System.Text.Json.JsonDocument.Parse("""
+            {"source":"FlightAware","ident":"AAL2460","status":"En Route / On Time","diverted":false,
+             "origin":{"code":"CLT","icao":"KCLT","name":"Charlotte Douglas","city":"Charlotte","latitude":35.214,"longitude":-80.943},
+             "destination":{"code":"PHX","icao":"KPHX","name":"Phoenix Sky Harbor","city":"Phoenix","latitude":33.434,"longitude":-112.012}}
+            """);
+        var live = FlightDetailsLookup.ReadLiveRoute(liveReply.RootElement);
+        check("the relay's live route reads both ends", live is { Origin.Code: "CLT", Destination.City: "Phoenix", Status: "En Route / On Time" }, $"{live}");
+        var liveTrip = FlightRouteJudge.Judge(Usual(sfo, clt) with { Live = live }, intoPhoenix, fields);
+        check("a live trip wins over the callsign's usual route", liveTrip is { Scheduled: true, From.Code: "CLT", To.Code: "PHX", Usual: null, Live: "FlightAware · En Route / On Time" }, $"{liveTrip}");
+        var elsewhere = FlightRouteJudge.Judge(Usual(sfo, clt) with { Live = live }, overMexico with { Latitude = 50.0f, Longitude = 10.0f }, fields);
+        check("a live trip nowhere near the aircraft is another airframe's", elsewhere is { Live: null }, $"{elsewhere}");
+
         var equator = new LatLong(0, 0).ToUnitSphere();
         check("a bearing due east is 90 degrees", MathF.Abs(FlightRouteJudge.Bearing(equator, new LatLong(10, 0).ToUnitSphere()) - 90) < 0.01f, "");
 

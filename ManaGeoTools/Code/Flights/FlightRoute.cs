@@ -6,9 +6,10 @@ namespace ManaGeoTools.Code.Flights
     /// The trip shown for a selected flight. <see cref="Scheduled"/>: adsbdb's route for the callsign, which the aircraft
     /// is flying. Otherwise what the aircraft shows: <see cref="From"/> where its track took off, <see cref="To"/> the
     /// airport ahead it is descending toward (<see cref="ToGuessed"/>); <see cref="Usual"/> names the route on record
-    /// ("SFO → CLT") when it was turned down.
+    /// ("SFO → CLT") when it was turned down. <see cref="Live"/>: the trip came from FlightAware, and says how it is going
+    /// ("FlightAware · En Route / On Time").
     /// </summary>
-    public sealed record FlightRoute(RouteAirport? From, RouteAirport? To, bool Scheduled, bool ToGuessed, string? Usual)
+    public sealed record FlightRoute(RouteAirport? From, RouteAirport? To, bool Scheduled, bool ToGuessed, string? Usual, string? Live = null)
     {
         public bool HasEnds => From != null || To != null;
     }
@@ -22,6 +23,8 @@ namespace ManaGeoTools.Code.Flights
     {
         // How far off the line between the two ends (summed detour) the aircraft may be: airways wander, weather too.
         private const float DetourKilometres = 300.0f;
+        // A live trip only has to be roughly where the aircraft is: diversions and holding stray far further.
+        private const float LiveDetourKilometres = 1500.0f;
         // Its course against the great circle on to the destination; nearer than NearDestination it may be turning in.
         private const float HeadingSlackDegrees = 70.0f;
         private const float NearDestinationKilometres = 150.0f;
@@ -42,6 +45,20 @@ namespace ManaGeoTools.Code.Flights
             }
 
             var here = Direction(state.Latitude, state.Longitude);
+            if (details.Live is { } live && Believable(live, here))
+            {
+                var note = "FlightAware";
+                if (live.Diverted)
+                {
+                    note += " · diverted";
+                }
+                else if (!string.IsNullOrEmpty(live.Status))
+                {
+                    note += $" · {live.Status}";
+                }
+                return new FlightRoute(live.Origin, live.Destination, true, false, null, note);
+            }
+
             var departed = DepartedFrom(details, airports);
             string? usual = null;
             if (details is { Origin: { } origin, Destination: { } destination })
@@ -55,6 +72,19 @@ namespace ManaGeoTools.Code.Flights
 
             var arriving = ArrivingAt(state, here, airports);
             return new FlightRoute(departed, arriving, false, arriving != null, usual);
+        }
+
+        // FlightAware knows the trip, but the airframe it was asked about came from adsbdb's registration: a leg nowhere
+        // near the aircraft means that lookup named another airframe.
+        private static bool Believable(LiveRoute live, Vector3 here)
+        {
+            if (live.Origin == null || live.Destination == null)
+            {
+                return true;
+            }
+            var from = Direction(live.Origin.Latitude, live.Origin.Longitude);
+            var to = Direction(live.Destination.Latitude, live.Destination.Longitude);
+            return Kilometres(from, here) + Kilometres(here, to) <= Kilometres(from, to) + LiveDetourKilometres;
         }
 
         private static bool Fits(RouteAirport origin, RouteAirport destination, RouteAirport? departed, FlightState state, Vector3 here)

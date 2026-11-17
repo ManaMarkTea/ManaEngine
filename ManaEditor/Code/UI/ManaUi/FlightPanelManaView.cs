@@ -224,12 +224,16 @@ public static class FlightPanelManaView
         var usual = Small(theme, theme.TextMuted).Ellipsis().BindTextPolled(() => $"usually {route()?.Usual}  ·  not this trip");
         usual.BindPolled(el => el.Visibility, () => Shown(route() is { Usual: not null }));
 
+        // Where a live trip came from (FlightAware asks for credit) and how it is going.
+        var live = Small(theme, theme.TextMuted).Ellipsis().BindTextPolled(() => route()?.Live ?? "");
+        live.BindPolled(el => el.Visibility, () => Shown(route() is { Live: not null }));
+
         return new Border()
             .Fill(theme.Frosted(theme.SurfaceAlt))
             .Outline(theme.Border, 1.0f)
             .Rounded(theme.CornerRadius)
             .PaddingOf(10.0f, 8.0f)
-            .Content(new StackPanel().Vertical(2.0f).Children(row, none, usual));
+            .Content(new StackPanel().Vertical(2.0f).Children(row, none, usual, live));
     }
 
     private static UiElement Tile(UiTheme theme, string label, Func<string> value, Func<string> detail)
