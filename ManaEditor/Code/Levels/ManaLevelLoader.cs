@@ -5,18 +5,10 @@ using Mana.Code.Components;
 using Mana.Code.Levels;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
-#if !MANA_BROWSER
 using ManaGeoTools.Code.Geo;
-#endif
-#if !MANA_BROWSER
 using ManaGeoTools.Code.GeoTiff;
-#endif
-#if !MANA_BROWSER
 using ManaGeoTools.Code.Planet;
-#endif
-#if !MANA_BROWSER
 using ManaGeoTools.Code.Shapefile;
-#endif
 using ManaEditor.Code.Assets;
 using ManaEditor.Code.GridMaps;
 using ManaEditor.Code.Loaders;
@@ -34,9 +26,7 @@ namespace ManaEditor.Code.Levels
 
         public ManaPlayerStartNode? PlayerStart { get; set; }
 
-#if !MANA_BROWSER
         public PlanetNode? Planet { get; set; }
-#endif
 
         public ManaWaterNode? Water { get; set; }
 
@@ -56,10 +46,8 @@ namespace ManaEditor.Code.Levels
     /// </summary>
     public static class ManaLevelLoader
     {
-#if !MANA_BROWSER
         private static readonly object WaterMaskLock = new();
         private static bool _waterMaskLoadAttempted;
-#endif
 
         /// <summary>
         /// Loads <paramref name="level"/> into <paramref name="scene"/>. By default this replaces the world's
@@ -182,12 +170,10 @@ namespace ManaEditor.Code.Levels
         /// </summary>
         public static void RetirePlanetWork(ManaSceneNode node)
         {
-#if !MANA_BROWSER
             if (node is PlanetNode planet)
             {
                 planet.Retire();
             }
-#endif
             foreach (var child in node.Children)
             {
                 RetirePlanetWork(child);
@@ -324,12 +310,10 @@ namespace ManaEditor.Code.Levels
                     state.Result.PlayerStart = start;
                 }
 
-#if !MANA_BROWSER
                 if (node is PlanetNode planet)
                 {
                     state.Result.Planet = planet;
                 }
-#endif
 
                 if (node is ManaWaterNode water)
                 {
@@ -434,13 +418,11 @@ namespace ManaEditor.Code.Levels
                     AddScriptsIfPresent(entry, start);
                     return start;
 
-#if !MANA_BROWSER
                 case ManaLevelSourceKind.Planet:
                     var planet = LoadPlanet(entry, state.Context, state.Scene);
                     AttachToParent(state.Context, parent, planet);
                     AddScriptsIfPresent(entry, planet);
                     return planet;
-#endif
 
                 case ManaLevelSourceKind.Water:
                     var water = LoadWater(entry, state.Context, state.Scene);
@@ -556,11 +538,8 @@ namespace ManaEditor.Code.Levels
             return node;
         }
 
-#if !MANA_BROWSER
-        // Planet levels are backed by ManaGeoTools (GeoTIFF/shapefile terrain), which has no
-        // browser-wasm build; this file is source-linked into ManaEditor.Web (see its csproj). No
-        // browser level uses a Planet node, so the whole path compiles out there rather than
-        // dragging that project in.
+        // In the browser the baseline and the water-mask shapefiles come from the asset catalog, fetched ahead by
+        // ManaLevelAssetPreloader (PlanetAssets) before this synchronous load.
         private static PlanetNode LoadPlanet(ManaLevelNode entry, ManaContext context, ManaScene scene)
         {
             EnsureWaterMask();
@@ -596,7 +575,6 @@ namespace ManaEditor.Code.Levels
 
             return planet;
         }
-#endif
 
         private static ManaGridMapNode LoadGridMap(ManaLevelNode entry, ManaContext context, ManaScene scene)
         {
@@ -799,7 +777,6 @@ namespace ManaEditor.Code.Levels
             }
         }
 
-#if !MANA_BROWSER
         private static void EnsureWaterMask()
         {
             lock (WaterMaskLock)
@@ -818,7 +795,6 @@ namespace ManaEditor.Code.Levels
                 GeoWaterMask.Shared = mask;
             }
         }
-#endif
 
         private static void ApplyTransform(ManaSceneNode node, ManaLevelNode entry)
         {

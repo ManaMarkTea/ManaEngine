@@ -6,7 +6,7 @@ namespace ManaGeoTools.Code.Flights
     /// The trip shown for a selected flight. <see cref="Scheduled"/>: adsbdb's route for the callsign, which the aircraft
     /// is flying. Otherwise what the aircraft shows: <see cref="From"/> where its track took off, <see cref="To"/> the
     /// airport ahead it is descending toward (<see cref="ToGuessed"/>); <see cref="Usual"/> names the route on record
-    /// ("SFO → CLT") when it was turned down. <see cref="Live"/>: the trip came from FlightAware, and says how it is going
+    /// ("SFO to CLT") when it was turned down. <see cref="Live"/>: the trip came from FlightAware, and says how it is going
     /// ("FlightAware · En Route / On Time").
     /// </summary>
     public sealed record FlightRoute(RouteAirport? From, RouteAirport? To, bool Scheduled, bool ToGuessed, string? Usual, string? Live = null)
@@ -67,7 +67,7 @@ namespace ManaGeoTools.Code.Flights
                 {
                     return new FlightRoute(origin, destination, true, false, null);
                 }
-                usual = $"{origin.Code} → {destination.Code}";
+                usual = $"{origin.Code} to {destination.Code}";
             }
 
             var arriving = ArrivingAt(state, here, airports);

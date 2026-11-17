@@ -128,14 +128,14 @@ public static class FlightTrafficChecks
         var intoPhoenix = new FlightState("b", "AAL2460", -111.5f, 33.9f, 6980, 191, 227, -11, 0, false);
         var seen = FlightRouteJudge.Judge(Usual(sfo, clt, new TrackPoint(0, 35.22f, -80.95f, 300)), intoPhoenix, fields);
         check("flying away from the destination on record, the card shows its own trip instead",
-            seen is { Scheduled: false, From.Code: "CLT", To.Code: "PHX", ToGuessed: true, Usual: "SFO → CLT" }, $"{seen}");
+            seen is { Scheduled: false, From.Code: "CLT", To.Code: "PHX", ToGuessed: true, Usual: "SFO to CLT" }, $"{seen}");
 
         // AAL2978 over Mexico at cruise, the record says PHL -> PIT: nothing known, and the record named as usual.
         var phl = new RouteAirport("PHL", "Philadelphia", "", 39.872f, -75.241f);
         var pit = new RouteAirport("PIT", "Pittsburgh", "", 40.492f, -80.233f);
         var overMexico = new FlightState("c", "AAL2978", -113.74f, 29.62f, 11476, 231, 332, 0, 0, false);
         var unknown = FlightRouteJudge.Judge(Usual(phl, pit, new TrackPoint(0, 29.0f, -113.0f, 11400)), overMexico, fields);
-        check("far off the route on record at cruise, the route is unknown", unknown is { HasEnds: false, Usual: "PHL → PIT" }, $"{unknown}");
+        check("far off the route on record at cruise, the route is unknown", unknown is { HasEnds: false, Usual: "PHL to PIT" }, $"{unknown}");
 
         // DAL1936 50 km south-west of Minneapolis, coming down heading east-south-east: being turned in, MSP 40 degrees off its course.
         Airport[] minneapolis = [new("MSP", "Minneapolis", 44.882f, -93.222f)];

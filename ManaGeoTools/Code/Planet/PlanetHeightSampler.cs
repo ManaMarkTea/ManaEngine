@@ -79,7 +79,7 @@ namespace ManaGeoTools.Code.Planet
             int requestedTileCount,
             Func<bool>? shouldDispatch = null)
         {
-            if (context.GraphicsDevice is not IHeightSamplingComputeDevice computeDevice)
+            if (context.GraphicsDevice is not IHeightSamplingComputeDevice { CanSampleHeights: true } computeDevice)
             {
                 return null;
             }

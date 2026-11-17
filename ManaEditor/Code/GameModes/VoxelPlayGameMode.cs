@@ -4,7 +4,6 @@ using Mana.Code.UI.ManaUi;
 using ManaCore.Graphics;
 using ManaCore.Loading;
 using ManaGraphics.Code.Graphics;
-using ManaGeoTools.Code.Planet;
 using ManaEditor.Code.Levels;
 using ManaEditor.Code.Services;
 using ManaEditor.Code.UI.ManaUi;
@@ -44,10 +43,7 @@ namespace Mana.Code.GameModes
         private ManaSceneNode? _ground;
         private ManaPawnNode? _player;
         private ManaWebGpuContext? _webGpuContext;
-#if !MANA_BROWSER
-        private PlanetNode? _planet;
-        private PlanetCameraFit? _planetCamera;
-#endif
+        private PlanetPlay? _planet;
 
         /// <param name="levelPath">The level to play, or null to open on the level select (<see cref="OffersLevelSelect"/>).</param>
         public VoxelPlayGameMode(string? levelPath, ManaGraphicsBackendKind graphicsBackend)
@@ -325,13 +321,10 @@ namespace Mana.Code.GameModes
             }
 #endif
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
-#if !MANA_BROWSER
-            _planet = result.Planet;
-            if (_planet != null && Context.World.MainCamera is { } planetCamera)
+            if (result.Planet != null)
             {
-                _planetCamera = new PlanetCameraFit(planetCamera, _planet, surfaceUp: true);
+                _planet = new PlanetPlay(result.Planet);
             }
-#endif
 
             foreach (var warning in result.Warnings)
             {
@@ -582,11 +575,8 @@ namespace Mana.Code.GameModes
                     scene.GameModes.Clear();
                 }
             }
-#if !MANA_BROWSER
-            _planetCamera?.Release();
-            _planetCamera = null;
+            _planet?.Release();
             _planet = null;
-#endif
             if (_ground != null)
             {
                 foreach (var renderer in _ground.GetComponents<MeshRendererComponent>())
@@ -675,21 +665,7 @@ namespace Mana.Code.GameModes
 
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
             Context.World.GameState.Tick((float)deltaTime);
-#if !MANA_BROWSER
-            // Play may swap cameras after loading (the free debug camera); the fit follows whichever is current.
-            if (_planet != null && Context.World.MainCamera is { } liveCamera && _planetCamera?.Camera != liveCamera)
-            {
-                _planetCamera?.Release();
-                _planetCamera = new PlanetCameraFit(liveCamera, _planet, surfaceUp: true);
-            }
-            _planetCamera?.Update();
-            _planet?.UpdateAutoLod(Context.World.MainCamera);
-            _planet?.UpdateHorizonCulling(Context.World.MainCamera);
-            _planet?.UpdateNearOcean(Context.World.MainCamera);
-            _planet?.UpdateDetailChase();
-            _planet?.ProcessPendingSplits();
-            _planet?.ProcessPendingMerges();
-#endif
+            _planet?.Tick(Context.World);
 
             // Escape quits rather than releasing the character: there is no editor to hand control back to.
             var keyboard = Context.Input?.Keyboards.FirstOrDefault();

@@ -12,6 +12,10 @@ from urllib.parse import quote, unquote, urlsplit
 
 # Generated/ holds derived files (the baked model previews), attached to the catalog by attach_thumbnails.
 EXCLUDED_PREFIXES = ("Assets/GeoData/", "Assets/Generated/")
+# What a planet reads of GeoData (ManaLevelAssetPreloader.PlanetAssets); the rest is desktop tooling data.
+PLANET_DATA = {"Assets/GeoData/ne_10m_lakes.zip", "Assets/GeoData/ne_10m_ocean.zip",
+               "Assets/GeoData/ne_50m_admin_0_countries.zip", "Assets/GeoData/ne_50m_admin_1_states_provinces.zip",
+               "Assets/GeoData/airports.csv"}
 ROOTS = ("Assets", "ManaGraphics/Assets", "ManaUI/Assets", "ManaEditor/Assets")
 SUPPORTED_EXTENSIONS = {"KHR_materials_unlit", "KHR_materials_emissive_strength",
                         "KHR_texture_transform", "KHR_materials_pbrSpecularGlossiness"}
@@ -126,7 +130,7 @@ def publish(root, output):
             if not source.is_file():
                 continue
             path = "Assets/" + source.relative_to(root / directory).as_posix()
-            if path.startswith(EXCLUDED_PREFIXES):
+            if path.startswith(EXCLUDED_PREFIXES) and path not in PLANET_DATA:
                 continue
             if path in sources:
                 raise ValueError(f"Duplicate asset path: {path}")

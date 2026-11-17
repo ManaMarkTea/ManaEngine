@@ -19,6 +19,10 @@ namespace ManaCore.Graphics
     // per-vertex on the CPU, checked via `Context.GraphicsDevice is IHeightSamplingComputeDevice`.
     public interface IHeightSamplingComputeDevice : IManaGraphicsDevice
     {
+        // False where the GPU cannot hand results back (the browser: no buffer mapping there), so callers go straight
+        // to the CPU instead of waiting out a dispatch that never completes.
+        bool CanSampleHeights { get; }
+
         // tilesNewestFirst: the caller's own "which source wins where multiple overlap" ordering (see
         // GeoTiffLibrary.FindCurrentTile) -- the implementation takes the first bounding-box match per
         // point, same newest-wins semantics, just without needing the CPU spatial-grid bucketing since a

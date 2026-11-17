@@ -190,15 +190,14 @@ public static class FlightPanelManaView
             return "";
         }
 
-        var arrow = Medium(theme, theme.FontSizeHeading, theme.Accent).Text("→").CenterV();
-        arrow.BindPolled(el => el.Foreground, () =>
+        var arrow = new RouteArrow(() =>
         {
             if (Scheduled())
             {
                 return theme.Accent;
             }
             return theme.TextMuted;
-        });
+        }).CenterV();
         var seen = new Border().Rounded(9.0f).Size(18.0f, 18.0f).Fill(theme.Warning).CenterV()
             .Content(Small(theme, theme.Background).Text("?").Center())
             .WithTooltip("Not a schedule: where its track took off, and the airport it is coming down toward");

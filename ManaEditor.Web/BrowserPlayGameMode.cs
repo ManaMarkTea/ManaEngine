@@ -112,6 +112,10 @@ namespace ManaEditor.Web
             var layer = new Grid();
             layer.Children.Add(playHud);
             layer.Children.Add(_gameModes.HudLayer);
+            // A planet's flight traffic and position readout, as in desktop play; they draw nothing without a planet.
+            layer.Children.Add(new AirportTrafficOverlay(() => Context.World.MainCamera));
+            layer.Children.Add(new FlightSelectionOverlay(host.Root.Theme, () => Context.World.MainCamera));
+            layer.Children.Add(PlanetReadoutManaView.Build(host.Root.Theme, () => Context.World.MainCamera));
             host.Root.Content = layer;
         }
 
@@ -241,6 +245,10 @@ namespace ManaEditor.Web
 
             var level = ManaLevel.Load(_levelPath);
             var result = ManaLevelLoader.Load(level, Context, Context.World.DefaultScene);
+            if (result.Planet != null)
+            {
+                _planet = new Mana.Code.GameModes.PlanetPlay(result.Planet);
+            }
 
             foreach (var warning in result.Warnings)
             {
@@ -273,6 +281,11 @@ namespace ManaEditor.Web
                     ? $"[BrowserPlay] Running game modes: {string.Join(", ", modes.Select(mode => mode.Type))}."
                     : "[BrowserPlay] Spawned a debug camera (the level has no Character game mode).");
                 _hudText = modes.Count > 0 ? "" : "Debug camera  --  WASD and Q/E fly, hold right mouse to look, Esc menu";
+                if (_planet != null)
+                {
+                    // Short enough to sit between the planet's readout and the build line on a laptop screen.
+                    _hudText = "WASD, Q/E fly  ·  right mouse looks  ·  click an aircraft  ·  Esc menu";
+                }
                 return;
             }
 
@@ -396,6 +409,7 @@ namespace ManaEditor.Web
 
             // UiWantsKeyboard, not a raw poll: when a text field has focus, WASD is typing, not walking.
             _pawnController?.UpdateDriveInput(UiWantsKeyboard);
+            _planet?.Tick(Context.World);
             // The clock, deaths and respawns, as the desktop play mode runs them.
             var state = Context.World.GameState;
             state.Tick((float)deltaTime);
@@ -417,6 +431,7 @@ namespace ManaEditor.Web
         }
 
         private bool _restartKeyWasDown;
+        private Mana.Code.GameModes.PlanetPlay? _planet;
         private int _loggedCoins;
         private int _loggedDeaths;
         private Vector3 _spawnPosition;

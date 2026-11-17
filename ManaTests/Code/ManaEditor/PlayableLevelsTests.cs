@@ -17,7 +17,6 @@ public static class PlayableLevelsChecks
         check("published levels are listed", levels.Count >= 5, string.Join(", ", names));
         check("levels come in their order", levels.Zip(levels.Skip(1)).All(pair => pair.First.Order <= pair.Second.Order),
             string.Join(", ", levels.Select(l => $"{l.Name}={l.Order}")));
-        check("an unpublished level is left out (Planet Showcase)", !names.Contains("Planet Showcase"), string.Join(", ", names));
         check("ordered levels come before unordered ones",
             levels.SkipWhile(level => level.Order != int.MaxValue).All(level => level.Order == int.MaxValue), string.Join(", ", levels.Select(l => $"{l.Name}={l.Order}")));
         var course = levels.First(level => level.Name == "Sample Course");

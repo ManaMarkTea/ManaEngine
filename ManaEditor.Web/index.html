@@ -266,10 +266,10 @@
     #manaBuildInfo > :not([hidden]) { display: block; font-size: inherit; }
     /* The rest of the corner lets clicks through to the game; the GPU mark takes the pointer, for its tooltip. */
     #manaGpuInfo { pointer-events: auto; cursor: help; }
-    #manaFps:not([hidden]) {
-      position: fixed;
-      top: max(58px, env(safe-area-inset-top));
-      left: max(12px, env(safe-area-inset-left));
+    /* Above the build line, bottom right: the top left is where game HUDs put their panels (the planet's flights). */
+    #manaBuildInfo > #manaFps:not([hidden]) {
+      display: inline-block;
+      margin-bottom: 6px;
       padding: 6px 10px;
       background: rgba(20, 22, 28, 0.85);
       color: #DFE1E5;

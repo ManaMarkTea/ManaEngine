@@ -12,7 +12,8 @@ namespace ManaGeoTools.Code.Planet
     /// Dresses a planet in a satellite picture: NASA GIBS's Blue Marble (or another of its global layers), fetched
     /// once, with Natural Earth's coastlines, country and state borders painted into it, and kept as one JPEG in
     /// Library/PlanetImagery -- about 3 MB at 8192 wide. The patches wear it through their lat/long coordinates,
-    /// so it follows the terrain at any detail. Desktop only (the cache needs a disk).
+    /// so it follows the terrain at any detail. In the browser the picture is 4096 wide (memory), kept for the session only,
+    /// and detail tiles get the 50 m borders, since the 10 m files are 20 MB to download.
     /// </summary>
     public sealed class PlanetImageryComponent : ManaComponent
     {
@@ -69,9 +70,18 @@ namespace ManaGeoTools.Code.Planet
 
         // The 10 m Natural Earth lines, read once (on the first tile's worker) for every tile after.
         private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailCountries =
-            new(() => ReadRings("ne_10m_admin_0_countries").ToList());
+            new(() => ReadRings(DetailLines("admin_0_countries")).ToList());
         private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailStates =
-            new(() => ReadRings("ne_10m_admin_1_states_provinces").ToList());
+            new(() => ReadRings(DetailLines("admin_1_states_provinces")).ToList());
+
+        private static string DetailLines(string name)
+        {
+            if (OperatingSystem.IsBrowser())
+            {
+                return "ne_50m_" + name;
+            }
+            return "ne_10m_" + name;
+        }
 
         public PlanetImageryComponent(ManaSceneNode owner) : base(owner)
         {
@@ -110,11 +120,6 @@ namespace ManaGeoTools.Code.Planet
             if (_work == null && key != _builtKey)
             {
                 _builtKey = key;
-                if (OperatingSystem.IsBrowser())
-                {
-                    Status = "Desktop only";
-                    return;
-                }
                 _work = Task.Run(() => BuildAsync(key, _cancel.Token));
             }
 
@@ -123,7 +128,7 @@ namespace ManaGeoTools.Code.Planet
                 planet.SetImagery(_readyPath);
             }
 
-            if (_readyPath != null && planet.ImageryPath == _readyPath && Context.World.MainCamera is { } camera && !OperatingSystem.IsBrowser())
+            if (_readyPath != null && planet.ImageryPath == _readyPath && Context.World.MainCamera is { } camera)
             {
                 if (Detail)
                 {
@@ -162,6 +167,8 @@ namespace ManaGeoTools.Code.Planet
                 var box = string.Create(CultureInfo.InvariantCulture,
                     $"{area.MinLatitude:0.######},{area.MinLongitude:0.######},{area.MaxLatitude:0.######},{area.MaxLongitude:0.######}");
                 var bytes = await FetchAsync(Layer, box, spec.Width, spec.Height, cancellation).ConfigureAwait(false);
+                // The browser decodes only asynchronously, ahead of the synchronous load.
+                await ManaImageCodec.PrepareAsync(bytes).ConfigureAwait(false);
                 var image = ManaImageCodec.Load(bytes);
                 // Ground per pixel, north to south (pixels are square on the ground).
                 var kilometresPerPixel = (float)((area.MaxLatitude - area.MinLatitude) / 180.0 * 20037.5 / spec.Height);
@@ -201,7 +208,20 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        private int PictureWidth => Math.Clamp(Width, 1024, 8192) / 2 * 2;
+        // A browser tab has the memory for a 4096 picture and its mips, not an 8192 one.
+        private int PictureWidth => Math.Clamp(Width, 1024, MaxPictureWidth) / 2 * 2;
+
+        private static int MaxPictureWidth
+        {
+            get
+            {
+                if (OperatingSystem.IsBrowser())
+                {
+                    return 4096;
+                }
+                return 8192;
+            }
+        }
 
         private string SettingsKey()
         {
@@ -233,16 +253,22 @@ namespace ManaGeoTools.Code.Planet
 
                 var width = PictureWidth;
                 var download = Path.Combine(CacheFolder, Safe($"{Layer}-{width}") + ".source.jpg");
-                if (!File.Exists(download))
+                byte[] source;
+                if (File.Exists(download))
+                {
+                    source = await File.ReadAllBytesAsync(download, cancellation).ConfigureAwait(false);
+                }
+                else
                 {
                     Status = $"Fetching {Layer} ({width} x {width / 2}) from NASA GIBS";
                     Console.WriteLine($"[Imagery] {Status}");
-                    var bytes = await FetchAsync(Layer, "-90,-180,90,180", width, width / 2, cancellation).ConfigureAwait(false);
-                    await File.WriteAllBytesAsync(download, bytes, cancellation).ConfigureAwait(false);
+                    source = await FetchAsync(Layer, "-90,-180,90,180", width, width / 2, cancellation).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(download, source, cancellation).ConfigureAwait(false);
                 }
 
                 Status = "Painting borders";
-                var image = ManaImageCodec.Load(download);
+                await ManaImageCodec.PrepareAsync(source).ConfigureAwait(false);
+                var image = ManaImageCodec.Load(source);
                 if (States)
                 {
                     PlanetBorderPainter.Paint(image, ReadRings("ne_50m_admin_1_states_provinces"), StateWidth, StateColor);
@@ -342,7 +368,11 @@ namespace ManaGeoTools.Code.Planet
         private static HttpClient CreateHttp()
         {
             var http = new HttpClient { Timeout = TimeSpan.FromSeconds(120) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-PlanetImagery/1.0");
+            // The browser sends its own and refuses ours.
+            if (!OperatingSystem.IsBrowser())
+            {
+                http.DefaultRequestHeaders.UserAgent.ParseAdd("ManaEngine-PlanetImagery/1.0");
+            }
             return http;
         }
     }

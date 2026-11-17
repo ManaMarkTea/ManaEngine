@@ -225,7 +225,8 @@ Browser-specific lessons and limits:
 - Adapter/device requests use the JS Promise and `[JSExport]` bridge in `ManaBrowserWebGpuCallbackBridge`; routing those callbacks through the legacy Emscripten WebGPU callback path fails in this .NET wasm setup. Await `ManaBrowserInterop.InitializeAsync()` before constructing browser graphics.
 - WGSL fragment operations requiring uniform derivatives (`textureSample`, `fwidth`) must run before fragment-varying branches. Naga's uniformity analysis can also reject derivative-dependent code textually after a divergent branch, even when it is hoisted out of the branch body.
 - RID-specific web hosts need referenced projects to declare `RuntimeIdentifiers=browser-wasm`, and their `ProjectReference`s need `SetTargetFramework` for that RID. Do not rely on `-r` propagation to select the browser target.
-- Mesh import is glTF/GLB only through SharpGLTF on every platform. The Planet Showcase level is intentionally excluded from the browser selector; the rigged glTF skinning/animation path still lacks a validated browser fixture.
+- Mesh import is glTF/GLB only through SharpGLTF on every platform. The rigged glTF skinning/animation path still lacks a validated browser fixture.
+- The planet (Planet Showcase) plays in the browser: `ManaLevelAssetPreloader.PlanetAssets` fetches the Natural Earth files it reads (published from `Assets/GeoData` by `publish_assets.py`'s `PLANET_DATA` -- keep the two alike); its picture is 4096 wide there and detail tiles get the 50 m borders; GIBS, the Terrarium tiles, adsbdb and the relay all allow cross-origin reads. No GPU readback in the browser (`wgpuBufferMapAsync`'s callback cannot reach managed code), so `IHeightSamplingComputeDevice.CanSampleHeights` is false there and terrain heights are sampled on the CPU. `PlanetPlay` drives a planet level each frame in both play modes.
 
 ## Deploying ManaLidar to the phone
 
@@ -486,7 +487,7 @@ dark when it casts shadows, which a click selects; the selected light's range as
   on by default) patches wear sharper tiles instead (`PlanetDetailImagery`): fixed cube cells of ~420 km fetched from GIBS
   for their lat/long box at the layer's own 500 m, 10 m Natural Earth borders drawn thin, cached in
   `Library/PlanetImagery/Tiles/`; at most 16 worn at once, nearest first, each one GPU texture shared by every patch in
-  it (`PlanetPatchMesh.Detail` maps its window). Desktop only.
+  it (`PlanetPatchMesh.Detail` maps its window).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

@@ -3,7 +3,9 @@
   "version": 1,
   "name": "Planet Showcase",
   "web": {
-    "publish": false
+    "publish": true,
+    "description": "The Earth at true size, with every aircraft in the sky live: click one for its route.",
+    "order": 4
   },
   "camera": {
     "position": [11983026, 9413750, 1259495],

@@ -21,6 +21,13 @@ namespace ManaGraphics.Code.Graphics
         // webGpuReady callback). Set once it does; SampleHeightsAsync forwards to it.
         public ManaWebGpuContext? Context { get; set; }
 
+#if MANA_BROWSER
+        // wgpuBufferMapAsync's callback cannot reach managed code in the browser build (see mana_webgpu.c).
+        public bool CanSampleHeights => false;
+#else
+        public bool CanSampleHeights => true;
+#endif
+
         public Task<float[]> SampleHeightsAsync(
             ReadOnlyMemory<Vector2> lonLatPointsDegrees,
             IReadOnlyList<HeightSampleTileDescriptor> tilesNewestFirst)

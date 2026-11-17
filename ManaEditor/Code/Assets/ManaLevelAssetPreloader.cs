@@ -7,6 +7,19 @@ namespace ManaEditor.Code.Assets
     /// <summary>Prepares catalog assets and decodes pictures before synchronous scene construction.</summary>
     public static class ManaLevelAssetPreloader
     {
+        /// <summary>
+        /// Natural Earth data a planet reads synchronously: the water mask (lakes, ocean), the borders painted into its
+        /// picture and the airport list. publish_assets.py publishes these from Assets/GeoData; keep the two lists alike.
+        /// </summary>
+        public static readonly string[] PlanetAssets =
+        [
+            "Assets/GeoData/ne_10m_lakes.zip",
+            "Assets/GeoData/ne_10m_ocean.zip",
+            "Assets/GeoData/ne_50m_admin_0_countries.zip",
+            "Assets/GeoData/ne_50m_admin_1_states_provinces.zip",
+            "Assets/GeoData/airports.csv"
+        ];
+
         public static async Task EnsureAsync(ManaLevel level, string? contentRoot = null)
         {
             var catalog = ManaCore.Assets.ManaAssetCatalog.Current;
@@ -115,6 +128,31 @@ namespace ManaEditor.Code.Assets
                         throw new InvalidDataException($"This web build is missing the prepared scene asset '{node.Asset}'. Prepare level downloads before publishing.");
                     }
                     await catalog.EnsureAsync(node.Asset);
+                }
+                if (node.Kind == Mana.Code.Levels.ManaLevelSourceKind.Planet)
+                {
+                    foreach (var asset in PlanetAssets)
+                    {
+                        try { await catalog.EnsureAsync(asset); }
+                        catch (Exception ex) { ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload planet data '{asset}': {ex.Message}"); }
+                    }
+                }
+                // The aircraft models flight traffic places near the camera (FlightTrafficModels), prefabs no node names.
+                if (node.Scripts?.Any(script => string.Equals(script.Type, ManaGeoTools.Code.Flights.FlightTrafficComponent.ScriptType, StringComparison.OrdinalIgnoreCase)) == true)
+                {
+                    foreach (var prefab in new[] { ManaGeoTools.Code.Flights.FlightTrafficModels.AirlinerPrefab, ManaGeoTools.Code.Flights.FlightTrafficModels.LightPrefab })
+                    {
+                        try
+                        {
+                            var file = Mana.Code.Content.ManaContentMounts.FullPath(contentRoot ?? ManaContentLibrary.Root, prefab)
+                                ?? throw new FileNotFoundException($"No content folder for '{prefab}'.");
+                            nodes.Enqueue(ManaPrefab.Load(file, contentRoot).Root);
+                        }
+                        catch (Exception exception) when (exception is IOException or System.Text.Json.JsonException or InvalidDataException)
+                        {
+                            ManaCore.Diagnostics.ManaLog.WriteDiagnostic($"Could not preload aircraft '{prefab}': {exception.Message}");
+                        }
+                    }
                 }
                 foreach (var tile in node.GridMap?.Palette ?? [])
                 {
