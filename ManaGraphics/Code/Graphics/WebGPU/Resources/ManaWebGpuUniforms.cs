@@ -42,6 +42,10 @@ namespace ManaGraphics.Code.Graphics.Resources
         public Vector4 ProbeVolumeExtent;
         // Screen-space ambient occlusion (ManaWebGpuAmbientOcclusionPass): x 1 when drawn this frame, zw the viewport.
         public Vector4 AmbientOcclusion;
+        // The view and projection apart: a combined matrix applied to a true-size planet's 6,400 km coordinates
+        // rounded clip z and w separately, and depth came out wrong by hundreds of metres a few kilometres away.
+        public Matrix4x4 View;
+        public Matrix4x4 Projection;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.
@@ -55,6 +59,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             var uniform = new ManaWebGpuFrameUniform
             {
                 ViewProjection = camera.View * camera.Projection,
+                View = camera.View,
+                Projection = camera.Projection,
                 CameraPosition = new Vector4(camera.Position, 1.0f),
                 IrradianceFactors = new Vector4(
                     Math.Clamp(irradianceSettings.Exposure, 0.0f, 8.0f),

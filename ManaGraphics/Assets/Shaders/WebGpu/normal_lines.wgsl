@@ -21,7 +21,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let extruded = world_position + (world_normal * uv0.x * frame.vertex_normal_length);
 
     var output : VertexOutput;
-    output.clip_position = frame.view_projection * vec4<f32>(extruded, 1.0);
+    output.clip_position = frame.projection * (frame.view * vec4<f32>(extruded, 1.0));
     output.color = color;
     return output;
 }

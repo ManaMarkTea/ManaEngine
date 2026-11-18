@@ -459,6 +459,11 @@ dark when it casts shadows, which a click selects; the selected light's range as
   patch's mesh spacing, the imagery's metres a pixel -- `tile` for a detail tile, `global` for the whole picture -- and the
   height data's zoom), bottom left, in the editor and in play. Float precision is ~0.5 m at that radius: fine from
   aircraft height, not for walking. The sky still draws as seen from the ground at any height.
+  Scene shaders place vertices with `frame.projection * (frame.view * world)`, never the combined `view_projection`: on
+  those coordinates it rounded clip z and w apart, and ground a kilometre behind drew through nearer slopes (patch skirts
+  as dark "drips"). Patches pin their edges onto coarser neighbours' (`PlanetPatchMesh.SetStitches`, re-pinned around
+  each change by `PlanetNode.StitchAroundLocked`), so a level-of-detail step leaves no wall; cube-face borders keep only
+  skirts. Check: `Tools/Automation/Checks/planet-terrain.json` (El Paso's Franklin Mountains, far and near).
 - **Flight traffic:** a `FlightTraffic` script on a Planet node (`ManaGeoTools/Code/Flights/`) draws every aircraft OpenSky
   tracks as a plane in one colour (`oneColor`/`color`; off shades by altitude; `altitudeScale`, 1 = true height; `markerSize` a share of
   camera distance), flown on by dead reckoning between fetches, rewritten 10 times a second while the camera is still (the mesh is

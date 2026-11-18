@@ -48,7 +48,7 @@ fn vs_main(
         custom.maxHalfWidth);
 
     var output : VertexOutput;
-    output.clip_position = frame.view_projection * vec4<f32>(center + (offset_direction * half_width), 1.0);
+    output.clip_position = frame.projection * (frame.view * vec4<f32>(center + (offset_direction * half_width), 1.0));
     output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }

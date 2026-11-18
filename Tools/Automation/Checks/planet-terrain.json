@@ -1,0 +1,11 @@
+[
+  {"type": "open_level", "path": "Content/Levels/Planet Showcase.manalevel"},
+  {"type": "wait", "frames": 300},
+  {"type": "move_camera", "position": [5191268.8, 3364316.2, 1534790.2], "target": [5185517.3, 3370345.5, 1536436.5]},
+  {"type": "wait", "frames": 1500},
+  {"type": "screenshot", "path": "@@OUT@@.far.png", "clean": true},
+  {"type": "move_camera", "position": [5189104.2, 3366360.9, 1535135.2], "target": [5185354.6, 3370239.8, 1536388.3]},
+  {"type": "wait", "frames": 900},
+  {"type": "screenshot", "path": "@@OUT@@.near.png", "clean": true},
+  {"type": "quit"}
+]

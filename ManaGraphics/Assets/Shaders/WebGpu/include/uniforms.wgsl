@@ -43,6 +43,10 @@ struct FrameUniform {
     probe_volume_extent : vec4<f32>,
     // Screen-space ambient occlusion (include/probe_volume.wgsl's mana_ambient_occlusion): x 1 when drawn, zw the viewport.
     ambient_occlusion : vec4<f32>,
+    // view_projection split in two. Scene geometry goes through these one after the other (projection * (view * world)):
+    // the combined matrix on a true-size planet's coordinates rounded clip z and w apart, and far ground drew through near.
+    view : mat4x4<f32>,
+    projection : mat4x4<f32>,
 };
 
 struct ObjectUniform {

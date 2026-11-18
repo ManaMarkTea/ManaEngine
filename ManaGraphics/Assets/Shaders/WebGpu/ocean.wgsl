@@ -73,7 +73,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let depth_lift = min(custom.depthLiftCoefficient * view_distance * view_distance, custom.depthLiftMaxUnits);
 
     let world = object.model * vec4<f32>(position + normal * depth_lift, 1.0);
-    output.position = frame.view_projection * world;
+    output.position = frame.projection * (frame.view * world);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;

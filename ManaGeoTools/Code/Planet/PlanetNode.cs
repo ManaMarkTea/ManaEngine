@@ -400,6 +400,7 @@ namespace ManaGeoTools.Code.Planet
                     leaf.SourceMetersPerPixel = sourceMetersPerPixel;
                     leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
                     _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                    StitchAroundLocked(key);
                     EnqueuePatchSnapshotLocked(key);
                 }
             }
@@ -422,6 +423,174 @@ namespace ManaGeoTools.Code.Planet
                 if (!string.Equals(leaf.Mesh.ImageryPath, imagery, StringComparison.Ordinal) && !leaf.Mesh.TryDressInPlace(imagery))
                 {
                     leaf.Mesh.SetImagery(imagery);
+                }
+            }
+        }
+
+        // Caller holds _rebuildLock. The leaf covering a point of a cube face, found by walking down from its root square.
+        private (PatchKey Key, PatchLeaf Leaf)? FindLeafAtLocked(int face, float u, float v)
+        {
+            var step = 2f / PatchesPerFaceEdge;
+            var col = Math.Clamp((int)MathF.Floor((u + 1f) / step), 0, PatchesPerFaceEdge - 1);
+            var row = Math.Clamp((int)MathF.Floor((v + 1f) / step), 0, PatchesPerFaceEdge - 1);
+            var key = PatchKey.Root(face, row, col);
+            var minU = -1f + col * step;
+            var maxU = minU + step;
+            var minV = -1f + row * step;
+            var maxV = minV + step;
+            for (var depth = 0; depth < 40; depth++)
+            {
+                if (_leaves.TryGetValue(key, out var leaf))
+                {
+                    return (key, leaf);
+                }
+                var midU = (minU + maxU) * 0.5f;
+                var midV = (minV + maxV) * 0.5f;
+                var quadrant = 0;
+                if (u >= midU)
+                {
+                    quadrant |= 1;
+                    minU = midU;
+                }
+                else
+                {
+                    maxU = midU;
+                }
+                if (v >= midV)
+                {
+                    quadrant |= 2;
+                    minV = midV;
+                }
+                else
+                {
+                    maxV = midV;
+                }
+                key = key.Child(quadrant);
+            }
+            return null;
+        }
+
+        // Caller holds _rebuildLock. Pins a patch's edges onto the coarser neighbours beside them; the finer side of an
+        // edge always gives way, so two neighbours never pin to each other. Edges on a cube face's border keep their skirts.
+        private bool StitchLocked(PatchKey key, PatchLeaf leaf)
+        {
+            var mesh = leaf.Mesh;
+            var stitches = new PlanetEdgeStitch[]?[4];
+            for (var edge = 0; edge < 4; edge++)
+            {
+                stitches[edge] = FindEdgeStitchesLocked(key, leaf, edge);
+            }
+            return mesh.SetStitches(stitches);
+        }
+
+        private PlanetEdgeStitch[]? FindEdgeStitchesLocked(PatchKey key, PatchLeaf leaf, int edge)
+        {
+            var mesh = leaf.Mesh;
+            var spacing = (mesh.EdgeEnd(edge) - mesh.EdgeStart(edge)) / (mesh.Resolution - 1);
+            List<PlanetEdgeStitch>? found = null;
+            foreach (var (_, neighbour) in NeighboursAlongLocked(key, mesh, edge))
+            {
+                var other = neighbour.Mesh;
+                var otherStart = other.EdgeStart(edge ^ 1);
+                var otherEnd = other.EdgeEnd(edge ^ 1);
+                if (GivesWayTo(spacing, leaf, (otherEnd - otherStart) / (other.Resolution - 1), neighbour)
+                    && other.EdgePoints(edge ^ 1) is { } points)
+                {
+                    found ??= new List<PlanetEdgeStitch>();
+                    found.Add(new PlanetEdgeStitch(otherStart, otherEnd, points));
+                }
+            }
+            return found?.ToArray();
+        }
+
+        // Caller holds _rebuildLock. The leaves across one edge, in order along it (a neighbour's facing edge is edge ^ 1);
+        // none on a cube face's border.
+        private List<(PatchKey Key, PatchLeaf Leaf)> NeighboursAlongLocked(PatchKey key, PlanetPatchMesh mesh, int edge)
+        {
+            var neighbours = new List<(PatchKey Key, PatchLeaf Leaf)>();
+            var start = mesh.EdgeStart(edge);
+            var end = mesh.EdgeEnd(edge);
+            var epsilon = (end - start) * 1e-3f;
+            float across;
+            switch (edge)
+            {
+                case 0:
+                    across = mesh.MinV - epsilon;
+                    break;
+                case 1:
+                    across = mesh.MaxV + epsilon;
+                    break;
+                case 2:
+                    across = mesh.MinU - epsilon;
+                    break;
+                default:
+                    across = mesh.MaxU + epsilon;
+                    break;
+            }
+            if (across < -1f || across > 1f)
+            {
+                return neighbours;
+            }
+
+            var position = start;
+            while (position < end - epsilon * 0.5f)
+            {
+                var probe = position + epsilon * 0.5f;
+                (PatchKey Key, PatchLeaf Leaf)? hit;
+                if (edge < 2)
+                {
+                    hit = FindLeafAtLocked(key.Face, probe, across);
+                }
+                else
+                {
+                    hit = FindLeafAtLocked(key.Face, across, probe);
+                }
+                if (hit is not { } neighbour)
+                {
+                    break;
+                }
+                var otherEnd = neighbour.Leaf.Mesh.EdgeEnd(edge ^ 1);
+                if (otherEnd <= position)
+                {
+                    break;
+                }
+                neighbours.Add(neighbour);
+                position = otherEnd;
+            }
+            return neighbours;
+        }
+
+        // The finer-spaced side gives way; at the same spacing, the one on finer height data (they may disagree).
+        private static bool GivesWayTo(float spacing, PatchLeaf leaf, float otherSpacing, PatchLeaf other)
+        {
+            if (otherSpacing > spacing * 1.01f)
+            {
+                return true;
+            }
+            if (otherSpacing < spacing * 0.99f)
+            {
+                return false;
+            }
+            return (other.Zoom ?? -1) < (leaf.Zoom ?? -1);
+        }
+
+        // Caller holds _rebuildLock. After a patch's geometry changes: it and every neighbour along its edges re-pin.
+        private void StitchAroundLocked(PatchKey key)
+        {
+            if (!_leaves.TryGetValue(key, out var leaf))
+            {
+                return;
+            }
+            StitchLocked(key, leaf);
+            var seen = new HashSet<PatchKey> { key };
+            for (var edge = 0; edge < 4; edge++)
+            {
+                foreach (var neighbour in NeighboursAlongLocked(key, leaf.Mesh, edge))
+                {
+                    if (seen.Add(neighbour.Key) && StitchLocked(neighbour.Key, neighbour.Leaf))
+                    {
+                        EnqueuePatchSnapshotLocked(neighbour.Key);
+                    }
                 }
             }
         }
@@ -743,6 +912,10 @@ namespace ManaGeoTools.Code.Planet
                 _patchDetails[child.Key] = new PatchDetailInfo(parentLeaf.Zoom, childMesh.Resolution, parentLeaf.SourceResolution, parentLeaf.SourceMetersPerPixel);
                 _upresStatus[child.Key] = PatchUpresStatus.InProgress;
             }
+            foreach (var child in children)
+            {
+                StitchAroundLocked(child.Key);
+            }
 
             _ = _rebuilds.RunAsync("Planet split child build", () => UpresPendingChildrenAsync(pending),
                 _ =>
@@ -839,6 +1012,11 @@ namespace ManaGeoTools.Code.Planet
                     using (ManaLog.TimeVerbose($"[SplitTiming] child={childIndex} meshResolution={plan.MeshResolution} usedGpu={precomputedHeights != null}"))
                     {
                         ApplyHeightData(pending.ChildMeshes[childIndex], HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                    }
+                    var childKey = pending.ChildKeys[childIndex];
+                    if (_leaves.TryGetValue(childKey, out var childLeaf) && ReferenceEquals(childLeaf.Mesh, pending.ChildMeshes[childIndex]))
+                    {
+                        StitchAroundLocked(childKey);
                     }
 
                     pending.ChildZoom[childIndex] = plan.Zoom;
@@ -1168,6 +1346,7 @@ namespace ManaGeoTools.Code.Planet
             _componentToPatchKey[mergedRenderer] = pending.MergedKey;
             _patchDetails[pending.MergedKey] = new PatchDetailInfo(pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel);
             _upresStatus[pending.MergedKey] = PatchUpresStatus.Done;
+            StitchAroundLocked(pending.MergedKey);
             EnqueuePatchSnapshotLocked(pending.MergedKey);
 
             Console.WriteLine($"[Terrarium] Merge {PatchName(pending.MergedKey, pending.MergedZoom, mergedMesh.Resolution, pending.MergedSourceResolution, pending.MergedSourceMetersPerPixel)} complete: {pending.ChildKeys.Length} children folded into 1 patch. Total leaves now: {_leaves.Count}.");
@@ -1667,6 +1846,10 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 ApplyHeightData(patch, HeightLibrary!, plan.MeshResolution, precomputedHeights);
+                if (_leaves.TryGetValue(key, out var builtLeaf) && ReferenceEquals(builtLeaf.Mesh, patch))
+                {
+                    StitchAroundLocked(key);
+                }
 
                 _rebuilds.Enqueue(PlanetRebuildKind.Upres, () =>
                 {
@@ -1957,6 +2140,11 @@ namespace ManaGeoTools.Code.Planet
                 foreach (var leaf in _leaves.Values)
                 {
                     leaf.Mesh.Rebuild(heightScale);
+                }
+                // Every edge moved, so pin again once all are rebuilt.
+                foreach (var (key, leaf) in _leaves)
+                {
+                    StitchLocked(key, leaf);
                 }
             }
         }

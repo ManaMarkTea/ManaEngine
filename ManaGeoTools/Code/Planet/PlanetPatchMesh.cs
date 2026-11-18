@@ -290,13 +290,11 @@ namespace ManaGeoTools.Code.Planet
 
             ForEachRow(resolution, y =>
             {
-                var ty = (float)y / (resolution - 1);
-                var v = float.Lerp(minV, maxV, ty);
+                var v = GridCoordinate(minV, maxV, y, resolution);
 
                 for (var x = 0; x < resolution; x++)
                 {
-                    var tx = (float)x / (resolution - 1);
-                    var u = float.Lerp(minU, maxU, tx);
+                    var u = GridCoordinate(minU, maxU, x, resolution);
 
                     var pointOnUnitCube = faceNormal + (u * axisA) + (v * axisB);
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(pointOnUnitCube);
@@ -444,10 +442,10 @@ namespace ManaGeoTools.Code.Planet
             // meanwhile (its writers hold PlanetNode's rebuild lock, as the caller of this does).
             ForEachRow(n, y =>
             {
-                var v = float.Lerp(MinV, MaxV, (float)y / (n - 1));
+                var v = GridCoordinate(MinV, MaxV, y, n);
                 for (var x = 0; x < n; x++)
                 {
-                    var u = float.Lerp(MinU, MaxU, (float)x / (n - 1));
+                    var u = GridCoordinate(MinU, MaxU, x, n);
                     var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(FaceNormal + (u * axisA) + (v * axisB));
                     var uv = GlobalUv(pointOnUnitSphere);
 
@@ -481,30 +479,32 @@ namespace ManaGeoTools.Code.Planet
                 }
             });
             ManaLog.WriteVerboseElapsedSignificant($"[PlanetPatchMesh] Compute sphere time", computeSphereTime);
-
             // Each normal is the average of the quads touching the vertex, from the displaced positions, so the
-            // shading follows the real slope (the undisplaced radial direction reads as faceted).
+            // shading follows the real slope (the undisplaced radial direction reads as faceted). A ring of heights one
+            // step outside the patch gives edge vertices the quads beyond them too: one-sided, the two patches along an
+            // edge shaded it differently, a crease drawn as a sliver along every patch boundary.
+            var m = n + 2;
+            var extended = new Vector3[m * m];
+            for (var y = 0; y < n; y++)
+            {
+                Array.Copy(positions, y * n, extended, (y + 1) * m + 1, n);
+            }
+            for (var i = -1; i <= n; i++)
+            {
+                extended[i + 1] = RingPosition(i, -1, n, axisA, axisB);
+                extended[(m - 1) * m + i + 1] = RingPosition(i, n, n, axisA, axisB);
+            }
+            for (var i = 0; i < n; i++)
+            {
+                extended[(i + 1) * m] = RingPosition(-1, i, n, axisA, axisB);
+                extended[(i + 1) * m + m - 1] = RingPosition(n, i, n, axisA, axisB);
+            }
             ForEachRow(n, y =>
             {
                 for (var x = 0; x < n; x++)
                 {
-                    var sum = Vector3.Zero;
-                    if (x > 0 && y > 0)
-                    {
-                        sum += QuadNormal(positions, n, x - 1, y - 1);
-                    }
-                    if (x < n - 1 && y > 0)
-                    {
-                        sum += QuadNormal(positions, n, x, y - 1);
-                    }
-                    if (x > 0 && y < n - 1)
-                    {
-                        sum += QuadNormal(positions, n, x - 1, y);
-                    }
-                    if (x < n - 1 && y < n - 1)
-                    {
-                        sum += QuadNormal(positions, n, x, y);
-                    }
+                    var sum = QuadNormal(extended, m, x, y) + QuadNormal(extended, m, x + 1, y)
+                        + QuadNormal(extended, m, x, y + 1) + QuadNormal(extended, m, x + 1, y + 1);
                     normals[y * n + x] = Vector3.Normalize(sum);
                 }
             });
@@ -529,9 +529,17 @@ namespace ManaGeoTools.Code.Planet
             var maxDepth = HeightScale * SkirtDepthMeters;
             var minDepth = HeightScale * SkirtMinimumMeters;
             var edgeRadii = new float[n];
+            var trueEdges = new Vector3[4][];
+            var skirtDepths = new float[4][];
             for (var edge = 0; edge < 4; edge++)
             {
                 var skirtStart = gridCount + edge * n;
+                trueEdges[edge] = new Vector3[n];
+                skirtDepths[edge] = new float[n];
+                for (var i = 0; i < n; i++)
+                {
+                    trueEdges[edge][i] = positions[EdgeVertex(edge, i, n)];
+                }
                 for (var i = 0; i < n; i++)
                 {
                     edgeRadii[i] = positions[EdgeVertex(edge, i, n)].Length();
@@ -553,9 +561,8 @@ namespace ManaGeoTools.Code.Planet
                     // While loading, a neighbour may still be the bare sea-level sphere: reach down to it, so land
                     // finished first is not ringed by a gap.
                     skirtDepth = MathF.Max(skirtDepth, edgeRadii[i] - Radius + sag + minDepth);
+                    skirtDepths[edge][i] = skirtDepth;
                     var source = EdgeVertex(edge, i, n);
-                    var position = positions[source];
-                    positions[skirtStart + i] = position - Vector3.Normalize(position) * skirtDepth;
                     normals[skirtStart + i] = normals[source];
                     texCoords[skirtStart + i] = texCoords[source];
                     colors[skirtStart + i] = colors[source];
@@ -566,6 +573,9 @@ namespace ManaGeoTools.Code.Planet
                         (uint)(skirtStart + i + 1), (uint)(skirtStart + i));
                 }
             }
+            _trueEdges = trueEdges;
+            _skirtDepths = skirtDepths;
+            PlaceEdges(positions);
 
             MinSize = new Vector3(-Radius, -Radius, -Radius);
             MaxSize = new Vector3(Radius, Radius, Radius);
@@ -583,6 +593,161 @@ namespace ManaGeoTools.Code.Planet
                 Unshared = true
             });
             ReleaseGeometryBuildData();
+        }
+
+        // Each edge's own vertices and skirt depths as last generated, and the coarser neighbours' edges it is pinned to.
+        private Vector3[][]? _trueEdges;
+        private float[][]? _skirtDepths;
+        private PlanetEdgeStitch[]?[] _stitches = new PlanetEdgeStitch[]?[4];
+
+        /// <summary>Edge 0 runs along u at MinV, 1 along u at MaxV, 2 along v at MinU, 3 along v at MaxU.</summary>
+        public float EdgeStart(int edge)
+        {
+            if (edge < 2)
+            {
+                return MinU;
+            }
+            return MinV;
+        }
+
+        public float EdgeEnd(int edge)
+        {
+            if (edge < 2)
+            {
+                return MaxU;
+            }
+            return MaxV;
+        }
+
+        /// <summary>The published vertices along one edge, start to end; null before the first build.</summary>
+        public Vector3[]? EdgePoints(int edge)
+        {
+            if (CpuData is not { } current)
+            {
+                return null;
+            }
+            var n = Resolution;
+            if (current.Positions.Length != n * n + 4 * n)
+            {
+                return null;
+            }
+            var points = new Vector3[n];
+            for (var i = 0; i < n; i++)
+            {
+                points[i] = current.Positions[EdgeVertex(edge, i, n)];
+            }
+            return points;
+        }
+
+        /// <summary>
+        /// Pins each edge (null: its own heights) onto the straight edges of coarser neighbours, so no step is left between
+        /// them for a skirt to show as a wall; kept through later regenerations. Run under the planet's rebuild lock.
+        /// False when nothing changed.
+        /// </summary>
+        public bool SetStitches(PlanetEdgeStitch[]?[] stitches)
+        {
+            var same = true;
+            for (var edge = 0; edge < 4 && same; edge++)
+            {
+                same = SameStitches(_stitches[edge], stitches[edge]);
+            }
+            if (same)
+            {
+                return false;
+            }
+            _stitches = stitches;
+            if (CpuData is not { } current || _trueEdges == null || current.Positions.Length != Resolution * Resolution + 4 * Resolution)
+            {
+                return false;
+            }
+
+            // A fresh array: published mesh data is never written in place (snapshots hold it).
+            var positions = (Vector3[])current.Positions.Clone();
+            PlaceEdges(positions);
+            SetCpuData(new ManaMeshCpuData
+            {
+                Indexes = current.Indexes,
+                Positions = positions,
+                Normals = current.Normals,
+                Colors = current.Colors,
+                TextureCoordinates0 = current.TextureCoordinates0,
+                TextureCoordinates1 = current.TextureCoordinates1,
+                Unshared = true
+            });
+            return true;
+        }
+
+        private static bool SameStitches(PlanetEdgeStitch[]? a, PlanetEdgeStitch[]? b)
+        {
+            if (a == null || b == null)
+            {
+                return a == null && b == null;
+            }
+            if (a.Length != b.Length)
+            {
+                return false;
+            }
+            for (var i = 0; i < a.Length; i++)
+            {
+                if (a[i].Start != b[i].Start || a[i].End != b[i].End || !a[i].Points.AsSpan().SequenceEqual(b[i].Points))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Edge vertices from their own heights or the stitched neighbour's line, then the skirts hung from them.
+        private void PlaceEdges(Vector3[] positions)
+        {
+            if (_trueEdges is not { } trueEdges || _skirtDepths is not { } skirtDepths)
+            {
+                return;
+            }
+            var n = Resolution;
+            for (var edge = 0; edge < 4; edge++)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    positions[EdgeVertex(edge, i, n)] = trueEdges[edge][i];
+                }
+            }
+            for (var edge = 0; edge < 4; edge++)
+            {
+                if (_stitches[edge] is not { } stitches)
+                {
+                    continue;
+                }
+                var start = EdgeStart(edge);
+                var end = EdgeEnd(edge);
+                for (var i = 0; i < n; i++)
+                {
+                    var along = GridCoordinate(start, end, i, n);
+                    foreach (var stitch in stitches)
+                    {
+                        var slack = (stitch.End - stitch.Start) * 1e-4f;
+                        if (along < stitch.Start - slack || along > stitch.End + slack || stitch.Points.Length < 2)
+                        {
+                            continue;
+                        }
+                        // On the neighbour's straight segment there, so its triangle and this edge share the line exactly.
+                        var f = (along - stitch.Start) / (stitch.End - stitch.Start) * (stitch.Points.Length - 1);
+                        var k = Math.Clamp((int)MathF.Floor(f), 0, stitch.Points.Length - 2);
+                        var t = Math.Clamp(f - k, 0.0f, 1.0f);
+                        positions[EdgeVertex(edge, i, n)] = Vector3.Lerp(stitch.Points[k], stitch.Points[k + 1], t);
+                        break;
+                    }
+                }
+            }
+            var gridCount = n * n;
+            for (var edge = 0; edge < 4; edge++)
+            {
+                for (var i = 0; i < n; i++)
+                {
+                    var position = positions[EdgeVertex(edge, i, n)];
+                    positions[gridCount + edge * n + i] = position - Vector3.Normalize(position) * skirtDepths[edge][i];
+                }
+            }
         }
 
         // Edge vertices: the y = 0 and y = n-1 rows, then the x = 0 and x = n-1 columns.
@@ -611,6 +776,34 @@ namespace ManaGeoTools.Code.Planet
             indexes[next + 4] = c;
             indexes[next + 5] = d;
             return next + 6;
+        }
+
+        /// <summary>
+        /// Grid line i of n across [min, max], with the end lines exactly on the bounds: a lerp's last line can miss max by
+        /// a bit, a metre at a true-size planet, and neighbours' shared edges then stood apart as hairline cracks.
+        /// </summary>
+        public static float GridCoordinate(float min, float max, int i, int n)
+        {
+            if (i <= 0)
+            {
+                return min;
+            }
+            if (i >= n - 1)
+            {
+                return max;
+            }
+            return float.Lerp(min, max, (float)i / (n - 1));
+        }
+
+        // A grid point just outside the patch, (x, y) in its own steps, from the height library (normals only).
+        private Vector3 RingPosition(int x, int y, int n, Vector3 axisA, Vector3 axisB)
+        {
+            var u = MinU + (MaxU - MinU) * x / (n - 1);
+            var v = MinV + (MaxV - MinV) * y / (n - 1);
+            var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(FaceNormal + (u * axisA) + (v * axisB));
+            var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+            var rawHeightMeters = HeightLibrary?.FindCurrentTile(latLong)?.GetHeightAtLatLong(latLong);
+            return pointOnUnitSphere * (Radius + (rawHeightMeters ?? 0f) * HeightScale);
         }
 
         // Outward normal of the quad whose low corner is (x, y): cross(b - a, d - a) for the CCW order above.
@@ -650,6 +843,9 @@ namespace ManaGeoTools.Code.Planet
             }
         }
     }
+
+    /// <summary>A stretch of a coarser neighbour's edge: its vertices, evenly spaced from Start to End along the shared line.</summary>
+    public sealed record PlanetEdgeStitch(float Start, float End, Vector3[] Points);
 
     /// <summary>
     /// A sharper picture of one stretch of a planet, and where it lies in the whole picture's coordinates (u east from

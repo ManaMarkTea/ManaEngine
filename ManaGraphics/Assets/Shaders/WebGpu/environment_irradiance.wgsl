@@ -24,7 +24,7 @@ fn vs_main(
     @location(3) uv0 : vec2<f32>
 ) -> VertexOutput {
     var output : VertexOutput;
-    output.clip_position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
+    output.clip_position = frame.projection * (frame.view * (object.model * vec4<f32>(position, 1.0)));
     output.direction = normalize(position);
     return output;
 }

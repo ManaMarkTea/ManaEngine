@@ -62,7 +62,7 @@ fn vs_main(
     output.instance = instance_index;
 #endif
     let world = object.model * vec4<f32>(position, 1.0);
-    output.clip_position = frame.view_projection * object.model * vec4<f32>(position, 1.0);
+    output.clip_position = frame.projection * (frame.view * (object.model * vec4<f32>(position, 1.0)));
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;

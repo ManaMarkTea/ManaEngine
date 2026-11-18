@@ -5,7 +5,7 @@
 
 @vertex
 fn vs_main(@location(0) position : vec3<f32>) -> @builtin(position) vec4<f32> {
-    return frame.view_projection * object.model * vec4<f32>(position, 1.0);
+    return frame.projection * (frame.view * (object.model * vec4<f32>(position, 1.0)));
 }
 
 @fragment

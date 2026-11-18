@@ -10,7 +10,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     // Pulled a hair toward the camera so the edges win the depth test against their own faces instead of dashing.
     let world = (object.model * vec4<f32>(position, 1.0)).xyz;
     let pulled = mix(world, frame.camera_position.xyz, 0.003);
-    return frame.view_projection * vec4<f32>(pulled, 1.0);
+    return frame.projection * (frame.view * vec4<f32>(pulled, 1.0));
 }
 
 @fragment

@@ -263,7 +263,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let local_normal = normalize(cross(tangent_z, tangent_x));
 
     let world = object.model * vec4<f32>(displaced, 1.0);
-    output.position = frame.view_projection * object.model * vec4<f32>(displaced, 1.0);
+    output.position = frame.projection * (frame.view * (object.model * vec4<f32>(displaced, 1.0)));
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;
