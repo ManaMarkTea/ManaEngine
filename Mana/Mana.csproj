@@ -47,7 +47,7 @@
     <Content Include="..\Assets\Models\Vox\*.vox" LinkBase="Assets\Models\Vox" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\Assets\Models\ShaderBall\ShaderBall.glb" Link="Assets\Models\ShaderBall\ShaderBall.glb" CopyToOutputDirectory="PreserveNewest" />
     <!-- The planet's height map (466 MB) is the desktop's alone. -->
-    <Content Include="..\Assets\Planet\*.tif" LinkBase="Assets\Planet" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
+    <Content Include="..\Assets\Planet\*.tif;..\Assets\Planet\*.jpg" LinkBase="Assets\Planet" CopyToOutputDirectory="PreserveNewest" Condition="'$(RuntimeIdentifier)' != 'browser-wasm'" />
   </ItemGroup>
 
   <ItemGroup>

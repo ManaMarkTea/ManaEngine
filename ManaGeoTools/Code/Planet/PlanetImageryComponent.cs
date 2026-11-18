@@ -63,6 +63,7 @@ namespace ManaGeoTools.Code.Planet
         private static readonly HttpClient Http = CreateHttp();
         private readonly CancellationTokenSource _cancel = new();
         private Task<string?>? _work;
+        private Task<string?>? _starter;
         private string? _builtKey;
         private string? _readyPath;
         private PlanetDetailImagery? _detail;
@@ -126,6 +127,10 @@ namespace ManaGeoTools.Code.Planet
             if (_readyPath != null && planet.ImageryPath != _readyPath)
             {
                 planet.SetImagery(_readyPath);
+            }
+            else if (_readyPath == null)
+            {
+                WearStarter(planet);
             }
 
             if (_readyPath != null && planet.ImageryPath == _readyPath && Context.World.MainCamera is { } camera)
@@ -289,6 +294,41 @@ namespace ManaGeoTools.Code.Planet
             {
                 Status = $"No picture: {ex.Message}";
                 return null;
+            }
+        }
+
+        /// <summary>A small finished picture bundled with the app (Tools/Planet/make_starter_imagery.py), worn while the sharp one is made.</summary>
+        public const string StarterPicture = "Assets/Planet/earth_starter.jpg";
+
+        // Decoded on a worker and handed to the texture cache, so the globe is never plain green while GIBS is fetched.
+        private void WearStarter(PlanetNode planet)
+        {
+            if (_starter == null)
+            {
+                var path = ManaTexture.ResolveTexturePath(StarterPicture);
+                if (!File.Exists(path))
+                {
+                    _starter = Task.FromResult<string?>(null);
+                    return;
+                }
+                _starter = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var image = await ManaImageCodec.LoadOnceAsync(await File.ReadAllBytesAsync(path).ConfigureAwait(false)).ConfigureAwait(false);
+                        ManaTexturePrefetch.Store(path, image);
+                        return path;
+                    }
+                    catch (Exception ex) when (ex is IOException or InvalidDataException)
+                    {
+                        Console.WriteLine($"[Imagery] No starter picture: {ex.Message}");
+                        return (string?)null;
+                    }
+                });
+            }
+            if (_starter is { IsCompletedSuccessfully: true, Result: { } starter } && planet.ImageryPath == null)
+            {
+                planet.SetImagery(starter);
             }
         }
 

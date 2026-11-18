@@ -17,7 +17,8 @@ namespace ManaEditor.Code.Assets
             "Assets/GeoData/ne_10m_ocean.zip",
             "Assets/GeoData/ne_50m_admin_0_countries.zip",
             "Assets/GeoData/ne_50m_admin_1_states_provinces.zip",
-            "Assets/GeoData/airports.csv"
+            "Assets/GeoData/airports.csv",
+            ManaGeoTools.Code.Planet.PlanetImageryComponent.StarterPicture
         ];
 
         public static async Task EnsureAsync(ManaLevel level, string? contentRoot = null)
