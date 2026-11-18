@@ -536,6 +536,10 @@ namespace ManaGeoTools.Code.Planet
                 {
                     edgeRadii[i] = positions[EdgeVertex(edge, i, n)].Length();
                 }
+                // A coarser neighbour's straight edge also cuts below the curve: by (spacing)^2 / 8R for one SkirtWindow
+                // times coarser. Ignoring it left hairline cracks that showed the sky as white dots along patch edges.
+                var spacing = SkirtWindow * Vector3.Distance(positions[EdgeVertex(edge, 0, n)], positions[EdgeVertex(edge, 1, n)]);
+                var sag = spacing * spacing / (8.0f * Radius);
                 for (var i = 0; i < n; i++)
                 {
                     var low = edgeRadii[i];
@@ -545,7 +549,10 @@ namespace ManaGeoTools.Code.Planet
                         low = MathF.Min(low, edgeRadii[j]);
                         high = MathF.Max(high, edgeRadii[j]);
                     }
-                    var skirtDepth = Math.Clamp(high - low + minDepth, minDepth, maxDepth);
+                    var skirtDepth = Math.Clamp(high - low + minDepth, minDepth, maxDepth) + sag;
+                    // While loading, a neighbour may still be the bare sea-level sphere: reach down to it, so land
+                    // finished first is not ringed by a gap.
+                    skirtDepth = MathF.Max(skirtDepth, edgeRadii[i] - Radius + sag + minDepth);
                     var source = EdgeVertex(edge, i, n);
                     var position = positions[source];
                     positions[skirtStart + i] = position - Vector3.Normalize(position) * skirtDepth;

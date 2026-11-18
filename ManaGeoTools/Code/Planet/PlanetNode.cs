@@ -359,38 +359,70 @@ namespace ManaGeoTools.Code.Planet
 
         private void ApplyTileToOverlappingPatches(ManaGeoTools.Code.GeoTiff.GeoTiff tile)
         {
+            PatchKey[] keys;
             lock (_rebuildLock)
             {
                 if (_retired)
                 {
                     return;
                 }
-                foreach (var (key, leaf) in _leaves)
+                keys = _leaves.Keys.ToArray();
+            }
+
+            // One patch a lock: holding it for the whole planet (seconds) kept the picture off, so the globe sat plain green.
+            foreach (var key in keys)
+            {
+                lock (_rebuildLock)
                 {
-                    if (TileOverlapsPatch(tile, leaf.Mesh))
+                    if (_retired)
                     {
-                        if (leaf.Zoom.HasValue)
-                        {
-                            continue;
-                        }
-
-                        var sourceResolution = EstimateGeoTiffSourceResolutionForPatch(tile, leaf.Mesh);
-                        var sourceMetersPerPixel = EstimateGeoTiffMetersPerPixel(tile, leaf.Mesh);
-                        _baselineMetersPerPixel = Math.Max(_baselineMetersPerPixel ?? 0.0, sourceMetersPerPixel);
-                        var meshResolution = Math.Max(
-                            leaf.Mesh.Resolution,
-                            Math.Min(sourceResolution, DefaultBaselineMaxPatchMeshResolution));
-
-                        ApplyHeightData(leaf.Mesh, HeightLibrary!, meshResolution);
-                        leaf.SourceResolution = sourceResolution;
-                        leaf.SourceMetersPerPixel = sourceMetersPerPixel;
-                        leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
-                        _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
-                        EnqueuePatchSnapshotLocked(key);
+                        return;
                     }
-                }
+                    if (!_leaves.TryGetValue(key, out var leaf) || leaf.Zoom.HasValue || !TileOverlapsPatch(tile, leaf.Mesh))
+                    {
+                        continue;
+                    }
 
-                _ocean.ApplyHeightData(HeightLibrary!);
+                    var sourceResolution = EstimateGeoTiffSourceResolutionForPatch(tile, leaf.Mesh);
+                    var sourceMetersPerPixel = EstimateGeoTiffMetersPerPixel(tile, leaf.Mesh);
+                    _baselineMetersPerPixel = Math.Max(_baselineMetersPerPixel ?? 0.0, sourceMetersPerPixel);
+                    var meshResolution = Math.Max(
+                        leaf.Mesh.Resolution,
+                        Math.Min(sourceResolution, DefaultBaselineMaxPatchMeshResolution));
+
+                    // SetImagery's worker seldom wins the lock between patches, so a picture asked for meanwhile goes on here.
+                    if (_requestedImageryPath is { } imagery && !string.Equals(_imageryPath, imagery, StringComparison.Ordinal))
+                    {
+                        DressAllLocked(imagery);
+                    }
+                    ApplyHeightData(leaf.Mesh, HeightLibrary!, meshResolution);
+                    leaf.SourceResolution = sourceResolution;
+                    leaf.SourceMetersPerPixel = sourceMetersPerPixel;
+                    leaf.Renderer.Name = PatchName(key, leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                    _patchDetails[key] = new PatchDetailInfo(leaf.Zoom, leaf.Mesh.Resolution, leaf.SourceResolution, leaf.SourceMetersPerPixel);
+                    EnqueuePatchSnapshotLocked(key);
+                }
+            }
+
+            lock (_rebuildLock)
+            {
+                if (!_retired)
+                {
+                    _ocean.ApplyHeightData(HeightLibrary!);
+                }
+            }
+        }
+
+        // Caller holds _rebuildLock. What SetImagery's worker does, all at once; it then finds nothing left to do.
+        private void DressAllLocked(string imagery)
+        {
+            _imageryPath = imagery;
+            foreach (var leaf in _leaves.Values)
+            {
+                if (!string.Equals(leaf.Mesh.ImageryPath, imagery, StringComparison.Ordinal) && !leaf.Mesh.TryDressInPlace(imagery))
+                {
+                    leaf.Mesh.SetImagery(imagery);
+                }
             }
         }
 
