@@ -93,6 +93,8 @@ namespace ManaCore.Graphics
 
         private static readonly Dictionary<string, ManaWebGpuCustomUniformSchema> Schemas = new(StringComparer.Ordinal);
 
+        private static readonly Dictionary<string, long> FailedAt = new(StringComparer.Ordinal);
+
         private static readonly object SchemaLock = new();
 
         public static ManaWebGpuCustomUniformSchema GetSchema(string? shaderName)
@@ -105,10 +107,21 @@ namespace ManaCore.Graphics
                     return cached;
                 }
 
+                // Asked every draw: a file that could not be read is tried again a second later, not each time.
+                if (FailedAt.TryGetValue(shaderName, out var failedAt) && Environment.TickCount64 - failedAt < 1000)
+                {
+                    return ManaWebGpuCustomUniformSchema.Empty;
+                }
+
                 var schema = LoadSchema(shaderName, out var readFailed);
-                if (!readFailed)
+                if (readFailed)
+                {
+                    FailedAt[shaderName] = Environment.TickCount64;
+                }
+                else
                 {
                     Schemas[shaderName] = schema;
+                    FailedAt.Remove(shaderName);
                 }
                 return schema;
             }

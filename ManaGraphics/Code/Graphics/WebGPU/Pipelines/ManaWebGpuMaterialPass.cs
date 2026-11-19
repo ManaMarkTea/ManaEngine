@@ -222,6 +222,13 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             // Only reaches the GPU when the mesh's transform or material changed since last frame.
             sceneMesh.PrepareObjectUniform(_frameNumber);
 
+            var layout = ManaWebGpuCustomUniforms.Layout(sceneMesh.Instance.ShaderName);
+            var oldSize = sceneMesh.CustomUniformLayout.BufferSize;
+            if (sceneMesh.EnsureCustomUniformLayout(layout, _bindings.CustomUniformGroupLayout))
+            {
+                ManaConsole.WriteDiagnostic($"[WebGPU] '{sceneMesh.Instance.Name}' ({sceneMesh.Instance.ShaderName}): material uniforms rebuilt, {oldSize} -> {layout.BufferSize} bytes.");
+            }
+
             // Only a shader with custom uniforms reads its own group 2; any other just needs one bound for its layout.
             var ownCustomGroup = sceneMesh.HasCustomUniforms;
             if (sceneMesh.CustomUniformBuffer != null && ownCustomGroup)

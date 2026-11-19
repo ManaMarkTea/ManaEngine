@@ -341,10 +341,66 @@ namespace ManaGraphics.Code.Graphics.Resources
         public BindGroup* ObjectBindGroup { get; }
         public nint[] SceneCaptureUniformBuffers { get; private set; }
         public nint[] SceneCaptureBindGroups { get; private set; }
-        public WebGpuBuffer* CustomUniformBuffer { get; }
-        public BindGroup* CustomBindGroup { get; }
-        public ManaWebGpuCustomUniformSchema CustomUniformLayout { get; }
-        public byte[] CustomUniformData { get; }
+        public WebGpuBuffer* CustomUniformBuffer { get; private set; }
+        public BindGroup* CustomBindGroup { get; private set; }
+        public ManaWebGpuCustomUniformSchema CustomUniformLayout { get; private set; }
+        public byte[] CustomUniformData { get; private set; }
+
+        /// <summary>
+        /// Remakes group 2 when the shader's layout is no longer the one this mesh was built with (a schema read that
+        /// came back empty, a shader edited since): a buffer smaller than the shader's struct fails validation and
+        /// throws away the whole pass.
+        /// </summary>
+        public bool EnsureCustomUniformLayout(ManaWebGpuCustomUniformSchema layout, BindGroupLayout* groupLayout)
+        {
+            if (ReferenceEquals(layout, CustomUniformLayout))
+            {
+                return false;
+            }
+            // A bigger buffer than the shader reads is valid; and an empty layout may only be a read that failed.
+            if (layout.BufferSize <= CustomUniformLayout.BufferSize)
+            {
+                if (layout.Fields.Count > 0)
+                {
+                    CustomUniformLayout = layout;
+                }
+                return false;
+            }
+
+            var descriptor = new BufferDescriptor
+            {
+                Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
+                Size = (ulong)layout.BufferSize
+            };
+            var buffer = Api.DeviceCreateBuffer(Device, &descriptor);
+            if (buffer == null)
+            {
+                return false;
+            }
+            var entry = new BindGroupEntry { Binding = 0, Buffer = buffer, Offset = 0, Size = (ulong)layout.BufferSize };
+            var groupDescriptor = new BindGroupDescriptor { Layout = groupLayout, EntryCount = 1, Entries = &entry };
+            var group = Api.DeviceCreateBindGroup(Device, &groupDescriptor);
+            if (group == null)
+            {
+                Api.BufferRelease(buffer);
+                return false;
+            }
+
+            if (CustomBindGroup != null)
+            {
+                Api.BindGroupRelease(CustomBindGroup);
+            }
+            if (CustomUniformBuffer != null)
+            {
+                Api.BufferRelease(CustomUniformBuffer);
+            }
+            CustomUniformBuffer = buffer;
+            CustomBindGroup = group;
+            CustomUniformLayout = layout;
+            CustomUniformData = new byte[layout.BufferSize];
+            _lastUploadedCustomUniformData = null;
+            return true;
+        }
 
         // Last uploaded payloads: a buffer is rewritten only when its contents change.
         private ManaWebGpuObjectUniform? _lastUploadedObjectUniform;
