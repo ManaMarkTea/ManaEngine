@@ -10,10 +10,10 @@ namespace ManaGeoTools.Code.Planet
 {
     /// <summary>
     /// Dresses a planet in a satellite picture: NASA GIBS's Blue Marble (or another of its global layers), fetched
-    /// once, with Natural Earth's coastlines, country and state borders painted into it, and kept as one JPEG in
-    /// Library/PlanetImagery -- about 3 MB at 8192 wide. The patches wear it through their lat/long coordinates,
-    /// so it follows the terrain at any detail. In the browser the picture is 4096 wide (memory), kept for the session only,
-    /// and detail tiles get the 50 m borders, since the 10 m files are 20 MB to download.
+    /// once and kept as one JPEG in Library/PlanetImagery -- about 3 MB at 8192 wide. The patches wear it through their
+    /// lat/long coordinates, so it follows the terrain at any detail. In the browser the picture is 4096 wide (memory),
+    /// kept for the session only. Natural Earth's coastlines, country and state borders are drawn over it as lines
+    /// (<see cref="PlanetBorderLayer"/>), never painted in: a painted line is a pixel wide, kilometres from close up.
     /// </summary>
     public sealed class PlanetImageryComponent : ManaComponent
     {
@@ -22,7 +22,7 @@ namespace ManaGeoTools.Code.Planet
         private const string GibsUrl = "https://gibs.earthdata.nasa.gov/wms/epsg4326/best/wms.cgi";
 
         // Bumped when the painting changes, so every saved picture is made again.
-        private const int PaintVersion = 2;
+        private const int PaintVersion = 3;
 
         /// <summary>Where downloads and finished pictures are kept between runs.</summary>
         public static string CacheFolder { get; set; } = Path.Combine(Environment.CurrentDirectory, "Library", "PlanetImagery");
@@ -38,17 +38,20 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>Coastlines and country borders.</summary>
         public bool Borders { get; set; } = true;
 
-        /// <summary>States and provinces, where Natural Earth has them at this scale (the larger countries).</summary>
+        /// <summary>States and provinces.</summary>
         public bool States { get; set; } = true;
 
-        public Vector4 BorderColor { get; set; } = new(1.0f, 1.0f, 1.0f, 0.9f);
+        /// <summary>Height in km below which state lines show; above it the whole world's are a tangle.</summary>
+        public float StatesBelow { get; set; } = 3000.0f;
 
-        public Vector4 StateColor { get; set; } = new(1.0f, 1.0f, 1.0f, 0.45f);
+        public Vector4 BorderColor { get; set; } = new(1.0f, 1.0f, 1.0f, 1.0f);
 
-        /// <summary>Line width on the ground, in kilometres.</summary>
-        public float BorderWidth { get; set; } = 9.0f;
+        public Vector4 StateColor { get; set; } = new(0.72f, 0.72f, 0.72f, 1.0f);
 
-        public float StateWidth { get; set; } = 6.0f;
+        /// <summary>Line width on screen, in pixels.</summary>
+        public float BorderWidth { get; set; } = 1.6f;
+
+        public float StateWidth { get; set; } = 1.0f;
 
         /// <summary>
         /// Sharper pictures of the ground near the camera: tiles of a few hundred kilometres at the layer's own
@@ -69,24 +72,12 @@ namespace ManaGeoTools.Code.Planet
         private PlanetDetailImagery? _detail;
         private string _lastDetailCounts = "";
 
-        // The 10 m Natural Earth lines, read once (on the first tile's worker) for every tile after.
-        private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailCountries =
-            new(() => ReadRings(DetailLines("admin_0_countries")).ToList());
-        private static readonly Lazy<List<IReadOnlyList<(double Longitude, double Latitude)>>> DetailStates =
-            new(() => ReadRings(DetailLines("admin_1_states_provinces")).ToList());
-
-        private static string DetailLines(string name)
-        {
-            if (OperatingSystem.IsBrowser())
-            {
-                return "ne_50m_" + name;
-            }
-            return "ne_10m_" + name;
-        }
+        private readonly PlanetBorderLayer _borders;
 
         public PlanetImageryComponent(ManaSceneNode owner) : base(owner)
         {
             Name = "Planet Imagery";
+            _borders = new PlanetBorderLayer(this);
         }
 
         public override void UpdateComponent()
@@ -96,6 +87,8 @@ namespace ManaGeoTools.Code.Planet
             {
                 return;
             }
+
+            _borders.Update(planet, Context.World.MainCamera, Borders || States);
 
             if (!Enabled)
             {
@@ -153,8 +146,7 @@ namespace ManaGeoTools.Code.Planet
             }
         }
 
-        // One sharper picture: the layer for the tile's box from GIBS, borders from the 10 m lines drawn a couple of
-        // pixels wide (the 50 m ones would miss the coast by kilometres at this scale), saved, decoded and mip-mapped here.
+        // One sharper picture: the layer for the tile's box from GIBS, saved, decoded and mip-mapped here.
         private async Task<string?> BuildTileAsync(PlanetImageryTileSpec spec, CancellationToken cancellation)
         {
             try
@@ -173,16 +165,6 @@ namespace ManaGeoTools.Code.Planet
                     $"{area.MinLatitude:0.######},{area.MinLongitude:0.######},{area.MaxLatitude:0.######},{area.MaxLongitude:0.######}");
                 var bytes = await FetchAsync(Layer, box, spec.Width, spec.Height, cancellation).ConfigureAwait(false);
                 var image = await ManaImageCodec.LoadOnceAsync(bytes).ConfigureAwait(false);
-                // Ground per pixel, north to south (pixels are square on the ground).
-                var kilometresPerPixel = (float)((area.MaxLatitude - area.MinLatitude) / 180.0 * 20037.5 / spec.Height);
-                if (States)
-                {
-                    PlanetBorderPainter.Paint(image, DetailStates.Value, MathF.Min(StateWidth, 1.1f * kilometresPerPixel), StateColor, area);
-                }
-                if (Borders)
-                {
-                    PlanetBorderPainter.Paint(image, DetailCountries.Value, MathF.Min(BorderWidth, 1.5f * kilometresPerPixel), BorderColor, area);
-                }
 
                 Directory.CreateDirectory(folder);
                 ManaImageCodec.SavePng(image, path, jpegQuality: 90);
@@ -205,6 +187,7 @@ namespace ManaGeoTools.Code.Planet
             base.OnRemoved();
             _cancel.Cancel();
             _detail?.Cancel();
+            _borders.Remove();
             if (Owner is PlanetNode planet && planet.ImageryPath != null && planet.ImageryPath == _readyPath)
             {
                 planet.SetImagery(null);
@@ -228,16 +211,7 @@ namespace ManaGeoTools.Code.Planet
 
         private string SettingsKey()
         {
-            var borders = "";
-            if (Borders)
-            {
-                borders += $"-b{Hex(BorderColor)}w{BorderWidth:0.#}";
-            }
-            if (States)
-            {
-                borders += $"-s{Hex(StateColor)}w{StateWidth:0.#}";
-            }
-            return $"{Layer}-{PictureWidth}{borders}-v{PaintVersion}";
+            return $"{Layer}-{PictureWidth}-v{PaintVersion}";
         }
 
         private async Task<string?> BuildAsync(string key, CancellationToken cancellation)
@@ -269,21 +243,11 @@ namespace ManaGeoTools.Code.Planet
                     await File.WriteAllBytesAsync(download, source, cancellation).ConfigureAwait(false);
                 }
 
-                Status = "Painting borders";
                 var image = await ManaImageCodec.LoadOnceAsync(source).ConfigureAwait(false);
-                if (States)
-                {
-                    PlanetBorderPainter.Paint(image, ReadRings("ne_50m_admin_1_states_provinces"), StateWidth, StateColor);
-                }
-                if (Borders)
-                {
-                    PlanetBorderPainter.Paint(image, ReadRings("ne_50m_admin_0_countries"), BorderWidth, BorderColor);
-                }
-
                 ManaImageCodec.SavePng(image, finished, jpegQuality: 88);
                 ManaTexturePrefetch.Store(finished, image);
                 RemoveOtherPictures(finished, download);
-                Status = $"{Layer}, {width} x {width / 2}, borders painted";
+                Status = $"{Layer}, {width} x {width / 2}";
                 return finished;
             }
             catch (OperationCanceledException)
@@ -349,24 +313,6 @@ namespace ManaGeoTools.Code.Planet
             return bytes;
         }
 
-        private static IEnumerable<IReadOnlyList<(double Longitude, double Latitude)>> ReadRings(string name)
-        {
-            var zip = ManaTexture.ResolveTexturePath(Path.Combine("Assets", "GeoData", name + ".zip"));
-            if (!File.Exists(zip))
-            {
-                Console.WriteLine($"[Imagery] {name}.zip is missing; drawn without it.");
-                return [];
-            }
-
-            using var archive = ZipFile.OpenRead(zip);
-            using var stream = archive.GetEntry(name + ".shp")?.Open();
-            if (stream == null)
-            {
-                return [];
-            }
-            return ShapefilePolygonReader.ReadRings(stream).ToList();
-        }
-
         // Only the painting in use is kept; downloads stay, so restyling the borders fetches nothing.
         private static void RemoveOtherPictures(string keep, string download)
         {
@@ -385,12 +331,6 @@ namespace ManaGeoTools.Code.Planet
                     // Still open as a texture this run; it goes next time.
                 }
             }
-        }
-
-        private static string Hex(Vector4 color)
-        {
-            static int Byte(float value) => (int)MathF.Round(Math.Clamp(value, 0.0f, 1.0f) * 255.0f);
-            return $"{Byte(color.X):x2}{Byte(color.Y):x2}{Byte(color.Z):x2}{Byte(color.W):x2}";
         }
 
         private static string Safe(string name)

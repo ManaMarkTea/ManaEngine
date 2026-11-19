@@ -1209,9 +1209,19 @@ namespace ManaGeoTools.Code.Planet
             var (mergedZoom, mergedMeshResolution, mergedSourceResolution, mergedSourceMetersPerPixel) =
                 ComputeMergedPatchTarget(faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, childLeaves);
 
+            // The children's sharp tile, when it covers the merged patch too: otherwise the patch comes up in the whole
+            // picture, kilometres a pixel, until the tile is dressed back on a frame or more later.
+            PlanetImageryDetail? detail = null;
+            if (childLeaves[0].Mesh.Detail is { } childDetail
+                && childDetail.MinU <= mergedMinU && childDetail.MaxU >= mergedMaxU
+                && childDetail.MinV <= mergedMinV && childDetail.MaxV >= mergedMaxV)
+            {
+                detail = childDetail;
+            }
+
             var heightScale = ComputeHeightScale();
             var mergedMesh = new PlanetPatchMesh(
-                Context, faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius, resolution: 2, heightScale, heightLibrary: null, _imageryPath);
+                Context, faceNormal, mergedMinU, mergedMaxU, mergedMinV, mergedMaxV, Radius, resolution: 2, heightScale, heightLibrary: null, _imageryPath, detail);
 
             var pending = new PendingMerge
             {

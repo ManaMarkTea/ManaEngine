@@ -95,7 +95,7 @@ namespace ManaEditor.Code.Levels
                     ComponentType = typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent),
                     Create = node => new ManaGeoTools.Code.Flights.FlightTrafficComponent(node)
                 },
-                // A planet's satellite picture with borders painted in (ManaGeoTools); nothing on any other node.
+                // A planet's satellite picture, with borders drawn over it as lines (ManaGeoTools); nothing on any other node.
                 new()
                 {
                     Type = ManaGeoTools.Code.Planet.PlanetImageryComponent.ScriptType,

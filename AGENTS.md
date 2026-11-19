@@ -488,23 +488,31 @@ dark when it casts shadows, which a click selects; the selected light's range as
   hosted by `FlightSelectionOverlay`, in the editor viewport and in `--play`. The last reply is kept in
   `Library/FlightTraffic/`. Non-commercial use only.
 - **Planet imagery:** a `PlanetImagery` script on a Planet node fetches a NASA GIBS global layer once (`layer`, default
-  `BlueMarble_ShadedRelief_Bathymetry`; `width` 8192), paints Natural Earth's coastlines, country and state borders into it
-  (`PlanetBorderPainter`; `borders`/`states`, colours, widths in km) and keeps one JPEG in `Library/PlanetImagery/` (~5 MB plus the
+  `BlueMarble_ShadedRelief_Bathymetry`; `width` 8192) and keeps one JPEG in `Library/PlanetImagery/` (~5 MB plus the
   3 MB download). `PlanetNode.SetImagery` puts it on every patch (white vertex colours, lat/long UVs unwrapped across the date
   line) and drops the water meshes, whose blocky coasts would cut into the picture's own seas. The streaming patch outline
   shows only while the planet is selected (aircraft in front of an outlined patch get outlined too). Close up (`detail`,
   on by default) patches wear sharper tiles instead (`PlanetDetailImagery`): fixed cube cells of ~420 km fetched from GIBS
-  for their lat/long box at the layer's own 500 m, 10 m Natural Earth borders drawn thin, cached in
-  `Library/PlanetImagery/Tiles/`; at most 16 worn at once, nearest first, each one GPU texture shared by every patch in
-  it (`PlanetPatchMesh.Detail` maps its window).
+  for their lat/long box at the layer's own 500 m, cached in `Library/PlanetImagery/Tiles/`; at most 16 worn at once,
+  nearest first, each one GPU texture shared by every patch in it (`PlanetPatchMesh.Detail` maps its window; a merge
+  hands its children's tile to the merged patch when it covers it). Borders are never painted into the pictures (a
+  painted line is a pixel wide: a smear kilometres across close up, and a white flash whenever a patch fell back to the
+  whole picture): `PlanetBorderLayer` draws Natural Earth's coastlines and country borders (`borders`) and state lines
+  (`states`, below `statesBelow` km) as lines `borderWidth`/`stateWidth` pixels wide -- 10 m data on desktop, 50 m in the
+  browser, cut into 10-degree cells over the visible half of the world, each thinned to its distance (100 m to 100 km
+  between points).
+- **Planet lines** (`PlanetLineLayer`, the base of roads and borders): cells of lat/long lines loaded on a worker around
+  the camera, laid on the drawn patches (`PlanetDrapedLineSet`, never below sea level -- the ground there is the sea
+  floor, which would sink bridges), laid again on a worker when the patches under a cell change, rebuilt in one step when
+  a cell's level of detail changes, and let go when the camera leaves. Lines are `draped_line.wgsl` ribbons with
+  `towardCamera` (pulled along the view ray to win the depth test; roads a little more than borders) and `faceCamera`
+  (turned to face the camera, or they thin to dots seen edge-on).
 - **Planet roads:** a `PlanetRoads` script on a Planet node (`PlanetRoadsComponent`) draws OpenStreetMap's motorways,
   trunk and primary roads near the camera: zoom-9 vector tiles from OpenFreeMap's CDN (`OsmRoadTiles`: the OpenMapTiles
   `transportation` layer read with a small protobuf decoder; ~0.1 s a tile, where the public Overpass servers took tens
   of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
-  `Library/PlanetRoads/Tiles/` on desktop, laid on the drawn patches and laid again on a worker when those under a tile
-  change, and kept within 1.2 x `loadRadius` at any height. Lines are `draped_line.wgsl` ribbons with `towardCamera`
-  (pulled along the view ray to win the depth test) and `faceCamera` (turned to face the camera, or they thin to dots
-  seen edge-on). Credit: OpenFreeMap, (c) OpenMapTiles, (c) OpenStreetMap contributors (ODbL).
+  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. Credit: OpenFreeMap,
+  (c) OpenMapTiles, (c) OpenStreetMap contributors (ODbL).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as
