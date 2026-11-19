@@ -225,7 +225,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                 // Group 1: generic per-material custom uniform buffer, built for every mesh regardless of
                 // shader (unused shaders simply never declare @group(1) in their .wgsl source).
                 var customUniformLayout = ManaWebGpuCustomUniforms.Layout(instance.ShaderName);
-                var customUniformData = new byte[customUniformLayout.BufferSize];
+                var customUniformData = new byte[PaddedSize(customUniformLayout)];
                 ManaWebGpuCustomUniforms.Fill(instance, customUniformLayout, customUniformData);
 
                 var customBufferDescriptor = new BufferDescriptor
@@ -358,7 +358,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                 return false;
             }
             // A bigger buffer than the shader reads is valid; and an empty layout may only be a read that failed.
-            if (layout.BufferSize <= CustomUniformLayout.BufferSize)
+            if (layout.BufferSize <= CustomUniformData.Length)
             {
                 if (layout.Fields.Count > 0)
                 {
@@ -367,17 +367,18 @@ namespace ManaGraphics.Code.Graphics.Resources
                 return false;
             }
 
+            var size = PaddedSize(layout);
             var descriptor = new BufferDescriptor
             {
                 Usage = BufferUsage.Uniform | BufferUsage.CopyDst,
-                Size = (ulong)layout.BufferSize
+                Size = (ulong)size
             };
             var buffer = Api.DeviceCreateBuffer(Device, &descriptor);
             if (buffer == null)
             {
                 return false;
             }
-            var entry = new BindGroupEntry { Binding = 0, Buffer = buffer, Offset = 0, Size = (ulong)layout.BufferSize };
+            var entry = new BindGroupEntry { Binding = 0, Buffer = buffer, Offset = 0, Size = (ulong)size };
             var groupDescriptor = new BindGroupDescriptor { Layout = groupLayout, EntryCount = 1, Entries = &entry };
             var group = Api.DeviceCreateBindGroup(Device, &groupDescriptor);
             if (group == null)
@@ -397,9 +398,19 @@ namespace ManaGraphics.Code.Graphics.Resources
             CustomUniformBuffer = buffer;
             CustomBindGroup = group;
             CustomUniformLayout = layout;
-            CustomUniformData = new byte[layout.BufferSize];
+            CustomUniformData = new byte[size];
             _lastUploadedCustomUniformData = null;
             return true;
+        }
+
+        // Every group 2 is at least this big, past any shader's struct (water's is 304): wgpu-native has checked a draw
+        // against a group 2 left from an earlier pipeline ("bound with size 16 where the shader expects 20"), which a
+        // buffer no shader outgrows can never fail.
+        private const int MinCustomUniformBytes = 512;
+
+        private static int PaddedSize(ManaWebGpuCustomUniformSchema layout)
+        {
+            return Math.Max(layout.BufferSize, MinCustomUniformBytes);
         }
 
         // Last uploaded payloads: a buffer is rewritten only when its contents change.

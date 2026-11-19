@@ -9,32 +9,27 @@ using ManaGeoTools.Code.Osm;
 namespace ManaGeoTools.Code.Planet
 {
     /// <summary>
-    /// OpenStreetMap's larger roads (motorway, trunk, primary) drawn on a planet near the camera. The ground is cut
-    /// into squares of half a degree; once the camera is below <see cref="ShowBelow"/> km the squares around it are
-    /// fetched from Overpass (kept in Library/PlanetRoads on desktop), drawn as lines on the terrain and re-laid on it
-    /// as the patches below refine, and let go again when the camera leaves. Primary roads show only lower down.
+    /// OpenStreetMap's larger roads (motorway, trunk, primary) drawn on a planet near the camera. Once the camera is
+    /// below <see cref="ShowBelow"/> km the zoom-9 vector tiles around it (~50-80 km across) are fetched from
+    /// OpenFreeMap (kept in Library/PlanetRoads on desktop), drawn as lines on the terrain and re-laid on it as the
+    /// patches below refine, and let go again when the camera leaves. Primary roads show only lower down.
     /// </summary>
     public sealed class PlanetRoadsComponent : ManaComponent
     {
         public const string ScriptType = "PlanetRoads";
 
-        /// <summary>Where Overpass replies are kept between runs (desktop only; the browser fetches again).</summary>
+        /// <summary>Where fetched tiles are kept between runs (desktop only; the browser fetches again).</summary>
         public static string CacheFolder { get; set; } = Path.Combine(Environment.CurrentDirectory, "Library", "PlanetRoads");
 
-        // Bumped when the query changes, so every kept reply is fetched again.
-        private const int CacheVersion = 2;
-        private const double CellDegrees = 0.5;
-        private const int MaxLatitudeRow = (int)((90.0 + 85.0) / CellDegrees);
-        private const int MinLatitudeRow = (int)((90.0 - 85.0) / CellDegrees);
-        private const int Columns = (int)(360.0 / CellDegrees);
+        // Zoom 9 carries every primary road, its points to ~15 m, in tiles of ~150 KB around a city.
+        private const int TileZoom = 9;
 
-        // Overpass gives an address two query slots; more only queues behind them.
-        private const int MaxFetches = 2;
+        // A CDN: a few at once is fine.
+        private const int MaxFetches = 6;
         private const int MaxCells = 48;
         private const int BuildsPerFrame = 2;
         private const double UpdateSeconds = 0.25;
-        private const double BusyRetrySeconds = 30.0;
-        private const double FailedRetrySeconds = 120.0;
+        private const double FailedRetrySeconds = 20.0;
 
         // Roads are straight between OSM's points, which may be kilometres apart on a motorway: cut them finer so the
         // line follows the ground between.
@@ -78,7 +73,7 @@ namespace ManaGeoTools.Code.Planet
         public bool Drawing { get; private set; }
 
         private static readonly HttpClient Http = CreateHttp();
-        private readonly Dictionary<(int Row, int Column), RoadCell> _cells = new();
+        private readonly Dictionary<(int X, int Y), RoadCell> _cells = new();
         private readonly CancellationTokenSource _cancel = new();
         private readonly Stopwatch _clock = Stopwatch.StartNew();
         private double _lastUpdate = double.NegativeInfinity;
@@ -136,7 +131,7 @@ namespace ManaGeoTools.Code.Planet
             }
             if (dropped > 0)
             {
-                Console.WriteLine($"[Roads] Let go of {dropped} square(s) at {altitudeKm:0.#} km; {_cells.Count} kept.");
+                Console.WriteLine($"[Roads] Let go of {dropped} tile(s) at {altitudeKm:0.#} km; {_cells.Count} kept.");
             }
 
             var leaves = planet.TryGetLeafMeshes();
@@ -167,46 +162,53 @@ namespace ManaGeoTools.Code.Planet
 
         // The squares to fetch, nearest first, and the (wider) set to keep, so a square at the edge does not come and
         // go as the camera wobbles. None at all above the height roads show from: they are all let go.
-        private (List<(int Row, int Column)> Wanted, HashSet<(int Row, int Column)> Keep) WantedCells(Vector3 below, float altitudeKm)
+        private (List<(int X, int Y)> Wanted, HashSet<(int X, int Y)> Keep) WantedCells(Vector3 below, float altitudeKm)
         {
-            var wanted = new List<((int Row, int Column) Key, float Distance)>();
-            var keep = new HashSet<(int Row, int Column)>();
+            var wanted = new List<((int X, int Y) Key, float Distance)>();
+            var keep = new HashSet<(int X, int Y)>();
             if (altitudeKm > ShowBelow * 1.25f)
             {
                 return (new List<(int, int)>(), keep);
             }
 
-            var loadKm = Math.Clamp(altitudeKm * 1.5f, 25.0f, MathF.Max(25.0f, LoadRadius));
+            // Low down the horizon is still tens of kilometres off, so never less than 60 km; what is loaded stays
+            // while it is within reach of the farthest load, so coming down does not drop the roads in view.
+            var loadKm = Math.Clamp(altitudeKm * 1.5f, 60.0f, MathF.Max(60.0f, LoadRadius));
             if (altitudeKm > ShowBelow)
             {
                 loadKm = 0.0f;
             }
-            var keepKm = Math.Clamp(altitudeKm * 1.5f, 25.0f, MathF.Max(25.0f, LoadRadius)) * 1.4f;
+            var keepKm = MathF.Max(60.0f, LoadRadius) * 1.2f;
 
             var latitude = MathF.Asin(Math.Clamp(below.Y, -1.0f, 1.0f)) * 180.0f / MathF.PI;
             var longitude = MathF.Atan2(-below.X, -below.Z) * 180.0f / MathF.PI;
-            var spanLatitude = keepKm / 111.0f + (float)CellDegrees;
-            var spanLongitude = MathF.Min(180.0f, keepKm / (111.0f * MathF.Max(0.05f, MathF.Cos(latitude * MathF.PI / 180.0f))) + (float)CellDegrees);
-            var firstRow = Math.Max(MinLatitudeRow, (int)Math.Floor((latitude - spanLatitude + 90.0) / CellDegrees));
-            var lastRow = Math.Min(MaxLatitudeRow - 1, (int)Math.Floor((latitude + spanLatitude + 90.0) / CellDegrees));
-            var firstColumn = (int)Math.Floor((longitude - spanLongitude + 180.0) / CellDegrees);
-            var lastColumn = (int)Math.Floor((longitude + spanLongitude + 180.0) / CellDegrees);
-            // Half a square's diagonal on the ground, so a square counts from its nearest edge rather than its middle.
-            var halfDiagonalKm = (float)(CellDegrees * 111.0 * 0.71);
-
-            for (var row = firstRow; row <= lastRow; row++)
+            var spanLatitude = keepKm / 111.0f;
+            var spanLongitude = MathF.Min(179.0f, keepKm / (111.0f * MathF.Max(0.05f, MathF.Cos(latitude * MathF.PI / 180.0f))));
+            var count = 1 << TileZoom;
+            var (westX, northY) = OsmRoadTiles.TileAt(longitude - spanLongitude, Math.Min(85.0, latitude + spanLatitude), TileZoom);
+            var (eastX, southY) = OsmRoadTiles.TileAt(longitude + spanLongitude, Math.Max(-85.0, latitude - spanLatitude), TileZoom);
+            if (eastX < westX)
             {
-                for (var rawColumn = firstColumn; rawColumn <= lastColumn; rawColumn++)
+                eastX += count;
+            }
+
+            for (var y = northY; y <= southY; y++)
+            {
+                for (var rawX = westX; rawX <= eastX; rawX++)
                 {
-                    var column = ((rawColumn % Columns) + Columns) % Columns;
-                    var key = (row, column);
+                    var x = rawX % count;
+                    var key = (x, y);
                     if (keep.Contains(key))
                     {
                         continue;
                     }
-                    var centre = LatLong.FromLongitudeAndLatitude(
-                        (float)(-180.0 + (column + 0.5) * CellDegrees),
-                        (float)(-90.0 + (row + 0.5) * CellDegrees)).ToUnitSphere();
+                    var (west, south, east, north) = OsmRoadTiles.Bounds(TileZoom, x, y);
+                    var middleLatitude = (south + north) * 0.5;
+                    var centre = LatLong.FromLongitudeAndLatitude((float)((west + east) * 0.5), (float)middleLatitude).ToUnitSphere();
+                    // Half the tile's diagonal on the ground, so a tile counts from its nearest edge rather than its middle.
+                    var widthKm = (east - west) * 111.0 * Math.Cos(middleLatitude * Math.PI / 180.0);
+                    var heightKm = (north - south) * 111.0;
+                    var halfDiagonalKm = (float)(0.5 * Math.Sqrt(widthKm * widthKm + heightKm * heightKm));
                     var angle = MathF.Acos(Math.Clamp(Vector3.Dot(centre, below), -1.0f, 1.0f));
                     var distanceKm = MathF.Max(0.0f, angle * PlanetLoader.EarthRadiusMeters / 1000.0f - halfDiagonalKm);
                     if (distanceKm <= keepKm)
@@ -228,7 +230,7 @@ namespace ManaGeoTools.Code.Planet
             return (wanted.Select(entry => entry.Key).ToList(), keep);
         }
 
-        private void StartFetches(List<(int Row, int Column)> wanted, PlanetPatchMesh[] leaves, float seaRadius, float metresPerUnit, double now)
+        private void StartFetches(List<(int X, int Y)> wanted, PlanetPatchMesh[] leaves, float seaRadius, float metresPerUnit, double now)
         {
             var running = _cells.Values.Count(cell => cell.Work != null);
             foreach (var key in wanted)
@@ -277,15 +279,10 @@ namespace ManaGeoTools.Code.Planet
                     Build(planet, cell);
                     built++;
                 }
-                else if (work.Exception?.InnerException is OverpassBusyException busy)
-                {
-                    Console.WriteLine($"[Roads] {busy.Message}; square {cell.Key} again in {BusyRetrySeconds:0} s.");
-                    cell.RetryAt = _clock.Elapsed.TotalSeconds + BusyRetrySeconds;
-                }
                 else if (!work.IsCanceled)
                 {
                     var reason = work.Exception?.InnerException?.Message ?? "no reply";
-                    Console.WriteLine($"[Roads] Square {cell.Key} failed: {reason}");
+                    Console.WriteLine($"[Roads] Tile {cell.Key} failed: {reason}; again in {FailedRetrySeconds:0} s.");
                     cell.RetryAt = _clock.Elapsed.TotalSeconds + FailedRetrySeconds;
                 }
             }
@@ -302,31 +299,28 @@ namespace ManaGeoTools.Code.Planet
 
         // Read (or fetched and kept), cut finer and laid on the patches drawn when the fetch began; laid again once the
         // ground below has changed (StartDrape).
-        private static async Task<CellGeometry?> LoadAsync((int Row, int Column) key, PlanetPatchMesh[] leaves, float seaRadius,
+        private static async Task<CellGeometry?> LoadAsync((int X, int Y) key, PlanetPatchMesh[] leaves, float seaRadius,
             float metresPerUnit, CancellationToken cancellation)
         {
-            var south = -90.0 + key.Row * CellDegrees;
-            var west = -180.0 + key.Column * CellDegrees;
-            string? json = null;
+            byte[]? data = null;
             string? path = null;
             if (!OperatingSystem.IsBrowser())
             {
-                var folder = Path.Combine(CacheFolder, $"v{CacheVersion}");
-                path = Path.Combine(folder, $"{key.Row}_{key.Column}.json");
+                path = Path.Combine(CacheFolder, "Tiles", $"z{TileZoom}", $"{key.X}_{key.Y}.pbf");
                 if (File.Exists(path))
                 {
-                    json = await File.ReadAllTextAsync(path, cancellation).ConfigureAwait(false);
+                    data = await File.ReadAllBytesAsync(path, cancellation).ConfigureAwait(false);
                 }
             }
 
-            if (json == null)
+            if (data == null)
             {
-                json = await OverpassRoads.FetchAsync(Http, south, west, south + CellDegrees, west + CellDegrees, cancellation).ConfigureAwait(false);
+                data = await OsmRoadTiles.FetchAsync(Http, TileZoom, key.X, key.Y, cancellation).ConfigureAwait(false);
                 if (path != null)
                 {
-                    // Written aside and moved in, so a run stopped mid-write never leaves half a reply to be read next time.
+                    // Written aside and moved in, so a run stopped mid-write never leaves half a tile to be read next time.
                     Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-                    await File.WriteAllTextAsync(path + ".part", json, cancellation).ConfigureAwait(false);
+                    await File.WriteAllBytesAsync(path + ".part", data, cancellation).ConfigureAwait(false);
                     File.Move(path + ".part", path, overwrite: true);
                 }
             }
@@ -334,9 +328,9 @@ namespace ManaGeoTools.Code.Planet
             List<RoadLine> roads;
             try
             {
-                roads = OverpassRoads.Parse(json);
+                roads = OsmRoadTiles.Parse(data, TileZoom, key.X, key.Y);
             }
-            catch (System.Text.Json.JsonException) when (path != null && File.Exists(path))
+            catch (Exception) when (path != null && File.Exists(path))
             {
                 File.Delete(path);
                 throw;
@@ -382,7 +376,7 @@ namespace ManaGeoTools.Code.Planet
                     var roadClass = (RoadClass)c;
                     var mesh = new ManaLineMesh(Context, polylines, 1.0f, ColorOf(roadClass), 0.0f, ManaLineProfile.ScreenRibbon)
                     {
-                        Name = $"{roadClass} roads {cell.Key.Row},{cell.Key.Column}"
+                        Name = $"{roadClass} roads {cell.Key.X},{cell.Key.Y}"
                     };
                     var node = new ManaSceneNode(Context, Matrix4x4.Identity)
                     {
@@ -400,7 +394,7 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
-            Console.WriteLine($"[Roads] Square {cell.Key}: {geometry.Points[0].Length} motorway, {geometry.Points[1].Length} trunk, " +
+            Console.WriteLine($"[Roads] Tile {cell.Key}: {geometry.Points[0].Length} motorway, {geometry.Points[1].Length} trunk, " +
                 $"{geometry.Points[2].Length} primary lines, {geometry.PointCount} points.");
         }
 
@@ -564,7 +558,7 @@ namespace ManaGeoTools.Code.Planet
             }
             else
             {
-                Status = $"{ready} squares drawn, {loading} loading";
+                Status = $"{ready} tiles drawn, {loading} loading";
             }
             if (Status != _lastStatus && loading == 0 && _cells.Count > 0)
             {
@@ -617,9 +611,9 @@ namespace ManaGeoTools.Code.Planet
             return http;
         }
 
-        private sealed class RoadCell((int Row, int Column) key)
+        private sealed class RoadCell((int X, int Y) key)
         {
-            public (int Row, int Column) Key { get; } = key;
+            public (int X, int Y) Key { get; } = key;
             public Task<CellGeometry?>? Work { get; set; }
             public CancellationTokenSource? Cancel { get; set; }
             public CellGeometry? Geometry { get; set; }

@@ -37,7 +37,7 @@ public static class PlanetReadoutManaView
 
         // OSM's licence asks for its credit wherever its roads are shown.
         var credit = new TextBlock().FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted)
-            .Text("Roads (c) OpenStreetMap contributors").Margin(2.0f, 4.0f, 0.0f, 0.0f);
+            .Text("Roads: OpenFreeMap (c) OpenMapTiles (c) OpenStreetMap contributors").Margin(2.0f, 4.0f, 0.0f, 0.0f);
         credit.BindPolled(el => el.Visibility, () =>
         {
             if (current != null && camera() is { } eye && FindPlanet(eye.Context.World)?.GetComponent<PlanetRoadsComponent>() is { Drawing: true })
