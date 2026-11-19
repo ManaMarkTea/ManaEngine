@@ -140,6 +140,9 @@ namespace ManaGraphics.Code.Graphics.Resources
             var uploadedCount = 0;
             var removedCount = 0;
             var deferredCount = 0;
+            // In-place rewrites (aircraft markers ten times a second, skinned characters every frame) count toward the
+            // budget but are not news on their own, so they alone do not log a delta.
+            var rewrittenCount = 0;
             ulong uploadedIndexes = 0;
             ulong removedIndexes = 0;
             List<string>? changedMeshSummaries = null;
@@ -220,6 +223,7 @@ namespace ManaGraphics.Code.Graphics.Resources
                             existing.InvalidateDerivedGeometry();
                             nextSceneMeshes.Add(existing);
                             uploadedCount++;
+                            rewrittenCount++;
                             uploadedIndexes += existing.Mesh.IndexCount;
                             continue;
                         }
@@ -295,11 +299,11 @@ namespace ManaGraphics.Code.Graphics.Resources
             _sceneMeshes.Clear();
             _sceneMeshes.AddRange(nextSceneMeshes);
 
-            if (uploadedCount > 0 || removedCount > 0 || deferredCount > 0)
+            if (uploadedCount > rewrittenCount || removedCount > 0 || deferredCount > 0)
             {
                 var residentIndexes = _sceneMeshes.Sum(mesh => mesh.Mesh.IndexCount);
                 ManaConsole.WriteDiagnostic(
-                    $"WebGPU scene mesh delta: uploaded={uploadedCount} (indexes={uploadedIndexes}), " +
+                    $"WebGPU scene mesh delta: uploaded={uploadedCount} (indexes={uploadedIndexes}, {rewrittenCount} rewritten in place), " +
                     $"removed={removedCount} (indexes={removedIndexes}), deferred={deferredCount}, " +
                     $"residentMeshes={_sceneMeshes.Count}, residentIndexes={residentIndexes}, ms={uploadClock.Elapsed.TotalMilliseconds:0.00}.");
 
