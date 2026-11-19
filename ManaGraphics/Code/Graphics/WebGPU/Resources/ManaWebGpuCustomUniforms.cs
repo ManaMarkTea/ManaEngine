@@ -11,7 +11,6 @@ namespace ManaGraphics.Code.Graphics.Resources
         // Per-material custom uniforms, for any shader that declares a CustomMaterialUniform struct. Fields are packed in
         // declaration order, parsed from the .wgsl, and named after ManaMaterial.SetShaderUniform keys, so the shader file
         // is the only place the mapping lives.
-        private static readonly ConcurrentDictionary<string, ManaWebGpuCustomUniformSchema> Layouts = new();
         private static readonly ConcurrentDictionary<string, bool> WarnedUnmapped = new();
 
         public static void Fill(
@@ -100,9 +99,11 @@ namespace ManaGraphics.Code.Graphics.Resources
             }
         }
 
+        // The schema cache keeps only what it read successfully; asking it again is what lets a shader whose file was
+        // briefly locked get its real layout on a later mesh instead of an empty one for the whole run.
         public static ManaWebGpuCustomUniformSchema Layout(string? shaderName)
         {
-            return Layouts.GetOrAdd(shaderName ?? "ManaPbrShader", ManaWebGpuCustomUniformSchemaCache.GetSchema);
+            return ManaWebGpuCustomUniformSchemaCache.GetSchema(shaderName ?? "ManaPbrShader");
         }
     }
 }

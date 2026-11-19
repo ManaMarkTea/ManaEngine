@@ -35,6 +35,19 @@ public static class PlanetReadoutManaView
             Tile(theme, "HEADING", () => Heading(current), () => Compass(current)),
             Tile(theme, "GROUND", () => Ground(current), () => GroundDetail(current)));
 
+        // OSM's licence asks for its credit wherever its roads are shown.
+        var credit = new TextBlock().FontSize(theme.FontSizeSmall).Foreground(theme.TextMuted)
+            .Text("Roads (c) OpenStreetMap contributors").Margin(2.0f, 4.0f, 0.0f, 0.0f);
+        credit.BindPolled(el => el.Visibility, () =>
+        {
+            if (current != null && camera() is { } eye && FindPlanet(eye.Context.World)?.GetComponent<PlanetRoadsComponent>() is { Drawing: true })
+            {
+                return Visibility.Visible;
+            }
+            return Visibility.Collapsed;
+        });
+        var content = new StackPanel().Vertical(0.0f).Children(tiles, credit);
+
         var panel = new Border()
             .Fill(theme.Frosted(theme.Surface))
             .Blur(theme.BackdropBlur)
@@ -42,7 +55,7 @@ public static class PlanetReadoutManaView
             .Rounded(theme.CornerRadiusLarge)
             .Shadow(18.0f)
             .PaddingOf(8.0f)
-            .Content(tiles)
+            .Content(content)
             .Left()
             .Bottom()
             .Margin(12.0f, 0.0f, 0.0f, 12.0f);

@@ -497,6 +497,13 @@ dark when it casts shadows, which a click selects; the selected light's range as
   for their lat/long box at the layer's own 500 m, 10 m Natural Earth borders drawn thin, cached in
   `Library/PlanetImagery/Tiles/`; at most 16 worn at once, nearest first, each one GPU texture shared by every patch in
   it (`PlanetPatchMesh.Detail` maps its window).
+- **Planet roads:** a `PlanetRoads` script on a Planet node (`PlanetRoadsComponent`) draws OpenStreetMap's motorways,
+  trunk and primary roads near the camera: half-degree squares fetched from Overpass (`OverpassRoads`: geometry only, the
+  classes split by `out count`; overpass-api.de with two public mirrors after it) once the camera is below `showBelow`
+  (150 km; primary roads below `primaryBelow`, 40 km), kept in `Library/PlanetRoads/` on desktop, laid on the drawn
+  patches and laid again on a worker when those under a square change, and let go when the camera leaves. Lines are
+  `draped_line.wgsl` ribbons with `towardCamera` (pulled along the view ray to win the depth test) and `faceCamera` (turned
+  to face the camera, or they thin to dots seen edge-on). OSM data is ODbL: (c) OpenStreetMap contributors.
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.
 - **User-made assets:** everything a person sets up once and reuses is a JSON file in `Content/` with `format`, `version`, `id` and `name`, referenced by `{ assetId, assetPath }` (`ManaAssetRef`; the id wins when a file moves). A game keeps its own in `Games/<Name>/Content/` (a content mount, `ManaContentMounts`), referenced as

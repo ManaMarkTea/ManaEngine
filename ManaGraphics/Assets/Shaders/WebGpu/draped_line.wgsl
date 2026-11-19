@@ -18,6 +18,16 @@ struct CustomMaterialUniform {
 
     //PROPERTY(default=0.5, min=0.01, max=8.0)
     maxHalfWidth : f32,
+
+    // Share of the camera distance a line is pulled toward the camera: along the view ray, so it stays put on
+    // screen but wins the depth test against ground it lies on (planet roads; 0 for borders).
+    //PROPERTY(default=0.0, min=0.0, max=0.05)
+    towardCamera : f32,
+
+    // 1 turns the ribbon to face the camera about its own line, so a road seen edge-on from low down keeps its width
+    // instead of thinning to broken dots (0: it lies flat on the ground, as borders do).
+    //PROPERTY(default=0.0, min=0.0, max=1.0)
+    faceCamera : f32,
 };
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
@@ -39,7 +49,22 @@ fn vs_main(
     let center = (object.model * vec4<f32>(position, 1.0)).xyz;
 
     // Offset direction is a rotation, not a point, so w = 0.
-    let offset_direction = (object.model * vec4<f32>(color.xyz, 0.0)).xyz;
+    var offset_direction = (object.model * vec4<f32>(color.xyz, 0.0)).xyz;
+    let to_camera = frame.camera_position.xyz - center;
+    if (custom.faceCamera > 0.5) {
+        // The side was built as cross(up, along), so the line runs along cross(side, up).
+        let up = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
+        let along = cross(offset_direction, up);
+        let facing = cross(along, to_camera);
+        let facing_length = length(facing);
+        if (facing_length > 1e-6 * length(to_camera)) {
+            var turned = facing / facing_length;
+            if (dot(turned, offset_direction) < 0.0) {
+                turned = -turned;
+            }
+            offset_direction = turned;
+        }
+    }
 
     let distance_to_camera = length(frame.camera_position.xyz - center);
     let half_width = clamp(
@@ -47,8 +72,10 @@ fn vs_main(
         custom.minHalfWidth,
         custom.maxHalfWidth);
 
+    let lifted = center + (to_camera * custom.towardCamera);
+
     var output : VertexOutput;
-    output.clip_position = frame.projection * (frame.view * vec4<f32>(center + (offset_direction * half_width), 1.0));
+    output.clip_position = frame.projection * (frame.view * vec4<f32>(lifted + (offset_direction * half_width), 1.0));
     output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }

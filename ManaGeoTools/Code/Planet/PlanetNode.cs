@@ -2058,7 +2058,7 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // The drawn grid's radius at (u, v), bilinear between its four vertices (the grid is even in u and v).
-        private static float? GroundRadius(PlanetPatchMesh mesh, float u, float v)
+        internal static float? GroundRadius(PlanetPatchMesh mesh, float u, float v)
         {
             var n = mesh.Resolution;
             if (n < 2 || mesh.CpuData?.Positions is not { } positions || positions.Length < n * n)

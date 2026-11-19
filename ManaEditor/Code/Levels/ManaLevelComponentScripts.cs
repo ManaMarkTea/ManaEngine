@@ -102,6 +102,13 @@ namespace ManaEditor.Code.Levels
                     ComponentType = typeof(ManaGeoTools.Code.Planet.PlanetImageryComponent),
                     Create = node => new ManaGeoTools.Code.Planet.PlanetImageryComponent(node)
                 },
+                // OpenStreetMap's larger roads drawn on a planet near the camera (ManaGeoTools); nothing on any other node.
+                new()
+                {
+                    Type = ManaGeoTools.Code.Planet.PlanetRoadsComponent.ScriptType,
+                    ComponentType = typeof(ManaGeoTools.Code.Planet.PlanetRoadsComponent),
+                    Create = node => new ManaGeoTools.Code.Planet.PlanetRoadsComponent(node)
+                },
                 new()
                 {
                     Type = "Platformer2D",
@@ -287,6 +294,7 @@ namespace ManaEditor.Code.Levels
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaUiCanvasComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Flights.FlightTrafficComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Planet.PlanetImageryComponent))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaGeoTools.Code.Planet.PlanetRoadsComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaAudioSourceComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaBoxColliderComponent))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(ManaLightSourceComponent))]

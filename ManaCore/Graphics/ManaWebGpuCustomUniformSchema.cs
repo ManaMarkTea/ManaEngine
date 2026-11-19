@@ -105,8 +105,11 @@ namespace ManaCore.Graphics
                     return cached;
                 }
 
-                var schema = LoadSchema(shaderName);
-                Schemas[shaderName] = schema;
+                var schema = LoadSchema(shaderName, out var readFailed);
+                if (!readFailed)
+                {
+                    Schemas[shaderName] = schema;
+                }
                 return schema;
             }
         }
@@ -162,8 +165,9 @@ namespace ManaCore.Graphics
                 : $"'{shaderFileName}' declares CustomMaterialUniform, but no editable fields were parsed.";
         }
 
-        private static ManaWebGpuCustomUniformSchema LoadSchema(string shaderName)
+        private static ManaWebGpuCustomUniformSchema LoadSchema(string shaderName, out bool readFailed)
         {
+            readFailed = false;
             if (!TryResolveShaderFileName(shaderName, out var shaderFileName))
             {
                 return ManaWebGpuCustomUniformSchema.Empty;
@@ -175,14 +179,24 @@ namespace ManaCore.Graphics
                 return ManaWebGpuCustomUniformSchema.Empty;
             }
 
-            try
+            // A file held for a moment (a build copying it, a virus scan) is read again rather than taken as having no
+            // uniforms: an empty layout binds 16 bytes where the shader wants more, and every frame that draws it fails.
+            for (var attempt = 0; ; attempt++)
             {
-                var source = File.ReadAllText(shaderPath);
-                return ParseSchema(source);
-            }
-            catch
-            {
-                return ManaWebGpuCustomUniformSchema.Empty;
+                try
+                {
+                    return ParseSchema(File.ReadAllText(shaderPath));
+                }
+                catch (IOException) when (attempt < 10 && !OperatingSystem.IsBrowser())
+                {
+                    Thread.Sleep(50);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Console.WriteLine($"[WebGPU] Could not read '{shaderFileName}' for its material uniforms: {ex.Message}");
+                    readFailed = true;
+                    return ManaWebGpuCustomUniformSchema.Empty;
+                }
             }
         }
 
