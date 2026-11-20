@@ -47,6 +47,11 @@ struct FrameUniform {
     // the combined matrix on a true-size planet's coordinates rounded clip z and w apart, and far ground drew through near.
     view : mat4x4<f32>,
     projection : mat4x4<f32>,
+    // A planet's haze (include/haze.wgsl): colour rgb, w the density a world unit at sea level (0 off); planet centre xyz,
+    // w radius; toward the sun xyz, w the air's scale height in world units.
+    haze_color : vec4<f32>,
+    haze_planet : vec4<f32>,
+    haze_sun : vec4<f32>,
 };
 
 struct ObjectUniform {

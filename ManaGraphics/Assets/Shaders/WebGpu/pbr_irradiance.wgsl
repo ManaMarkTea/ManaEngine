@@ -18,6 +18,7 @@ struct VertexOutput {
 #include "include/point_shadows.wgsl"
 #endif
 #include "include/probe_volume.wgsl"
+#include "include/haze.wgsl"
 #if MANA_INSTANCED
 // Instanced (ManaWebGpuMaterialPass batches meshes alike): each instance's object uniform from an array, copied into
 // `object` at the top of each stage so the rest of the shader reads it as the single-mesh build does.
@@ -501,6 +502,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         color = ((color - reflected) * alpha + reflected) / max(glass_alpha, 0.001);
         output_alpha = glass_alpha;
     }
+
+    color = mana_haze(color, input.world_position);
 
     // object.debug_mode_override < 0 means "no per-object override, use the frame's global mode".
     let effective_debug_mode = select(frame.webgpu_debug_mode, object.debug_mode_override, object.debug_mode_override >= 0.0);

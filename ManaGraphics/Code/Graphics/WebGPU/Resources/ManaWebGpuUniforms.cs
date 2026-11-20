@@ -46,6 +46,9 @@ namespace ManaGraphics.Code.Graphics.Resources
         // rounded clip z and w separately, and depth came out wrong by hundreds of metres a few kilometres away.
         public Matrix4x4 View;
         public Matrix4x4 Projection;
+        public Vector4 HazeColor;
+        public Vector4 HazePlanet;
+        public Vector4 HazeSun;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.
@@ -100,8 +103,40 @@ namespace ManaGraphics.Code.Graphics.Resources
             }
             uniform.ClusterDepth = new Vector4(lights.Near, lights.SliceScale, lights.Viewport.X, lights.Viewport.Y);
             uniform.CameraForward = new Vector4(lights.Forward, 0.0f);
+            SetHaze(ref uniform, scene);
 
             return uniform;
+        }
+
+        // Clear air: about an eightieth of the light lost a kilometre at sea level, thinning by e every 8 km up.
+        private const float HazePerMetre = 1.0f / 80_000.0f;
+        private const float HazeScaleHeightMetres = 8_000.0f;
+        private const float EarthRadiusMetres = 6_371_000.0f;
+
+        private static void SetHaze(ref ManaWebGpuFrameUniform uniform, ManaRenderScene scene)
+        {
+            var planet = scene.IrradianceSettings.SkyPlanet;
+            if (planet.W <= 0.0f)
+            {
+                return;
+            }
+            var metresPerUnit = EarthRadiusMetres / planet.W;
+            var towardSun = scene.Sky.TowardSun;
+            var sunLight = new Vector3(1.0f);
+            if (scene.HasSun)
+            {
+                towardSun = -scene.SunDirection;
+                sunLight = new Vector3(scene.SunColor.X, scene.SunColor.Y, scene.SunColor.Z) * scene.SunColor.W;
+            }
+            if (towardSun.LengthSquared() > 1e-6f)
+            {
+                towardSun = Vector3.Normalize(towardSun);
+            }
+            // The sky's blue, about as bright as the sunlit ground under it (the satellite picture is dark).
+            var colour = new Vector3(0.30f, 0.45f, 0.80f) * sunLight * 0.22f;
+            uniform.HazeColor = new Vector4(colour, HazePerMetre * metresPerUnit);
+            uniform.HazePlanet = planet;
+            uniform.HazeSun = new Vector4(towardSun, HazeScaleHeightMetres / metresPerUnit);
         }
     }
 

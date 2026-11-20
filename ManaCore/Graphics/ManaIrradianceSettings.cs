@@ -164,7 +164,9 @@ namespace ManaCore.Graphics
                 WindSpeed = WindSpeed,
                 WindDirection = WindDirection,
                 Gustiness = Gustiness,
-                ConstellationLines = ConstellationLines
+                ConstellationLines = ConstellationLines,
+                Space = Space,
+                SkyPlanet = SkyPlanet
             };
         }
     }

@@ -6,6 +6,7 @@
 // enough -- roughly 37 whole-mesh rebuilds over a single descent. Per-vertex is also more correct: a
 // border can span a wide distance range, which one global thickness cannot represent.
 #include "include/uniforms.wgsl"
+#include "include/haze.wgsl"
 
 struct CustomMaterialUniform {
     // World units of half-width per unit of camera distance. Constant screen width wants width
@@ -37,6 +38,7 @@ struct CustomMaterialUniform {
 struct VertexOutput {
     @builtin(position) clip_position : vec4<f32>,
     @location(0) world_normal : vec3<f32>,
+    @location(1) world_position : vec3<f32>,
 };
 
 @vertex
@@ -77,6 +79,7 @@ fn vs_main(
     var output : VertexOutput;
     output.clip_position = frame.projection * (frame.view * vec4<f32>(lifted + (offset_direction * half_width), 1.0));
     output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
+    output.world_position = center;
     return output;
 }
 
@@ -88,5 +91,5 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let emissive = pow(max(object.material_emission.rgb, vec3<f32>(0.0)), vec3<f32>(2.2))
         * object.material_emission.a;
     let exposure = frame.irradiance_factors.x;
-    return vec4<f32>((albedo + emissive) * exposure, object.material_albedo.a);
+    return vec4<f32>(mana_haze(albedo + emissive, input.world_position) * exposure, object.material_albedo.a);
 }

@@ -458,7 +458,7 @@ dark when it casts shadows, which a click selects; the selected light's range as
   latitude/longitude below the heading, and how fine the ground below is drawn (GROUND: the
   patch's mesh spacing, the imagery's metres a pixel -- `tile` for a detail tile, `global` for the whole picture -- and the
   height data's zoom), bottom left, in the editor and in play. Float precision is ~0.5 m at that radius: fine from
-  aircraft height, not for walking. The sky still draws as seen from the ground at any height.
+  aircraft height, not for walking. Above 30 km the sky fades to space (black, stars, sun and moon bare) by the Karman line, with the planet's air drawn round its limb from the camera's real place (`ManaIrradianceSettings.Space`/`SkyPlanet`, set by `PlanetCameraFit`); scene shaders blend ground toward blue haze by the air between it and the camera (`include/haze.wgsl`).
   Scene shaders place vertices with `frame.projection * (frame.view * world)`, never the combined `view_projection`: on
   those coordinates it rounded clip z and w apart, and ground a kilometre behind drew through nearer slopes (patch skirts
   as dark "drips"). Patches pin their edges onto coarser neighbours' (`PlanetPatchMesh.SetStitches`, re-pinned around
