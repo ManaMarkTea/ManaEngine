@@ -165,6 +165,7 @@ public static class TestRunner
         ("ManaGeoTools", "planet streaming and rebuild handoff", PlanetStreamingChecks.Run),
         ("ManaGeoTools", "planet baseline", PlanetBaselineChecks.Run),
         ("ManaGeoTools", "flight traffic", FlightTrafficChecks.Run),
+        ("ManaGeoTools", "planet water", PlanetWaterChecks.Run),
         ("ManaEditor", "glow", GlowChecks.Run),
         ("ManaEditor", "particles", ParticleChecks.Run),
         ("ManaUI", "mesh import", MeshImportChecks.Run),

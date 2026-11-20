@@ -511,7 +511,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   trunk and primary roads near the camera: zoom-9 vector tiles from OpenFreeMap's CDN (`OsmRoadTiles`: the OpenMapTiles
   `transportation` layer read with a small protobuf decoder; ~0.1 s a tile, where the public Overpass servers took tens
   of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
-  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. Credit: OpenFreeMap,
+  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. The same tiles' `water` layer
+  (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
+  by `Earcut` (holes kept, so islands stay land), split to 400 m sides, drawn by `PlanetWaterMesh`. Credit: OpenFreeMap,
   (c) OpenMapTiles, (c) OpenStreetMap contributors (ODbL).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.

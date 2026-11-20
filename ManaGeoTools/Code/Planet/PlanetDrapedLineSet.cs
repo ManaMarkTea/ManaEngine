@@ -13,6 +13,9 @@ namespace ManaGeoTools.Code.Planet
         public int ClassCount { get; }
         public int PointCount { get; private set; }
 
+        /// <summary>For areas rather than lines: each piece's triangles, as indices into its points (by class, then piece).</summary>
+        public uint[][][]? Triangles { get; set; }
+
         private readonly Vector3[][][] _directions;
         private readonly (int Face, float U, float V)[][][] _faceUvs;
         private readonly Dictionary<int, (float MinU, float MaxU, float MinV, float MaxV)> _boxes = new();

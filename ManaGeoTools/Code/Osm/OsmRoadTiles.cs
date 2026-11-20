@@ -15,6 +15,12 @@ namespace ManaGeoTools.Code.Osm
     public sealed record RoadLine(RoadClass Class, (double Longitude, double Latitude)[] Points);
 
     /// <summary>
+    /// One area of inland water (lake, river, pond, reservoir -- the sea is left out) in a tile: its rings' points as
+    /// x, y in tile units (0 to <paramref name="Extent"/>, y down), the outer ring first, and where each hole starts.
+    /// </summary>
+    public sealed record WaterArea(double[] Points, int[] HoleStarts, double Extent);
+
+    /// <summary>
     /// The larger roads of one web-mercator tile from OpenFreeMap's vector tiles (the OpenMapTiles schema's
     /// <c>transportation</c> layer: motorway, trunk and primary). A CDN answers in a tenth of a second where the
     /// public Overpass servers took tens of seconds or failed. Data (c) OpenMapTiles, (c) OpenStreetMap contributors.
@@ -59,6 +65,18 @@ namespace ManaGeoTools.Code.Osm
                 ?? throw new InvalidOperationException("OpenFreeMap's TileJSON names no tiles.");
         }
 
+        private static byte[] Unzipped(byte[] data)
+        {
+            if (data.Length > 2 && data[0] == 0x1f && data[1] == 0x8b)
+            {
+                using var input = new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
+                using var output = new MemoryStream();
+                input.CopyTo(output);
+                return output.ToArray();
+            }
+            return data;
+        }
+
         /// <summary>The motorways, trunk and primary roads in a tile's bytes (gzipped or not).</summary>
         public static List<RoadLine> Parse(byte[] data, int zoom, int x, int y)
         {
@@ -67,13 +85,7 @@ namespace ManaGeoTools.Code.Osm
             {
                 return lines;
             }
-            if (data.Length > 2 && data[0] == 0x1f && data[1] == 0x8b)
-            {
-                using var input = new GZipStream(new MemoryStream(data), CompressionMode.Decompress);
-                using var output = new MemoryStream();
-                input.CopyTo(output);
-                data = output.ToArray();
-            }
+            data = Unzipped(data);
 
             var tile = new ProtoReader(data);
             while (tile.Next(out var field, out var wire))
@@ -216,6 +228,193 @@ namespace ManaGeoTools.Code.Osm
             {
                 lines.Add(new RoadLine(found, run.ToArray()));
             }
+        }
+
+        /// <summary>The lakes, rivers and ponds in a tile's bytes (the OpenMapTiles <c>water</c> layer, less the sea).</summary>
+        public static List<WaterArea> ParseWater(byte[] data)
+        {
+            var areas = new List<WaterArea>();
+            if (data.Length == 0)
+            {
+                return areas;
+            }
+            data = Unzipped(data);
+            var tile = new ProtoReader(data);
+            while (tile.Next(out var field, out var wire))
+            {
+                if (field == 3 && wire == 2)
+                {
+                    ReadWaterLayer(tile.Bytes(), areas);
+                }
+                else
+                {
+                    tile.Skip(wire);
+                }
+            }
+            return areas;
+        }
+
+        private static void ReadWaterLayer(ReadOnlySpan<byte> bytes, List<WaterArea> areas)
+        {
+            var name = "";
+            var extent = 4096u;
+            var keys = new List<string>();
+            var values = new List<string?>();
+            var features = new List<(int Start, int Length)>();
+            var layer = new ProtoReader(bytes);
+            while (layer.Next(out var field, out var wire))
+            {
+                switch (field)
+                {
+                    case 1 when wire == 2:
+                        name = Encoding.UTF8.GetString(layer.Bytes());
+                        break;
+                    case 2 when wire == 2:
+                        features.Add(layer.Range());
+                        break;
+                    case 3 when wire == 2:
+                        keys.Add(Encoding.UTF8.GetString(layer.Bytes()));
+                        break;
+                    case 4 when wire == 2:
+                        values.Add(ReadStringValue(layer.Bytes()));
+                        break;
+                    case 5 when wire == 0:
+                        extent = (uint)layer.Varint();
+                        break;
+                    default:
+                        layer.Skip(wire);
+                        break;
+                }
+            }
+            if (name != "water")
+            {
+                return;
+            }
+            var classKey = keys.IndexOf("class");
+            foreach (var (start, length) in features)
+            {
+                ReadWaterFeature(bytes.Slice(start, length), classKey, values, extent, areas);
+            }
+        }
+
+        private static void ReadWaterFeature(ReadOnlySpan<byte> bytes, int classKey, List<string?> values, double extent, List<WaterArea> areas)
+        {
+            string? waterClass = null;
+            var geometryStart = -1;
+            var geometryLength = 0;
+            var type = 0;
+            var feature = new ProtoReader(bytes);
+            while (feature.Next(out var field, out var wire))
+            {
+                if (field == 2 && wire == 2)
+                {
+                    var tags = new ProtoReader(feature.Bytes());
+                    while (!tags.Done)
+                    {
+                        var key = (int)tags.Varint();
+                        var value = (int)tags.Varint();
+                        if (key == classKey && value < values.Count)
+                        {
+                            waterClass = values[value];
+                        }
+                    }
+                }
+                else if (field == 3 && wire == 0)
+                {
+                    type = (int)feature.Varint();
+                }
+                else if (field == 4 && wire == 2)
+                {
+                    (geometryStart, geometryLength) = feature.Range();
+                }
+                else
+                {
+                    feature.Skip(wire);
+                }
+            }
+            // Type 3 is a polygon. The sea is in the satellite picture already, and its tiles are one huge area each.
+            if (type != 3 || geometryStart < 0 || waterClass == "ocean")
+            {
+                return;
+            }
+
+            // Rings: an outer one (positive area, y down) starts a new area, and the negative ones after it are its holes.
+            var points = new List<double>();
+            var holes = new List<int>();
+            var ring = new List<double>();
+            var commands = new ProtoReader(bytes.Slice(geometryStart, geometryLength));
+            long cursorX = 0;
+            long cursorY = 0;
+            while (!commands.Done)
+            {
+                var command = (uint)commands.Varint();
+                var id = command & 7;
+                var count = command >> 3;
+                if (id == 7)
+                {
+                    AddRing(ring, points, holes, extent, areas);
+                    ring.Clear();
+                    continue;
+                }
+                if (id != 1 && id != 2)
+                {
+                    break;
+                }
+                for (var i = 0; i < count && !commands.Done; i++)
+                {
+                    cursorX += ZigZag(commands.Varint());
+                    cursorY += ZigZag(commands.Varint());
+                    ring.Add(cursorX);
+                    ring.Add(cursorY);
+                }
+            }
+            if (points.Count >= 6)
+            {
+                areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent));
+            }
+        }
+
+        private static void AddRing(List<double> ring, List<double> points, List<int> holes, double extent, List<WaterArea> areas)
+        {
+            if (ring.Count < 6)
+            {
+                return;
+            }
+            var area = 0.0;
+            for (int i = 0, j = ring.Count - 2; i < ring.Count; j = i, i += 2)
+            {
+                area += ring[j] * ring[i + 1] - ring[i] * ring[j + 1];
+            }
+            if (area > 0)
+            {
+                if (points.Count >= 6)
+                {
+                    areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent));
+                }
+                points.Clear();
+                holes.Clear();
+            }
+            else if (points.Count == 0)
+            {
+                // A hole with no outer ring before it: nothing to cut it from.
+                return;
+            }
+            else
+            {
+                holes.Add(points.Count / 2);
+            }
+            points.AddRange(ring);
+        }
+
+        /// <summary>A point in a tile's own units (0 to <paramref name="extent"/>, y down) to degrees.</summary>
+        public static (double Longitude, double Latitude) TilePointToDegrees(int zoom, int tileX, int tileY, double px, double py, double extent)
+        {
+            var tileShare = 1.0 / (1 << zoom);
+            var worldX = (tileX + px / extent) * tileShare;
+            var worldY = (tileY + py / extent) * tileShare;
+            var longitude = worldX * 360.0 - 180.0;
+            var latitude = Math.Atan(Math.Sinh(Math.PI * (1.0 - 2.0 * worldY))) * 180.0 / Math.PI;
+            return (longitude, latitude);
         }
 
         // Tile pixel (cursor) to degrees: the tile's own corner plus its share of the world, then web mercator undone.

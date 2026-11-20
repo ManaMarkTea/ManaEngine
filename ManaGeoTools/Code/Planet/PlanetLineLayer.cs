@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Mana;
+using Mana.Code;
 using Mana.Code.Components;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
@@ -72,7 +73,20 @@ namespace ManaGeoTools.Code.Planet
 
         protected virtual string ClassName(int lineClass) => $"Class {lineClass}";
 
+        /// <summary>The mesh drawing a class of a cell, reading the set's point arrays (laid again in place): ribbons by default.</summary>
+        protected virtual ManaProceduralMesh CreateMesh(ManaContext context, PlanetDrapedLineSet geometry, int lineClass)
+        {
+            var polylines = new List<ManaLinePolyline>(geometry.Points[lineClass].Length);
+            foreach (var points in geometry.Points[lineClass])
+            {
+                polylines.Add(new ManaLinePolyline(points, closed: false));
+            }
+            return new ManaLineMesh(context, polylines, 1.0f, ColorOf(lineClass), 0.0f, ManaLineProfile.ScreenRibbon);
+        }
+
         /// <summary>Ground distance in km from the point below the camera to a lat/long box: to its middle less half its diagonal, so a box counts from its nearest edge.</summary>
+        internal static float TileDistanceKm(Vector3 below, double west, double south, double east, double north) => DistanceKm(below, west, south, east, north);
+
         protected static float DistanceKm(Vector3 below, double west, double south, double east, double north)
         {
             var middleLatitude = (south + north) * 0.5;
@@ -266,15 +280,8 @@ namespace ManaGeoTools.Code.Planet
                     {
                         continue;
                     }
-                    var polylines = new List<ManaLinePolyline>(lines.Length);
-                    foreach (var points in lines)
-                    {
-                        polylines.Add(new ManaLinePolyline(points, closed: false));
-                    }
-                    var mesh = new ManaLineMesh(context, polylines, 1.0f, ColorOf(c), 0.0f, ManaLineProfile.ScreenRibbon)
-                    {
-                        Name = $"{ClassName(c)} {cell.Key.X},{cell.Key.Y}"
-                    };
+                    var mesh = CreateMesh(context, geometry, c);
+                    mesh.Name = $"{ClassName(c)} {cell.Key.X},{cell.Key.Y}";
                     var node = new ManaSceneNode(context, Matrix4x4.Identity)
                     {
                         Name = mesh.Name,
@@ -352,10 +359,11 @@ namespace ManaGeoTools.Code.Planet
                     {
                         Array.Copy(points[c][i], lines[i], lines[i].Length);
                     }
-                    if (cell.Meshes[c] is { } mesh && !mesh.TryRefreshRibbonGeometry())
+                    if (cell.Meshes[c] is ManaLineMesh line && line.TryRefreshRibbonGeometry())
                     {
-                        mesh.RebuildGeometry();
+                        continue;
                     }
+                    cell.Meshes[c]?.RebuildGeometry();
                 }
                 cell.LeafSignature = signature;
             }
@@ -442,7 +450,7 @@ namespace ManaGeoTools.Code.Planet
             public int LeafSignature { get; set; }
             public ManaSceneNode?[] Nodes { get; } = new ManaSceneNode?[classCount];
             public MeshRendererComponent?[] Renderers { get; } = new MeshRendererComponent?[classCount];
-            public ManaLineMesh?[] Meshes { get; } = new ManaLineMesh?[classCount];
+            public ManaProceduralMesh?[] Meshes { get; } = new ManaProceduralMesh?[classCount];
         }
 
         private sealed record DrapeResult(List<(LineCell Cell, PlanetDrapedLineSet Geometry, int Signature, Vector3[][][] Points)> Cells);
