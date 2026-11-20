@@ -12,6 +12,7 @@ struct SkyboxUniform {
     celestial_east : vec4<f32>,
     celestial_up : vec4<f32>,
     celestial_north : vec4<f32>,
+    planet : vec4<f32>,
 };
 @group(0) @binding(0) var<uniform> sky : SkyboxUniform;
 @group(0) @binding(1) var sky_sampler : sampler;

@@ -40,7 +40,8 @@ namespace ManaCore.Graphics
             Vector3 CelestialUp = default,
             Vector3 CelestialNorth = default,
             float ConstellationLines = 0.0f,
-            float Space = 0.0f);
+            float Space = 0.0f,
+            Vector4 Planet = default);
 
         // The day speed the clouds drift at their own pace for; faster days push them faster, like a timelapse.
         private const float CloudBaseSpeed = 300.0f;
@@ -106,7 +107,7 @@ namespace ManaCore.Graphics
             var moonPhase = ManaLunarPhase.PhaseAt(settings.SkyDateTime);
             if (settings.Sky != ManaSkyMode.DayNightCycle)
             {
-                return new State(settings.Sky, keyLight, 1.0f, Vector3.One, (float)settings.CloudSeconds, moonPhase, Space: settings.Space);
+                return new State(settings.Sky, keyLight, 1.0f, Vector3.One, (float)settings.CloudSeconds, moonPhase, Space: settings.Space, Planet: settings.SkyPlanet);
             }
 
             var (towardSun, towardMoon) = CelestialDirectionsAt(settings.SkyDateTime);
@@ -119,7 +120,7 @@ namespace ManaCore.Graphics
             // sky's east, up and north, so the star catalogue turns with the date and hour.
             var (east, up, north) = CelestialFrame(settings.SkyDateTime);
             return new State(ManaSkyMode.DayNightCycle, towardSun, daylight, tint, (float)settings.CloudSeconds, moonPhase, towardMoon,
-                east, up, north, settings.ConstellationLines ? (settings.ShowAllConstellations ? 2.0f : 1.0f) : 0.0f, settings.Space);
+                east, up, north, settings.ConstellationLines ? (settings.ShowAllConstellations ? 2.0f : 1.0f) : 0.0f, settings.Space, settings.SkyPlanet);
         }
 
         /// <summary>Local sidereal time in degrees at the observer for <paramref name="time"/>.</summary>

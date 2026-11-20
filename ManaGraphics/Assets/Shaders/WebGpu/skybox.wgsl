@@ -43,6 +43,8 @@ struct SkyboxUniform {
     // celestial_up.w = how far the camera is into space, 0..1: the air fades out and the stars come in at any hour.
     celestial_up : vec4<f32>,
     celestial_north : vec4<f32>,
+    // xyz = the camera's place from a planet's centre, in its radii; w = 1 when there is a planet to put air round.
+    planet : vec4<f32>,
 };
 
 #include "include/constellations.wgsl"
@@ -201,9 +203,28 @@ fn in_scattered(direction : vec3<f32>, toward_sun : vec3<f32>, jitter : f32) -> 
     let through = ray_sphere(vec3<f32>(0.0), AtmosphereRadius, Eye, direction).y;
     let ground = ray_sphere(vec3<f32>(0.0), PlanetRadius, Eye, direction);
     let ray_length = select(through, min(through, ground.x), ground.y > 0.0);
+    return in_scattered_along(Eye, direction, ray_length, toward_sun, jitter);
+}
+
+// The air round a planet seen from wherever the camera is, inside the air or out in space: the ray from where it
+// enters the air to where it leaves or meets the ground.
+fn in_scattered_from(eye : vec3<f32>, direction : vec3<f32>, toward_sun : vec3<f32>, jitter : f32) -> vec3<f32> {
+    let air = ray_sphere(vec3<f32>(0.0), AtmosphereRadius, eye, direction);
+    if (air.y <= 0.0) {
+        return vec3<f32>(0.0);
+    }
+    let ground = ray_sphere(vec3<f32>(0.0), PlanetRadius, eye, direction);
+    var ray_length = air.y;
+    if (ground.y > 0.0) {
+        ray_length = min(air.y, ground.x - air.x);
+    }
+    return in_scattered_along(eye + direction * air.x, direction, ray_length, toward_sun, jitter);
+}
+
+fn in_scattered_along(start : vec3<f32>, direction : vec3<f32>, ray_length : f32, toward_sun : vec3<f32>, jitter : f32) -> vec3<f32> {
     let step = ray_length / f32(InScatterPoints - 1);
 
-    var point = Eye + direction * step * jitter;
+    var point = start + direction * step * jitter;
     var view_depth = vec2<f32>(0.0);
     var rayleigh = vec3<f32>(0.0);
     var mie = vec3<f32>(0.0);
@@ -415,7 +436,7 @@ fn space_sky(direction : vec3<f32>) -> vec3<f32> {
 }
 
 // Above the air: black, the stars all round (the catalogue's too when the sky is dated), the sun and the moon bare.
-fn orbit_sky(direction : vec3<f32>) -> vec3<f32> {
+fn orbit_sky(direction : vec3<f32>, jitter : f32) -> vec3<f32> {
     let seconds = sky.parameters.x;
     let fill_direction = select(direction, to_equatorial(direction), has_celestial_frame());
     var colour = vec3<f32>(0.0015, 0.002, 0.004);
@@ -428,6 +449,12 @@ fn orbit_sky(direction : vec3<f32>) -> vec3<f32> {
     if (sky.moon.w > 0.5) {
         let moon = moon_disc(direction, normalize(sky.moon.xyz), toward_sun, MoonCosRadius);
         colour = mix(colour, moon.rgb * 1.8, moon.a);
+    }
+
+    // The planet's air round its edge, lit where the sun reaches it (the planet drawn over the rest).
+    if (sky.planet.w > 0.5) {
+        let air = keep_hue(in_scattered_from(sky.planet.xyz, direction, toward_sun, jitter) * 1.5);
+        colour = colour + air;
     }
     return colour;
 }
@@ -449,7 +476,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
             colour = day_sky(direction, pixel_noise(input.clip_position.xy));
         }
         if (orbit > 0.0) {
-            colour = mix(colour, orbit_sky(direction), orbit);
+            colour = mix(colour, orbit_sky(direction, pixel_noise(input.clip_position.xy)), orbit);
         }
         return vec4<f32>(colour, 1.0);
     }

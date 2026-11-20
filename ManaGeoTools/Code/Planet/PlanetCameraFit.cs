@@ -66,6 +66,7 @@ namespace ManaGeoTools.Code.Planet
             _camera.NearClipPlane = _baseNear;
             _camera.UpdateProjection();
             _camera.Context.World.IrradianceSettings.Space = 0.0f;
+            _camera.Context.World.IrradianceSettings.SkyPlanet = Vector4.Zero;
         }
 
         /// <summary>Height above the ground below the camera (sea level until surveyed), in world units; never quite zero.</summary>
@@ -105,6 +106,7 @@ namespace ManaGeoTools.Code.Planet
             var heightMeters = Height(position) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
             var space = Math.Clamp((heightMeters - SpaceFadeStartMeters) / (KarmanLineMeters - SpaceFadeStartMeters), 0.0f, 1.0f);
             _camera.Context.World.IrradianceSettings.Space = space * space * (3.0f - 2.0f * space);
+            _camera.Context.World.IrradianceSettings.SkyPlanet = new Vector4(_planet.WorldTransform.Translation, _planet.Radius);
             if (MathF.Abs(far - _camera.FarClipPlane) > far * 0.01f || MathF.Abs(near - _camera.NearClipPlane) > near * 0.01f)
             {
                 _camera.FarClipPlane = far;

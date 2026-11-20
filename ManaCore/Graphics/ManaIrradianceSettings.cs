@@ -102,6 +102,11 @@ namespace ManaCore.Graphics
         [System.Text.Json.Serialization.JsonIgnore]
         public float Space { get; set; }
 
+        /// <summary>The planet the camera is over, for the air drawn round it from space: centre (xyz) and radius (w),
+        /// both in world units; zero when there is none. Set with <see cref="Space"/>; never saved.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Vector4 SkyPlanet { get; set; }
+
         /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
         public float WindSpeed { get; set; } = 2.5f;
 

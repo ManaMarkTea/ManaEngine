@@ -59,6 +59,9 @@ namespace ManaGraphics.Code.Graphics.Renderers
             public Vector4 CelestialEast;
             public Vector4 CelestialUp;
             public Vector4 CelestialNorth;
+
+            // xyz = the camera from the planet's centre, in its radii; w = 1 when there is one.
+            public Vector4 Planet;
         }
 
         /// <param name="depthFormat">The pass's depth format, or null for a pass with no depth (a cube face).</param>
@@ -149,9 +152,20 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase),
                 CelestialEast = new Vector4(sky.CelestialEast, sky.ConstellationLines),
                 CelestialUp = new Vector4(sky.CelestialUp, Math.Clamp(sky.Space, 0.0f, 1.0f)),
-                CelestialNorth = new Vector4(sky.CelestialNorth, _starCatalogue ? 1.0f : 0.0f)
+                CelestialNorth = new Vector4(sky.CelestialNorth, _starCatalogue ? 1.0f : 0.0f),
+                Planet = PlanetEye(camera.Position, sky.Planet)
             };
             Api.QueueWriteBuffer(Queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));
+        }
+
+        private static Vector4 PlanetEye(Vector3 cameraPosition, Vector4 planet)
+        {
+            if (planet.W <= 0.0f)
+            {
+                return Vector4.Zero;
+            }
+            var centre = new Vector3(planet.X, planet.Y, planet.Z);
+            return new Vector4((cameraPosition - centre) / planet.W, 1.0f);
         }
 
         private void EnsurePipeline(TextureFormat colorFormat, uint sampleCount)
