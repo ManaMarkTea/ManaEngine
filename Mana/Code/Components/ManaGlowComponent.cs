@@ -69,7 +69,7 @@ namespace Mana.Code.Components
                 return Strength;
             }
 
-            var seconds = (float)(DateTime.Now - ManaTime.GlobalTime.StartTime).TotalSeconds;
+            var seconds = (float)ManaCore.Runtime.ManaFrameClock.Seconds;
             return Strength * (0.83f + 0.17f * MathF.Sin(seconds * PulseSpeed * MathF.Tau));
         }
     }

@@ -355,7 +355,7 @@ namespace Mana
                     {
                         shadowCasters.Add(local.Count);
                     }
-                    local.Add((new Vector4(node.WorldTransform.Translation, Math.Max(light.Range, 0.01f)), new Vector4(lightColorVec3 * light.Intensity * LocalLightPowerScale * light.FlickerFactor(Environment.TickCount64 / 1000.0), 0.0f)));
+                    local.Add((new Vector4(node.WorldTransform.Translation, Math.Max(light.Range, 0.01f)), new Vector4(lightColorVec3 * light.Intensity * LocalLightPowerScale * light.FlickerFactor(ManaCore.Runtime.ManaFrameClock.Seconds), 0.0f)));
                 }
             }
 

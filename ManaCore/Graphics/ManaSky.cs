@@ -24,9 +24,8 @@ namespace ManaCore.Graphics
     /// </summary>
     public static class ManaSky
     {
-        private static readonly Stopwatch Clock = Stopwatch.StartNew();
-
-        public static float Seconds => (float)Clock.Elapsed.TotalSeconds;
+        /// <summary>The frame's time (<see cref="Runtime.ManaFrameClock"/>): the stars' twinkle, the clouds and the day all step with the frame.</summary>
+        public static float Seconds => (float)Runtime.ManaFrameClock.Seconds;
 
         public readonly record struct State(
             ManaSkyMode Mode,
@@ -56,9 +55,11 @@ namespace ManaCore.Graphics
         /// Moves a day-night cycle on by the time since the last tick, at its speed -- or to the wall clock's
         /// time of day -- then evaluates it. Called once a frame, by the world whose settings these are.
         /// </summary>
-        public static State Tick(ManaIrradianceSettings settings)
+        public static State Tick(ManaIrradianceSettings settings) => Tick(settings, Runtime.ManaFrameClock.Seconds);
+
+        /// <summary>As <see cref="Tick(ManaIrradianceSettings)"/>, at a given frame time in seconds (tests step it themselves).</summary>
+        public static State Tick(ManaIrradianceSettings settings, double now)
         {
-            var now = Clock.Elapsed.TotalSeconds;
             var elapsed = settings.LastTickSeconds < 0.0 ? 0.0 : Math.Clamp(now - settings.LastTickSeconds, 0.0, 0.25);
             settings.LastTickSeconds = now;
             var wind = settings.Sky == ManaSkyMode.DayNightCycle && !settings.RealTime

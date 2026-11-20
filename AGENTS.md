@@ -328,6 +328,9 @@ are baked from; the live editor draws new ones with the GPU instead.
   `ManaMeshBatch` (static scenery merged into one mesh per texture), `ManaStrategyCamera` (top-down view: zoom to the
   pointer, drag, quarter turns, bounds; its own rig), `ManaFixedStepClock` (fixed ticks, speed, pause, alpha),
   `ManaSoundBank` and `ManaMusicPlayer` (sounds by path, music crossfades).
+- **Frame time:** `ManaCore.Runtime.ManaFrameClock` is stepped once at each frame's start (`ManaTime.UpdateTime`): `Seconds`
+  (the sky, wind, light flicker, glow, shader `frame.time`, water ripples) and `UnixSeconds` (live aircraft). Anything that
+  animates reads it, never a clock of its own, so everything moves by the same amount within a frame.
 - **Render loop:** `BaseGameMode` drives update + render. `ManaGameModeGraphicsBridge` finalizes material texture data for WebGPU. `ManaWorld.CreateRenderScene()` collects mesh instances each frame.
 - **WebGPU frame:** `ManaWebGpuContext` owns the frame skeleton and shutdown order; `ManaWebGpuNativeDevice` the native
   handles and their (desktop or browser) bring-up, `ManaWebGpuWindowSurface` the swap chain

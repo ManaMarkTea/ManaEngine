@@ -43,7 +43,6 @@ namespace ManaGraphics.Code.Graphics
         private volatile bool _disposed;
         private TextureFormat _surfaceFormat;
         private readonly TextureFormat _depthFormat = TextureFormat.Depth24Plus;
-        private readonly DateTime _startTime = DateTime.UtcNow;
         // Made with the device; meshes are only uploaded once the scene bindings exist.
         private ManaWebGpuSceneMeshes? _meshes;
         private readonly ManaWebGpuRenderThreadQueue _renderThread = new();
@@ -414,7 +413,8 @@ namespace ManaGraphics.Code.Graphics
                     RefreshRenderScene();
                 }
 
-                var seconds = (float)(DateTime.UtcNow - _startTime).TotalSeconds;
+                // The frame's time, as the scene's own animation and a water ripple's start are stamped with.
+                var seconds = (float)ManaCore.Runtime.ManaFrameClock.Seconds;
                 _meshTextures?.UploadDynamic();
                 if (_scene != null && _activeRenderScene != null)
                 {

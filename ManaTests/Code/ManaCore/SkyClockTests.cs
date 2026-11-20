@@ -61,21 +61,20 @@ public static class SkyClockChecks
             Near(ManaSky.SiderealPhaseAt(siderealEpoch), 0.0f) && Near(ManaSky.SiderealPhaseAt(siderealEpoch.AddSeconds(ManaSky.SiderealDaySeconds)), 0.0f),
             $"{ManaSky.SiderealPhaseAt(siderealEpoch.AddSeconds(ManaSky.SiderealDaySeconds)):0.0000}");
 
+        // Ticked at given frame times (the frame clock only moves with frames), so no test waits on the wall clock.
         // Held: a fixed time stays put however many frames go by.
         var held = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.4f, TimeSpeed = 0.0f };
-        ManaSky.Tick(held);
-        Thread.Sleep(60);
-        ManaSky.Tick(held);
+        ManaSky.Tick(held, 0.0);
+        ManaSky.Tick(held, 0.06);
         check("a held time of day does not move", Near(held.TimeOfDay, 0.4f), $"{held.TimeOfDay}");
 
         // Running: faster goes further in the same time.
         var slow = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.1f, TimeSpeed = 3600.0f };
         var fast = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.1f, TimeSpeed = 4.0f * 3600.0f };
-        ManaSky.Tick(slow);
-        ManaSky.Tick(fast);
-        Thread.Sleep(80);
-        ManaSky.Tick(slow);
-        ManaSky.Tick(fast);
+        ManaSky.Tick(slow, 0.0);
+        ManaSky.Tick(fast, 0.0);
+        ManaSky.Tick(slow, 0.08);
+        ManaSky.Tick(fast, 0.08);
         var slowGone = slow.TimeOfDay - 0.1f;
         var fastGone = fast.TimeOfDay - 0.1f;
         check("a running day moves on, and 4 hours a second goes further than 1", slowGone > 0.0f && fastGone > slowGone * 2.5f,
@@ -89,9 +88,8 @@ public static class SkyClockChecks
             TimeOfDay = 0.001f,
             TimeSpeed = -3600.0f
         };
-        ManaSky.Tick(backwards);
-        Thread.Sleep(80);
-        ManaSky.Tick(backwards);
+        ManaSky.Tick(backwards, 0.0);
+        ManaSky.Tick(backwards, 0.08);
         check("a negative time speed runs the day backwards across sunrise", backwards.TimeOfDay > 0.95f,
             $"{ManaSky.HoursAt(backwards.TimeOfDay):0.00} h");
         check("negative sky speed moves the simulated date backward", backwards.SkyDateTime < backwardDate,
@@ -99,17 +97,15 @@ public static class SkyClockChecks
 
         // An hour a second is a day in 24 seconds: after a (clamped) quarter-second tick, a quarter of an hour.
         var hourly = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, TimeOfDay = 0.0f, TimeSpeed = 3600.0f };
-        ManaSky.Tick(hourly);
-        Thread.Sleep(300);
-        ManaSky.Tick(hourly);
+        ManaSky.Tick(hourly, 0.0);
+        ManaSky.Tick(hourly, 0.3);
         check("an hour a second moves the clock an hour each second", MathF.Abs(ManaSky.HoursAt(hourly.TimeOfDay) - 6.25f) < 0.02f,
             $"{ManaSky.HoursAt(hourly.TimeOfDay):0.000} h");
 
         // Only the cycle has a clock: a still day keeps its time.
         var day = new ManaIrradianceSettings { Sky = ManaSkyMode.Day, TimeOfDay = 0.3f, TimeSpeed = 4.0f };
-        ManaSky.Tick(day);
-        Thread.Sleep(30);
-        ManaSky.Tick(day);
+        ManaSky.Tick(day, 0.0);
+        ManaSky.Tick(day, 0.03);
         check("a plain day sky has no clock running", Near(day.TimeOfDay, 0.3f), $"{day.TimeOfDay}");
 
         var real = new ManaIrradianceSettings { Sky = ManaSkyMode.DayNightCycle, RealTime = true };

@@ -80,7 +80,8 @@ namespace Mana.Code.Nodes
             var slot = _nextRippleSlot;
             _nextRippleSlot = (_nextRippleSlot + 1) % RippleSlotCount;
 
-            var startTime = (float)ManaTime.GlobalTime.GameTime.TotalSeconds;
+            // On the shader's clock (frame.time): GameTime stops while paused, and the two drifted apart.
+            var startTime = (float)ManaCore.Runtime.ManaFrameClock.Seconds;
             MeshRenderer.DynamicMaterial.SetShaderUniform(
                 $"rippleData{slot}",
                 new Vector4(localPosition.X, localPosition.Z, startTime, strength));
