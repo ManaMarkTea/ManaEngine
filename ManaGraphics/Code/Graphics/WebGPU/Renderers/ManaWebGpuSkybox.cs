@@ -55,7 +55,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             public Vector4 Parameters;
 
             // Rows taking an equatorial direction to east, up, north (xyz); east.w = how strongly the constellation
-            // lines show. All zero when the sky has no date to turn the stars by.
+            // lines show; up.w = how far into space the camera is. All zero when the sky has no date to turn the stars by.
             public Vector4 CelestialEast;
             public Vector4 CelestialUp;
             public Vector4 CelestialNorth;
@@ -148,7 +148,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 Moon = new Vector4(sky.TowardMoon, sky.Mode == ManaSkyMode.DayNightCycle ? 1.0f : 0.0f),
                 Parameters = new Vector4(seconds, sky.Daylight, sky.CloudTime, sky.MoonPhase),
                 CelestialEast = new Vector4(sky.CelestialEast, sky.ConstellationLines),
-                CelestialUp = new Vector4(sky.CelestialUp, 0.0f),
+                CelestialUp = new Vector4(sky.CelestialUp, Math.Clamp(sky.Space, 0.0f, 1.0f)),
                 CelestialNorth = new Vector4(sky.CelestialNorth, _starCatalogue ? 1.0f : 0.0f)
             };
             Api.QueueWriteBuffer(Queue, (WebGpuBuffer*)_uniformBuffers[slot], 0, &uniform, (nuint)sizeof(SkyboxUniform));

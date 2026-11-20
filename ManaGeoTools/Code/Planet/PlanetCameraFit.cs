@@ -25,6 +25,10 @@ namespace ManaGeoTools.Code.Planet
         // Above this height (a share of the radius) flying gets no faster.
         private const float MaxSpeedHeightShare = 2.0f;
 
+        // The sky's air fades out between these heights (metres): gone by the Karman line, where space is reckoned to start.
+        private const float SpaceFadeStartMeters = 30_000.0f;
+        private const float KarmanLineMeters = 100_000.0f;
+
         // The free camera is kept this far above the drawn ground (metres): below it there is only the patches' undersides.
         private const float GroundClearanceMeters = 5.0f;
 
@@ -61,6 +65,7 @@ namespace ManaGeoTools.Code.Planet
             _camera.FarClipPlane = _baseFar;
             _camera.NearClipPlane = _baseNear;
             _camera.UpdateProjection();
+            _camera.Context.World.IrradianceSettings.Space = 0.0f;
         }
 
         /// <summary>Height above the ground below the camera (sea level until surveyed), in world units; never quite zero.</summary>
@@ -97,6 +102,9 @@ namespace ManaGeoTools.Code.Planet
             // A tenth of a radius past the horizon keeps mountains and the far limb from being cut.
             var far = MathF.Max(_baseFar, horizon + _planet.Radius * 0.1f);
             var near = MathF.Max(_baseNear, Height(position) * NearClipHeightShare);
+            var heightMeters = Height(position) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
+            var space = Math.Clamp((heightMeters - SpaceFadeStartMeters) / (KarmanLineMeters - SpaceFadeStartMeters), 0.0f, 1.0f);
+            _camera.Context.World.IrradianceSettings.Space = space * space * (3.0f - 2.0f * space);
             if (MathF.Abs(far - _camera.FarClipPlane) > far * 0.01f || MathF.Abs(near - _camera.NearClipPlane) > near * 0.01f)
             {
                 _camera.FarClipPlane = far;

@@ -97,6 +97,11 @@ namespace ManaCore.Graphics
         [System.Text.Json.Serialization.JsonIgnore]
         public bool ShowAllConstellations { get; set; }
 
+        /// <summary>How far the camera is into space, 0 in the air to 1 above it: the sky drops its air and shows the stars.
+        /// Set each frame by whatever knows the height (a planet's camera fit); never saved.</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public float Space { get; set; }
+
         /// <summary>The breeze, in metres a second, before gusts (<see cref="ManaWind"/>). 0 is a still day.</summary>
         public float WindSpeed { get; set; } = 2.5f;
 

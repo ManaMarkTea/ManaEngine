@@ -40,6 +40,7 @@ struct SkyboxUniform {
     // Rows taking an equatorial direction to east, up, north (xyz); celestial_east.w is how strongly the
     // constellation lines show. All zero when the sky has no date to turn the stars by.
     celestial_east : vec4<f32>,
+    // celestial_up.w = how far the camera is into space, 0..1: the air fades out and the stars come in at any hour.
     celestial_up : vec4<f32>,
     celestial_north : vec4<f32>,
 };
@@ -413,6 +414,24 @@ fn space_sky(direction : vec3<f32>) -> vec3<f32> {
     return colour;
 }
 
+// Above the air: black, the stars all round (the catalogue's too when the sky is dated), the sun and the moon bare.
+fn orbit_sky(direction : vec3<f32>) -> vec3<f32> {
+    let seconds = sky.parameters.x;
+    let fill_direction = select(direction, to_equatorial(direction), has_celestial_frame());
+    var colour = vec3<f32>(0.0015, 0.002, 0.004);
+    colour = colour + stars(fill_direction, 0.02, seconds) + stars(fill_direction.zxy, 0.008, seconds) * 0.6;
+    colour = colour + catalogue_stars(direction);
+
+    let toward_sun = normalize(sky.sun.xyz);
+    let sun_dot = max(dot(direction, toward_sun), 0.0);
+    colour = colour + vec3<f32>(1.0, 0.97, 0.92) * (smoothstep(0.9996, 0.9998, sun_dot) * 8.0 + pow(sun_dot, 400.0) * 0.8 + pow(sun_dot, 12.0) * 0.03);
+    if (sky.moon.w > 0.5) {
+        let moon = moon_disc(direction, normalize(sky.moon.xyz), toward_sun, MoonCosRadius);
+        colour = mix(colour, moon.rgb * 1.8, moon.a);
+    }
+    return colour;
+}
+
 @fragment
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // Unprojected at the far plane, then normalized: only the direction matters to a background.
@@ -423,7 +442,16 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         return vec4<f32>(space_sky(direction), 1.0);
     }
     if (sky.sun.w > 0.5) {
-        return vec4<f32>(day_sky(direction, pixel_noise(input.clip_position.xy)), 1.0);
+        // Branching on a uniform, so derivatives stay uniform; above the air the day sky is not worked out at all.
+        let orbit = sky.celestial_up.w;
+        var colour = vec3<f32>(0.0);
+        if (orbit < 1.0) {
+            colour = day_sky(direction, pixel_noise(input.clip_position.xy));
+        }
+        if (orbit > 0.0) {
+            colour = mix(colour, orbit_sky(direction), orbit);
+        }
+        return vec4<f32>(colour, 1.0);
     }
     return textureSample(sky_texture, sky_sampler, direction);
 }

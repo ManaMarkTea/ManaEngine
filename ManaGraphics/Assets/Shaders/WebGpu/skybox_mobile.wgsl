@@ -56,7 +56,9 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
         return textureSampleLevel(sky_texture, sky_sampler, direction, 0.0);
     }
     let space = sky.sun.w > 1.5;
-    let daylight = select(clamp(sky.parameters.y, 0.0, 1.0), 0.0, space);
+    // celestial_up.w: how far the camera is into space; the air fades and the stars show at any hour.
+    let orbit = sky.celestial_up.w;
+    let daylight = select(clamp(sky.parameters.y, 0.0, 1.0), 0.0, space) * (1.0 - orbit);
     let height = smoothstep(-0.12, 0.85, direction.y);
     let day = mix(vec3<f32>(0.6, 0.75, 0.95), vec3<f32>(0.04, 0.2, 0.48), height);
     let night = mix(vec3<f32>(0.025, 0.03, 0.07), vec3<f32>(0.002, 0.004, 0.018), height);
@@ -64,8 +66,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let sunset = (1.0 - smoothstep(0.0, 0.25, abs(sky.sun.y))) * daylight;
     colour += vec3<f32>(0.45, 0.12, 0.025) * sunset * (1.0 - height);
     let sun_dot = dot(direction, sky.sun.xyz);
-    colour += vec3<f32>(1.0, 0.85, 0.55) * smoothstep(0.9996, 0.9998, sun_dot) * 3.0 * daylight;
-    let night_amount = (1.0 - daylight) * select(smoothstep(0.0, 0.2, direction.y), 1.0, space);
+    colour += vec3<f32>(1.0, 0.85, 0.55) * smoothstep(0.9996, 0.9998, sun_dot) * 3.0 * max(daylight, orbit);
+    let night_amount = (1.0 - daylight) * mix(select(smoothstep(0.0, 0.2, direction.y), 1.0, space), 1.0, orbit);
     if (night_amount > 0.01) {
         // Rotate dated skies with the shared sky clock.
         var star_direction = direction;
