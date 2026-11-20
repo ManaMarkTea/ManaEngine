@@ -66,6 +66,9 @@ namespace ManaGeoTools.Code.Flights
         }
 
         /// <summary>Starts a redraw: every copy is free again until placed.</summary>
+        /// <summary>The copy the last successful <see cref="Place"/> put down.</summary>
+        public ManaSceneNode? LastPlaced { get; private set; }
+
         public void Begin()
         {
             foreach (var pool in _pools.Values)
@@ -124,6 +127,7 @@ namespace ManaGeoTools.Code.Flights
             var placed = pool.Copies[pool.Used++];
             placed.Node.LocalTransform = placement;
             placed.Show(true);
+            LastPlaced = placed.Node;
             return true;
         }
 

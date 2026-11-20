@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Mana;
 using Mana.Code.Nodes;
 using ManaGeoTools.Code.Planet;
+using Silk.NET.Input;
 
 namespace ManaGeoTools.Code.Flights
 {
@@ -19,6 +20,9 @@ namespace ManaGeoTools.Code.Flights
         public static string CacheFolder { get; set; } = Path.Combine(Environment.CurrentDirectory, "Library", "FlightTraffic");
 
         public bool Enabled { get; set; } = true;
+
+        /// <summary>Picking an aircraft glides the camera to it and follows it (<see cref="FlightFollowRig"/>) until you fly off.</summary>
+        public bool FollowSelected { get; set; } = true;
 
         /// <summary>Seconds between fetches; 0 picks by account: 90 with an OpenSky API client, 900 without (400 credits a day, 4 a fetch).</summary>
         public float UpdateSeconds { get; set; }
@@ -219,7 +223,7 @@ namespace ManaGeoTools.Code.Flights
         /// <summary>Where <paramref name="state"/> is now in the planet's local space, flown on from its report, and its heading.</summary>
         public (Vector3 Center, Vector3 Heading) Locate(PlanetNode planet, in FlightState state)
         {
-            var seconds = (float)Math.Max(0.0, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 - state.PositionTime);
+            var seconds = (float)Math.Max(0.0, FrameClock() - state.PositionTime);
             if (state.OnGround)
             {
                 seconds = 0.0f;
@@ -328,7 +332,9 @@ namespace ManaGeoTools.Code.Flights
                 return;
             }
 
+            _frameClock = ClockStart + ClockWatch.Elapsed.TotalSeconds;
             AdoptFinishedWork();
+            UpdateFollow(planet);
             if (_detailsWork is { IsCompleted: true } details)
             {
                 if (details.IsCompletedSuccessfully)
@@ -348,6 +354,11 @@ namespace ManaGeoTools.Code.Flights
         public override void OnRemoved()
         {
             base.OnRemoved();
+            if (_follow != null)
+            {
+                Owner.Context.World.MainCamera?.DetachRig(_follow);
+                _follow = null;
+            }
             _cancel.Cancel();
             _detailsCancel?.Cancel();
             if (_markers != null)
@@ -360,6 +371,58 @@ namespace ManaGeoTools.Code.Flights
                 _models = null;
                 _renderer = null;
             }
+        }
+
+        private FlightFollowRig? _follow;
+
+        /// <summary>The model the selected aircraft is drawn as this frame, if it is one (the follow camera rides on it).</summary>
+        [JsonIgnore]
+        public Mana.Code.Nodes.ManaSceneNode? SelectedModel { get; private set; }
+
+        // The pick the camera has been taken to (or let go of), so flying off it does not pull the camera straight back.
+        private string? _followed;
+
+        // Takes the camera to a new pick and lets it go when the pick goes, another rig takes over or a fly key is pressed.
+        private void UpdateFollow(PlanetNode planet)
+        {
+            var camera = Owner.Context.World.MainCamera;
+            if (_follow != null && (camera == null || !ReferenceEquals(camera.AttachedRig, _follow) || _follow.Lost || FlyKeyDown()))
+            {
+                camera?.DetachRig(_follow);
+                _follow = null;
+            }
+            if (SelectedIcao24 == null)
+            {
+                _followed = null;
+                return;
+            }
+            if (!FollowSelected || camera == null || SelectedIcao24 == _followed || Selected is not { } state)
+            {
+                return;
+            }
+            _followed = SelectedIcao24;
+            // A character's boom or a game's framing holds the camera: the pick is shown, the camera left alone.
+            if (camera.AttachedRig != null)
+            {
+                return;
+            }
+            var length = 36.0f;
+            if (FlightTrafficModels.KindOf(state) == AircraftKind.Light)
+            {
+                length = 13.0f;
+            }
+            _follow = new FlightFollowRig(planet, this, state.Icao24, length, camera.Owner.Position, camera.Owner.Rotation);
+            camera.AttachRig(_follow);
+        }
+
+        private bool FlyKeyDown()
+        {
+            if (Owner.Context.GameMode?.UiWantsKeyboard == true || Owner.Context.Input?.Keyboards.FirstOrDefault() is not { } keyboard)
+            {
+                return false;
+            }
+            return keyboard.IsKeyPressed(Key.W) || keyboard.IsKeyPressed(Key.A) || keyboard.IsKeyPressed(Key.S)
+                || keyboard.IsKeyPressed(Key.D) || keyboard.IsKeyPressed(Key.Q) || keyboard.IsKeyPressed(Key.E);
         }
 
         private void AdoptFinishedWork()
@@ -506,7 +569,7 @@ namespace ManaGeoTools.Code.Flights
                 return;
             }
 
-            var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            var now = FrameClock();
             var maxAge = MaxAgeMinutes * 60.0f;
             var heightScale = planet.Radius * AltitudeScale / PlanetLoader.EarthRadiusMeters;
             var shown = 0;
@@ -577,6 +640,7 @@ namespace ManaGeoTools.Code.Flights
             // The nearest few as models, the rest as markers; a model that cannot load leaves its marker.
             _models ??= new FlightTrafficModels(Owner.Context, _markers!);
             _models.Begin();
+            SelectedModel = null;
             if (_nearest.Count > 0)
             {
                 _nearest.Sort(static (a, b) => a.DistanceSquared.CompareTo(b.DistanceSquared));
@@ -588,6 +652,10 @@ namespace ManaGeoTools.Code.Flights
                     {
                         // Its marker folds to nothing; the slot stays, so picking still finds the aircraft.
                         size = 0.0f;
+                        if (states[near.Index].Icao24 == SelectedIcao24)
+                        {
+                            SelectedModel = _models.LastPlaced;
+                        }
                     }
                     mesh.SetMarker(shown, near.Center, near.Heading, near.Up, size, near.Color);
                     _drawnIndexes[shown] = near.Index;
@@ -604,8 +672,32 @@ namespace ManaGeoTools.Code.Flights
 
         // Aircraft creep across the screen, so a still camera needs them rewritten ten times a second, not every frame;
         // a moving one (their size follows its distance) every frame.
+        // One reading of the clock a frame, smooth to the microsecond: the drawn aircraft and the camera following it are
+        // flown on to the same instant. Read apart, or from a clock in whole milliseconds, a followed airliner at 120 m/s
+        // landed tens of centimetres off its camera from frame to frame and shook.
+        private static readonly double ClockStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+        private static readonly System.Diagnostics.Stopwatch ClockWatch = System.Diagnostics.Stopwatch.StartNew();
+        private double _frameClock = double.NaN;
+
+        private double FrameClock()
+        {
+            if (double.IsNaN(_frameClock))
+            {
+                return ClockStart + ClockWatch.Elapsed.TotalSeconds;
+            }
+            return _frameClock;
+        }
+
         private bool DueForRedraw(PlanetNode planet, FlightSnapshot snapshot, Vector3 camera)
         {
+            // Followed, the aircraft is rewritten every frame: a frame skipped left it behind its camera.
+            if (_follow != null)
+            {
+                _drawnFrom = camera;
+                _drawnSnapshot = snapshot;
+                _drawnAt = Environment.TickCount64;
+                return true;
+            }
             var now = Environment.TickCount64;
             var height = MathF.Max(camera.Length() - planet.Radius, planet.Radius * 1e-6f);
             var moved = Vector3.Distance(camera, _drawnFrom) > height * 0.001f;

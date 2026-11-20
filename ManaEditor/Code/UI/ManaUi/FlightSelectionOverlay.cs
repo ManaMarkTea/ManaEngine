@@ -165,7 +165,12 @@ public sealed class FlightSelectionOverlay : Canvas
     // Local planet space to the screen; null behind the camera, or (when asked) over the horizon.
     private Func<Vector3, bool, Vector2?> Projector(CameraComponent camera, PlanetNode planet)
     {
-        var viewProjection = camera._ViewMatrix * camera._ProjectionMatrix;
+        // Relative to the camera, as the renderer draws: through the full matrix a point 6,400 km out rounds to half a
+        // metre, and the ring round a followed aircraft shook against it.
+        var view = camera._ViewMatrix;
+        view.Translation = Vector3.Zero;
+        var viewProjection = view * camera._ProjectionMatrix;
+        var cameraAt = camera.Owner.WorldTransform.Translation;
         var window = new Vector2(Root!.Size.X, Root.Size.Y);
         var world = planet.WorldTransform;
         Matrix4x4.Invert(world, out var toLocal);
@@ -178,7 +183,7 @@ public sealed class FlightSelectionOverlay : Canvas
             {
                 return null;
             }
-            if (VoxelPlacementDepthOverlay.TryProject(viewProjection, window, Vector3.Transform(local, world), out var screen, out var depth)
+            if (VoxelPlacementDepthOverlay.TryProject(viewProjection, window, Vector3.Transform(local, world) - cameraAt, out var screen, out var depth)
                 && depth >= 0 && depth <= 1)
             {
                 return screen;
@@ -205,10 +210,17 @@ public sealed class FlightSelectionOverlay : Canvas
         }
     }
 
-    /// <summary>Selects <paramref name="state"/> and puts the camera above it, high enough to see the route round it.</summary>
+    /// <summary>
+    /// Selects <paramref name="state"/>: the traffic's follow rig glides the camera to it, or (with following off) the
+    /// camera is put above it, high enough to see the route round it.
+    /// </summary>
     public static void Focus(CameraComponent camera, PlanetNode planet, FlightTrafficComponent traffic, FlightState state)
     {
         traffic.Select(state.Icao24);
+        if (traffic.FollowSelected)
+        {
+            return;
+        }
         var (center, heading) = traffic.Locate(planet, state);
         var up = Vector3.Normalize(center);
         Matrix4x4.Invert(planet.WorldTransform, out var toLocal);
@@ -278,8 +290,13 @@ public sealed class FlightSelectionOverlay : Canvas
             Pin(drawList, traffic.Place(planet, origin.Latitude, origin.Longitude, 0.0f), origin.Code, project, Dim);
         }
 
-        // A bracket round the aircraft itself.
-        if (project(here, true) is { } at)
+        // A bracket round the aircraft itself: where its model is drawn, when it is one.
+        var bracket = here;
+        if (traffic.SelectedModel is { } model && Matrix4x4.Invert(planet.WorldTransform, out var toPlanet))
+        {
+            bracket = Vector3.Transform(model.WorldTransform.Translation, toPlanet);
+        }
+        if (project(bracket, true) is { } at)
         {
             var ring = new UiRect(at.X - 14.0f, at.Y - 14.0f, 28.0f, 28.0f);
             drawList.DrawBorder(ring, Shadow, 4.0f, new CornerRadius(14.0f));

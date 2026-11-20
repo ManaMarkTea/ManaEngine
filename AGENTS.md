@@ -478,7 +478,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   CC0, credits in its README). `showAirports` rings the busiest airports with the aircraft below
   `airportAltitude` within `airportRadius` km (`AirportTraffic`, airports from `Assets/GeoData/airports.csv`,
   `Tools/Planet/make_airports.py`), drawn by the editor's `AirportTrafficOverlay`. `FlightSelectionOverlay` picks one aircraft
-  (click its marker, or its callsign in the viewport's search box; `select_flight` command): a card with its data, airline,
+  (click its marker, or its callsign in the viewport's search box; `select_flight` command) and, with `followSelected` (on),
+  `FlightFollowRig` glides the camera to it round the planet and rides behind it -- right-drag orbits, the wheel zooms, a fly
+  key (WASD/QE) or closing the card lets go: a card with its data, airline,
   airframe and route (`FlightDetailsLookup`; `FlightRouteJudge` picks what the card shows: FlightAware's leg in the air
   from the relay's `/route` when it has an AeroAPI key -- by registration, capped at 30 lookups a day, the $5 free tier --,
   else adsbdb.com's usual route for the callsign when the aircraft is flying it, else its own trip: where its track took
