@@ -40,6 +40,9 @@ namespace ManaGeoTools.Code.Flights
 
         public string Icao24 { get; }
 
+        /// <summary>How far behind the aircraft the camera rides, in metres.</summary>
+        public float DistanceMetres => _distanceMetres;
+
         /// <summary>The aircraft has left the feed (or another was picked): nothing to follow.</summary>
         public bool Lost { get; private set; }
 

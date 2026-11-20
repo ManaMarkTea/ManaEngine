@@ -332,7 +332,7 @@ namespace ManaGeoTools.Code.Flights
                 return;
             }
 
-            _frameClock = ClockStart + ClockWatch.Elapsed.TotalSeconds;
+            AdvanceFrameClock();
             AdoptFinishedWork();
             UpdateFollow(planet);
             if (_detailsWork is { IsCompleted: true } details)
@@ -678,6 +678,24 @@ namespace ManaGeoTools.Code.Flights
         private static readonly double ClockStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
         private static readonly System.Diagnostics.Stopwatch ClockWatch = System.Diagnostics.Stopwatch.StartNew();
         private double _frameClock = double.NaN;
+
+        // Stepped by the frame's own time, not read off the wall when the update happens to run (that moment wanders by
+        // milliseconds, and a followed aircraft and its camera then moved unevenly against the ground), and eased back
+        // toward the wall clock so it never drifts. A recording steps by whole frames, so it takes no easing.
+        private void AdvanceFrameClock()
+        {
+            var wall = ClockStart + ClockWatch.Elapsed.TotalSeconds;
+            if (double.IsNaN(_frameClock) || Math.Abs(wall - _frameClock) > 1.0)
+            {
+                _frameClock = wall;
+                return;
+            }
+            _frameClock += Math.Clamp(Mana.Code.ManaTime.GlobalTime.DeltaTime.TotalSeconds, 0.0, 0.25);
+            if (Mana.Code.ManaTime.FixedFrameSeconds == null)
+            {
+                _frameClock += (wall - _frameClock) * 0.02;
+            }
+        }
 
         private double FrameClock()
         {

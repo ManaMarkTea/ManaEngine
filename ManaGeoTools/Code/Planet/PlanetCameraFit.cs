@@ -14,8 +14,9 @@ namespace ManaGeoTools.Code.Planet
         private const float SpeedHeightReference = 5.0f;
 
         // Near plane as a share of the height above the surface, so the depth buffer's range follows the camera down
-        // instead of spreading 24 bits over a whole planet.
-        private const float NearClipHeightShare = 0.005f;
+        // instead of spreading 24 bits over a whole planet. The ground is never nearer than the height, so a few percent
+        // clips nothing of it; at half a percent, shores tens of kilometres off fought the water and lines over them.
+        private const float NearClipHeightShare = 0.03f;
 
         // Up follows the ground below this height (a share of the radius, ~640 km on Earth) and is world +Y above the
         // outer one (~3,200 km), turning between: from orbit the globe stays upright, near it the horizon is level.
@@ -103,6 +104,11 @@ namespace ManaGeoTools.Code.Planet
             // A tenth of a radius past the horizon keeps mountains and the far limb from being cut.
             var far = MathF.Max(_baseFar, horizon + _planet.Radius * 0.1f);
             var near = MathF.Max(_baseNear, Height(position) * NearClipHeightShare);
+            // Following an aircraft, it is what is near: the plane stops short of it.
+            if (_camera.AttachedRig is Flights.FlightFollowRig follow)
+            {
+                near = MathF.Max(_baseNear, MathF.Min(near, follow.DistanceMetres * 0.3f * _planet.Radius / PlanetLoader.EarthRadiusMeters));
+            }
             var heightMeters = Height(position) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
             var space = Math.Clamp((heightMeters - SpaceFadeStartMeters) / (KarmanLineMeters - SpaceFadeStartMeters), 0.0f, 1.0f);
             _camera.Context.World.IrradianceSettings.Space = space * space * (3.0f - 2.0f * space);
