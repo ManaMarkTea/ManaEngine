@@ -18,7 +18,7 @@ namespace ManaGeoTools.Code.Osm
     /// One area of inland water (lake, river, pond, reservoir -- the sea is left out) in a tile: its rings' points as
     /// x, y in tile units (0 to <paramref name="Extent"/>, y down), the outer ring first, and where each hole starts.
     /// </summary>
-    public sealed record WaterArea(double[] Points, int[] HoleStarts, double Extent);
+    public sealed record WaterArea(double[] Points, int[] HoleStarts, double Extent, string? Class);
 
     /// <summary>
     /// The larger roads of one web-mercator tile from OpenFreeMap's vector tiles (the OpenMapTiles schema's
@@ -352,7 +352,7 @@ namespace ManaGeoTools.Code.Osm
                 var count = command >> 3;
                 if (id == 7)
                 {
-                    AddRing(ring, points, holes, extent, areas);
+                    AddRing(ring, points, holes, extent, waterClass, areas);
                     ring.Clear();
                     continue;
                 }
@@ -370,11 +370,11 @@ namespace ManaGeoTools.Code.Osm
             }
             if (points.Count >= 6)
             {
-                areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent));
+                areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent, waterClass));
             }
         }
 
-        private static void AddRing(List<double> ring, List<double> points, List<int> holes, double extent, List<WaterArea> areas)
+        private static void AddRing(List<double> ring, List<double> points, List<int> holes, double extent, string? waterClass, List<WaterArea> areas)
         {
             if (ring.Count < 6)
             {
@@ -389,7 +389,7 @@ namespace ManaGeoTools.Code.Osm
             {
                 if (points.Count >= 6)
                 {
-                    areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent));
+                    areas.Add(new WaterArea(points.ToArray(), holes.ToArray(), extent, waterClass));
                 }
                 points.Clear();
                 holes.Clear();

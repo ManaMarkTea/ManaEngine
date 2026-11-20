@@ -361,6 +361,7 @@ namespace ManaGeoTools.Code.Planet
                 var latitude = (south + north) * 0.5 * Math.PI / 180.0;
                 var pieces = new List<(int Class, IReadOnlyList<(double Longitude, double Latitude)> Points)>();
                 var triangles = new List<uint[]>();
+                var levelFrom = new List<int>();
                 foreach (var area in areas)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -377,12 +378,22 @@ namespace ManaGeoTools.Code.Planet
                         degrees[i] = OsmRoadTiles.TilePointToDegrees(TileZoom, key.X, key.Y, points[i * 2], points[i * 2 + 1], area.Extent);
                     }
                     pieces.Add((0, degrees));
+                    // Lakes, ponds and reservoirs lie level; a river runs downhill, so it follows the ground.
+                    if (area.Class == "river")
+                    {
+                        levelFrom.Add(-1);
+                    }
+                    else
+                    {
+                        levelFrom.Add(area.Points.Length / 2);
+                    }
                     triangles.Add(finer.Select(corner => (uint)corner).ToArray());
                 }
 
                 // No step: the points are the triangles' corners, and cutting the "lines" between them would break that.
                 var set = PlanetDrapedLineSet.From(pieces, ClassCount, float.MaxValue);
                 set.Triangles = [triangles.ToArray()];
+                set.LevelFrom = [levelFrom.ToArray()];
                 return set;
             }
 

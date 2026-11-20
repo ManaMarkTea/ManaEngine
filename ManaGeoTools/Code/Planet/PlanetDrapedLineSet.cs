@@ -16,6 +16,12 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>For areas rather than lines: each piece's triangles, as indices into its points (by class, then piece).</summary>
         public uint[][][]? Triangles { get; set; }
 
+        /// <summary>
+        /// Pieces laid level rather than on the ground below each point (a lake's surface): by class, then piece, the
+        /// index its points inside the shore start at (-1 to follow the ground, as a river does).
+        /// </summary>
+        public int[][]? LevelFrom { get; set; }
+
         private readonly Vector3[][][] _directions;
         private readonly (int Face, float U, float V)[][][] _faceUvs;
         private readonly Dictionary<int, (float MinU, float MaxU, float MinV, float MaxV)> _boxes = new();
@@ -187,7 +193,46 @@ namespace ManaGeoTools.Code.Planet
                         }
                         points[p] = directions[p] * radius;
                     }
+                    if (LevelFrom?[c][i] is { } inside && inside >= 0)
+                    {
+                        Level(points, directions, inside, seaRadius);
+                    }
                 }
+            }
+        }
+
+        // A lake is flat: the drawn ground under it rises and falls between its points (the lake bed, or noise in the
+        // heights), and laid on that the water let it through in patches. One level for the whole piece, from the
+        // ground across its middle and along its shore, whichever is higher.
+        private static void Level(Vector3[] points, Vector3[] directions, int inside, float seaRadius)
+        {
+            var shore = new List<float>(Math.Min(inside, points.Length));
+            var middle = new List<float>(Math.Max(0, points.Length - inside));
+            for (var p = 0; p < points.Length; p++)
+            {
+                if (p < inside)
+                {
+                    shore.Add(points[p].Length());
+                }
+                else
+                {
+                    middle.Add(points[p].Length());
+                }
+            }
+            var level = seaRadius;
+            if (shore.Count > 0)
+            {
+                shore.Sort();
+                level = MathF.Max(level, shore[shore.Count / 2]);
+            }
+            if (middle.Count > 0)
+            {
+                middle.Sort();
+                level = MathF.Max(level, middle[(int)(middle.Count * 0.9f)]);
+            }
+            for (var p = 0; p < points.Length; p++)
+            {
+                points[p] = directions[p] * level;
             }
         }
     }
