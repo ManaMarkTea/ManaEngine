@@ -88,6 +88,7 @@ namespace ManaCore.Graphics
                 ["ManaDrapedLineShader"] = "draped_line.wgsl",
                 ["ManaOceanShader"] = "ocean.wgsl",
                 ["ManaPlanetWaterShader"] = "planet_water.wgsl",
+                ["ManaPlanetRoadShader"] = "planet_road.wgsl",
                 ["ManaPbrShader"] = DefaultShaderFileName,
                 ["ManaWaterShader"] = "water.wgsl",
             };

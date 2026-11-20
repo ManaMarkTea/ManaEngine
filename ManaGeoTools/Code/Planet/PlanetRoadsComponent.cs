@@ -56,8 +56,11 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>The farthest roads are fetched around the camera, in km (nearer when the camera is low).</summary>
         public float LoadRadius { get; set; } = 120.0f;
 
-        /// <summary>Motorway width on screen in pixels; trunk and primary roads are drawn a little thinner.</summary>
-        public float Width { get; set; } = 3.0f;
+        /// <summary>Narrowest a motorway is drawn on screen, in pixels (far off); trunk and primary roads a little thinner.</summary>
+        public float Width { get; set; } = 2.0f;
+
+        /// <summary>Far roads in their map colours (below) rather than the grey of roads seen from the air.</summary>
+        public bool MapStyle { get; set; }
 
         public Vector4 MotorwayColor { get; set; } = new(1.0f, 0.55f, 0.15f, 1.0f);
 
@@ -302,27 +305,39 @@ namespace ManaGeoTools.Code.Planet
                 }
             }
 
-            // Constant width on screen from afar; up close no narrower than the road itself.
+            protected override ManaProceduralMesh CreateMesh(ManaContext context, PlanetDrapedLineSet geometry, int lineClass)
+            {
+                return new PlanetRoadMesh(context, geometry.Points[lineClass], MetresPerUnit);
+            }
+
+            // A constant width on screen from afar; up close the road's own width, with its lanes. OpenStreetMap draws a
+            // motorway as one way per direction, so each is a three-lane carriageway; a primary road is two-way.
             protected override void SetLook(ManaMaterial material, int lineClass)
             {
                 var pixels = roads.Width;
-                var groundMetres = 12.0f;
+                var widthMetres = 11.0f;
+                var lanes = 3.0f;
                 if (lineClass == (int)RoadClass.Trunk)
                 {
                     pixels *= 0.85f;
-                    groundMetres = 10.0f;
+                    widthMetres = 8.0f;
+                    lanes = 2.0f;
                 }
                 else if (lineClass == (int)RoadClass.Primary)
                 {
                     pixels *= 0.7f;
-                    groundMetres = 8.0f;
+                    widthMetres = 7.5f;
+                    lanes = 2.0f;
                 }
+                var colour = ColorOf(lineClass);
                 material.SetShaderUniform("widthPerDistance", 0.5f * pixels * MathF.Max(PixelAngle, 1e-5f));
-                material.SetShaderUniform("minHalfWidth", 0.5f * groundMetres / MetresPerUnit);
-                material.SetShaderUniform("maxHalfWidth", 1.0e7f);
+                material.SetShaderUniform("halfWidth", 0.5f * widthMetres / MetresPerUnit);
+                material.SetShaderUniform("metresPerUnit", MetresPerUnit);
+                material.SetShaderUniform("lanes", lanes);
+                material.SetShaderUniform("mapStyle", roads.MapStyle ? 1.0f : 0.0f);
+                material.SetShaderUniform("mapColor", new Vector3(colour.X, colour.Y, colour.Z));
                 // The bigger road a hair nearer, so where two classes share a line one wins rather than both flickering.
                 material.SetShaderUniform("towardCamera", TowardCamera * (1.0f + 0.05f * (RoadClassCount - lineClass)));
-                material.SetShaderUniform("faceCamera", 1.0f);
             }
         }
 

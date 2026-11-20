@@ -132,10 +132,20 @@ namespace ManaGeoTools.Code.Planet
         {
             var center = _planet.WorldTransform.Translation;
             var position = _camera.Owner.Position;
-            if (_planet.SurveyBelow(position)?.GroundRadius is { } ground)
+            // Only ground drawn finely for the height it is seen from: just after a jump the patch below is still a coarse
+            // one, kilometres between corners and hundreds of metres off over hills, and lifting the camera above that
+            // left it there for good once the fine ground came in below.
+            var survey = _planet.SurveyBelow(position);
+            if (survey?.GroundRadius is not { } ground)
             {
-                _groundRadius = ground;
+                return;
             }
+            var heightMetres = MathF.Max((position - center).Length() - ground, 0.0f) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
+            if (survey.Value.VertexMetres > MathF.Max(200.0f, heightMetres * 2.0f))
+            {
+                return;
+            }
+            _groundRadius = ground;
             var outward = position - center;
             var distance = outward.Length();
             var floor = _groundRadius + GroundClearanceMeters * _planet.Radius / PlanetLoader.EarthRadiusMeters;

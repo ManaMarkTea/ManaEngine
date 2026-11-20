@@ -520,7 +520,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   trunk and primary roads near the camera: zoom-9 vector tiles from OpenFreeMap's CDN (`OsmRoadTiles`: the OpenMapTiles
   `transportation` layer read with a small protobuf decoder; ~0.1 s a tile, where the public Overpass servers took tens
   of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
-  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. The same tiles' `water` layer
+  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. Drawn by `PlanetRoadMesh` with
+  `planet_road.wgsl`: a line `width` pixels wide far off (aerial grey, or the class colours with `mapStyle`), the road's own width
+  close up -- asphalt lit by the sun, edge lines and dashed lanes (OSM motorways are one carriageway each way, three lanes). The same tiles' `water` layer
   (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
   by `Earcut` (holes kept, so islands stay land), split to 400 m sides, each lake level (`LevelFrom`), drawn by
   `PlanetWaterMesh` with `planet_water.wgsl` -- wind ripples, glint, sky, and shallows and foam by each corner's distance to the
