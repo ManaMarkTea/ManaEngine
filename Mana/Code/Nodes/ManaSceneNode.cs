@@ -33,6 +33,9 @@ namespace Mana.Code.Nodes
         private int _worldVersion;
         private int _worldComputedForLocalVersion = -1;
         private int _worldComputedForParentVersion = -1;
+        private ManaPosition? _preciseLocalPosition;
+
+        public ManaPosition? PreciseWorldPosition { get; private set; }
 
         public ManaSceneNode? Parent { get; set; }
         public List<ManaSceneNode> Children { get; set; }
@@ -172,6 +175,7 @@ namespace Mana.Code.Nodes
             set
             {
                 _localTransform = value;
+                _preciseLocalPosition = null;
                 _localVersion++;
                 // See the big comment above _needsLocalTransformRebuild: any direct LocalTransform
                 // write (camera, physics) is authoritative and must not be clobbered by a
@@ -186,6 +190,7 @@ namespace Mana.Code.Nodes
             set
             {
                 _worldTransform = value;
+                PreciseWorldPosition = null;
                 _worldVersion++;
             }
         }
@@ -249,25 +254,7 @@ namespace Mana.Code.Nodes
                 }
             }
 
-            if (_needsLocalTransformRebuild)
-            {
-                var localTransform = Matrix4x4.Identity;
-                localTransform *= Matrix4x4.CreateScale(Scale);
-                localTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
-                localTransform *= Matrix4x4.CreateTranslation(Position);
-                LocalTransform = localTransform; // setter bumps _localVersion, clears _needsLocalTransformRebuild
-            }
-
-            // Recompute WorldTransform only if our own LocalTransform changed (_localVersion) or the
-            // parent's WorldTransform changed (_worldVersion) since we last derived ours from it --
-            // otherwise it's already correct and re-deriving it would just reproduce the same value.
-            var parentWorldVersion = Parent?._worldVersion ?? 0;
-            if (_localVersion != _worldComputedForLocalVersion || parentWorldVersion != _worldComputedForParentVersion)
-            {
-                WorldTransform = Parent != null ? LocalTransform * Parent.WorldTransform : LocalTransform;
-                _worldComputedForLocalVersion = _localVersion;
-                _worldComputedForParentVersion = parentWorldVersion;
-            }
+            RefreshWorldTransform();
 
             // Still visited unconditionally: components (physics, cameras, animations) need their
             // per-frame tick regardless of whether this node's own transform changed, and a child
@@ -287,6 +274,64 @@ namespace Mana.Code.Nodes
                     component.UpdateComponent();
                 }
             }
+        }
+
+        /// <summary>Places a visual subtree immediately, without ticking its components a second time.</summary>
+        public void PlaceVisual(Matrix4x4 localTransform, ManaPosition position)
+        {
+            localTransform.Translation = position.ToVector3();
+            LocalTransform = localTransform;
+            _preciseLocalPosition = position;
+            RefreshVisualTransforms();
+        }
+
+        private void RefreshVisualTransforms()
+        {
+            RefreshWorldTransform();
+            foreach (var child in Children)
+            {
+                child.RefreshVisualTransforms();
+            }
+        }
+
+        private void RefreshWorldTransform()
+        {
+            if (_needsLocalTransformRebuild)
+            {
+                var localTransform = Matrix4x4.Identity;
+                localTransform *= Matrix4x4.CreateScale(Scale);
+                localTransform *= Matrix4x4.CreateFromQuaternion(Rotation.ToQuaternionFromEuler());
+                localTransform *= Matrix4x4.CreateTranslation(Position);
+                LocalTransform = localTransform; // setter bumps _localVersion, clears _needsLocalTransformRebuild
+            }
+
+            // Recompute WorldTransform only if our own LocalTransform changed (_localVersion) or the
+            // parent's WorldTransform changed (_worldVersion) since we last derived ours from it --
+            // otherwise it's already correct and re-deriving it would just reproduce the same value.
+            var parentWorldVersion = Parent?._worldVersion ?? 0;
+            if (_localVersion != _worldComputedForLocalVersion || parentWorldVersion != _worldComputedForParentVersion)
+            {
+                var world = LocalTransform;
+                var precise = _preciseLocalPosition;
+                if (Parent is { } parent)
+                {
+                    world *= parent.WorldTransform;
+                    if (precise != null || parent.PreciseWorldPosition != null)
+                    {
+                        precise = (precise ?? new ManaPosition(LocalTransform.Translation)).TransformOffset(parent.WorldTransform)
+                            + (parent.PreciseWorldPosition ?? new ManaPosition(parent.WorldTransform.Translation));
+                    }
+                }
+                if (precise is { } position)
+                {
+                    world.Translation = position.ToVector3();
+                }
+                WorldTransform = world;
+                PreciseWorldPosition = precise;
+                _worldComputedForLocalVersion = _localVersion;
+                _worldComputedForParentVersion = parentWorldVersion;
+            }
+
         }
 
         public void Draw()
@@ -345,6 +390,7 @@ namespace Mana.Code.Nodes
                 try
                 {
                     var meshData = renderer.ApplyMaterialTextures(renderer.Mesh.GetOrCreateCpuData());
+                    var world = renderer.MeshToWorld(out var precise);
                     output.Add(new ManaRenderMeshInstance
                     {
                         StaticBatchKey = staticBatchKey,
@@ -354,7 +400,8 @@ namespace Mana.Code.Nodes
                         MeshVersion = renderer.Mesh.CpuDataVersion,
                         Name = string.IsNullOrWhiteSpace(Name) ? renderer.Mesh.Name : Name,
                         MeshData = meshData,
-                        WorldTransform = WorldTransform,
+                        WorldTransform = world,
+                        PrecisePosition = precise,
                         ShaderName = renderer.Material.Shader?.GetType().Name,
                         Albedo = renderer.Material.Albedo.Value,
                         Metallic = renderer.Material.Metallic.Value,

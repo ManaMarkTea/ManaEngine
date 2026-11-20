@@ -1,6 +1,7 @@
 using Mana;
 using Mana.Code;
 using Mana.Code.Components;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.Planet;
 
 namespace ManaGeoTools.Code.Flights
@@ -16,7 +17,7 @@ namespace ManaGeoTools.Code.Flights
 
         private readonly PlanetNode _planet;
         private readonly FlightTrafficComponent _traffic;
-        private readonly Vector3 _startPosition;
+        private readonly ManaPosition _startPosition;
         private readonly Quaternion _startTurn;
         private float _elapsed;
         private float _yaw = 0.35f;
@@ -25,7 +26,7 @@ namespace ManaGeoTools.Code.Flights
         private readonly float _closestMetres;
 
         public FlightFollowRig(PlanetNode planet, FlightTrafficComponent traffic, string icao24, float lengthMetres,
-            Vector3 startPosition, Vector3 startRotation)
+            ManaPosition startPosition, Vector3 startRotation)
         {
             _planet = planet;
             _traffic = traffic;
@@ -34,7 +35,7 @@ namespace ManaGeoTools.Code.Flights
             _startTurn = startRotation.ToQuaternionFromEuler();
             _closestMetres = lengthMetres * 1.2f;
             _distanceMetres = lengthMetres * 2.5f;
-            CameraPosition = startPosition;
+            PreciseCameraPosition = startPosition;
             CameraRotation = startRotation;
         }
 
@@ -46,7 +47,9 @@ namespace ManaGeoTools.Code.Flights
         /// <summary>The aircraft has left the feed (or another was picked): nothing to follow.</summary>
         public bool Lost { get; private set; }
 
-        public Vector3 CameraPosition { get; private set; }
+        public ManaPosition? PreciseCameraPosition { get; private set; }
+
+        public Vector3 CameraPosition => PreciseCameraPosition.GetValueOrDefault().ToVector3();
 
         public Vector3 CameraRotation { get; private set; }
 
@@ -83,10 +86,10 @@ namespace ManaGeoTools.Code.Flights
             _elapsed += deltaSeconds;
 
             var world = _planet.WorldTransform;
-            var centre = world.Translation;
-            var (local, localHeading) = _traffic.Locate(_planet, state);
-            var target = Vector3.Transform(local, world);
-            var up = Vector3.Normalize(Vector3.TransformNormal(local, world));
+            var centre = _planet.PreciseWorldPosition ?? new ManaPosition(world.Translation);
+            var (local, localHeading, localUp) = _traffic.SelectedPose(_planet, state);
+            var target = local.TransformOffset(world) + centre;
+            var up = Vector3.Normalize(Vector3.TransformNormal(localUp, world));
             var heading = Vector3.TransformNormal(localHeading, world);
             heading = Vector3.Normalize(heading - up * Vector3.Dot(heading, up));
             var right = Vector3.Normalize(Vector3.Cross(heading, up));
@@ -94,37 +97,33 @@ namespace ManaGeoTools.Code.Flights
             // Behind it, turned by the orbit and raised by its pitch.
             var unitsPerMetre = _planet.Radius / PlanetLoader.EarthRadiusMeters;
             var away = -heading * (MathF.Cos(_pitch) * MathF.Cos(_yaw)) + right * (MathF.Cos(_pitch) * MathF.Sin(_yaw)) + up * MathF.Sin(_pitch);
-            var follow = target + away * (_distanceMetres * unitsPerMetre);
+            var offset = new ManaPosition(away) * (_distanceMetres * (double)unitsPerMetre);
+            var follow = target + offset;
 
             var t = Math.Clamp(_elapsed / GlideSeconds, 0.0f, 1.0f);
             var position = follow;
+            var lookDirection = offset * -1.0;
             if (t < 1.0f)
             {
                 position = Glide(centre, Ease(t), follow);
-            }
-            else if (_traffic.SelectedModel is { } model)
-            {
-                // Riding on the model as drawn, by an offset on the float grid where it is: the two then move by exactly the
-                // same amount, and the shaders' model-less-camera comes out the same every frame. Each placed on the grid
-                // by itself, they landed up to half a metre apart, a few pixels at this distance, and the aircraft shook.
-                target = model.WorldTransform.Translation;
-                position = target + Snap(follow - target, target);
+                lookDirection = target - position;
             }
             // Never under the drawn ground: an aircraft landing can be lower than the patches put the runway.
-            if (_planet.SurveyBelow(position)?.GroundRadius is { } ground)
+            if (_planet.SurveyBelow(position.ToVector3())?.GroundRadius is { } ground)
             {
                 var outwardNow = position - centre;
-                var floor = ground + 5.0f * unitsPerMetre;
+                var floor = ground + 5.0 * unitsPerMetre;
                 if (outwardNow.Length() < floor)
                 {
-                    position = centre + Vector3.Normalize(outwardNow) * floor;
+                    position = centre + outwardNow.Normalized() * floor;
+                    lookDirection = target - position;
                 }
             }
-            CameraPosition = position;
+            PreciseCameraPosition = position;
 
             // Looking at the aircraft, with the planet's up; turned to it over the first part of the glide.
-            var outward = Vector3.Normalize(position - centre);
-            var look = Look(target - position, outward);
+            var outward = (position - centre).Normalized().ToVector3();
+            var look = Look(lookDirection.ToVector3(), outward);
             var turn = Math.Clamp(t / 0.45f, 0.0f, 1.0f);
             if (turn < 1.0f)
             {
@@ -135,48 +134,47 @@ namespace ManaGeoTools.Code.Flights
 
         private static float Ease(float t) => 0.5f - 0.5f * MathF.Cos(t * MathF.PI);
 
-        private static Vector3 Snap(Vector3 offset, Vector3 at)
-        {
-            return new Vector3(Snap(offset.X, at.X), Snap(offset.Y, at.Y), Snap(offset.Z, at.Z));
-        }
-
-        // To a whole number of the float spacing at `at` (one unit in the last place of its 24-bit significand).
-        private static float Snap(float offset, float at)
-        {
-            var magnitude = MathF.Abs(at);
-            if (magnitude < 1.0f)
-            {
-                return offset;
-            }
-            var spacing = MathF.Pow(2.0f, MathF.Floor(MathF.Log2(magnitude)) - 23.0f);
-            return MathF.Round(offset / spacing) * spacing;
-        }
-
         // Round the planet from the start to where it follows: the direction turned along the great circle, the height
         // eased on a log scale (a dive from orbit slows as it nears), lifted on a long trip so it arcs over.
-        private Vector3 Glide(Vector3 centre, float e, Vector3 follow)
+        private ManaPosition Glide(ManaPosition centre, double e, ManaPosition follow)
         {
             var radius = _planet.Radius;
             var from = _startPosition - centre;
             var to = follow - centre;
-            var fromDirection = Vector3.Normalize(from);
-            var toDirection = Vector3.Normalize(to);
-            var angle = MathF.Acos(Math.Clamp(Vector3.Dot(fromDirection, toDirection), -1.0f, 1.0f));
-            Vector3 direction;
-            if (angle < 1e-5f)
+            var fromLength = from.Length();
+            var toLength = to.Length();
+            if (fromLength == 0.0)
             {
-                direction = Vector3.Normalize(Vector3.Lerp(fromDirection, toDirection, e));
+                return centre + to * e;
+            }
+            var fromDirection = from * (1.0 / fromLength);
+            var toDirection = to * (1.0 / toLength);
+            var dot = Math.Clamp(ManaPosition.Dot(fromDirection, toDirection), -1.0, 1.0);
+            var angle = Math.Acos(dot);
+            ManaPosition direction;
+            if (angle < 1e-5)
+            {
+                direction = (fromDirection * (1.0 - e) + toDirection * e).Normalized();
             }
             else
             {
-                var sin = MathF.Sin(angle);
-                direction = fromDirection * (MathF.Sin((1.0f - e) * angle) / sin) + toDirection * (MathF.Sin(e * angle) / sin);
+                var tangent = toDirection - fromDirection * dot;
+                if (tangent.Length() < 1e-12)
+                {
+                    var axis = Vector3.UnitY;
+                    if (Math.Abs(fromDirection.Y) > 0.9)
+                    {
+                        axis = Vector3.UnitX;
+                    }
+                    tangent = new ManaPosition(Vector3.Cross(fromDirection.ToVector3(), axis));
+                }
+                direction = fromDirection * Math.Cos(e * angle) + tangent.Normalized() * Math.Sin(e * angle);
             }
-            var floor = radius * 1e-6f;
-            var fromHeight = MathF.Max(from.Length() - radius, floor);
-            var toHeight = MathF.Max(to.Length() - radius, floor);
-            var height = MathF.Exp(float.Lerp(MathF.Log(fromHeight), MathF.Log(toHeight), e));
-            height += MathF.Sin(e * MathF.PI) * angle * radius * 0.25f;
+            var floor = radius * 1e-6;
+            var fromHeight = Math.Max(fromLength - radius, floor);
+            var toHeight = Math.Max(toLength - radius, floor);
+            var height = Math.Exp(double.Lerp(Math.Log(fromHeight), Math.Log(toHeight), e));
+            height += Math.Sin(e * Math.PI) * angle * radius * 0.25;
             return centre + direction * (radius + height);
         }
 

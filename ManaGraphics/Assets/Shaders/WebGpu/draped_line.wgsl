@@ -6,6 +6,7 @@
 // enough -- roughly 37 whole-mesh rebuilds over a single descent. Per-vertex is also more correct: a
 // border can span a wide distance range, which one global thickness cannot represent.
 #include "include/uniforms.wgsl"
+#include "include/camera_relative.wgsl"
 #include "include/haze.wgsl"
 
 struct CustomMaterialUniform {
@@ -52,7 +53,8 @@ fn vs_main(
 
     // Offset direction is a rotation, not a point, so w = 0.
     var offset_direction = (object.model * vec4<f32>(color.xyz, 0.0)).xyz;
-    let to_camera = frame.camera_position.xyz - center;
+    let relative = mana_globe_relative(object.model, position);
+    let to_camera = -relative;
     if (custom.faceCamera > 0.5) {
         // The side was built as cross(up, along), so the line runs along cross(side, up).
         let up = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
@@ -68,16 +70,16 @@ fn vs_main(
         }
     }
 
-    let distance_to_camera = length(frame.camera_position.xyz - center);
+    let distance_to_camera = length(to_camera);
     let half_width = clamp(
         distance_to_camera * custom.widthPerDistance,
         custom.minHalfWidth,
         custom.maxHalfWidth);
 
-    let lifted = center + (to_camera * custom.towardCamera);
+    let lifted = relative + (to_camera * custom.towardCamera);
 
     var output : VertexOutput;
-    output.clip_position = frame.projection * (frame.view * vec4<f32>(lifted + (offset_direction * half_width), 1.0));
+    output.clip_position = mana_relative_clip_position(lifted + (offset_direction * half_width));
     output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     output.world_position = center;
     return output;

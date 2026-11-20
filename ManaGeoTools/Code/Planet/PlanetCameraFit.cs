@@ -140,12 +140,12 @@ namespace ManaGeoTools.Code.Planet
             {
                 return;
             }
-            var heightMetres = MathF.Max((position - center).Length() - ground, 0.0f) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
+            var heightMetres = (float)Math.Max((position - center).Length() - ground, 0.0) * PlanetLoader.EarthRadiusMeters / _planet.Radius;
             if (survey.Value.VertexMetres > MathF.Max(200.0f, heightMetres * 2.0f))
             {
                 return;
             }
-            _groundRadius = ground;
+            _groundRadius = (float)ground;
             var outward = position - center;
             var distance = outward.Length();
             var floor = _groundRadius + GroundClearanceMeters * _planet.Radius / PlanetLoader.EarthRadiusMeters;

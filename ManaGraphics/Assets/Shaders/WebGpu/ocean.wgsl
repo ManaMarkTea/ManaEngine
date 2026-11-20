@@ -12,6 +12,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/camera_relative.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
@@ -68,12 +69,13 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     // undisplaced world position is what the lift is measured against, so this shell and the near
     // patch, sharing one coefficient, lift by the same amount at the same place and stay coincident
     // through their cross-fade.
-    let flat_world = (object.model * vec4<f32>(position, 1.0)).xyz;
-    let view_distance = distance(flat_world, frame.camera_position.xyz);
+    let relative = mana_globe_relative(object.model, position);
+    let view_distance = length(relative);
     let depth_lift = min(custom.depthLiftCoefficient * view_distance * view_distance, custom.depthLiftMaxUnits);
 
     let world = object.model * vec4<f32>(position + normal * depth_lift, 1.0);
-    output.position = frame.projection * (frame.view * world);
+    let lift = (object.model * vec4<f32>(normal * depth_lift, 0.0)).xyz;
+    output.position = mana_relative_clip_position(relative + lift);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;

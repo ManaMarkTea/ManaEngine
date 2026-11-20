@@ -226,10 +226,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// when <paramref name="include"/> takes it and its bounds can land in that view, and <paramref name="skip"/>
         /// (given the view and the bounds) does not leave it out there.
         /// </summary>
-        /// <param name="relative">Per view, the matrix to draw with taking positions relative to an origin, and that origin
-        /// (the camera, for a view far from the world's origin); <paramref name="viewProjections"/> then only culls.</param>
+        /// <param name="relative">Per view, the matrix to draw with taking positions relative to the camera;
+        /// <paramref name="viewProjections"/> then only culls.</param>
         public void Draw(ManaWebGpuFrame frame, ReadOnlySpan<Matrix4x4> viewProjections, Func<int, nint> target, Func<ManaRenderMeshInstance, bool> include,
-            Func<int, (Vector3 Min, Vector3 Max), bool>? skip = null, ReadOnlySpan<(Matrix4x4 ViewProjection, Vector3 Origin)> relative = default)
+            Func<int, (Vector3 Min, Vector3 Max), bool>? skip = null, ReadOnlySpan<Matrix4x4> relative = default)
         {
             _meshes.Clear();
             foreach (var sceneMesh in frame.Meshes)
@@ -285,7 +285,12 @@ namespace ManaGraphics.Code.Graphics.Renderers
                             continue;
                         }
                         first ??= mesh;
-                        _batch[count++] = mesh.Instance.WorldTransform;
+                        var model = mesh.Instance.WorldTransform;
+                        if (view < relative.Length)
+                        {
+                            model.Translation = mesh.Instance.PositionRelativeTo(frame.Scene.Camera);
+                        }
+                        _batch[count++] = model;
                         if (count == _batch.Length)
                         {
                             AddRun(view, first, count);
@@ -323,7 +328,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                 var uniform = new DepthUniform { ViewProjection = viewProjections[view] };
                 if (view < relative.Length)
                 {
-                    uniform = new DepthUniform { ViewProjection = relative[view].ViewProjection, Origin = new Vector4(relative[view].Origin, 0.0f) };
+                    uniform = new DepthUniform { ViewProjection = relative[view], Origin = new Vector4(frame.Scene.Camera.Position, 1.0f) };
                 }
                 Api.QueueWriteBuffer(Queue, _uniformBuffers[view], 0, &uniform, (nuint)sizeof(DepthUniform));
                 var depthAttachment = new RenderPassDepthStencilAttachment
@@ -351,7 +356,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
                             continue;
                         }
                         // This runs before the scene pass; the object uniform is made once a frame for both.
-                        sceneMesh.PrepareObjectUniform(frame.Number);
+                        sceneMesh.PrepareObjectUniform(frame.Number, frame.Scene.Camera);
                         if (sceneMesh.ObjectBindGroup != null)
                         {
                             Api.RenderPassEncoderSetBindGroup(pass, 1, sceneMesh.ObjectBindGroup, 0, null);

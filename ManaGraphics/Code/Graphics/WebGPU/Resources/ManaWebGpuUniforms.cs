@@ -49,6 +49,7 @@ namespace ManaGraphics.Code.Graphics.Resources
         public Vector4 HazeColor;
         public Vector4 HazePlanet;
         public Vector4 HazeSun;
+        public Vector4 CameraPositionRemainder;
 
         // Written once a frame, not per mesh: camera, time and lights are the same for every mesh, and baking them
         // into each mesh's own buffer meant the clock alone dirtied every resident mesh's uniform every frame.
@@ -93,6 +94,10 @@ namespace ManaGraphics.Code.Graphics.Resources
             };
 
             var wind = scene.Wind;
+            if (camera.PrecisePosition is { } precise)
+            {
+                uniform.CameraPositionRemainder = new Vector4((precise - new ManaPosition(camera.Position)).ToVector3(), 0.0f);
+            }
             uniform.Wind = new Vector4(wind.Direction.X, wind.Direction.Y, wind.Speed, wind.Gustiness);
             uniform.WindMotion = new Vector4(wind.Drift.X, wind.Drift.Y, wind.Distance, wind.Gust);
 
@@ -161,9 +166,10 @@ namespace ManaGraphics.Code.Graphics.Resources
         /// <summary>Texture coordinate scale in XY, offset in ZW. Applies to every map.</summary>
         public Vector4 UvTransform;
         public Vector4 Parallax;
+        public Vector4 RelativeModelOrigin;
 
         // Pure, so callers can dirty-check before uploading.
-        public static ManaWebGpuObjectUniform For(ManaRenderMeshInstance meshInstance)
+        public static ManaWebGpuObjectUniform For(ManaRenderMeshInstance meshInstance, in ManaCameraData camera)
         {
             var model = meshInstance.WorldTransform;
             if (!Matrix4x4.Invert(model, out var inverseModel))
@@ -171,10 +177,16 @@ namespace ManaGraphics.Code.Graphics.Resources
                 inverseModel = Matrix4x4.Identity;
             }
             var normalMatrix = Matrix4x4.Transpose(inverseModel);
+            var relativeOrigin = Vector4.Zero;
+            if (meshInstance.PrecisePosition != null || camera.PrecisePosition != null)
+            {
+                relativeOrigin = new Vector4(meshInstance.PositionRelativeTo(camera), 1.0f);
+            }
 
             return new ManaWebGpuObjectUniform
             {
                 Model = model,
+                RelativeModelOrigin = relativeOrigin,
                 NormalMatrix = normalMatrix,
                 // Opacity folds into albedo alpha.
                 MaterialAlbedo = new Vector4(

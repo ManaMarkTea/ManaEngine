@@ -125,14 +125,12 @@ namespace Mana.Code
             HashSet<ManaSceneNode>? excludeNodes,
             ref ScenePickTriangleResult? best)
         {
-            if ((excludeNodes == null || !excludeNodes.Contains(node)) && Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
+            if (excludeNodes == null || !excludeNodes.Contains(node))
             {
-                var localOrigin = Vector3.Transform(rayOrigin, worldToLocal);
-                var localDirection = Vector3.TransformNormal(rayDirection, worldToLocal);
                 foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
                 {
-                    if (localDirection.LengthSquared() < 1e-12f || !renderer.IsVisible || renderer.Mesh == null
-                        || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                    if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData)
+                        || !TryMeshRay(renderer, rayOrigin, rayDirection, out var world, out var localOrigin, out var localDirection))
                     {
                         continue;
                     }
@@ -164,9 +162,8 @@ namespace Mana.Code
                         continue;
                     }
 
-                    var world = node.WorldTransform;
-                    var position = Vector3.Transform(localOrigin + localDirection * bestT, world);
-                    var distance = Vector3.Distance(rayOrigin, position);
+                    var position = rayOrigin + rayDirection * bestT;
+                    var distance = rayDirection.Length() * bestT;
                     if (best is { } current && current.Distance <= distance)
                     {
                         continue;
@@ -175,7 +172,10 @@ namespace Mana.Code
                     var a = Vector3.Transform(positions[indexes[bestTriangle]], world);
                     var b = Vector3.Transform(positions[indexes[bestTriangle + 1]], world);
                     var c = Vector3.Transform(positions[indexes[bestTriangle + 2]], world);
-                    var normal = Vector3.Cross(b - a, c - a);
+                    var localA = positions[indexes[bestTriangle]];
+                    var normal = Vector3.Cross(
+                        Vector3.TransformNormal(positions[indexes[bestTriangle + 1]] - localA, world),
+                        Vector3.TransformNormal(positions[indexes[bestTriangle + 2]] - localA, world));
                     normal = normal.LengthSquared() > 1e-20f ? Vector3.Normalize(normal) : Vector3.UnitY;
                     // Facing the viewer: a scan's or a double-sided mesh's back face still measures from the side you see.
                     if (Vector3.Dot(normal, rayDirection) > 0)
@@ -321,24 +321,13 @@ namespace Mana.Code
             worldDistance = float.PositiveInfinity;
             hitRenderer = null;
 
-            if (!Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
-            {
-                return false;
-            }
-
-            var localOrigin = Vector3.Transform(rayOrigin, worldToLocal);
-            var localDirection = Vector3.TransformNormal(rayDirection, worldToLocal);
-            if (localDirection.LengthSquared() < 1e-12f)
-            {
-                return false;
-            }
-
             var bestLocalT = float.PositiveInfinity;
             var hitAny = false;
 
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData)
+                    || !TryMeshRay(renderer, rayOrigin, rayDirection, out _, out var localOrigin, out var localDirection))
                 {
                     continue;
                 }
@@ -388,9 +377,7 @@ namespace Mana.Code
                 return false;
             }
 
-            var localHitPosition = localOrigin + localDirection * bestLocalT;
-            var worldHitPosition = Vector3.Transform(localHitPosition, node.WorldTransform);
-            worldDistance = Vector3.Distance(rayOrigin, worldHitPosition);
+            worldDistance = rayDirection.Length() * bestLocalT;
             return true;
         }
 
@@ -408,25 +395,15 @@ namespace Mana.Code
             worldHitPosition = Vector3.Zero;
             worldHitNormal = Vector3.UnitY;
 
-            if (!Matrix4x4.Invert(node.WorldTransform, out var worldToLocal))
-            {
-                return false;
-            }
-
-            var localOrigin = Vector3.Transform(rayOrigin, worldToLocal);
-            var localDirection = Vector3.TransformNormal(rayDirection, worldToLocal);
-            if (localDirection.LengthSquared() < 1e-12f)
-            {
-                return false;
-            }
-
             var bestLocalT = float.PositiveInfinity;
             var bestLocalNormal = Vector3.UnitY;
+            var bestWorld = Matrix4x4.Identity;
             var hitAny = false;
 
             foreach (var renderer in node.Components.OfType<MeshRendererComponent>())
             {
-                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData))
+                if (!renderer.IsVisible || renderer.Mesh == null || !TryGetCpuData(renderer.Mesh, out var cpuData)
+                    || !TryMeshRay(renderer, rayOrigin, rayDirection, out var world, out var localOrigin, out var localDirection))
                 {
                     continue;
                 }
@@ -448,6 +425,7 @@ namespace Mana.Code
                 {
                     bestLocalT = meshLocalT;
                     bestLocalNormal = meshLocalNormal;
+                    bestWorld = world;
                     hitAny = true;
                     hitRenderer = renderer;
                 }
@@ -458,16 +436,36 @@ namespace Mana.Code
                 return false;
             }
 
-            var localHitPosition = localOrigin + localDirection * bestLocalT;
-            worldHitPosition = Vector3.Transform(localHitPosition, node.WorldTransform);
-            worldHitNormal = Vector3.Normalize(Vector3.TransformNormal(bestLocalNormal, node.WorldTransform));
+            worldHitPosition = rayOrigin + rayDirection * bestLocalT;
+            worldHitNormal = Vector3.Normalize(Vector3.TransformNormal(bestLocalNormal, bestWorld));
             if (worldHitNormal.LengthSquared() < 1e-12f)
             {
                 worldHitNormal = Vector3.UnitY;
             }
 
-            worldDistance = Vector3.Distance(rayOrigin, worldHitPosition);
+            worldDistance = rayDirection.Length() * bestLocalT;
             return true;
+        }
+
+        private static bool TryMeshRay(MeshRendererComponent renderer, Vector3 rayOrigin, Vector3 rayDirection,
+            out Matrix4x4 world, out Vector3 localOrigin, out Vector3 localDirection)
+        {
+            world = renderer.MeshToWorld(out var precise);
+            var basis = world;
+            basis.Translation = Vector3.Zero;
+            localOrigin = localDirection = Vector3.Zero;
+            if (!Matrix4x4.Invert(basis, out var inverse))
+            {
+                return false;
+            }
+            var offset = rayOrigin - world.Translation;
+            if (precise is { } position)
+            {
+                offset = (new ManaPosition(rayOrigin) - position).ToVector3();
+            }
+            localOrigin = Vector3.TransformNormal(offset, inverse);
+            localDirection = Vector3.TransformNormal(rayDirection, inverse);
+            return localDirection.LengthSquared() >= 1e-12f;
         }
 
         private static bool TryIntersectTriangles(Vector3 origin, Vector3 direction, ManaMeshCpuData cpuData, Vector3 center, out float t)

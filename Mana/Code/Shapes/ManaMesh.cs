@@ -13,6 +13,9 @@ namespace Mana.Code.Shapes
 
     public class ManaMesh : ManaObject
     {
+        /// <summary>Origin of vertices authored around an anchor in the owning node's local space.</summary>
+        public virtual ManaPosition? RenderOrigin => null;
+
         public ManaMaterial[] Materials;
         protected Vector3 MinSize;
         protected Vector3 MaxSize;

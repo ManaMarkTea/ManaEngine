@@ -1,6 +1,7 @@
 using System.Text.Json.Serialization;
 using Mana;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.Planet;
 using Silk.NET.Input;
 
@@ -181,9 +182,12 @@ namespace ManaGeoTools.Code.Flights
             _detailsCancel = null;
             _detailsWork = null;
             SelectedDetails = null;
+            SelectedModel = null;
+            SelectedRenderPosition = null;
+            _selectedPose = null;
             SelectedIcao24 = icao24;
             _drawnAt = 0;
-            if (Selected is { } state)
+            if (!_usingRecordedSnapshot && Selected is { } state)
             {
                 _detailsCancel = new CancellationTokenSource();
                 var token = _detailsCancel.Token;
@@ -223,14 +227,26 @@ namespace ManaGeoTools.Code.Flights
         /// <summary>Where <paramref name="state"/> is now in the planet's local space, flown on from its report, and its heading.</summary>
         public (Vector3 Center, Vector3 Heading) Locate(PlanetNode planet, in FlightState state)
         {
-            var seconds = (float)Math.Max(0.0, FrameClock() - state.PositionTime);
+            var (center, heading, _) = LocatePrecisely(planet, state, FrameClock());
+            return (center.ToVector3(), heading);
+        }
+
+        internal (ManaPosition Center, Vector3 Heading, Vector3 Up) SelectedPose(PlanetNode planet, in FlightState state)
+            => _selectedPose ?? LocatePrecisely(planet, state, FrameClock());
+
+        private (ManaPosition Center, Vector3 Heading, Vector3 Up)? _selectedPose;
+
+        private (ManaPosition Center, Vector3 Heading, Vector3 Up) LocatePrecisely(PlanetNode planet, in FlightState state, double now)
+        {
+            var seconds = Math.Max(0.0, now - state.PositionTime);
             if (state.OnGround)
             {
-                seconds = 0.0f;
+                seconds = 0.0;
             }
-            var (direction, heading) = FlightDeadReckoning.Advance(state, seconds);
-            var altitude = FlightDeadReckoning.Altitude(state, seconds);
-            return (direction * (planet.Radius + altitude * HeightScale(planet)), heading);
+            var (direction, heading) = FlightDeadReckoning.AdvancePrecisely(state, seconds);
+            var climbTime = Math.Min(seconds, FlightDeadReckoning.VerticalRateSeconds);
+            var altitude = Math.Max(0.0, state.AltitudeMeters + state.VerticalRateMetersPerSecond * climbTime);
+            return (direction * (planet.Radius + altitude * HeightScale(planet)), heading.ToVector3(), direction.ToVector3());
         }
 
         /// <summary>A track point in the planet's local space, at the height aircraft are drawn.</summary>
@@ -271,6 +287,7 @@ namespace ManaGeoTools.Code.Flights
         private readonly CancellationTokenSource _cancel = new();
         private Task<FlightSnapshot?>? _work;
         private FlightSnapshot? _snapshot;
+        private bool _usingRecordedSnapshot;
         private DateTime _nextFetchUtc = DateTime.MinValue;
         private bool _cacheTried;
         private int? _creditsLeft;
@@ -281,11 +298,29 @@ namespace ManaGeoTools.Code.Flights
         private FlightTrafficModels? _models;
         private readonly List<Nearest> _nearest = [];
 
-        private readonly record struct Nearest(int Index, float DistanceSquared, Vector3 Center, Vector3 Heading, Vector3 Up, float Size, Vector4 Color);
+        private readonly record struct Nearest(int Index, float DistanceSquared, ManaPosition Center, Vector3 Heading, Vector3 Up, float Size, Vector4 Color);
 
         public FlightTrafficComponent(ManaSceneNode owner) : base(owner)
         {
             Name = "Flight Traffic";
+        }
+
+        /// <summary>Replays a recorded feed relative to the current frame, without contacting the live services.</summary>
+        public void UseRecordedSnapshot(FlightSnapshot snapshot)
+        {
+            _usingRecordedSnapshot = true;
+            _cancel.Cancel();
+            _work = null;
+            Select(null);
+            var now = FrameClock();
+            var states = Array.ConvertAll(snapshot.States,
+                state => state with { PositionTime = now + (state.PositionTime - snapshot.Time) });
+            _snapshot = new FlightSnapshot(now, states);
+            Status = $"{states.Length:N0} aircraft from a recording";
+            Source = FlightFeedSource.None;
+            Live = false;
+            _drawnAt = 0;
+            _nextCountUtc = DateTime.MinValue;
         }
 
         private TimeSpan Interval
@@ -329,6 +364,11 @@ namespace ManaGeoTools.Code.Flights
 
             if (!Enabled)
             {
+                UpdateFollow(planet);
+                if (_selectedMarker != null)
+                {
+                    _selectedMarker.IsVisible = false;
+                }
                 return;
             }
 
@@ -374,9 +414,14 @@ namespace ManaGeoTools.Code.Flights
 
         private FlightFollowRig? _follow;
 
-        /// <summary>The model the selected aircraft is drawn as this frame, if it is one (the follow camera rides on it).</summary>
+        /// <summary>The model the selected aircraft is drawn as this frame, if it is one.</summary>
         [JsonIgnore]
         public Mana.Code.Nodes.ManaSceneNode? SelectedModel { get; private set; }
+
+        private MeshRendererComponent? _selectedMarker;
+
+        [JsonIgnore]
+        public ManaPosition? SelectedRenderPosition { get; private set; }
 
         // The pick the camera has been taken to (or let go of), so flying off it does not pull the camera straight back.
         private string? _followed;
@@ -385,7 +430,9 @@ namespace ManaGeoTools.Code.Flights
         private void UpdateFollow(PlanetNode planet)
         {
             var camera = Owner.Context.World.MainCamera;
-            if (_follow != null && (camera == null || !ReferenceEquals(camera.AttachedRig, _follow) || _follow.Lost || FlyKeyDown()))
+            var start = camera?.AttachedRig?.PreciseCameraPosition;
+            if (_follow != null && (camera == null || !ReferenceEquals(camera.AttachedRig, _follow) || _follow.Lost
+                || SelectedIcao24 != _follow.Icao24 || !FollowSelected || !Enabled || FlyKeyDown()))
             {
                 camera?.DetachRig(_follow);
                 _follow = null;
@@ -395,7 +442,7 @@ namespace ManaGeoTools.Code.Flights
                 _followed = null;
                 return;
             }
-            if (!FollowSelected || camera == null || SelectedIcao24 == _followed || Selected is not { } state)
+            if (!Enabled || !FollowSelected || camera == null || SelectedIcao24 == _followed || Selected is not { } state)
             {
                 return;
             }
@@ -410,7 +457,7 @@ namespace ManaGeoTools.Code.Flights
             {
                 length = 13.0f;
             }
-            _follow = new FlightFollowRig(planet, this, state.Icao24, length, camera.Owner.Position, camera.Owner.Rotation);
+            _follow = new FlightFollowRig(planet, this, state.Icao24, length, start ?? new ManaPosition(camera.Owner.Position), camera.Owner.Rotation);
             camera.AttachRig(_follow);
         }
 
@@ -445,7 +492,7 @@ namespace ManaGeoTools.Code.Flights
 
         private void StartWorkIfDue()
         {
-            if (_work != null)
+            if (_usingRecordedSnapshot || _work != null)
             {
                 return;
             }
@@ -578,6 +625,7 @@ namespace ManaGeoTools.Code.Flights
                 _drawnCenters = new Vector3[states.Length];
             }
             _nearest.Clear();
+            _selectedPose = null;
             var index = -1;
             foreach (ref readonly var state in states.AsSpan())
             {
@@ -598,18 +646,32 @@ namespace ManaGeoTools.Code.Flights
                     seconds = 0.0f;
                 }
 
-                var (direction, heading) = FlightDeadReckoning.Advance(state, seconds);
+                var selected = state.Icao24 == SelectedIcao24;
                 var altitude = FlightDeadReckoning.Altitude(state, seconds);
+                ManaPosition preciseCenter;
+                Vector3 direction;
+                Vector3 heading;
+                if (selected)
+                {
+                    var pose = LocatePrecisely(planet, state, now);
+                    _selectedPose = pose;
+                    (preciseCenter, heading, direction) = pose;
+                }
+                else
+                {
+                    (direction, heading) = FlightDeadReckoning.Advance(state, seconds);
+                    preciseCenter = new ManaPosition(direction * (planet.Radius + altitude * heightScale));
+                }
                 // Over the horizon: hidden by the planet anyway, and half the traffic not rewritten every frame.
                 if (Vector3.Dot(direction, camera) < planet.Radius * 0.99f)
                 {
                     continue;
                 }
 
-                var center = direction * (planet.Radius + altitude * heightScale);
+                var center = preciseCenter.ToVector3();
                 var size = Vector3.Distance(camera, center) * MarkerSize;
                 var color = Color;
-                if (state.Icao24 == SelectedIcao24)
+                if (selected)
                 {
                     size *= 1.8f;
                     color = SelectedColor;
@@ -620,14 +682,14 @@ namespace ManaGeoTools.Code.Flights
                 }
                 var distanceSquared = Vector3.DistanceSquared(camera, center);
                 var range = ModelRange * 1000.0f * planet.Radius / PlanetLoader.EarthRadiusMeters;
-                if (Models && ModelCount > 0 && (distanceSquared < range * range || state.Icao24 == SelectedIcao24))
+                if (selected || (Models && ModelCount > 0 && distanceSquared < range * range))
                 {
                     // The selected aircraft first, then nearest first.
-                    if (state.Icao24 == SelectedIcao24)
+                    if (selected)
                     {
                         distanceSquared = -1.0f;
                     }
-                    _nearest.Add(new Nearest(index, distanceSquared, center, heading, direction, size, color));
+                    _nearest.Add(new Nearest(index, distanceSquared, preciseCenter, heading, direction, size, color));
                     continue;
                 }
                 mesh.SetMarker(shown, center, heading, direction, size, color);
@@ -640,6 +702,8 @@ namespace ManaGeoTools.Code.Flights
             _models ??= new FlightTrafficModels(Owner.Context, _markers!);
             _models.Begin();
             SelectedModel = null;
+            SelectedRenderPosition = null;
+            _selectedMarker!.IsVisible = false;
             if (_nearest.Count > 0)
             {
                 _nearest.Sort(static (a, b) => a.DistanceSquared.CompareTo(b.DistanceSquared));
@@ -647,18 +711,34 @@ namespace ManaGeoTools.Code.Flights
                 {
                     var near = _nearest[i];
                     var size = near.Size;
-                    if (i < ModelCount && _models.Place(FlightTrafficModels.KindOf(states[near.Index]), near.Center, near.Heading, near.Up, near.Size * ModelScale))
+                    var selected = states[near.Index].Icao24 == SelectedIcao24;
+                    if (Models && i < ModelCount && _models.Place(FlightTrafficModels.KindOf(states[near.Index]), near.Center, near.Heading, near.Up, near.Size * ModelScale))
                     {
                         // Its marker folds to nothing; the slot stays, so picking still finds the aircraft.
                         size = 0.0f;
-                        if (states[near.Index].Icao24 == SelectedIcao24)
+                        if (selected)
                         {
                             SelectedModel = _models.LastPlaced;
                         }
                     }
-                    mesh.SetMarker(shown, near.Center, near.Heading, near.Up, size, near.Color);
+                    if (selected)
+                    {
+                        if (SelectedModel == null)
+                        {
+                            var marker = (FlightTrafficMesh)_selectedMarker.Mesh;
+                            marker.SetMarker(0, Vector3.Zero, near.Heading, near.Up, size, near.Color);
+                            marker.Publish(1);
+                            _selectedMarker.Owner.PlaceVisual(Matrix4x4.Identity, near.Center);
+                            _selectedMarker.IsVisible = true;
+                        }
+                        SelectedRenderPosition = near.Center.TransformOffset(planet.WorldTransform)
+                            + (planet.PreciseWorldPosition ?? new ManaPosition(planet.WorldTransform.Translation));
+                        size = 0.0f;
+                    }
+                    var center = near.Center.ToVector3();
+                    mesh.SetMarker(shown, center, near.Heading, near.Up, size, near.Color);
                     _drawnIndexes[shown] = near.Index;
-                    _drawnCenters[shown] = near.Center;
+                    _drawnCenters[shown] = center;
                     shown++;
                 }
             }
@@ -748,6 +828,13 @@ namespace ManaGeoTools.Code.Flights
                     };
                     Owner.AddChild(_markers);
                     _markers.UpdateTransform();
+                    var selected = new ManaSceneNode(Owner.Context, Matrix4x4.Identity) { Name = "Selected Aircraft" };
+                    _markers.AddChild(selected);
+                    _selectedMarker = new MeshRendererComponent(selected, new FlightTrafficMesh(Owner.Context, 1, 0.0f))
+                    {
+                        IsVisible = false
+                    };
+                    selected.Components.Add(_selectedMarker);
                 }
 
                 if (_renderer != null)

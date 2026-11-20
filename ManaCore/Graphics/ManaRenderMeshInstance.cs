@@ -20,6 +20,17 @@ namespace ManaCore.Graphics
         public required string Name { get; init; }
         public required ManaMeshCpuData MeshData { get; init; }
         public required Matrix4x4 WorldTransform { get; init; }
+        public ManaPosition? PrecisePosition { get; init; }
+
+        public Vector3 PositionRelativeTo(in ManaCameraData camera)
+        {
+            if (PrecisePosition == null && camera.PrecisePosition == null)
+            {
+                return WorldTransform.Translation - camera.Position;
+            }
+            return ((PrecisePosition ?? new ManaPosition(WorldTransform.Translation))
+                - (camera.PrecisePosition ?? new ManaPosition(camera.Position))).ToVector3();
+        }
         public string? ShaderName { get; init; }
         public Vector4 Albedo { get; init; } = Vector4.One;
         public float Metallic { get; init; }

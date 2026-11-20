@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Models;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 
 namespace ManaGeoTools.Code.Flights
 {
@@ -82,7 +83,7 @@ namespace ManaGeoTools.Code.Flights
         /// and top along <paramref name="up"/> (both unit, at right angles), at least <paramref name="markerSize"/> twice long.
         /// False when the model cannot be loaded (no app loader -- tests, the browser): draw the marker instead.
         /// </summary>
-        public bool Place(AircraftKind kind, Vector3 center, Vector3 forward, Vector3 up, float markerSize)
+        public bool Place(AircraftKind kind, ManaPosition center, Vector3 forward, Vector3 up, float markerSize)
         {
             if (!_pools.TryGetValue(kind, out var pool))
             {
@@ -106,7 +107,7 @@ namespace ManaGeoTools.Code.Flights
                 right.X, right.Y, right.Z, 0.0f,
                 up.X, up.Y, up.Z, 0.0f,
                 -forward.X, -forward.Y, -forward.Z, 0.0f,
-                center.X, center.Y, center.Z, 1.0f);
+                0.0f, 0.0f, 0.0f, 1.0f);
 
             if (pool.Used == pool.Copies.Count)
             {
@@ -119,13 +120,14 @@ namespace ManaGeoTools.Code.Flights
                     lock (world.SceneLock)
                     {
                         _parent.AddChild(copy);
+                        copy.PlaceVisual(placement, center);
                     }
                 });
                 pool.Copies.Add(new Copy(copy));
             }
 
             var placed = pool.Copies[pool.Used++];
-            placed.Node.LocalTransform = placement;
+            placed.Node.PlaceVisual(placement, center);
             placed.Show(true);
             LastPlaced = placed.Node;
             return true;

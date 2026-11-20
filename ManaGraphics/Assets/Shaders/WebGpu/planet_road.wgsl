@@ -17,6 +17,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/camera_relative.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/haze.wgsl"
@@ -62,7 +63,8 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let center = (object.model * vec4<f32>(position, 1.0)).xyz;
     let up = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     var side = (object.model * vec4<f32>(color.xyz, 0.0)).xyz;
-    let to_camera = frame.camera_position.xyz - center;
+    let relative = mana_globe_relative(object.model, position);
+    let to_camera = -relative;
     let distance_to_camera = length(to_camera);
 
     let screen_half = distance_to_camera * custom.widthPerDistance;
@@ -84,9 +86,9 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
         }
     }
 
-    let lifted = center + to_camera * custom.towardCamera;
+    let lifted = relative + to_camera * custom.towardCamera;
     var output : VertexOutput;
-    output.position = frame.projection * (frame.view * vec4<f32>(lifted + side * half_width * uv0.x, 1.0));
+    output.position = mana_relative_clip_position(lifted + side * half_width * uv0.x);
     output.uv0 = uv0;
     output.world_position = center + side * half_width * uv0.x;
     output.world_normal = up;

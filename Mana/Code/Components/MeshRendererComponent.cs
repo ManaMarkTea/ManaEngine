@@ -264,6 +264,18 @@ namespace Mana
         // 8 local AABB corners through Owner.WorldTransform (not just min/max) since that transform can
         // include rotation, which a naive min/max-only transform would get wrong. Mirrors
         // ManaScenePicker's own local-bounds-from-CPU-data pattern.
+        public Matrix4x4 MeshToWorld(out ManaPosition? precise)
+        {
+            var world = Owner.WorldTransform;
+            precise = Owner.PreciseWorldPosition;
+            if (Mesh?.RenderOrigin is { } origin)
+            {
+                precise = origin.TransformOffset(world) + (precise ?? new ManaPosition(world.Translation));
+                world.Translation = precise.Value.ToVector3();
+            }
+            return world;
+        }
+
         public bool TryGetWorldBounds(out Vector3 worldMin, out Vector3 worldMax)
         {
             worldMin = Vector3.Zero;
@@ -297,7 +309,7 @@ namespace Mana
                 localMax = Vector3.Max(localMax, position);
             }
 
-            var worldTransform = Owner.WorldTransform;
+            var worldTransform = MeshToWorld(out _);
             Span<Vector3> localCorners = stackalloc Vector3[8]
             {
                 new Vector3(localMin.X, localMin.Y, localMin.Z),

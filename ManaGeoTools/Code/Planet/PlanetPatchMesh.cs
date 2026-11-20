@@ -32,6 +32,10 @@ namespace ManaGeoTools.Code.Planet
         public int Resolution { get; private set; }
         public float HeightScale { get; private set; }
         public GeoTiffLibrary? HeightLibrary { get; private set; }
+        private readonly ManaPosition _origin;
+        public override ManaPosition? RenderOrigin => _origin;
+
+        internal ManaPosition PlanetPosition(Vector3 vertex) => _origin + new ManaPosition(vertex);
 
         // Set right before GenerateData() by ApplyHeightDataWithResolution's precomputed-heights
         // overload (GPU height-sampling path, see PlanetNode.UpresPatchAsync), consumed and cleared
@@ -74,6 +78,8 @@ namespace ManaGeoTools.Code.Planet
             Resolution = Math.Max(2, resolution);
             HeightScale = heightScale;
             HeightLibrary = heightLibrary;
+            var (axisA, axisB) = CubeSphere.GetFaceAxes(faceNormal);
+            _origin = Direction((minU + (double)maxU) * 0.5, (minV + (double)maxV) * 0.5, axisA, axisB) * radius;
             DefaultVertexColor = Colors.White;
 
             GenerateData();
@@ -182,7 +188,7 @@ namespace ManaGeoTools.Code.Planet
                 var end = Math.Min(positions.Length, (block + 1) * 4096);
                 for (var i = block * 4096; i < end; i++)
                 {
-                    coordinates[i] = PictureCoordinate(GlobalUv(positions[i]), centerU, detail);
+                    coordinates[i] = PictureCoordinate(GlobalUv(PlanetPosition(positions[i]).ToVector3()), centerU, detail);
                 }
             });
 
@@ -443,6 +449,7 @@ namespace ManaGeoTools.Code.Planet
             ForEachRow(n, y =>
             {
                 var v = GridCoordinate(MinV, MaxV, y, n);
+                var preciseV = PreciseGridCoordinate(MinV, MaxV, y, n);
                 for (var x = 0; x < n; x++)
                 {
                     var u = GridCoordinate(MinU, MaxU, x, n);
@@ -462,7 +469,9 @@ namespace ManaGeoTools.Code.Planet
                     }
 
                     var index = y * n + x;
-                    positions[index] = pointOnUnitSphere * (Radius + (rawHeightMeters ?? 0f) * HeightScale);
+                    var preciseU = PreciseGridCoordinate(MinU, MaxU, x, n);
+                    positions[index] = (Direction(preciseU, preciseV, axisA, axisB)
+                        * (Radius + (rawHeightMeters ?? 0f) * (double)HeightScale) - _origin).ToVector3();
                     if (imagery)
                     {
                         texCoords[index] = PictureCoordinate(uv, centerU, detail);
@@ -542,7 +551,7 @@ namespace ManaGeoTools.Code.Planet
                 }
                 for (var i = 0; i < n; i++)
                 {
-                    edgeRadii[i] = positions[EdgeVertex(edge, i, n)].Length();
+                    edgeRadii[i] = (float)PlanetPosition(positions[EdgeVertex(edge, i, n)]).Length();
                 }
                 // A coarser neighbour's straight edge also cuts below the curve: by (spacing)^2 / 8R for one SkirtWindow
                 // times coarser. Ignoring it left hairline cracks that showed the sky as white dots along patch edges.
@@ -577,8 +586,12 @@ namespace ManaGeoTools.Code.Planet
             _skirtDepths = skirtDepths;
             PlaceEdges(positions);
 
-            MinSize = new Vector3(-Radius, -Radius, -Radius);
-            MaxSize = new Vector3(Radius, Radius, Radius);
+            MinSize = MaxSize = positions[0];
+            foreach (var vertex in positions)
+            {
+                MinSize = Vector3.Min(MinSize, vertex);
+                MaxSize = Vector3.Max(MaxSize, vertex);
+            }
 
             // Every patch is its own piece of ground: fingerprinting it for instancing that can never match cost tens
             // of milliseconds on the render thread per streamed patch.
@@ -622,6 +635,15 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>The published vertices along one edge, start to end; null before the first build.</summary>
         public Vector3[]? EdgePoints(int edge)
         {
+            if (PreciseEdgePoints(edge) is not { } points)
+            {
+                return null;
+            }
+            return Array.ConvertAll(points, point => point.ToVector3());
+        }
+
+        internal ManaPosition[]? PreciseEdgePoints(int edge)
+        {
             if (CpuData is not { } current)
             {
                 return null;
@@ -631,10 +653,10 @@ namespace ManaGeoTools.Code.Planet
             {
                 return null;
             }
-            var points = new Vector3[n];
+            var points = new ManaPosition[n];
             for (var i = 0; i < n; i++)
             {
-                points[i] = current.Positions[EdgeVertex(edge, i, n)];
+                points[i] = PlanetPosition(current.Positions[EdgeVertex(edge, i, n)]);
             }
             return points;
         }
@@ -722,7 +744,7 @@ namespace ManaGeoTools.Code.Planet
                 var end = EdgeEnd(edge);
                 for (var i = 0; i < n; i++)
                 {
-                    var along = GridCoordinate(start, end, i, n);
+                    var along = PreciseGridCoordinate(start, end, i, n);
                     foreach (var stitch in stitches)
                     {
                         var slack = (stitch.End - stitch.Start) * 1e-4f;
@@ -732,9 +754,10 @@ namespace ManaGeoTools.Code.Planet
                         }
                         // On the neighbour's straight segment there, so its triangle and this edge share the line exactly.
                         var f = (along - stitch.Start) / (stitch.End - stitch.Start) * (stitch.Points.Length - 1);
-                        var k = Math.Clamp((int)MathF.Floor(f), 0, stitch.Points.Length - 2);
-                        var t = Math.Clamp(f - k, 0.0f, 1.0f);
-                        positions[EdgeVertex(edge, i, n)] = Vector3.Lerp(stitch.Points[k], stitch.Points[k + 1], t);
+                        var k = Math.Clamp((int)Math.Floor(f), 0, stitch.Points.Length - 2);
+                        var t = Math.Clamp(f - k, 0.0, 1.0);
+                        var point = stitch.Points[k] + (stitch.Points[k + 1] - stitch.Points[k]) * t;
+                        positions[EdgeVertex(edge, i, n)] = (point - _origin).ToVector3();
                         break;
                     }
                 }
@@ -745,7 +768,8 @@ namespace ManaGeoTools.Code.Planet
                 for (var i = 0; i < n; i++)
                 {
                     var position = positions[EdgeVertex(edge, i, n)];
-                    positions[gridCount + edge * n + i] = position - Vector3.Normalize(position) * skirtDepths[edge][i];
+                    var down = PlanetPosition(position).Normalized().ToVector3();
+                    positions[gridCount + edge * n + i] = position - down * skirtDepths[edge][i];
                 }
             }
         }
@@ -795,15 +819,26 @@ namespace ManaGeoTools.Code.Planet
             return float.Lerp(min, max, (float)i / (n - 1));
         }
 
+        private static double PreciseGridCoordinate(float min, float max, int i, int n)
+        {
+            return min + ((double)max - min) * i / (n - 1);
+        }
+
+        private ManaPosition Direction(double u, double v, Vector3 axisA, Vector3 axisB)
+        {
+            return CubeSphere.WarpCubeToSphere(new ManaPosition(FaceNormal)
+                + new ManaPosition(axisA) * u + new ManaPosition(axisB) * v);
+        }
+
         // A grid point just outside the patch, (x, y) in its own steps, from the height library (normals only).
         private Vector3 RingPosition(int x, int y, int n, Vector3 axisA, Vector3 axisB)
         {
-            var u = MinU + (MaxU - MinU) * x / (n - 1);
-            var v = MinV + (MaxV - MinV) * y / (n - 1);
-            var pointOnUnitSphere = CubeSphere.WarpCubeToSphere(FaceNormal + (u * axisA) + (v * axisB));
-            var latLong = LatLong.FromPointOnSphere(pointOnUnitSphere, 1f, 0f);
+            var u = PreciseGridCoordinate(MinU, MaxU, x, n);
+            var v = PreciseGridCoordinate(MinV, MaxV, y, n);
+            var direction = Direction(u, v, axisA, axisB);
+            var latLong = LatLong.FromPointOnSphere(direction.ToVector3(), 1f, 0f);
             var rawHeightMeters = HeightLibrary?.FindCurrentTile(latLong)?.GetHeightAtLatLong(latLong);
-            return pointOnUnitSphere * (Radius + (rawHeightMeters ?? 0f) * HeightScale);
+            return (direction * (Radius + (rawHeightMeters ?? 0f) * (double)HeightScale) - _origin).ToVector3();
         }
 
         // Outward normal of the quad whose low corner is (x, y): cross(b - a, d - a) for the CCW order above.
@@ -845,7 +880,7 @@ namespace ManaGeoTools.Code.Planet
     }
 
     /// <summary>A stretch of a coarser neighbour's edge: its vertices, evenly spaced from Start to End along the shared line.</summary>
-    public sealed record PlanetEdgeStitch(float Start, float End, Vector3[] Points);
+    public sealed record PlanetEdgeStitch(float Start, float End, ManaPosition[] Points);
 
     /// <summary>
     /// A sharper picture of one stretch of a planet, and where it lies in the whole picture's coordinates (u east from

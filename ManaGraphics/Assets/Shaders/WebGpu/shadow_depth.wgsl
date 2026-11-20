@@ -9,8 +9,7 @@
 #include "include/uniforms.wgsl"
 
 struct ShadowUniform {
-    // Takes positions relative to origin.xyz (zero for the shadow maps; the camera for the ambient occlusion prepass,
-    // whose matrix then has no translation): see include/camera_relative.wgsl for why.
+    // xyz is the camera origin and w is 1 for a camera-relative depth view, otherwise zero.
     light_view_projection : mat4x4<f32>,
     origin : vec4<f32>,
 };
@@ -36,7 +35,9 @@ struct VertexOutput {
 @vertex
 fn vs_main(input : VertexInput) -> VertexOutput {
     var output : VertexOutput;
-    let relative = (object.model * vec4<f32>(input.position, 0.0)).xyz + (object.model[3].xyz - shadow.origin.xyz);
+    let origin = select(object.model[3].xyz - shadow.origin.xyz,
+        object.relative_model_origin.xyz, shadow.origin.w != 0.0 && object.relative_model_origin.w != 0.0);
+    let relative = (object.model * vec4<f32>(input.position, 0.0)).xyz + origin;
     output.clip_position = shadow.light_view_projection * vec4<f32>(relative, 1.0);
     output.alpha = input.color.a;
     output.uv0 = input.uv0;

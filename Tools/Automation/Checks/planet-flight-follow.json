@@ -1,0 +1,10 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Planet Flight Follow.manalevel"},
+  {"type":"select_flight","name":"FIXTURE1","path":"Tools/Automation/Checks/Data/planet-flight-follow-states.json"},
+  {"type":"gizmos","visible":false},
+  {"type":"wait","frames":300},
+  {"type":"screenshot","path":"@@OUT@@.a.png","clean":true},
+  {"type":"screenshot","path":"@@OUT@@.b.png","clean":true},
+  {"type":"screenshot","path":"@@OUT@@.c.png","clean":true},
+  {"type":"quit"}
+]

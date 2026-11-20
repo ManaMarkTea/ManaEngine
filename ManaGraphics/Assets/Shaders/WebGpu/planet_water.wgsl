@@ -16,6 +16,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/camera_relative.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 #include "include/haze.wgsl"
@@ -93,9 +94,10 @@ fn ripple_slope(p : vec2<f32>, scale : f32, drift : vec2<f32>) -> vec2<f32> {
 @vertex
 fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @location(2) color : vec4<f32>, @location(3) uv0 : vec2<f32>) -> VertexOutput {
     let world = (object.model * vec4<f32>(position, 1.0)).xyz;
-    let lifted = world + (frame.camera_position.xyz - world) * custom.towardCamera;
+    let relative = mana_globe_relative(object.model, position);
+    let lifted = relative * (1.0 - custom.towardCamera);
     var output : VertexOutput;
-    output.position = frame.projection * (frame.view * vec4<f32>(lifted, 1.0));
+    output.position = mana_relative_clip_position(lifted);
     output.shore = color.r;
     output.uv0 = uv0;
     output.world_position = world;

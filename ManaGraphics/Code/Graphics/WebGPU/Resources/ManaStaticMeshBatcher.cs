@@ -94,7 +94,7 @@ public sealed class ManaStaticMeshBatcher
             if (instance.MeshData.Positions.Length == 0 || instance.MeshData.Indexes.Length == 0) continue;
             if (instance.StaticBatchKey == null || instance.IsTransparent || instance.AlwaysOnTop || instance.OutlineEnabled
                 || instance.CustomShaderUniforms is { Count: > 0 } || (instance.ShaderName != null && instance.ShaderName != "ManaPbrShader")
-                || !Matrix4x4.Invert(instance.WorldTransform, out _))
+                || instance.PrecisePosition != null || !Matrix4x4.Invert(instance.WorldTransform, out _))
             {
                 output.Add(instance);
                 continue;

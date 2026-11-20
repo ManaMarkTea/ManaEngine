@@ -190,7 +190,7 @@ namespace ManaGeoTools.Code.Planet
                             }
                             if (PlanetNode.GroundRadius(mesh, u, v) is { } ground)
                             {
-                                radius = MathF.Max(ground, seaRadius);
+                                radius = (float)Math.Max(ground, seaRadius);
                             }
                             break;
                         }

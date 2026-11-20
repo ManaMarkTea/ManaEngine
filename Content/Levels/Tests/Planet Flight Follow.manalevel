@@ -1,0 +1,29 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Planet Flight Follow",
+  "camera": {
+    "position": [4750000, 4215000, 3048000],
+    "rotation": [-0.66323, 1.46608, 0]
+  },
+  "nodes": [
+    {
+      "name": "Earth",
+      "kind": "Planet",
+      "position": [32, 40, 32],
+      "asset": "Assets/Planet/baseline.tif",
+      "planet": {
+        "patchesPerFaceEdge": 6,
+        "radius": 6371000,
+        "resolution": 24,
+        "heightExaggeration": 1,
+        "oceanResolution": 97,
+        "autoLodEnabled": false,
+        "nearOceanEnabled": false
+      },
+      "scripts": [
+        { "id": "8f702d964f5943cba7cd91a4f3cf1728", "type": "FlightTraffic", "properties": { "showAirports": false } }
+      ]
+    }
+  ]
+}

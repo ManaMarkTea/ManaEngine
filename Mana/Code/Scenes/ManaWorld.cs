@@ -608,7 +608,10 @@ namespace Mana
                     MainCamera._ProjectionMatrix,
                     MainCamera.Owner.Position,
                     MainCamera.NearClipPlane,
-                    MainCamera.FarClipPlane),
+                    MainCamera.FarClipPlane)
+                {
+                    PrecisePosition = MainCamera.AttachedRig?.PreciseCameraPosition
+                },
                 Meshes = meshes,
                 GpuParticles = gpuParticles,
                 IrradianceSettings = IrradianceSettings.Clone(),

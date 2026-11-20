@@ -122,7 +122,7 @@ dotnet build ManaEditor -o Artifacts/AutomationBin      # a separate output, so 
 | `place` / `remove` | `name`, `path` (model or `.manaprefab`), `position`, `yaw` (degrees), `scale` / `name` (`*` clears) | Stories: puts a model, character or prefab in a never-saved "Story" scene (`StoryCommands`); characters start on `idle` |
 | `animate` / `walk` / `face` | `name`, `clip`, `loop`, `speed` / `position`, `frames`, `clip`, `background` / `target`, `frames` | Stories: plays a clip; walks there (walk clip, then idle; 1.4 m/s without frames); turns to face a point |
 | `title` | `name`, `path` (PNG), `position` (screen x, y in -1..1), `scale` (share of screen height), `visible` | Stories: a picture held in the scene just in front of the camera, so the retro filter pixelates it |
-| `select_flight` | `name` (callsign or ICAO address; none clears) | Picks a flight in a planet's traffic and puts the camera above it, as the viewport's flight search does |
+| `select_flight` | `name` (callsign or ICAO address; none clears), optional `path` (recorded OpenSky snapshot) | Picks a flight in a planet's traffic as the viewport's flight search does. A snapshot replays from the current frame and replaces the live feed |
 | `quit` | | Closes the editor (always end with it, or the runner times out) |
 
 Reference scenes for rendering checks live in `Content/Levels/Tests/` (not in the web selector), with the scripts that

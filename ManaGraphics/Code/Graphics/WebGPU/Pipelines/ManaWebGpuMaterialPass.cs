@@ -24,6 +24,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private RenderPipeline* _boundPipeline;
         private bool _customGroupBound;
         private long _frameNumber;
+        private ManaCameraData _camera;
         private const uint Alone = uint.MaxValue;
         private readonly Dictionary<string, nint> _shaderModules = new();
         // The pass being drawn's samples a pixel: the scene pass's under MSAA, 1 for the always-on-top pass.
@@ -58,6 +59,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         {
             _sampleCount = frame.SampleCount;
             _frameNumber = frame.Number;
+            _camera = frame.Scene.Camera;
             _boundPipeline = null;
 
             // Opaque meshes grouped by pipeline (fewer state changes), then by what they look like -- meshes with the same
@@ -116,7 +118,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
                 for (var i = 0; i < count; i++)
                 {
-                    _records[i] = _opaque[index + i].Mesh.ObjectUniform(_frameNumber);
+                    _records[i] = _opaque[index + i].Mesh.ObjectUniform(_frameNumber, _camera);
                 }
                 _runs.Add((index, count, _instances.Append<ManaWebGpuObjectUniform>(_records.AsSpan(0, count))));
                 index = end;
@@ -220,7 +222,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private void DrawMesh(RenderPassEncoder* pass, ManaWebGpuSceneMesh sceneMesh)
         {
             // Only reaches the GPU when the mesh's transform or material changed since last frame.
-            sceneMesh.PrepareObjectUniform(_frameNumber);
+            sceneMesh.PrepareObjectUniform(_frameNumber, _camera);
 
             var layout = ManaWebGpuCustomUniforms.Layout(sceneMesh.Instance.ShaderName);
             var oldSize = sceneMesh.CustomUniformLayout.BufferSize;

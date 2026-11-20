@@ -52,6 +52,7 @@ struct FrameUniform {
     haze_color : vec4<f32>,
     haze_planet : vec4<f32>,
     haze_sun : vec4<f32>,
+    camera_position_remainder : vec4<f32>,
 };
 
 struct ObjectUniform {
@@ -70,4 +71,5 @@ struct ObjectUniform {
     // Texture coordinate scale in xy, offset in zw. Applies to every map on the material.
     uv_transform : vec4<f32>,
     parallax : vec4<f32>, // x: inset depth in world metres, y: two-sided lighting
+    relative_model_origin : vec4<f32>,
 };

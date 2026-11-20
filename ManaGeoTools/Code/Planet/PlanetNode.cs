@@ -265,7 +265,7 @@ namespace ManaGeoTools.Code.Planet
             Name = "Planet";
 
             var heightScale = ComputeHeightScale();
-            var step = 2f / PatchesPerFaceEdge;
+            float RootEdge(int index) => (2 * index - PatchesPerFaceEdge) / (float)PatchesPerFaceEdge;
             // The starting patches are built side by side (each one's colours and coastline raster are a few
             // milliseconds; one after another they froze the level's opening for 1.4 s). Only the scene graph below
             // waits for the main thread.
@@ -274,10 +274,11 @@ namespace ManaGeoTools.Code.Planet
             Parallel.For(0, meshes.Length, index =>
             {
                 var normal = CubeSphere.FaceNormals[index / perFace];
-                var minV = -1f + ((index % perFace) / PatchesPerFaceEdge * step);
-                var minU = -1f + ((index % PatchesPerFaceEdge) * step);
+                var row = (index % perFace) / PatchesPerFaceEdge;
+                var col = index % PatchesPerFaceEdge;
                 meshes[index] = new PlanetPatchMesh(
-                    context, normal, minU, minU + step, minV, minV + step, radius, resolution, heightScale, heightLibrary: null, _imageryPath);
+                    context, normal, RootEdge(col), RootEdge(col + 1), RootEdge(row), RootEdge(row + 1),
+                    radius, resolution, heightScale, heightLibrary: null, _imageryPath);
             });
 
             for (var face = 0; face < CubeSphere.FaceNormals.Length; face++)
@@ -285,10 +286,8 @@ namespace ManaGeoTools.Code.Planet
                 var normal = CubeSphere.FaceNormals[face];
                 for (var row = 0; row < PatchesPerFaceEdge; row++)
                 {
-                    var minV = -1f + (row * step);
                     for (var col = 0; col < PatchesPerFaceEdge; col++)
                     {
-                        var minU = -1f + (col * step);
                         var mesh = meshes[face * perFace + row * PatchesPerFaceEdge + col];
                         var key = PatchKey.Root(face, row, col);
                         // A permanent, shared container -- every patch this root's subtree ever splits
@@ -299,7 +298,7 @@ namespace ManaGeoTools.Code.Planet
                         // Every patch of one root hands over to the next without a gap while the GPU uploads it.
                         node.MeshRenderer.HandoverGroup = $"planet:{System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this):x}:{node.Name}";
                         AddChild(node);
-                        var localBounds = ComputePatchLocalBoundsSphere(normal, minU, minU + step, minV, minV + step, radius);
+                        var localBounds = ComputePatchLocalBoundsSphere(normal, mesh.MinU, mesh.MaxU, mesh.MinV, mesh.MaxV, radius);
                         _leaves[key] = new PatchLeaf { Mesh = mesh, Renderer = node.MeshRenderer, RootNode = node, LocalBoundsSphere = localBounds };
                         _componentToPatchKey[node.MeshRenderer] = key;
                         _patchDetails[key] = new PatchDetailInfo(null, mesh.Resolution, null, null);
@@ -494,7 +493,7 @@ namespace ManaGeoTools.Code.Planet
                 var otherStart = other.EdgeStart(edge ^ 1);
                 var otherEnd = other.EdgeEnd(edge ^ 1);
                 if (GivesWayTo(spacing, leaf, (otherEnd - otherStart) / (other.Resolution - 1), neighbour)
-                    && other.EdgePoints(edge ^ 1) is { } points)
+                    && other.PreciseEdgePoints(edge ^ 1) is { } points)
                 {
                     found ??= new List<PlanetEdgeStitch>();
                     found.Add(new PlanetEdgeStitch(otherStart, otherEnd, points));
@@ -2032,7 +2031,7 @@ namespace ManaGeoTools.Code.Planet
         /// it wears and, when its mesh is built, the drawn ground's distance from the planet's centre (planet units).
         /// </summary>
         public readonly record struct PatchSurvey(int? Zoom, double? HeightMetresPerSample, float VertexMetres, PlanetImageryDetail? Detail,
-            float? GroundRadius = null);
+            double? GroundRadius = null);
 
         /// <summary>What the ground straight below <paramref name="worldPosition"/> is drawn from; null while the rebuild lock is busy.</summary>
         public PatchSurvey? SurveyBelow(Vector3 worldPosition)
@@ -2068,7 +2067,7 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // The drawn grid's radius at (u, v), bilinear between its four vertices (the grid is even in u and v).
-        internal static float? GroundRadius(PlanetPatchMesh mesh, float u, float v)
+        internal static double? GroundRadius(PlanetPatchMesh mesh, float u, float v)
         {
             var n = mesh.Resolution;
             if (n < 2 || mesh.CpuData?.Positions is not { } positions || positions.Length < n * n)
@@ -2081,9 +2080,9 @@ namespace ManaGeoTools.Code.Planet
             var y = Math.Min((int)fy, n - 2);
             var tx = fx - x;
             var ty = fy - y;
-            var top = float.Lerp(positions[y * n + x].Length(), positions[y * n + x + 1].Length(), tx);
-            var bottom = float.Lerp(positions[(y + 1) * n + x].Length(), positions[(y + 1) * n + x + 1].Length(), tx);
-            return float.Lerp(top, bottom, ty);
+            var top = double.Lerp(mesh.PlanetPosition(positions[y * n + x]).Length(), mesh.PlanetPosition(positions[y * n + x + 1]).Length(), tx);
+            var bottom = double.Lerp(mesh.PlanetPosition(positions[(y + 1) * n + x]).Length(), mesh.PlanetPosition(positions[(y + 1) * n + x + 1]).Length(), tx);
+            return double.Lerp(top, bottom, ty);
         }
 
         /// <summary>The patches drawn now, or null while the rebuild lock is busy (try again next frame).</summary>

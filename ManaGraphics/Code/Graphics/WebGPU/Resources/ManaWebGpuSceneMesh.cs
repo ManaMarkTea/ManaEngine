@@ -560,25 +560,25 @@ namespace ManaGraphics.Code.Graphics.Resources
         private ManaWebGpuObjectUniform _objectUniform;
 
         /// <summary>This frame's object uniform, worked out once however many passes ask (an instanced draw copies it).</summary>
-        public ref readonly ManaWebGpuObjectUniform ObjectUniform(long frame)
+        public ref readonly ManaWebGpuObjectUniform ObjectUniform(long frame, in ManaCameraData camera)
         {
             if (_objectUniformFrame != frame)
             {
                 _objectUniformFrame = frame;
-                _objectUniform = ManaWebGpuObjectUniform.For(Instance);
+                _objectUniform = ManaWebGpuObjectUniform.For(Instance, camera);
             }
             return ref _objectUniform;
         }
 
         /// <summary>Uploads (if changed) this frame's object uniform to the mesh's own buffer, for a draw of it alone.</summary>
-        public void PrepareObjectUniform(long frame)
+        public void PrepareObjectUniform(long frame, in ManaCameraData camera)
         {
             if (_objectUploadFrame == frame)
             {
                 return;
             }
             _objectUploadFrame = frame;
-            TryUpdateObjectUniform(ObjectUniform(frame));
+            TryUpdateObjectUniform(ObjectUniform(frame, camera));
         }
 
         /// <summary>The object group's entries, kept so an instanced twin of it can be made with the same textures.</summary>

@@ -7,5 +7,8 @@ namespace ManaCore.Graphics
         Matrix4x4 Projection,
         Vector3 Position,
         float NearClipPlane,
-        float FarClipPlane);
+        float FarClipPlane)
+    {
+        public ManaPosition? PrecisePosition { get; init; }
+    }
 }

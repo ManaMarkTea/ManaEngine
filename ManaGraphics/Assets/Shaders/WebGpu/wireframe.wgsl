@@ -8,7 +8,7 @@
 
 @vertex
 fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @location(2) color : vec4<f32>, @location(3) uv0 : vec2<f32>) -> @builtin(position) vec4<f32> {
-    return mana_clip_position(object.model, position);
+    return mana_clip_position(object, position);
 }
 
 @fragment

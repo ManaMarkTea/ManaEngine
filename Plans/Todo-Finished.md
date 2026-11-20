@@ -1,5 +1,10 @@
 # Finished
 
+[x] - Smooth aircraft follow on the true-size planet (2026-11-20). The aircraft and chase camera use
+    the same pose each frame. WebGPU draws the aircraft and terrain patches from camera-relative
+    offsets computed in double precision. Run `Tools/Automation/Checks/planet-flight-follow.json`
+    to replay the chase with a fixed flight report.
+
 [x] - A 2D UI node for HUDs and menus (2026-10-30): `UiCanvas` on level/prefab nodes hosts a `.manaui`
     layout over the viewport, bound to the mode's `HudViewModel` (MVVM, see below), with custom-widget slots.
     Inspector opens the layout in the UI Designer. Contour's cockpit, title, briefing/debrief and map overlay

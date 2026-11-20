@@ -1,4 +1,5 @@
 using ManaGeoTools.Code.Planet;
+using ManaCore.Graphics;
 
 namespace ManaGeoTools.Code.Flights
 {
@@ -18,6 +19,19 @@ namespace ManaGeoTools.Code.Flights
             var angle = state.SpeedMetersPerSecond * seconds / PlanetLoader.EarthRadiusMeters;
             var cos = MathF.Cos(angle);
             var sin = MathF.Sin(angle);
+            return (direction * cos + heading * sin, heading * cos - direction * sin);
+        }
+
+        internal static (ManaPosition Direction, ManaPosition Heading) AdvancePrecisely(in FlightState state, double seconds)
+        {
+            var (sinLon, cosLon) = Math.SinCos(state.Longitude * (Math.PI / 180.0));
+            var (sinLat, cosLat) = Math.SinCos(state.Latitude * (Math.PI / 180.0));
+            var (sinTrack, cosTrack) = Math.SinCos(state.TrackDegrees * (Math.PI / 180.0));
+            var direction = new ManaPosition(-sinLon * cosLat, sinLat, -cosLon * cosLat);
+            var north = new ManaPosition(sinLon * sinLat, cosLat, cosLon * sinLat);
+            var east = new ManaPosition(-cosLon, 0.0, sinLon);
+            var heading = north * cosTrack + east * sinTrack;
+            var (sin, cos) = Math.SinCos(state.SpeedMetersPerSecond * seconds / PlanetLoader.EarthRadiusMeters);
             return (direction * cos + heading * sin, heading * cos - direction * sin);
         }
 

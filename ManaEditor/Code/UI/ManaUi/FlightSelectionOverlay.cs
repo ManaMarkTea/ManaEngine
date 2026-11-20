@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code.Components;
 using Mana.Code.Nodes;
 using Mana.Code.UI;
+using ManaCore.Graphics;
 using ManaGeoTools.Code;
 using ManaGeoTools.Code.Flights;
 using ManaGeoTools.Code.Planet;
@@ -52,6 +53,10 @@ public sealed class FlightSelectionOverlay : Canvas
             {
                 ManaCore.Diagnostics.ManaLog.WriteDiagnostic("Command file: select_flight found no flight traffic, skipping.");
                 return;
+            }
+            if (!string.IsNullOrWhiteSpace(command.Path))
+            {
+                found.Traffic.UseRecordedSnapshot(OpenSkyStates.Parse(File.ReadAllBytes(command.Path)));
             }
             if (string.IsNullOrWhiteSpace(command.Name))
             {
@@ -163,27 +168,31 @@ public sealed class FlightSelectionOverlay : Canvas
     }
 
     // Local planet space to the screen; null behind the camera, or (when asked) over the horizon.
-    private Func<Vector3, bool, Vector2?> Projector(CameraComponent camera, PlanetNode planet)
+    private delegate Vector2? ProjectPoint(Vector3 local, bool horizon, ManaPosition? preciseWorld = null);
+
+    private ProjectPoint Projector(CameraComponent camera, PlanetNode planet)
     {
         // Relative to the camera, as the renderer draws: through the full matrix a point 6,400 km out rounds to half a
         // metre, and the ring round a followed aircraft shook against it.
         var view = camera._ViewMatrix;
         view.Translation = Vector3.Zero;
         var viewProjection = view * camera._ProjectionMatrix;
-        var cameraAt = camera.Owner.WorldTransform.Translation;
+        var cameraAt = camera.AttachedRig?.PreciseCameraPosition ?? new ManaPosition(camera.Owner.WorldTransform.Translation);
         var window = new Vector2(Root!.Size.X, Root.Size.Y);
         var world = planet.WorldTransform;
+        var origin = planet.PreciseWorldPosition ?? new ManaPosition(world.Translation);
         Matrix4x4.Invert(world, out var toLocal);
         var eye = Vector3.Transform(camera.Owner.WorldTransform.Translation, toLocal);
         var radius = planet.Radius;
-        return (local, horizon) =>
+        return (local, horizon, preciseWorld) =>
         {
             // Seen past the planet's limb: the line from the eye to the point dips under the sphere.
             if (horizon && Vector3.Dot(local, eye - local) < 0.0f && Vector3.Dot(Vector3.Normalize(local), eye) < radius)
             {
                 return null;
             }
-            if (VoxelPlacementDepthOverlay.TryProject(viewProjection, window, Vector3.Transform(local, world) - cameraAt, out var screen, out var depth)
+            var relative = ((preciseWorld ?? (new ManaPosition(local).TransformOffset(world) + origin)) - cameraAt).ToVector3();
+            if (VoxelPlacementDepthOverlay.TryProject(viewProjection, window, relative, out var screen, out var depth)
                 && depth >= 0 && depth <= 1)
             {
                 return screen;
@@ -259,7 +268,7 @@ public sealed class FlightSelectionOverlay : Canvas
     }
 
     private void DrawPaths(ManaUiDrawList drawList, PlanetNode planet, FlightTrafficComponent traffic, FlightState state,
-        Func<Vector3, bool, Vector2?> project)
+        ProjectPoint project)
     {
         var (here, _) = traffic.Locate(planet, state);
         var details = traffic.SelectedDetails;
@@ -290,13 +299,8 @@ public sealed class FlightSelectionOverlay : Canvas
             Pin(drawList, traffic.Place(planet, origin.Latitude, origin.Longitude, 0.0f), origin.Code, project, Dim);
         }
 
-        // A bracket round the aircraft itself: where its model is drawn, when it is one.
-        var bracket = here;
-        if (traffic.SelectedModel is { } model && Matrix4x4.Invert(planet.WorldTransform, out var toPlanet))
-        {
-            bracket = Vector3.Transform(model.WorldTransform.Translation, toPlanet);
-        }
-        if (project(bracket, true) is { } at)
+        // Use the rendered origin for both the model and the fallback marker.
+        if (project(here, true, traffic.SelectedRenderPosition) is { } at)
         {
             var ring = new UiRect(at.X - 14.0f, at.Y - 14.0f, 28.0f, 28.0f);
             drawList.DrawBorder(ring, Shadow, 4.0f, new CornerRadius(14.0f));
@@ -330,7 +334,7 @@ public sealed class FlightSelectionOverlay : Canvas
         return points;
     }
 
-    private static void Polyline(ManaUiDrawList drawList, List<Vector3> points, Func<Vector3, bool, Vector2?> project, Vector4 colour, bool dashed)
+    private static void Polyline(ManaUiDrawList drawList, List<Vector3> points, ProjectPoint project, Vector4 colour, bool dashed)
     {
         Vector2? previous = null;
         var length = 0.0f;
@@ -353,7 +357,7 @@ public sealed class FlightSelectionOverlay : Canvas
         }
     }
 
-    private void Pin(ManaUiDrawList drawList, Vector3 local, string code, Func<Vector3, bool, Vector2?> project, Vector4 colour)
+    private void Pin(ManaUiDrawList drawList, Vector3 local, string code, ProjectPoint project, Vector4 colour)
     {
         if (project(local, true) is not { } at)
         {

@@ -91,6 +91,20 @@ public static class PlanetStreamingChecks
 
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        const float span = 1e-6f;
+        var patch = new PlanetPatchMesh(context, Vector3.UnitX, 0, span, 0, span, PlanetLoader.EarthRadiusMeters, 5, 1, null);
+        var adjacent = new PlanetPatchMesh(context, Vector3.UnitX, span, 2 * span, 0, span, PlanetLoader.EarthRadiusMeters, 5, 1, null);
+        var patchOrigin = patch.RenderOrigin.GetValueOrDefault();
+        var adjacentOrigin = adjacent.RenderOrigin.GetValueOrDefault();
+        var edgeA = patch.CpuData!.Positions;
+        var edgeB = adjacent.CpuData!.Positions;
+        Check("Earth-scale terrain vertices stay near their patch anchor",
+            patchOrigin.Length() > 6_000_000 && edgeA.All(vertex => vertex.Length() < 30));
+        Check("adjacent patches reconstruct the same shared edge from different anchors",
+            Enumerable.Range(0, 5).All(row =>
+                ((patchOrigin + new ManaCore.Graphics.ManaPosition(edgeA[row * 5 + 4]))
+                - (adjacentOrigin + new ManaCore.Graphics.ManaPosition(edgeB[row * 5]))).Length() < 1e-6));
+
         var container = new ManaSceneNode(context, Matrix4x4.Identity);
         var planet = new PlanetNode(context, 1, 10, 2, 1, 2);
         container.AddChild(planet);

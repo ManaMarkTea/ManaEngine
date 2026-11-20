@@ -23,6 +23,7 @@ struct VertexOutput {
 };
 
 #include "include/uniforms.wgsl"
+#include "include/camera_relative.wgsl"
 
 @group(0) @binding(0) var<uniform> frame : FrameUniform;
 @group(1) @binding(0) var<uniform> object : ObjectUniform;
@@ -193,10 +194,10 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     // Displace along the outward radial (the undisplaced sphere normal), converting meters to scene
     // units only at the point of use. The depth lift rides on the same radial, so it changes where the
     // surface sits without touching the wave shape or the normal derived from it below.
-    let approx_world = (object.model * vec4<f32>(position, 1.0)).xyz;
-    let view_distance = distance(approx_world, frame.camera_position.xyz);
+    let relative = mana_globe_relative(object.model, position);
+    let view_distance = length(relative);
     let depth_lift = min(custom.depthLiftCoefficient * view_distance * view_distance, custom.depthLiftMaxUnits);
-    let displaced = position + normal * ((height * custom.unitsPerMeter) + depth_lift);
+    let displacement = normal * ((height * custom.unitsPerMeter) + depth_lift);
 
     let step_units = epsilon_meters * custom.unitsPerMeter;
     let d_east = custom.waveEast * step_units + normal * ((height_east - height) * custom.unitsPerMeter);
@@ -205,8 +206,9 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     // needs no sign correction.
     let local_normal = normalize(cross(d_east, d_north));
 
-    let world = object.model * vec4<f32>(displaced, 1.0);
-    output.position = frame.projection * (frame.view * world);
+    let world = object.model * vec4<f32>(position + displacement, 1.0);
+    let lift = (object.model * vec4<f32>(displacement, 0.0)).xyz;
+    output.position = mana_relative_clip_position(relative + lift);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;

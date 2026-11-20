@@ -97,7 +97,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
                 }
 
                 // An instanced draw never fills a mesh's own uniform; outlined alone, it needs this frame's.
-                sceneMesh.PrepareObjectUniform(frame.Number);
+                sceneMesh.PrepareObjectUniform(frame.Number, frame.Scene.Camera);
                 Api.RenderPassEncoderSetBindGroup(renderPass, 1, sceneMesh.ObjectBindGroup, 0, null);
                 sceneMesh.Mesh.Draw(renderPass);
             }

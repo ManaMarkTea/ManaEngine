@@ -15,6 +15,8 @@ namespace Mana
 
         Vector3 CameraPosition { get; }
 
+        ManaCore.Graphics.ManaPosition? PreciseCameraPosition => null;
+
         /// <summary>Pitch, yaw and roll in radians, in <see cref="ManaSceneNode.Rotation"/>'s convention.</summary>
         Vector3 CameraRotation { get; }
 

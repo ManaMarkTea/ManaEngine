@@ -1,4 +1,8 @@
 using System.Text;
+using Mana;
+using Mana.Code;
+using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using ManaGeoTools.Code;
 using ManaGeoTools.Code.Flights;
 using ManaGeoTools.Code.Planet;
@@ -9,8 +13,61 @@ namespace ManaTests;
 /// <summary>Live flight traffic: OpenSky's reply read right, and aircraft flown on the right way between replies.</summary>
 public static class FlightTrafficChecks
 {
+    private static void CheckChasePose(Action<string, bool, string> check)
+    {
+        var world = new ManaWorld();
+        var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        world.CameraNode = new ManaSceneNode(context, Matrix4x4.CreateTranslation(5_500_000, 4_000_000, 3_500_000));
+        var planet = new PlanetNode(context, 1, PlanetLoader.EarthRadiusMeters, 4, 1, 2)
+        {
+            Position = new Vector3(32, 40, 32)
+        };
+        var traffic = new FlightTrafficComponent(planet) { Models = false, FollowSelected = false, ShowAirports = false };
+        planet.Components.Add(traffic);
+        var flight = new FlightState("f10001", "FIXTURE1", -122.75f, 37.7f, 1900, 230, 73, 0, 1000, false, 6);
+        traffic.UseRecordedSnapshot(new FlightSnapshot(1000, [flight]));
+        traffic.Select(flight.Icao24);
+        planet.UpdateTransform();
+
+        var rig = new FlightFollowRig(planet, traffic, flight.Icao24, 36, new ManaPosition(world.CameraNode.WorldTransform.Translation), Vector3.Zero);
+        rig.Evaluate(3);
+        var camera = new ManaCameraData(Matrix4x4.Identity, Matrix4x4.Identity, rig.CameraPosition, 0.1f, float.PositiveInfinity)
+        {
+            PrecisePosition = rig.PreciseCameraPosition
+        };
+        var meshes = new List<ManaRenderMeshInstance>();
+        planet.CollectRenderMeshInstances(meshes);
+        var marker = meshes.SingleOrDefault(mesh => mesh.Name == "Selected Aircraft");
+        check("the fallback marker publishes its selected pose in the same scene walk",
+            marker?.PrecisePosition != null && marker.PrecisePosition == traffic.SelectedRenderPosition, "");
+        if (marker == null)
+        {
+            return;
+        }
+        var offset = marker.PositionRelativeTo(camera);
+        var rotation = rig.CameraRotation;
+        var forward = Vector3.TransformNormal(-Vector3.UnitZ, Matrix4x4.CreateFromYawPitchRoll(rotation.Y, rotation.X, rotation.Z));
+        check("the chase camera looks at the current rendered position at the configured distance",
+            Vector3.Distance(offset, forward * 90) < 0.0001f, $"{offset} vs {forward * 90}");
+
+        var copy = new ManaSceneNode(context, Matrix4x4.Identity);
+        var part = new ManaSceneNode(context, Matrix4x4.CreateTranslation(0.0625f, 0, 0));
+        copy.AddChild(part);
+        var anchor = new ManaPosition(6_371_000.125, 32, 32);
+        copy.PlaceVisual(Matrix4x4.Identity, anchor);
+        check("model children retain sub-metre offsets on the frame they are placed",
+            part.PreciseWorldPosition == new ManaPosition(6_371_000.1875, 32, 32), $"{part.PreciseWorldPosition}");
+
+        var shiftedCamera = camera with { Position = anchor.ToVector3(), PrecisePosition = anchor };
+        var partMesh = marker with { WorldTransform = part.WorldTransform, PrecisePosition = part.PreciseWorldPosition };
+        check("render positions subtract before rounding even when both anchors round to the same float",
+            partMesh.PositionRelativeTo(shiftedCamera) == new Vector3(0.0625f, 0, 0), "");
+    }
+
     public static void Run(ManaFontManager fonts, Action<string, bool, string> check)
     {
+        CheckChasePose(check);
+
         const string reply = """
             {"time":1794613785,"states":[
               ["408127","MUK6977 ","United Kingdom",1794613784,1794613784,4.6139,52.0937,8343.9,false,237.2,130.43,-6.18,null,8321.04,"5203",false,0],

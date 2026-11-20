@@ -66,8 +66,8 @@ fn vs_main(
     output.instance = instance_index;
 #endif
     let world = object.model * vec4<f32>(position, 1.0);
-    output.clip_position = mana_clip_position(object.model, position);
-    output.relative_position = mana_camera_relative(object.model, position);
+    output.relative_position = mana_camera_relative(object, position);
+    output.clip_position = mana_relative_clip_position(output.relative_position);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;

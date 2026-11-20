@@ -19,7 +19,6 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         }
 
         private readonly Matrix4x4[] _cull = new Matrix4x4[ManaWebGpuShadowMap.CascadeCount];
-        private readonly (Matrix4x4 ViewProjection, Vector3 Origin)[] _relative = new (Matrix4x4, Vector3)[ManaWebGpuShadowMap.CascadeCount];
 
         public override string ProfileName => "GPU: Shadow Cascades";
         public override int PipelineCount => _drawer.PipelineCount;
@@ -39,9 +38,8 @@ namespace ManaGraphics.Code.Graphics.Pipelines
             for (var i = 0; i < _cull.Length; i++)
             {
                 _cull[i] = toOrigin * _map.CascadeViewProjections[i];
-                _relative[i] = (_map.CascadeViewProjections[i], origin);
             }
-            _drawer.Draw(frame, _cull, cascade => (nint)_map.CascadeView(cascade), ManaWebGpuShadowMap.IsCaster, relative: _relative);
+            _drawer.Draw(frame, _cull, cascade => (nint)_map.CascadeView(cascade), ManaWebGpuShadowMap.IsCaster, relative: _map.CascadeViewProjections);
         }
 
         public override void Dispose()

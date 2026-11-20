@@ -1,3 +1,5 @@
+using ManaCore.Graphics;
+
 namespace ManaGeoTools.Code.Planet
 {
     public static class CubeSphere
@@ -20,6 +22,17 @@ namespace ManaGeoTools.Code.Planet
             var y = p.Y * MathF.Sqrt(1 - z2 - x2 + (p.X * p.X * p.Z * p.Z) / 3);
             var z = p.Z * MathF.Sqrt(1 - x2 - y2 + (p.X * p.X * p.Y * p.Y) / 3);
             return new Vector3(x, y, z);
+        }
+
+        internal static ManaPosition WarpCubeToSphere(ManaPosition p)
+        {
+            var x2 = p.X * p.X;
+            var y2 = p.Y * p.Y;
+            var z2 = p.Z * p.Z;
+            return new ManaPosition(
+                p.X * Math.Sqrt(1.0 - (y2 + z2) * 0.5 + y2 * z2 / 3.0),
+                p.Y * Math.Sqrt(1.0 - (z2 + x2) * 0.5 + z2 * x2 / 3.0),
+                p.Z * Math.Sqrt(1.0 - (x2 + y2) * 0.5 + x2 * y2 / 3.0));
         }
 
         /// <summary>The (axisA, axisB) tangent basis for a face, matching PlanetPatchMesh's own convention.</summary>
