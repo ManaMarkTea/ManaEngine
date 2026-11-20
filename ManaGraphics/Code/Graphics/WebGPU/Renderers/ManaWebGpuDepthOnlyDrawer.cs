@@ -15,6 +15,14 @@ namespace ManaGraphics.Code.Graphics.Renderers
     /// </summary>
     internal sealed unsafe class ManaWebGpuDepthOnlyDrawer : ManaWebGpuDeviceObject
     {
+        // shadow_depth*.wgsl's ShadowUniform.
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct DepthUniform
+        {
+            public Matrix4x4 ViewProjection;
+            public Vector4 Origin;
+        }
+
         // One view matrix buffer per view. A single shared one, rewritten between views, left every view drawn with
         // the last one's matrix: queue writes all land before the command buffer runs.
         private readonly WebGpuBuffer*[] _uniformBuffers;
@@ -61,7 +69,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
         private void Create(ManaWebGpuSceneBindings bindings)
         {
-            var uniformBufferDescriptor = new BufferDescriptor { Usage = BufferUsage.Uniform | BufferUsage.CopyDst, Size = (ulong)sizeof(Matrix4x4) };
+            var uniformBufferDescriptor = new BufferDescriptor { Usage = BufferUsage.Uniform | BufferUsage.CopyDst, Size = (ulong)sizeof(DepthUniform) };
             for (var view = 0; view < _uniformBuffers.Length; view++)
             {
                 _uniformBuffers[view] = Api.DeviceCreateBuffer(Device, &uniformBufferDescriptor);
@@ -75,7 +83,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
             {
                 Binding = 0,
                 Visibility = ShaderStage.Vertex,
-                Buffer = new BufferBindingLayout { Type = BufferBindingType.Uniform, HasDynamicOffset = false, MinBindingSize = (ulong)sizeof(Matrix4x4) }
+                Buffer = new BufferBindingLayout { Type = BufferBindingType.Uniform, HasDynamicOffset = false, MinBindingSize = (ulong)sizeof(DepthUniform) }
             };
             var layoutDescriptor = new BindGroupLayoutDescriptor { EntryCount = 1, Entries = &layoutEntry };
             _bindGroupLayout = Api.DeviceCreateBindGroupLayout(Device, &layoutDescriptor);
@@ -86,7 +94,7 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
             for (var view = 0; view < _uniformBuffers.Length; view++)
             {
-                var entry = new BindGroupEntry { Binding = 0, Buffer = _uniformBuffers[view], Offset = 0, Size = (ulong)sizeof(Matrix4x4) };
+                var entry = new BindGroupEntry { Binding = 0, Buffer = _uniformBuffers[view], Offset = 0, Size = (ulong)sizeof(DepthUniform) };
                 var descriptor = new BindGroupDescriptor { Layout = _bindGroupLayout, EntryCount = 1, Entries = &entry };
                 _bindGroups[view] = Api.DeviceCreateBindGroup(Device, &descriptor);
                 if (_bindGroups[view] == null)
@@ -218,8 +226,10 @@ namespace ManaGraphics.Code.Graphics.Renderers
         /// when <paramref name="include"/> takes it and its bounds can land in that view, and <paramref name="skip"/>
         /// (given the view and the bounds) does not leave it out there.
         /// </summary>
+        /// <param name="relative">Per view, the matrix to draw with taking positions relative to an origin, and that origin
+        /// (the camera, for a view far from the world's origin); <paramref name="viewProjections"/> then only culls.</param>
         public void Draw(ManaWebGpuFrame frame, ReadOnlySpan<Matrix4x4> viewProjections, Func<int, nint> target, Func<ManaRenderMeshInstance, bool> include,
-            Func<int, (Vector3 Min, Vector3 Max), bool>? skip = null)
+            Func<int, (Vector3 Min, Vector3 Max), bool>? skip = null, ReadOnlySpan<(Matrix4x4 ViewProjection, Vector3 Origin)> relative = default)
         {
             _meshes.Clear();
             foreach (var sceneMesh in frame.Meshes)
@@ -310,8 +320,12 @@ namespace ManaGraphics.Code.Graphics.Renderers
 
             for (var view = 0; view < viewProjections.Length; view++)
             {
-                var viewProjection = viewProjections[view];
-                Api.QueueWriteBuffer(Queue, _uniformBuffers[view], 0, &viewProjection, (nuint)sizeof(Matrix4x4));
+                var uniform = new DepthUniform { ViewProjection = viewProjections[view] };
+                if (view < relative.Length)
+                {
+                    uniform = new DepthUniform { ViewProjection = relative[view].ViewProjection, Origin = new Vector4(relative[view].Origin, 0.0f) };
+                }
+                Api.QueueWriteBuffer(Queue, _uniformBuffers[view], 0, &uniform, (nuint)sizeof(DepthUniform));
                 var depthAttachment = new RenderPassDepthStencilAttachment
                 {
                     View = (TextureView*)target(view),

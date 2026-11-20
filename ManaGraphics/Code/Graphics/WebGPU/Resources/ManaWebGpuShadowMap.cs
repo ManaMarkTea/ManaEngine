@@ -43,7 +43,11 @@ namespace ManaGraphics.Code.Graphics.Resources
 
         public TextureView* ArrayView { get; private set; }
         public Sampler* Sampler { get; private set; }
+        /// <summary>Each cascade's matrix, taking positions relative to <see cref="Origin"/> (the camera this frame).</summary>
         public Matrix4x4[] CascadeViewProjections { get; } = new Matrix4x4[CascadeCount];
+
+        /// <summary>The point the cascades are built round: the camera, so their numbers stay small on a true-size planet.</summary>
+        public Vector3 Origin { get; private set; }
         public float[] CascadeSplitFar { get; } = new float[CascadeCount];
 
         public TextureView* CascadeView(int cascade) => _cascadeViews[cascade];
@@ -151,6 +155,9 @@ namespace ManaGraphics.Code.Graphics.Resources
             {
                 return;
             }
+            // Everything below is relative to the camera: its frustum turning only, and every caster less its place.
+            Origin = camera.Position;
+            inverseView.Translation = Vector3.Zero;
 
             var projection = camera.Projection;
             var tanHalfFovY = MathF.Abs(1.0f / projection.M22);
@@ -175,8 +182,10 @@ namespace ManaGraphics.Code.Graphics.Resources
                 {
                     continue;
                 }
-                var (min, max) = mesh.MeshData.WorldBounds(mesh.WorldTransform);
-                var farthest = Vector3.Max(Vector3.Abs(min - camera.Position), Vector3.Abs(max - camera.Position));
+                var (worldMin, worldMax) = mesh.MeshData.WorldBounds(mesh.WorldTransform);
+                var min = worldMin - camera.Position;
+                var max = worldMax - camera.Position;
+                var farthest = Vector3.Max(Vector3.Abs(min), Vector3.Abs(max));
                 reach = MathF.Max(reach, farthest.Length());
                 for (var corner = 0; corner < 8; corner++)
                 {

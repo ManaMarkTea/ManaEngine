@@ -1,6 +1,8 @@
 // Cascaded shadow map for the scene's single directional "sun" light (frame.sun_direction.w > 0 when one
 // exists and casts shadows this frame -- see ManaWebGpuContext.Shadows.cs / ManaWorld.CreateRenderScene).
-// Any shader can #include this to test a world position against it. Each includer must separately declare
+// Any shader can #include this to test a position against it -- given relative to the camera (the world position less
+// frame.camera_position), as the cascades are built: in world coordinates a true-size planet's 6,400 km left half a
+// metre between the depth stored and the depth tested, and its aircraft were speckled with shadow. Each includer must separately declare
 // `frame : FrameUniform` at @group(0)@binding(0) the way every shader here already does -- this file only
 // adds the two bindings after it plus the lookup function, so it stays a plain addition on top rather than
 // something that could conflict with a shader's own group 0 declaration.
@@ -12,8 +14,8 @@
 // does not carry a separate View matrix, only the combined view_projection) -- close enough at the FOVs
 // this engine uses, and simpler than threading another matrix through just for this.
 // Which cascade a point is shadowed from: 0 nearest, 2 farthest (the debug view's colours).
-fn mana_sun_cascade(world_position : vec3<f32>) -> u32 {
-    let camera_distance = length(frame.camera_position.xyz - world_position);
+fn mana_sun_cascade(relative : vec3<f32>) -> u32 {
+    let camera_distance = length(relative);
     if (camera_distance < frame.cascade_split_far.x) {
         return 0u;
     }
@@ -23,15 +25,15 @@ fn mana_sun_cascade(world_position : vec3<f32>) -> u32 {
     return 2u;
 }
 
-fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
+fn mana_sun_shadow_factor(relative : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
     if (ndotl <= 0.0) {
         return 0.0;
     }
 
     // Across the last fifth of each cascade the next one is mixed in, so the step in texel size is a gradient rather
     // than a line on the ground; the farthest fades out to unshadowed over the end of the shadow distance.
-    let camera_distance = length(frame.camera_position.xyz - world_position);
-    let cascade = mana_sun_cascade(world_position);
+    let camera_distance = length(relative);
+    let cascade = mana_sun_cascade(relative);
     var splits = array<f32, 3>(frame.cascade_split_far.x, frame.cascade_split_far.y, frame.cascade_split_far.z);
     var start = 0.0;
     if (cascade > 0u) {
@@ -40,18 +42,18 @@ fn mana_sun_shadow_factor(world_position : vec3<f32>, normal : vec3<f32>, ndotl 
     let end = splits[cascade];
     let band = (end - start) * 0.2;
     let blend = clamp((camera_distance - (end - band)) / max(band, 0.0001), 0.0, 1.0);
-    let lit = mana_cascade_shadow(cascade, world_position, normal, ndotl);
+    let lit = mana_cascade_shadow(cascade, relative, normal, ndotl);
     if (blend <= 0.0) {
         return lit;
     }
     if (cascade == 2u) {
         return mix(lit, 1.0, blend);
     }
-    return mix(lit, mana_cascade_shadow(cascade + 1u, world_position, normal, ndotl), blend);
+    return mix(lit, mana_cascade_shadow(cascade + 1u, relative, normal, ndotl), blend);
 }
 
 // One cascade's verdict for a point: 1 lit, 0 in shadow, between at edges.
-fn mana_cascade_shadow(cascade : u32, world_position : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
+fn mana_cascade_shadow(cascade : u32, relative : vec3<f32>, normal : vec3<f32>, ndotl : f32) -> f32 {
     let light_view_projection = frame.cascade_view_projections[cascade];
 
     // Biased in metres, a shadow texel or so, not as a share of the light box's depth: that box runs 200 m back for
@@ -68,9 +70,9 @@ fn mana_cascade_shadow(cascade : u32, world_position : vec3<f32>, normal : vec3<
     // Far from the origin a float position is only good to its last bits (half a metre at a true-size planet's
     // 6,400 km): receiver and shadow map then disagree by that much, so both offsets grow with it or the ground
     // speckles. About three units in the last place; a tenth of a millimetre in an ordinary level.
-    let magnitude = max(max(abs(world_position.x), abs(world_position.y)), abs(world_position.z));
+    let magnitude = max(max(abs(relative.x), abs(relative.y)), abs(relative.z));
     let precision_metres = magnitude * 2.4e-7;
-    let offset_position = world_position + normalize(normal) * (texel_metres * (0.5 + 1.5 * sin_light) + precision_metres);
+    let offset_position = relative + normalize(normal) * (texel_metres * (0.5 + 1.5 * sin_light) + precision_metres);
 
     let light_clip = light_view_projection * vec4<f32>(offset_position, 1.0);
     if (light_clip.w <= 0.0) {

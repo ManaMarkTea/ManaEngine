@@ -33,6 +33,7 @@ namespace ManaGraphics.Code.Graphics.Pipelines
         private readonly ManaWebGpuSceneBindings _bindings;
         private readonly ManaWebGpuDepthOnlyDrawer _drawer;
         private readonly Matrix4x4[] _view = new Matrix4x4[1];
+        private readonly (Matrix4x4 ViewProjection, Vector3 Origin)[] _relative = new (Matrix4x4, Vector3)[1];
         private WebGpuBuffer* _params;
         private ShaderModule* _aoShader;
         private ShaderModule* _blurShader;
@@ -120,7 +121,12 @@ namespace ManaGraphics.Code.Graphics.Pipelines
 
             var camera = frame.Scene.Camera;
             _view[0] = camera.View * camera.Projection;
-            _drawer.Draw(frame, _view, _ => (nint)_depthView, Occludes);
+            // Drawn relative to the camera, as the scene pass draws: through world space a mesh far from the origin rounds
+            // differently here and there, and its own surface reads as occluding it in specks.
+            var rotation = camera.View;
+            rotation.Translation = Vector3.Zero;
+            _relative[0] = (rotation * camera.Projection, camera.Position);
+            _drawer.Draw(frame, _view, _ => (nint)_depthView, Occludes, relative: _relative);
 
             Matrix4x4.Invert(camera.Projection, out var inverse);
             Matrix4x4.Invert(camera.View, out var inverseView);

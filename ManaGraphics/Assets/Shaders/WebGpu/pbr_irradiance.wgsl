@@ -7,6 +7,8 @@ struct VertexOutput {
 #if MANA_INSTANCED
     @location(4) @interpolate(flat) instance : u32,
 #endif
+    // The position less the camera's, worked out exactly (include/camera_relative.wgsl) for the shadow lookups.
+    @location(5) relative_position : vec3<f32>,
 };
 
 #include "include/uniforms.wgsl"
@@ -19,6 +21,7 @@ struct VertexOutput {
 #endif
 #include "include/probe_volume.wgsl"
 #include "include/haze.wgsl"
+#include "include/camera_relative.wgsl"
 #if MANA_INSTANCED
 // Instanced (ManaWebGpuMaterialPass batches meshes alike): each instance's object uniform from an array, copied into
 // `object` at the top of each stage so the rest of the shader reads it as the single-mesh build does.
@@ -63,7 +66,8 @@ fn vs_main(
     output.instance = instance_index;
 #endif
     let world = object.model * vec4<f32>(position, 1.0);
-    output.clip_position = frame.projection * (frame.view * (object.model * vec4<f32>(position, 1.0)));
+    output.clip_position = mana_clip_position(object.model, position);
+    output.relative_position = mana_camera_relative(object.model, position);
     output.color = color;
     output.uv0 = uv0;
     output.world_position = world.xyz;
@@ -145,7 +149,8 @@ fn mana_terrain_surface(weights_in : vec4<f32>, top_view : TerrainProjection, si
     return surface;
 }
 
-// Project the view ray onto a plane behind the surface. Dual UV gradients preserve scale and mirroring.
+// Project the view ray onto a plane behind the surface. Dual UV gradients preserve scale and mirroring. `position` is
+// relative to the camera.
 fn mana_inset_uv(uv : vec2<f32>, position : vec3<f32>, normal : vec3<f32>) -> vec2<f32> {
     let dx = dpdx(position);
     let dy = dpdy(position);
@@ -154,7 +159,7 @@ fn mana_inset_uv(uv : vec2<f32>, position : vec3<f32>, normal : vec3<f32>) -> ve
     let area = cross(dx, dy);
     let area_squared = dot(area, area);
     let n = normalize(normal);
-    let view = normalize(frame.camera_position.xyz - position);
+    let view = normalize(-position);
     let offset = -view * object.parallax.x / max(abs(dot(n, view)), 0.15);
     let dual_x = cross(dy, area) / max(area_squared, 1e-20);
     let dual_y = cross(area, dx) / max(area_squared, 1e-20);
@@ -285,7 +290,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
 #endif
     // One transform for every map, so a tiled brick stays registered across albedo, normal and roughness.
     let base_uv = input.uv0 * object.uv_transform.xy + object.uv_transform.zw;
-    let uv = mana_inset_uv(base_uv, input.world_position, input.world_normal);
+    let uv = mana_inset_uv(base_uv, input.relative_position, input.world_normal);
 
     let sampled = textureSample(color_texture, color_sampler, uv);
     let vertex_color_linear = pow(max(input.color.rgb, vec3<f32>(0.0)), vec3<f32>(2.2));
@@ -318,18 +323,20 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // triangle's geometric normal, so faceting needs no duplicated vertices. Derivatives must be taken
     // in uniform control flow, hence computed unconditionally and selected after. The sign flip keeps it
     // in the same hemisphere as the interpolated normal, since winding varies across procedural meshes.
-    let derivative_n = normalize(cross(dpdx(input.world_position), dpdy(input.world_position)));
+    // Derivatives of the camera-relative position: the world position's last bits are half a metre on a true-size
+    // planet, neighbouring pixels often read the same, and a zero cross product normalized to NaN -- black specks.
+    let derivative_n = normalize(cross(dpdx(input.relative_position), dpdy(input.relative_position)));
     let facet_n = select(-derivative_n, derivative_n, dot(derivative_n, smooth_n) >= 0.0);
     let geometric_n = select(smooth_n, facet_n, object.flat_shading > 0.5);
 
 #if MANA_TERRAIN
-    let n = mana_perturb_normal(geometric_n, input.world_position, terrain_p, surface.normal, object.normal_strength);
+    let n = mana_perturb_normal(geometric_n, input.relative_position, terrain_p, surface.normal, object.normal_strength);
 #else
     let normal_sample = textureSample(normal_texture, color_sampler, uv).rgb;
-    let n = mana_perturb_normal(geometric_n, input.world_position, base_uv, normal_sample, object.normal_strength);
+    let n = mana_perturb_normal(geometric_n, input.relative_position, base_uv, normal_sample, object.normal_strength);
 #endif
 
-    let v = normalize(frame.camera_position.xyz - input.world_position);
+    let v = normalize(-input.relative_position);
 
     // Each map multiplies its scalar, and an absent one samples white -- so the scalar alone is what you
     // get, and a map narrows it from there. That is the glTF convention and what a slider beside a map
@@ -360,7 +367,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     var shade = 1.0;
     if (frame.sun_direction.w > 0.5) {
         let sun_ndotl = dot(n, normalize(-frame.sun_direction.xyz));
-        sun_shadow = mana_sun_shadow_factor(input.world_position, n, max(sun_ndotl, 0.0001));
+        sun_shadow = mana_sun_shadow_factor(input.relative_position, n, max(sun_ndotl, 0.0001));
         shade = mix(1.0, mix(ShadowedAmbient, 1.0, sun_shadow), smoothstep(0.0, 0.25, sun_ndotl));
     }
 
@@ -565,7 +572,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     } else if (debug_mode == 17u) {
         // Mode 17: Shadow Cascades -- red nearest, green, blue farthest, over the lit picture.
         var tint = vec3<f32>(0.2, 0.3, 1.0);
-        let cascade = mana_sun_cascade(input.world_position);
+        let cascade = mana_sun_cascade(input.relative_position);
         if (cascade == 0u) {
             tint = vec3<f32>(1.0, 0.25, 0.2);
         } else if (cascade == 1u) {
