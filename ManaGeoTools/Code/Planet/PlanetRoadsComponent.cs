@@ -62,6 +62,9 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>Far roads in their map colours (below) rather than the grey of roads seen from the air.</summary>
         public bool MapStyle { get; set; }
 
+        /// <summary>Guard rails and street lights from Kenney's City Kit along the roads near a low camera.</summary>
+        public bool Props { get; set; } = true;
+
         public Vector4 MotorwayColor { get; set; } = new(1.0f, 0.55f, 0.15f, 1.0f);
 
         public Vector4 TrunkColor { get; set; } = new(0.95f, 0.3f, 0.25f, 1.0f);
@@ -99,6 +102,9 @@ namespace ManaGeoTools.Code.Planet
 
         private readonly RoadLayer _layer;
         private readonly WaterLayer _water;
+        private PlanetRoadProps? _props;
+        private ManaSceneNode? _propsGroup;
+        private readonly List<(RoadClass Class, Vector3[][] Lines)> _propRoads = [];
 
         public PlanetRoadsComponent(ManaSceneNode owner) : base(owner)
         {
@@ -114,6 +120,7 @@ namespace ManaGeoTools.Code.Planet
             {
                 _layer.Update(planet, Context.World.MainCamera, Enabled);
                 _water.Update(planet, Context.World.MainCamera, Enabled && Water);
+                UpdateProps(planet);
             }
         }
 
@@ -122,6 +129,54 @@ namespace ManaGeoTools.Code.Planet
             base.OnRemoved();
             _layer.Remove();
             _water.Remove();
+            if (_propsGroup != null)
+            {
+                lock (Context.World.SceneLock)
+                {
+                    _propsGroup.Parent?.RemoveChild(_propsGroup);
+                }
+                _propsGroup = null;
+                _props = null;
+            }
+        }
+
+        // The kit's pieces along the roads shown, near a low camera.
+        private void UpdateProps(PlanetNode planet)
+        {
+            if (Context.World.MainCamera is not { } camera || !Matrix4x4.Invert(planet.WorldTransform, out var toLocal))
+            {
+                return;
+            }
+            if (_props == null)
+            {
+                _propsGroup = new ManaSceneNode(Context, Matrix4x4.Identity) { Name = "Road Props", IncludeInEnvironmentCapture = false };
+                var group = _propsGroup;
+                var world = Context.World;
+                world.PostUpdateFutures.Add(() =>
+                {
+                    lock (world.SceneLock)
+                    {
+                        planet.AddChild(group);
+                        group.UpdateTransform();
+                    }
+                });
+                _props = new PlanetRoadProps(Context, _propsGroup);
+            }
+            var cameraLocal = Vector3.Transform(camera.Owner.Position, toLocal);
+            var metresPerUnit = PlanetLoader.EarthRadiusMeters / planet.Radius;
+            var heightMetres = (cameraLocal.Length() - planet.Radius) * metresPerUnit;
+            _propRoads.Clear();
+            foreach (var set in _layer.Built)
+            {
+                for (var c = 0; c < RoadClassCount; c++)
+                {
+                    if (set.Points[c].Length > 0 && _layer.ShowsClass(c, heightMetres / 1000.0f))
+                    {
+                        _propRoads.Add(((RoadClass)c, set.Points[c]));
+                    }
+                }
+            }
+            _props.Update(cameraLocal, heightMetres, metresPerUnit, _propRoads, _layer.Revision, Enabled && Props);
         }
 
         private static HttpClient CreateHttp()
@@ -291,6 +346,8 @@ namespace ManaGeoTools.Code.Planet
                         return roads.PrimaryColor;
                 }
             }
+
+            public bool ShowsClass(int lineClass, float altitudeKm) => Shows(lineClass, altitudeKm);
 
             protected override bool Shows(int lineClass, float altitudeKm)
             {

@@ -52,6 +52,12 @@ namespace ManaGeoTools.Code.Planet
 
         public string Status { get; private set; } = "";
 
+        /// <summary>Moves on whenever a cell's lines are built, laid again or let go.</summary>
+        public int Revision { get; private set; }
+
+        /// <summary>The lines of every cell built so far, laid on the ground (planet local).</summary>
+        public IEnumerable<PlanetDrapedLineSet> Built => _cells.Values.Where(cell => cell.Geometry != null).Select(cell => cell.Geometry!);
+
         /// <summary>Some lines are on screen.</summary>
         public bool Drawing { get; private set; }
 
@@ -301,6 +307,7 @@ namespace ManaGeoTools.Code.Planet
             cell.Geometry = geometry;
             cell.Level = cell.WorkLevel;
             cell.LeafSignature = 0;
+            Revision++;
         }
 
         // Lays again, on a worker and one batch at a time, the cells whose ground changed since they were laid -- a patch
@@ -366,6 +373,7 @@ namespace ManaGeoTools.Code.Planet
                     cell.Meshes[c]?.RebuildGeometry();
                 }
                 cell.LeafSignature = signature;
+                Revision++;
             }
         }
 
@@ -421,6 +429,7 @@ namespace ManaGeoTools.Code.Planet
                 RemoveNodes(cell);
             }
             cell.Geometry = null;
+            Revision++;
         }
 
         // Caller holds the scene lock.

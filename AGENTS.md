@@ -522,7 +522,10 @@ dark when it casts shadows, which a click selects; the selected light's range as
   of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
   `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. Drawn by `PlanetRoadMesh` with
   `planet_road.wgsl`: a line `width` pixels wide far off (aerial grey, or the class colours with `mapStyle`), the road's own width
-  close up -- asphalt lit by the sun, edge lines and dashed lanes (OSM motorways are one carriageway each way, three lanes). The same tiles' `water` layer
+  close up -- asphalt lit by the sun, edge lines and dashed lanes (OSM motorways are one carriageway each way, three lanes).
+  Below 1.5 km `PlanetRoadProps` plants Kenney's City Kit (Roads) along them (`props`): `road-straight-barrier` stretched into
+  guard rails down motorway and trunk carriageways within 800 m, `light-curved` street lights within 1.5 km, pooled and re-placed
+  every 50 m the camera moves. The same tiles' `water` layer
   (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
   by `Earcut` (holes kept, so islands stay land), split to 400 m sides, each lake level (`LevelFrom`), drawn by
   `PlanetWaterMesh` with `planet_water.wgsl` -- wind ripples, glint, sky, and shallows and foam by each corner's distance to the
