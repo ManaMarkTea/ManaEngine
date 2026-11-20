@@ -37,7 +37,9 @@ fn mana_haze(colour : vec3<f32>, world_position : vec3<f32>) -> vec3<f32> {
         let point = eye + direction * (enter + (f32(i) + 0.5) * step);
         depth = depth + exp(-max(length(point) - radius, 0.0) / scale_height);
     }
-    let amount = 1.0 - exp(-density * depth * step);
+    // Squared, as a game's distance fog: the near ground stays clear and the haze closes in toward the horizon.
+    let air = density * depth * step;
+    let amount = 1.0 - exp(-air * air);
 
     // Lit where the sun is up over the point, dark air over the night side.
     let lit = smoothstep(-0.12, 0.3, dot(normalize(surface), frame.haze_sun.xyz));

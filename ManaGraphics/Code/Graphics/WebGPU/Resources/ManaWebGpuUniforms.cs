@@ -132,8 +132,8 @@ namespace ManaGraphics.Code.Graphics.Resources
             {
                 towardSun = Vector3.Normalize(towardSun);
             }
-            // The sky's blue, about as bright as the sunlit ground under it (the satellite picture is dark).
-            var colour = new Vector3(0.30f, 0.45f, 0.80f) * sunLight * 0.22f;
+            // Pale, as the sky is near the horizon, so the far ground fades into it.
+            var colour = new Vector3(0.50f, 0.62f, 0.85f) * sunLight * 0.45f;
             uniform.HazeColor = new Vector4(colour, HazePerMetre * metresPerUnit);
             uniform.HazePlanet = planet;
             uniform.HazeSun = new Vector4(towardSun, HazeScaleHeightMetres / metresPerUnit);
