@@ -14,6 +14,14 @@
         public TimeSpan DeltaTime = TimeSpan.Zero;
         public TimeSpan GameTime = TimeSpan.Zero;
 
+        /// <summary>
+        /// The real-world time of this frame in Unix seconds, one value for everything in it: anchored to the clock once,
+        /// then stepped by <see cref="DeltaTime"/> and eased back toward the clock so it never drifts (not while a
+        /// recording fixes the frame length). Things placed by real time -- live aircraft -- read this, so they move by
+        /// the same amount as everything else in a frame instead of by whenever each happened to read the clock.
+        /// </summary>
+        public double FrameUnixSeconds { get; private set; } = double.NaN;
+
         public double FramesPerSecond => DeltaTime.TotalSeconds > 0.0
             ? 1.0 / DeltaTime.TotalSeconds
             : 0.0;
@@ -76,6 +84,22 @@
             _historySecondsTotal += DeltaTime.TotalSeconds;
 
             LastUpdate = now;
+            AdvanceFrameUnixSeconds();
+        }
+
+        private void AdvanceFrameUnixSeconds()
+        {
+            var wall = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            if (double.IsNaN(FrameUnixSeconds) || Math.Abs(wall - FrameUnixSeconds) > 1.0)
+            {
+                FrameUnixSeconds = wall;
+                return;
+            }
+            FrameUnixSeconds += DeltaTime.TotalSeconds;
+            if (FixedFrameSeconds == null)
+            {
+                FrameUnixSeconds += (wall - FrameUnixSeconds) * 0.02;
+            }
         }
 
         public TimeSpan[] OrderedHistory()

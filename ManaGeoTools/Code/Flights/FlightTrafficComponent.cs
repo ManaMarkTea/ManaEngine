@@ -332,7 +332,6 @@ namespace ManaGeoTools.Code.Flights
                 return;
             }
 
-            AdvanceFrameClock();
             AdoptFinishedWork();
             UpdateFollow(planet);
             if (_detailsWork is { IsCompleted: true } details)
@@ -672,38 +671,17 @@ namespace ManaGeoTools.Code.Flights
 
         // Aircraft creep across the screen, so a still camera needs them rewritten ten times a second, not every frame;
         // a moving one (their size follows its distance) every frame.
-        // One reading of the clock a frame, smooth to the microsecond: the drawn aircraft and the camera following it are
-        // flown on to the same instant. Read apart, or from a clock in whole milliseconds, a followed airliner at 120 m/s
-        // landed tens of centimetres off its camera from frame to frame and shook.
-        private static readonly double ClockStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
-        private static readonly System.Diagnostics.Stopwatch ClockWatch = System.Diagnostics.Stopwatch.StartNew();
-        private double _frameClock = double.NaN;
-
-        // Stepped by the frame's own time, not read off the wall when the update happens to run (that moment wanders by
-        // milliseconds, and a followed aircraft and its camera then moved unevenly against the ground), and eased back
-        // toward the wall clock so it never drifts. A recording steps by whole frames, so it takes no easing.
-        private void AdvanceFrameClock()
+        // The frame's one real-world time (ManaTime.FrameUnixSeconds): the drawn aircraft and the camera following it are
+        // flown on to the same instant as everything else in the frame. Read off the wall clock as each update ran, a
+        // followed airliner at 120 m/s moved unevenly against the ground.
+        private static double FrameClock()
         {
-            var wall = ClockStart + ClockWatch.Elapsed.TotalSeconds;
-            if (double.IsNaN(_frameClock) || Math.Abs(wall - _frameClock) > 1.0)
+            var frame = Mana.Code.ManaTime.GlobalTime.FrameUnixSeconds;
+            if (double.IsNaN(frame))
             {
-                _frameClock = wall;
-                return;
+                return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
             }
-            _frameClock += Math.Clamp(Mana.Code.ManaTime.GlobalTime.DeltaTime.TotalSeconds, 0.0, 0.25);
-            if (Mana.Code.ManaTime.FixedFrameSeconds == null)
-            {
-                _frameClock += (wall - _frameClock) * 0.02;
-            }
-        }
-
-        private double FrameClock()
-        {
-            if (double.IsNaN(_frameClock))
-            {
-                return ClockStart + ClockWatch.Elapsed.TotalSeconds;
-            }
-            return _frameClock;
+            return frame;
         }
 
         private bool DueForRedraw(PlanetNode planet, FlightSnapshot snapshot, Vector3 camera)
