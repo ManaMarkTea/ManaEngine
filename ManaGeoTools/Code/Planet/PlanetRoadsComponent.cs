@@ -71,8 +71,6 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>Height in km below which the water shows.</summary>
         public float WaterBelow { get; set; } = 150.0f;
 
-        /// <summary>About the blue of the satellite picture's sea, so lakes and sea read alike.</summary>
-        public Vector4 WaterColor { get; set; } = new(0.11f, 0.27f, 0.52f, 1.0f);
 
         [JsonIgnore]
         public string Status
@@ -333,6 +331,13 @@ namespace ManaGeoTools.Code.Planet
             // No triangle side longer than this (metres), so the water follows the ground's curve and slopes between.
             private const double MaxEdgeMetres = 400.0;
 
+            // A triangle with every corner on the shore reads as all shore (foam, shallows) however wide it is; one wider
+            // than this gets a corner in its middle.
+            private const double ShoreSplitMetres = 30.0;
+
+            // Shore distances are looked for this far out (metres); water farther from any shore is simply that far.
+            private const double ShoreSearchMetres = 3000.0;
+
             // Under roads and borders: they cross water, never the other way.
             private const float TowardCamera = 0.0028f;
 
@@ -362,6 +367,7 @@ namespace ManaGeoTools.Code.Planet
                 var pieces = new List<(int Class, IReadOnlyList<(double Longitude, double Latitude)> Points)>();
                 var triangles = new List<uint[]>();
                 var levelFrom = new List<int>();
+                var shores = new List<float[]>();
                 foreach (var area in areas)
                 {
                     cancellation.ThrowIfCancellationRequested();
@@ -372,6 +378,9 @@ namespace ManaGeoTools.Code.Planet
                     }
                     var metresPerUnit = 40_075_016.7 * Math.Cos(latitude) / ((1 << TileZoom) * area.Extent);
                     var (points, finer) = Subdivide(area.Points, corners, MaxEdgeMetres / metresPerUnit);
+                    var ringCount = area.Points.Length / 2;
+                    SplitShoreTriangles(points, finer, ringCount, ShoreSplitMetres / metresPerUnit);
+                    shores.Add(ShoreDistances(area.Points, area.HoleStarts, points, ringCount, metresPerUnit));
                     var degrees = new (double Longitude, double Latitude)[points.Count / 2];
                     for (var i = 0; i < degrees.Length; i++)
                     {
@@ -394,6 +403,7 @@ namespace ManaGeoTools.Code.Planet
                 var set = PlanetDrapedLineSet.From(pieces, ClassCount, float.MaxValue);
                 set.Triangles = [triangles.ToArray()];
                 set.LevelFrom = [levelFrom.ToArray()];
+                set.Shore = [shores.ToArray()];
                 return set;
             }
 
@@ -471,6 +481,117 @@ namespace ManaGeoTools.Code.Planet
                 return (points, triangles);
             }
 
+            private static void SplitShoreTriangles(List<double> points, List<int> triangles, int ringCount, double minimumSize)
+            {
+                var count = triangles.Count;
+                for (var t = 0; t < count; t += 3)
+                {
+                    var a = triangles[t];
+                    var b = triangles[t + 1];
+                    var c = triangles[t + 2];
+                    if (a >= ringCount || b >= ringCount || c >= ringCount)
+                    {
+                        continue;
+                    }
+                    // Twice the area over the longest side: about how far the middle can be from the shore.
+                    var doubled = Math.Abs((points[b * 2] - points[a * 2]) * (points[c * 2 + 1] - points[a * 2 + 1])
+                        - (points[b * 2 + 1] - points[a * 2 + 1]) * (points[c * 2] - points[a * 2]));
+                    var longest = Math.Sqrt(Math.Max(Squared(points, a, b), Math.Max(Squared(points, b, c), Squared(points, c, a))));
+                    if (longest <= 0.0 || doubled / longest < minimumSize)
+                    {
+                        continue;
+                    }
+                    var middle = points.Count / 2;
+                    points.Add((points[a * 2] + points[b * 2] + points[c * 2]) / 3.0);
+                    points.Add((points[a * 2 + 1] + points[b * 2 + 1] + points[c * 2 + 1]) / 3.0);
+                    triangles[t + 2] = middle;
+                    triangles.AddRange([b, c, middle, c, a, middle]);
+                }
+            }
+
+            // Each point's distance to the nearest edge of any ring, in metres: shore points 0, the rest searched for
+            // through a grid of the edges out to ShoreSearchMetres.
+            private static float[] ShoreDistances(double[] rings, int[] holeStarts, List<double> points, int ringCount, double metresPerUnit)
+            {
+                var distances = new float[points.Count / 2];
+                var reach = ShoreSearchMetres / metresPerUnit;
+                var cell = reach / 4.0;
+                var grid = new Dictionary<(int, int), List<int>>();
+                var starts = new List<int> { 0 };
+                starts.AddRange(holeStarts);
+                starts.Add(ringCount);
+                // Edges by their start point; each ring closes back on its first point.
+                var edgeEnd = new int[ringCount];
+                for (var r = 0; r + 1 < starts.Count; r++)
+                {
+                    for (var i = starts[r]; i < starts[r + 1]; i++)
+                    {
+                        var next = i + 1;
+                        if (next == starts[r + 1])
+                        {
+                            next = starts[r];
+                        }
+                        edgeEnd[i] = next;
+                        var x0 = (int)Math.Floor(Math.Min(rings[i * 2], rings[next * 2]) / cell);
+                        var x1 = (int)Math.Floor(Math.Max(rings[i * 2], rings[next * 2]) / cell);
+                        var y0 = (int)Math.Floor(Math.Min(rings[i * 2 + 1], rings[next * 2 + 1]) / cell);
+                        var y1 = (int)Math.Floor(Math.Max(rings[i * 2 + 1], rings[next * 2 + 1]) / cell);
+                        for (var gx = x0; gx <= x1; gx++)
+                        {
+                            for (var gy = y0; gy <= y1; gy++)
+                            {
+                                if (!grid.TryGetValue((gx, gy), out var list))
+                                {
+                                    list = new List<int>();
+                                    grid[(gx, gy)] = list;
+                                }
+                                list.Add(i);
+                            }
+                        }
+                    }
+                }
+
+                for (var p = ringCount; p < distances.Length; p++)
+                {
+                    var px = points[p * 2];
+                    var py = points[p * 2 + 1];
+                    var best = reach * reach;
+                    var cx = (int)Math.Floor(px / cell);
+                    var cy = (int)Math.Floor(py / cell);
+                    for (var gx = cx - 4; gx <= cx + 4; gx++)
+                    {
+                        for (var gy = cy - 4; gy <= cy + 4; gy++)
+                        {
+                            if (!grid.TryGetValue((gx, gy), out var list))
+                            {
+                                continue;
+                            }
+                            foreach (var i in list)
+                            {
+                                best = Math.Min(best, SegmentSquared(px, py, rings[i * 2], rings[i * 2 + 1], rings[edgeEnd[i] * 2], rings[edgeEnd[i] * 2 + 1]));
+                            }
+                        }
+                    }
+                    distances[p] = (float)(Math.Sqrt(best) * metresPerUnit);
+                }
+                return distances;
+            }
+
+            private static double SegmentSquared(double px, double py, double ax, double ay, double bx, double by)
+            {
+                var dx = bx - ax;
+                var dy = by - ay;
+                var length = dx * dx + dy * dy;
+                var t = 0.0;
+                if (length > 0.0)
+                {
+                    t = Math.Clamp(((px - ax) * dx + (py - ay) * dy) / length, 0.0, 1.0);
+                }
+                var ex = ax + dx * t - px;
+                var ey = ay + dy * t - py;
+                return ex * ex + ey * ey;
+            }
+
             private static (int, int) Key(int a, int b)
             {
                 if (a < b)
@@ -503,10 +624,10 @@ namespace ManaGeoTools.Code.Planet
 
             protected override ManaProceduralMesh CreateMesh(ManaContext context, PlanetDrapedLineSet geometry, int lineClass)
             {
-                return new PlanetWaterMesh(context, geometry.Points[lineClass], geometry.Triangles![lineClass], roads.WaterColor);
+                return new PlanetWaterMesh(context, geometry.Points[lineClass], geometry.Triangles![lineClass], geometry.Shore![lineClass], MetresPerUnit);
             }
 
-            protected override Vector4 ColorOf(int lineClass) => roads.WaterColor;
+            protected override Vector4 ColorOf(int lineClass) => Vector4.One;
 
             protected override bool Shows(int lineClass, float altitudeKm)
             {
@@ -515,11 +636,7 @@ namespace ManaGeoTools.Code.Planet
 
             protected override void SetLook(ManaMaterial material, int lineClass)
             {
-                material.SetShaderUniform("widthPerDistance", 0.0f);
-                material.SetShaderUniform("minHalfWidth", 0.0f);
-                material.SetShaderUniform("maxHalfWidth", 0.0f);
                 material.SetShaderUniform("towardCamera", TowardCamera);
-                material.SetShaderUniform("faceCamera", 0.0f);
             }
         }
     }

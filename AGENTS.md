@@ -513,7 +513,9 @@ dark when it casts shadows, which a click selects; the selected light's range as
   of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
   `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. The same tiles' `water` layer
   (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
-  by `Earcut` (holes kept, so islands stay land), split to 400 m sides, drawn by `PlanetWaterMesh`. Credit: OpenFreeMap,
+  by `Earcut` (holes kept, so islands stay land), split to 400 m sides, each lake level (`LevelFrom`), drawn by
+  `PlanetWaterMesh` with `planet_water.wgsl` -- wind ripples, glint, sky, and shallows and foam by each corner's distance to the
+  shore in metres (vertex colour r; uv0 is east/north metres for the ripples' precision). Credit: OpenFreeMap,
   (c) OpenMapTiles, (c) OpenStreetMap contributors (ODbL).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.

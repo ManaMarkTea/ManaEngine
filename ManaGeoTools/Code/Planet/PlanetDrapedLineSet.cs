@@ -22,6 +22,9 @@ namespace ManaGeoTools.Code.Planet
         /// </summary>
         public int[][]? LevelFrom { get; set; }
 
+        /// <summary>For areas: each point's distance to the nearest shore in metres (by class, then piece).</summary>
+        public float[][][]? Shore { get; set; }
+
         private readonly Vector3[][][] _directions;
         private readonly (int Face, float U, float V)[][][] _faceUvs;
         private readonly Dictionary<int, (float MinU, float MaxU, float MinV, float MaxV)> _boxes = new();
