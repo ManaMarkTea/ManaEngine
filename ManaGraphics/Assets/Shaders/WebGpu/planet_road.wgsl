@@ -114,8 +114,8 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let across = input.uv0.x * input.half_width_metres;
     let pixel_along = max(fwidth(along), 1e-3);
     let pixel_across = max(fwidth(across), 1e-3);
-    if (custom.detailCoverage > 0.0 && input.distance_metres >= custom.detailCoverage
-        || custom.detailCoverage < 0.0 && input.distance_metres < -custom.detailCoverage) {
+    if ((custom.detailCoverage > 0.0 && input.distance_metres >= custom.detailCoverage)
+        || (custom.detailCoverage < 0.0 && input.distance_metres < -custom.detailCoverage)) {
         discard;
     }
 
