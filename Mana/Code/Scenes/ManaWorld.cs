@@ -610,7 +610,7 @@ namespace Mana
                     MainCamera.NearClipPlane,
                     MainCamera.FarClipPlane)
                 {
-                    PrecisePosition = MainCamera.AttachedRig?.PreciseCameraPosition
+                    PrecisePosition = MainCamera.PrecisePosition
                 },
                 Meshes = meshes,
                 GpuParticles = gpuParticles,

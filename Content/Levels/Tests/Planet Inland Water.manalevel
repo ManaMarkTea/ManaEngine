@@ -1,0 +1,29 @@
+{
+  "format": "mana-level",
+  "version": 1,
+  "name": "Planet Inland Water",
+  "camera": {
+    "position": [4932581.85, 3510330.72, 1986355.21],
+    "rotation": [0.396276, 1.289324, 0]
+  },
+  "nodes": [
+    {
+      "name": "Earth",
+      "kind": "Planet",
+      "position": [32, 40, 32],
+      "asset": "Assets/Planet/baseline.tif",
+      "planet": {
+        "patchesPerFaceEdge": 6,
+        "radius": 6371000,
+        "resolution": 24,
+        "heightExaggeration": 1,
+        "oceanResolution": 97,
+        "autoLodEnabled": false,
+        "nearOceanEnabled": false
+      },
+      "scripts": [
+        { "id": "e68b18cbaa73446194514b2c58525428", "type": "PlanetRoads", "properties": { "loadRadius": 60, "props": false } }
+      ]
+    }
+  ]
+}

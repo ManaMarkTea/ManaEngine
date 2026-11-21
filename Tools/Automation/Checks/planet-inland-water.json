@@ -1,0 +1,11 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Planet Inland Water.manalevel"},
+  {"type":"gizmos","visible":false},
+  {"type":"sky","name":"Day"},
+  {"type":"move_camera","position":[4932581.85,3510330.72,1986355.21],"target":[4932141.35,3510522.58,1986227.84]},
+  {"type":"wait","frames":780},
+  {"type":"move_camera","position":[4932327.43,3510431.95,1986262.76],"target":[4932123.05,3510541.14,1986240.48]},
+  {"type":"wait","frames":200},
+  {"type":"screenshot","path":"@@OUT@@","clean":true},
+  {"type":"quit"}
+]

@@ -1,4 +1,5 @@
 using Mana;
+using ManaCore.Graphics;
 
 namespace ManaGeoTools.Code.Planet
 {
@@ -9,9 +10,9 @@ namespace ManaGeoTools.Code.Planet
     /// </summary>
     public sealed class PlanetCameraFit
     {
-        // Fly speed is divided by this per unit of height: at the default speed of 50 the camera covers about half its
-        // own height a second, from orbit down to rooftops; the speed slider and right-drag scroll scale it.
+        // The planet scales the user's fly speed with height, with the base speed available at ground level.
         private const float SpeedHeightReference = 5.0f;
+        private const float MinimumMovementScale = 1.0f;
 
         // Near plane as a share of the height above the surface, so the depth buffer's range follows the camera down
         // instead of spreading 24 bits over a whole planet. The ground is never nearer than the height, so a few percent
@@ -38,7 +39,7 @@ namespace ManaGeoTools.Code.Planet
         private readonly float _baseFar;
         private readonly float _baseNear;
         // The drawn ground's distance from the centre below the camera, from the last survey (sea level until one).
-        private float _groundRadius;
+        private double _groundRadius;
 
         public PlanetCameraFit(CameraComponent camera, PlanetNode planet, bool surfaceUp = false)
         {
@@ -48,7 +49,7 @@ namespace ManaGeoTools.Code.Planet
             _baseNear = camera.NearClipPlane;
             _groundRadius = planet.Radius;
             // Capped: uncapped, each frame's climb raised the next frame's speed, and a fast climb overflowed in half a second.
-            camera.MovementSpeedScale = position => MathF.Min(Height(position), _planet.Radius * MaxSpeedHeightShare) / SpeedHeightReference;
+            camera.MovementSpeedScale = position => MovementScale(Height(position), _planet.Radius);
             if (surfaceUp)
             {
                 camera.UpDirection = Up;
@@ -58,6 +59,11 @@ namespace ManaGeoTools.Code.Planet
 
         /// <summary>The camera held; a mode that swaps cameras (a debug camera made after loading) fits the new one instead.</summary>
         public CameraComponent Camera => _camera;
+
+        public static float MovementScale(float height, float radius)
+        {
+            return MathF.Max(MinimumMovementScale, MathF.Min(height, radius * MaxSpeedHeightShare) / SpeedHeightReference);
+        }
 
         public void Release()
         {
@@ -73,8 +79,13 @@ namespace ManaGeoTools.Code.Planet
         /// <summary>Height above the ground below the camera (sea level until surveyed), in world units; never quite zero.</summary>
         public float Height(Vector3 worldPosition)
         {
-            var distance = Vector3.Distance(worldPosition, _planet.WorldTransform.Translation);
-            return MathF.Max(distance - _groundRadius, _planet.Radius * 1e-6f);
+            var position = new ManaPosition(worldPosition);
+            if (worldPosition == _camera.Owner.Position && _camera.PrecisePosition is { } precise)
+            {
+                position = precise;
+            }
+            var distance = (position - new ManaPosition(_planet.WorldTransform.Translation)).Length();
+            return (float)Math.Max(distance - _groundRadius, _planet.Radius * 1e-6);
         }
 
         /// <summary>The camera's up at a world position: the way out from the planet's centre near it, world +Y far off.</summary>
@@ -145,15 +156,16 @@ namespace ManaGeoTools.Code.Planet
             {
                 return;
             }
-            _groundRadius = (float)ground;
-            var outward = position - center;
+            _groundRadius = ground;
+            var precise = _camera.PrecisePosition ?? new ManaPosition(position);
+            var outward = precise - new ManaPosition(center);
             var distance = outward.Length();
-            var floor = _groundRadius + GroundClearanceMeters * _planet.Radius / PlanetLoader.EarthRadiusMeters;
+            var floor = _groundRadius + GroundClearanceMeters * (double)_planet.Radius / PlanetLoader.EarthRadiusMeters;
             if (_camera.AttachedRig != null || distance >= floor || distance < 1e-3f)
             {
                 return;
             }
-            _camera.Owner.Position = center + outward / distance * floor;
+            _camera.SetFreePosition(new ManaPosition(center) + outward * (floor / distance));
         }
     }
 }

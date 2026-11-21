@@ -66,6 +66,50 @@ namespace Mana
         /// </summary>
         public Func<Vector3, float>? MovementSpeedScale { get; set; }
 
+        private ManaPosition? _freePosition;
+
+        public ManaPosition? PrecisePosition
+        {
+            get
+            {
+                if (AttachedRig != null)
+                {
+                    return AttachedRig.PreciseCameraPosition;
+                }
+                if (MovementSpeedScale != null && _freePosition is { } position && position.ToVector3() == Owner.Position)
+                {
+                    return position;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>Moves the free camera, retaining fractions of a world-coordinate float on a planet.</summary>
+        public void MoveFree(Vector3 offset)
+        {
+            if (MovementSpeedScale == null)
+            {
+                var position = Owner.Position + offset;
+                if (float.IsFinite(position.X) && float.IsFinite(position.Y) && float.IsFinite(position.Z))
+                {
+                    Owner.Position = position;
+                }
+                return;
+            }
+            SetFreePosition((PrecisePosition ?? new ManaPosition(Owner.Position)) + new ManaPosition(offset));
+        }
+
+        public void SetFreePosition(ManaPosition position)
+        {
+            var rounded = position.ToVector3();
+            if (!float.IsFinite(rounded.X) || !float.IsFinite(rounded.Y) || !float.IsFinite(rounded.Z))
+            {
+                return;
+            }
+            _freePosition = position;
+            Owner.Position = rounded;
+        }
+
         /// <summary>
         /// The free camera's up at a world position (null: world +Y). A planet makes it the way out from its centre near
         /// the ground, so the horizon stays level and Q/E climb; the look is carried along as the up turns.
@@ -105,8 +149,11 @@ namespace Mana
 
         public CameraComponent(ManaSceneNode owner) : base(owner)
         {
-            owner.Context.Window.Resize += _Window_Resize;
-            UpdateProjection();
+            if (owner.Context.Window is { } window)
+            {
+                window.Resize += _Window_Resize;
+                UpdateProjection();
+            }
             _viewCenterDistance = EstimateInitialViewCenterDistance(owner);
         }
 
@@ -617,6 +664,7 @@ namespace Mana
 
         public void AttachRig(IManaCameraRig rig)
         {
+            _freePosition = null;
             AttachedRig = rig;
             rig.Snap();
             ApplyAttachedPose(0.0f);
@@ -631,6 +679,7 @@ namespace Mana
             {
                 return;
             }
+            _freePosition = AttachedRig.PreciseCameraPosition;
             AttachedRig = null;
             UpdateProjection();
 
@@ -885,6 +934,7 @@ namespace Mana
 
             float delta = 0.001f;
             float dxAvg = 0, dyAvg = 0;
+            var fly = Vector3.Zero;
             var flySpeed = _MovementSpeed;
             if (MovementSpeedScale != null)
             {
@@ -903,22 +953,22 @@ namespace Mana
             {
                 if (KeyboardState.IsKeyPressed(Key.W))
                 {
-                    position += forward * +delta * flySpeed;
+                    fly += forward;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.S))
                 {
-                    position += forward * -delta * flySpeed;
+                    fly -= forward;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.A))
                 {
-                    position += right * -delta * flySpeed;
+                    fly -= right;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.D))
                 {
-                    position += right * delta * flySpeed;
+                    fly += right;
                 }
             }
 
@@ -926,14 +976,25 @@ namespace Mana
             {
                 if (KeyboardState.IsKeyPressed(Key.E))
                 {
-                    position += worldUp * +delta * flySpeed;
+                    fly += worldUp;
                 }
 
                 if (KeyboardState.IsKeyPressed(Key.Q))
                 {
-                    position += worldUp * -delta * flySpeed;
+                    fly -= worldUp;
                 }
             }
+
+            if (fly != Vector3.Zero)
+            {
+                var offset = fly * (delta * flySpeed);
+                if (float.IsFinite(offset.X) && float.IsFinite(offset.Y) && float.IsFinite(offset.Z))
+                {
+                    MoveFree(offset);
+                    position = Owner.Position;
+                }
+            }
+            var flownTo = position;
 
             if (middleGestureActive)
             {
@@ -991,6 +1052,10 @@ namespace Mana
                 _MovementSpeed = _MovementSpeed.Clamp(0.25f, 25000.0f);
             }
 
+            if (position != flownTo)
+            {
+                _freePosition = null;
+            }
             Owner.Position = position;
             Owner.Rotation = rotationEuler;
             UpdateViewMatrix();

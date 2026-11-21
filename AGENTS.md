@@ -453,8 +453,8 @@ dark when it casts shadows, which a click selects; the selected light's range as
   stage: desktop asks the adapter for its limits (`SupportsPointShadows`, MANA_POINT_SHADOWS); browsers without the room
   build without it and lights cast none. Reference: `Content/Levels/Tests/Point Shadows.manalevel`.
 - **Planet scale:** `Planet Showcase` is Earth at true size (radius 6,371,000 units, a metre each, auto-LOD streaming).
-  While a level has a planet, `EditorPlanetScenery` scales fly speed by height above it (`CameraComponent.MovementSpeedScale`)
-  and fits the clip planes to the height and horizon each frame (`PlanetCameraFit`). The free camera's up (editor and `--play`)
+  While a level has a planet, `PlanetCameraFit` scales fly speed by height with a 1× minimum and fits the clip planes
+  to the height and horizon. `CameraComponent` keeps sub-metre fly steps in double precision. The free camera's up (editor and `--play`)
   turns from world +Y to the way out from the planet's centre below ~3,000 km (`CameraComponent.UpDirection`, carried
   frame to frame so it never spins at a pole), so the horizon stays level and Q/E climb. Auto-LOD judges a patch by its
   nearest edge, so a camera dropped low refines at once. `PlanetReadoutManaView` shows altitude above sea level, the
@@ -525,10 +525,10 @@ dark when it casts shadows, which a click selects; the selected light's range as
   (`props`), leaving their ends, sharp turns, ramps, and bridge decks clear of guardrails. Replay
   `Tools/Automation/Checks/planet-road-cleanup.json` for the Phoenix interchange. Tiles cache by zoom in
   `Library/PlanetRoads/Tiles/` on desktop. The zoom-9 tiles' `water` layer
-  (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
-  by `Earcut` (holes kept, so islands stay land), split to 400 m sides, each lake level (`LevelFrom`), drawn by
-  `PlanetWaterMesh` with `planet_water.wgsl` -- wind ripples, glint, sky, and shallows and foam by each corner's distance to the
-  shore in metres (vertex colour r; uv0 is east/north metres for the ripples' precision). Credit: OpenFreeMap,
+  (lakes, rivers and ponds) is triangulated around islands, then refined by `PlanetWaterTessellation` to sample real
+  banks more closely. `PlanetWaterMesh` gives the shader shore distance and tile-local UVs. The shader keeps one owner
+  for each tile's water and shares the ripple phase across tile edges. Replay `Tools/Automation/Checks/planet-inland-water.json`
+  for the low view over Tempe Town Lake. Credit: OpenFreeMap,
   (c) OpenMapTiles, (c) OpenStreetMap contributors (ODbL).
 - **Wind:** `ManaIrradianceSettings.WindSpeed`/`WindDirection`/`Gustiness` (Scene Inspector > world settings > Wind); `ManaWind.Tick` gusts it once a frame and accumulates the drift, which reaches every shader as `frame.wind`/`frame.wind_motion`. Water swell, ripples and the darker gust patches follow it.
 - **Sky clock:** `ManaIrradianceSettings.SkyDateTime` is the simulated local date/time; `ManaLunarPhase` computes mean lunar phase in UTC from it. The reusable `ManaDateTimePickerWidget` (ManaUI) takes optional phase providers and extra popup content; `SkyClockManaView` supplies the Solar/Sidereal selector (`86,164.0905` seconds per cycle); `TimeSpeed` advances the calendar as well as the sky phase and may be negative.

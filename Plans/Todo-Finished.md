@@ -1,5 +1,10 @@
 # Finished
 
+[x] - Fix inland water bands and low planet camera movement (2026-11-20). The water shader clips tile
+    overlap and shares ripple phase across seams. `PlanetWaterTessellation` measures distance to real
+    shores on a finer bank mesh. The fly camera keeps its base speed near the ground and accumulates
+    small moves in double precision. Visual check in `Tools/Automation/Checks/planet-inland-water.json`.
+
 [x] - Clean up Planet Showcase roads near the ground (2026-11-20). Detailed OpenStreetMap tiles supply the
     close-up roads. Buffered duplicates are clipped out, ramps have their own width, the road mesh follows
     the terrain triangles, and props keep clear of ramps, bridge decks and road ends. The Phoenix

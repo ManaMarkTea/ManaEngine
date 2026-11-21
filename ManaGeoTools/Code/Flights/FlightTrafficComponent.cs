@@ -430,7 +430,7 @@ namespace ManaGeoTools.Code.Flights
         private void UpdateFollow(PlanetNode planet)
         {
             var camera = Owner.Context.World.MainCamera;
-            var start = camera?.AttachedRig?.PreciseCameraPosition;
+            var start = camera?.PrecisePosition;
             if (_follow != null && (camera == null || !ReferenceEquals(camera.AttachedRig, _follow) || _follow.Lost
                 || SelectedIcao24 != _follow.Icao24 || !FollowSelected || !Enabled || FlyKeyDown()))
             {

@@ -3,8 +3,7 @@
 // water.wgsl assumes a level plane with world +Y up; here up is the way out from the planet's centre.
 //
 // Vertex channels (PlanetWaterMesh owns both sides):
-//   uv0     - (east, north) metres from the mesh's own origin: small numbers, so ripples a few metres across keep their
-//             precision on coordinates millions of metres from the planet's centre.
+//   uv0     - (east, north) within the Mercator tile. The buffer outside [0, 1) helps sample the shore but isn't drawn.
 //   color.r - metres to the nearest shore (interpolated between corners, so only as sharp as the triangles).
 
 struct VertexOutput {
@@ -13,6 +12,7 @@ struct VertexOutput {
     @location(1) uv0 : vec2<f32>,
     @location(2) world_position : vec3<f32>,
     @location(3) world_normal : vec3<f32>,
+    @location(4) relative_position : vec3<f32>,
 };
 
 #include "include/uniforms.wgsl"
@@ -32,11 +32,11 @@ struct CustomMaterialUniform {
     waveStrength : f32,
 
     // Metres from the shore over which the water goes from shallow to deep.
-    //PROPERTY(default=120.0, min=1.0, max=5000.0)
+    //PROPERTY(default=35.0, min=1.0, max=5000.0)
     shoreWidth : f32,
 
     // Metres of foam along the shore.
-    //PROPERTY(default=25.0, min=0.0, max=500.0)
+    //PROPERTY(default=5.0, min=0.0, max=500.0)
     foamWidth : f32,
 
     //PROPERTY(default=[0.02,0.07,0.14], min=[0.0,0.0,0.0], max=[2.0,2.0,2.0])
@@ -44,6 +44,9 @@ struct CustomMaterialUniform {
 
     //PROPERTY(default=[0.04,0.12,0.17], min=[0.0,0.0,0.0], max=[2.0,2.0,2.0])
     shallowColor : vec3<f32>,
+
+    //PROPERTY(default=[0.0,0.0])
+    tileIndex : vec2<f32>,
 };
 
 @group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
@@ -58,36 +61,46 @@ fn hash21(p : vec2<f32>) -> f32 {
     return fract((p3.x + p3.y) * p3.z);
 }
 
-fn value_noise(p : vec2<f32>) -> f32 {
+// Web Mercator metres per zoom-9 tile. An integer lattice per tile keeps opposite edges in phase.
+const TileMetres : f32 = 78271.516;
+
+fn lattice_hash(p : vec2<f32>) -> f32 {
+    return hash21(fract(p / 4096.0) * 4096.0);
+}
+
+fn value_noise(p : vec2<f32>, cells : f32) -> f32 {
     let i = floor(p);
     let f = fract(p);
-    let a = hash21(i);
-    let b = hash21(i + vec2<f32>(1.0, 0.0));
-    let c = hash21(i + vec2<f32>(0.0, 1.0));
-    let d = hash21(i + vec2<f32>(1.0, 1.0));
+    let wrapped_cells = fract(cells / 4096.0) * 4096.0;
+    let origin = fract(custom.tileIndex * wrapped_cells / 4096.0) * 4096.0;
+    let a = lattice_hash(i + origin);
+    let b = lattice_hash(i + origin + vec2<f32>(1.0, 0.0));
+    let c = lattice_hash(i + origin + vec2<f32>(0.0, 1.0));
+    let d = lattice_hash(i + origin + vec2<f32>(1.0, 1.0));
     let u = f * f * (3.0 - 2.0 * f);
     return mix(mix(a, b, u.x), mix(c, d, u.x), u.y) * 2.0 - 1.0;
 }
 
-fn wave_noise(p : vec2<f32>) -> f32 {
+fn wave_noise(p : vec2<f32>, cells : f32) -> f32 {
     var value = 0.0;
     var amplitude = 0.5;
     var freq = 1.0;
     for (var i = 0u; i < 3u; i = i + 1u) {
-        value = value + value_noise(p * freq) * amplitude;
-        freq = freq * 2.03;
+        value = value + value_noise(p * freq, cells * freq) * amplitude;
+        freq = freq * 2.0;
         amplitude = amplitude * 0.5;
     }
     return value;
 }
 
-// The ripples' slope at p (metres) for one scale, carried downwind.
+// The ripples' slope at a tile coordinate, carried downwind.
 fn ripple_slope(p : vec2<f32>, scale : f32, drift : vec2<f32>) -> vec2<f32> {
-    let q = (p - drift) / scale;
+    let cells = round(TileMetres / scale);
+    let q = (p - drift / TileMetres) * cells;
     let e = 0.15;
-    let h = wave_noise(q);
-    let hx = wave_noise(q + vec2<f32>(e, 0.0));
-    let hy = wave_noise(q + vec2<f32>(0.0, e));
+    let h = wave_noise(q, cells);
+    let hx = wave_noise(q + vec2<f32>(e, 0.0), cells);
+    let hy = wave_noise(q + vec2<f32>(0.0, e), cells);
     return vec2<f32>(hx - h, hy - h) / e;
 }
 
@@ -101,6 +114,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     output.shore = color.r;
     output.uv0 = uv0;
     output.world_position = world;
+    output.relative_position = relative;
     output.world_normal = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     return output;
 }
@@ -109,7 +123,10 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
 fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     // How many metres a pixel spans, before any branch (uniformity): ripples smaller than a few pixels fade out
     // rather than shimmer.
-    let pixel_metres = max(length(fwidth(input.uv0)), 1e-3);
+    let pixel_metres = max(length(fwidth(input.uv0)) * TileMetres, 1e-3);
+    if (any(input.uv0 < vec2<f32>(0.0)) || any(input.uv0 >= vec2<f32>(1.0))) {
+        discard;
+    }
 
     let up = normalize(input.world_normal);
     var east = cross(vec3<f32>(0.0, 1.0, 0.0), up);
@@ -143,7 +160,7 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     slope = slope * custom.waveStrength * breeze * (0.3 + 0.7 * calm);
     let n = normalize(up - east * slope.x - north * slope.y);
 
-    let v = normalize(frame.camera_position.xyz - input.world_position);
+    let v = normalize(-input.relative_position);
     let ndotv = saturate(dot(n, v));
 
     var to_sun = frame.sun_direction.xyz;
@@ -173,9 +190,11 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     colour = colour + min(sun_light, vec3<f32>(3.0)) * pow(max(dot(n, half_vector), 0.0), 600.0) * 0.6 * day;
 
     // Foam along the shore, broken up so it is not a ruled line.
-    let broken = value_noise(input.uv0 / 9.0 + travel * 0.05) * 0.5 + 0.5;
-    let foam = (1.0 - smoothstep(custom.foamWidth * 0.3, custom.foamWidth, shore + broken * custom.foamWidth * 0.6)) * 0.45;
-    colour = mix(colour, vec3<f32>(0.85, 0.9, 0.92) * (0.05 + 0.75 * day), foam * (1.0 - smoothstep(custom.foamWidth * 4.0, custom.foamWidth * 40.0, pixel_metres)));
+    let foam_cells = round(TileMetres / 9.0);
+    let broken = value_noise((input.uv0 + travel * 0.05 / TileMetres) * foam_cells, foam_cells) * 0.5 + 0.5;
+    let foam_width = max(custom.foamWidth, 0.001);
+    let foam = (1.0 - smoothstep(foam_width * 0.3, foam_width, shore + broken * foam_width * 0.6)) * 0.23;
+    colour = mix(colour, vec3<f32>(0.85, 0.9, 0.92) * (0.05 + 0.75 * day), foam * (1.0 - smoothstep(foam_width * 4.0, foam_width * 40.0, pixel_metres)));
 
     colour = mana_haze(colour, input.world_position);
     return vec4<f32>(colour * frame.irradiance_factors.x, 1.0);

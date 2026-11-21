@@ -26,6 +26,8 @@ namespace ManaGeoTools.Code.Planet
 
         /// <summary>For areas: each point's distance to the nearest shore in metres (by class, then piece).</summary>
         public float[][][]? Shore { get; set; }
+        public Vector2[][]? WaterCoordinates { get; set; }
+        public Vector2 WaterTileIndex { get; set; }
 
         public ManaPosition? RoadOrigin { get; private set; }
         private bool[]? _roadBridges;

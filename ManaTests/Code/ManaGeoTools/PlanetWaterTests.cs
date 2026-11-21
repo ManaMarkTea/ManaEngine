@@ -1,4 +1,6 @@
 using ManaGeoTools.Code.Geometry;
+using ManaGeoTools.Code.Osm;
+using ManaGeoTools.Code.Planet;
 using ManaUI;
 
 namespace ManaTests;
@@ -18,6 +20,13 @@ public static class PlanetWaterChecks
         double[] shape = [0, 0, 0, 4, 2, 4, 2, 2, 4, 2, 4, 0];
         var l = Earcut.Triangulate(shape, []);
         check("a concave shape either way round is covered exactly", Math.Abs(Area(shape, l) - 12.0) < 1e-9, $"{Area(shape, l)}");
+
+        var bufferedRiver = new WaterArea([-20, 32, 180, 32, 180, 132, -20, 132], [], 160, "river");
+        var (points, refined, shore) = PlanetWaterTessellation.Build(bufferedRiver, 1.0);
+        var middle = Enumerable.Range(0, shore.Length).FirstOrDefault(i => points[2 * i] == -20 && points[2 * i + 1] == 82, -1);
+        check("a clipped buffer edge does not turn into a shoreline", middle >= 0 && shore[middle] == 50, $"{middle}");
+        check("shore refinement keeps the water polygon intact and samples the middle",
+            Math.Abs(Area(points.ToArray(), refined) - 20_000) < 1e-9 && shore.Any(d => d is > 0 and < 20), $"{refined.Count / 3} triangles");
     }
 
     private static double Area(double[] xy, List<int> triangles)

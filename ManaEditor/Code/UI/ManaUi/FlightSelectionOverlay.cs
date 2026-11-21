@@ -177,7 +177,7 @@ public sealed class FlightSelectionOverlay : Canvas
         var view = camera._ViewMatrix;
         view.Translation = Vector3.Zero;
         var viewProjection = view * camera._ProjectionMatrix;
-        var cameraAt = camera.AttachedRig?.PreciseCameraPosition ?? new ManaPosition(camera.Owner.WorldTransform.Translation);
+        var cameraAt = camera.PrecisePosition ?? new ManaPosition(camera.Owner.WorldTransform.Translation);
         var window = new Vector2(Root!.Size.X, Root.Size.Y);
         var world = planet.WorldTransform;
         var origin = planet.PreciseWorldPosition ?? new ManaPosition(world.Translation);

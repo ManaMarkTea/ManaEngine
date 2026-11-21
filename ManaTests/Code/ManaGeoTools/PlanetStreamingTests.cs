@@ -91,6 +91,21 @@ public static class PlanetStreamingChecks
 
         var world = new ManaWorld();
         var context = new ManaContext(null!, null!, world) { DeferGpuUploads = true };
+        Check("the planet fly speed bottoms out at the user-selected speed",
+            PlanetCameraFit.MovementScale(0, 40) == 1 && PlanetCameraFit.MovementScale(0, 6_371_000) == 1
+            && PlanetCameraFit.MovementScale(50, 6_371_000) == 10 && PlanetCameraFit.MovementScale(10_000, 40) == 16);
+        var cameraNode = new ManaSceneNode(context, Matrix4x4.CreateTranslation(6_371_000, 0, 0));
+        var camera = new CameraComponent(cameraNode) { MovementSpeedScale = _ => 1 };
+        for (var i = 0; i < 32; i++)
+        {
+            camera.MoveFree(new Vector3(0.03125f, 0, 0));
+        }
+        Check("sub-float fly movements accumulate instead of getting stuck at Earth scale",
+            cameraNode.Position.X == 6_371_001 && camera.PrecisePosition?.X == 6_371_001);
+        cameraNode.Position = new Vector3(5_000_000, 0, 0);
+        camera.MoveFree(new Vector3(0.125f, 0, 0));
+        Check("an external camera move clears the previous fly remainder",
+            camera.PrecisePosition?.X == 5_000_000.125);
         const float span = 1e-6f;
         var patch = new PlanetPatchMesh(context, Vector3.UnitX, 0, span, 0, span, PlanetLoader.EarthRadiusMeters, 5, 1, null);
         var adjacent = new PlanetPatchMesh(context, Vector3.UnitX, span, 2 * span, 0, span, PlanetLoader.EarthRadiusMeters, 5, 1, null);
