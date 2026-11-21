@@ -30,6 +30,8 @@ namespace ManaGeoTools.Code.Planet
         private ManaSceneNode? _group;
         private Task<DrapeResult>? _drapeWork;
         private string _lastStatus = "";
+        private bool _drawEnabled = true;
+        private float _altitudeKm;
 
         protected PlanetLineLayer(ManaComponent owner, string groupName, string logTag, int classCount)
         {
@@ -60,6 +62,21 @@ namespace ManaGeoTools.Code.Planet
 
         /// <summary>Some lines are on screen.</summary>
         public bool Drawing { get; private set; }
+
+        public bool IsBuilt((int X, int Y) key) => _cells.TryGetValue(key, out var cell) && cell.Geometry != null;
+
+        protected void RefreshMaterials() => ApplyLook(_altitudeKm, resize: true);
+
+        public void SetDrawEnabled(bool enabled)
+        {
+            if (_drawEnabled == enabled)
+            {
+                return;
+            }
+            _drawEnabled = enabled;
+            ApplyLook(_altitudeKm, resize: false);
+            UpdateDrawing();
+        }
 
         /// <summary>
         /// The cells to load, nearest first, each with the level of detail it should have (0 the finest), and the wider set
@@ -100,7 +117,7 @@ namespace ManaGeoTools.Code.Planet
             var widthKm = (east - west) * 111.0 * Math.Cos(middleLatitude * Math.PI / 180.0);
             var heightKm = (north - south) * 111.0;
             var halfDiagonalKm = (float)(0.5 * Math.Sqrt(widthKm * widthKm + heightKm * heightKm));
-            var angle = MathF.Acos(Math.Clamp(Vector3.Dot(centre, below), -1.0f, 1.0f));
+            var angle = 2.0f * MathF.Asin(Math.Clamp(Vector3.Distance(centre, below) * 0.5f, 0.0f, 1.0f));
             return MathF.Max(0.0f, angle * PlanetLoader.EarthRadiusMeters / 1000.0f - halfDiagonalKm);
         }
 
@@ -110,7 +127,7 @@ namespace ManaGeoTools.Code.Planet
             return wanted < built || wanted > built + 1;
         }
 
-        public void Update(PlanetNode planet, CameraComponent? camera, bool enabled)
+        public void Update(PlanetNode planet, CameraComponent? camera, bool enabled, float? terrainHeightKm = null)
         {
             AdoptFinished(planet);
 
@@ -129,7 +146,8 @@ namespace ManaGeoTools.Code.Planet
 
             var cameraLocal = Vector3.Transform(camera.Owner.Position, worldToLocal);
             MetresPerUnit = PlanetLoader.EarthRadiusMeters / planet.Radius;
-            var altitudeKm = (cameraLocal.Length() - planet.Radius) * MetresPerUnit / 1000.0f;
+            var altitudeKm = terrainHeightKm ?? ((cameraLocal.Length() - planet.Radius) * MetresPerUnit / 1000.0f);
+            _altitudeKm = altitudeKm;
             var below = Vector3.Normalize(cameraLocal);
 
             var screenHeight = 1080.0f;
@@ -294,6 +312,7 @@ namespace ManaGeoTools.Code.Planet
                         IncludeInEnvironmentCapture = false
                     };
                     var renderer = new MeshRendererComponent(node, mesh);
+                    renderer.IsVisible = _drawEnabled && Shows(c, _altitudeKm);
                     node.Components.Add(renderer);
                     _group.AddChild(node);
                     node.UpdateTransform();
@@ -387,7 +406,7 @@ namespace ManaGeoTools.Code.Planet
                     {
                         continue;
                     }
-                    renderer.IsVisible = Shows(c, altitudeKm);
+                    renderer.IsVisible = _drawEnabled && Shows(c, altitudeKm);
                     if (resize)
                     {
                         SetLook(renderer.Material, c);
@@ -399,7 +418,7 @@ namespace ManaGeoTools.Code.Planet
         private void ReportStatus(float altitudeKm)
         {
             var ready = _cells.Values.Count(cell => cell.Geometry != null);
-            Drawing = _cells.Values.Any(cell => cell.Renderers.Any(renderer => renderer is { IsVisible: true }));
+            UpdateDrawing();
             var loading = _cells.Values.Count(cell => cell.Work != null);
             Status = $"{ready} cells drawn, {loading} loading";
             if (Status != _lastStatus && loading == 0 && _cells.Count > 0)
@@ -407,6 +426,11 @@ namespace ManaGeoTools.Code.Planet
                 Console.WriteLine($"[{_logTag}] {Status} at {altitudeKm:0.#} km.");
             }
             _lastStatus = Status;
+        }
+
+        private void UpdateDrawing()
+        {
+            Drawing = _cells.Values.Any(cell => cell.Renderers.Any(renderer => renderer is { IsVisible: true }));
         }
 
         private void UnloadAll()

@@ -511,21 +511,20 @@ dark when it casts shadows, which a click selects; the selected light's range as
   browser, cut into 10-degree cells over the visible half of the world, each thinned to its distance (100 m to 100 km
   between points).
 - **Planet lines** (`PlanetLineLayer`, the base of roads and borders): cells of lat/long lines loaded on a worker around
-  the camera, laid on the drawn patches (`PlanetDrapedLineSet`, never below sea level -- the ground there is the sea
-  floor, which would sink bridges), laid again on a worker when the patches under a cell change, rebuilt in one step when
+  the camera, laid on the drawn patches (`PlanetDrapedLineSet`), laid again on a worker when the patches under a cell change, rebuilt in one step when
   a cell's level of detail changes, and let go when the camera leaves. Lines are `draped_line.wgsl` ribbons with
   `towardCamera` (pulled along the view ray to win the depth test; roads a little more than borders) and `faceCamera`
   (turned to face the camera, or they thin to dots seen edge-on).
 - **Planet roads:** a `PlanetRoads` script on a Planet node (`PlanetRoadsComponent`) draws OpenStreetMap's motorways,
-  trunk and primary roads near the camera: zoom-9 vector tiles from OpenFreeMap's CDN (`OsmRoadTiles`: the OpenMapTiles
-  `transportation` layer read with a small protobuf decoder; ~0.1 s a tile, where the public Overpass servers took tens
-  of seconds or failed) once the camera is below `showBelow` (150 km; primary roads below `primaryBelow`, 40 km), kept in
-  `Library/PlanetRoads/Tiles/` on desktop and kept within 1.2 x `loadRadius` at any height. Drawn by `PlanetRoadMesh` with
-  `planet_road.wgsl`: a line `width` pixels wide far off (aerial grey, or the class colours with `mapStyle`), the road's own width
-  close up -- asphalt lit by the sun, edge lines and dashed lanes (OSM motorways are one carriageway each way, three lanes).
-  Below 1.5 km `PlanetRoadProps` plants Kenney's City Kit (Roads) along them (`props`): `road-straight-barrier` stretched into
-  guard rails down motorway and trunk carriageways within 800 m, `light-curved` street lights within 1.5 km, pooled and re-placed
-  every 50 m the camera moves. The same tiles' `water` layer
+  trunk and primary roads from OpenFreeMap's OpenMapTiles `transportation` layer. Zoom 9 supplies distant ribbons below
+  `showBelow` (150 km, or `primaryBelow` for primary roads). Zoom 14 supplies the asphalt within 3 km of the camera below
+  1.6 km above the ground. `OsmRoadTiles` clips the buffered tiles to their own edges, and `OsmRoadCleanup` deduplicates
+  and joins unbranched pieces of the same road type. Tunnel tags suppress surface roads. Ramps are narrower and bridge
+  tags raise the road between approaches using an estimated clearance. Detailed roads sample the terrain triangles and
+  use tile-local vertices. Below 1.5 km, `PlanetRoadProps` places Kenney barriers and streetlights along ordinary roads
+  (`props`), leaving their ends, sharp turns, ramps, and bridge decks clear of guardrails. Replay
+  `Tools/Automation/Checks/planet-road-cleanup.json` for the Phoenix interchange. Tiles cache by zoom in
+  `Library/PlanetRoads/Tiles/` on desktop. The zoom-9 tiles' `water` layer
   (lakes, rivers, ponds; not the sea) is laid on the ground as flat-coloured water (`water`, `waterBelow`): cut into triangles
   by `Earcut` (holes kept, so islands stay land), split to 400 m sides, each lake level (`LevelFrom`), drawn by
   `PlanetWaterMesh` with `planet_water.wgsl` -- wind ripples, glint, sky, and shallows and foam by each corner's distance to the

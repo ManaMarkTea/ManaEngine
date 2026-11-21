@@ -2085,6 +2085,34 @@ namespace ManaGeoTools.Code.Planet
             return double.Lerp(top, bottom, ty);
         }
 
+        // Intersect the drawn triangle, including the chord across the sphere at coarse terrain LODs.
+        internal static double? SurfaceRadius(PlanetPatchMesh mesh, float u, float v, ManaCore.Graphics.ManaPosition direction)
+        {
+            var n = mesh.Resolution;
+            if (n < 2 || mesh.CpuData?.Positions is not { } points || points.Length < n * n)
+            {
+                return null;
+            }
+            var fx = Math.Clamp((u - mesh.MinU) / (mesh.MaxU - mesh.MinU), 0.0f, 1.0f) * (n - 1);
+            var fy = Math.Clamp((v - mesh.MinV) / (mesh.MaxV - mesh.MinV), 0.0f, 1.0f) * (n - 1);
+            var x = Math.Min((int)fx, n - 2);
+            var y = Math.Min((int)fy, n - 2);
+            var a = points[y * n + x];
+            var diagonal = points[(y + 1) * n + x + 1] - a;
+            var other = points[(y + 1) * n + x] - a;
+            if (fx - x >= fy - y)
+            {
+                other = points[y * n + x + 1] - a;
+            }
+            var normal = new ManaCore.Graphics.ManaPosition(Vector3.Cross(other, diagonal));
+            var denominator = ManaCore.Graphics.ManaPosition.Dot(normal, direction);
+            if (Math.Abs(denominator) < 1e-12)
+            {
+                return null;
+            }
+            return ManaCore.Graphics.ManaPosition.Dot(normal, mesh.PlanetPosition(a)) / denominator;
+        }
+
         /// <summary>The patches drawn now, or null while the rebuild lock is busy (try again next frame).</summary>
         public PlanetPatchMesh[]? TryGetLeafMeshes()
         {

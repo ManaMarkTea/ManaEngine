@@ -1,5 +1,10 @@
 # Finished
 
+[x] - Clean up Planet Showcase roads near the ground (2026-11-20). Detailed OpenStreetMap tiles supply the
+    close-up roads. Buffered duplicates are clipped out, ramps have their own width, the road mesh follows
+    the terrain triangles, and props keep clear of ramps, bridge decks and road ends. The Phoenix
+    interchange check is in `Tools/Automation/Checks/planet-road-cleanup.json`.
+
 [x] - Smooth aircraft follow on the true-size planet (2026-11-20). The aircraft and chase camera use
     the same pose each frame. WebGPU draws the aircraft and terrain patches from camera-relative
     offsets computed in double precision. Run `Tools/Automation/Checks/planet-flight-follow.json`

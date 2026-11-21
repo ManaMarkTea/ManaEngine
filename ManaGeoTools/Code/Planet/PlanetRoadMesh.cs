@@ -18,10 +18,13 @@ namespace ManaGeoTools.Code.Planet
         private readonly Vector3[][] _lines;
         private readonly float _metresPerUnit;
 
-        public PlanetRoadMesh(ManaContext context, Vector3[][] lines, float metresPerUnit) : base(context)
+        public override ManaPosition? RenderOrigin { get; }
+
+        public PlanetRoadMesh(ManaContext context, Vector3[][] lines, float metresPerUnit, ManaPosition? origin) : base(context)
         {
             _lines = lines;
             _metresPerUnit = metresPerUnit;
+            RenderOrigin = origin;
             GenerateData();
         }
 
@@ -77,8 +80,12 @@ namespace ManaGeoTools.Code.Planet
                     }
                     var before = line[Math.Max(0, i - 1)];
                     var after = line[Math.Min(line.Length - 1, i + 1)];
-                    var up = Vector3.Normalize(point);
-                    var tangent = after - before;
+                    var up = Vector3.Normalize(point + RenderOrigin.GetValueOrDefault().ToVector3());
+                    var tangent = UnitDirection(point - before) + UnitDirection(after - point);
+                    if (tangent.LengthSquared() < 1e-6f)
+                    {
+                        tangent = after - before;
+                    }
                     var side = Vector3.Cross(tangent, up);
                     if (side.LengthSquared() > 1e-12f)
                     {
@@ -125,6 +132,15 @@ namespace ManaGeoTools.Code.Planet
                 TextureCoordinates1 = new Vector2[vertexCount],
                 Unshared = true
             });
+        }
+
+        private static Vector3 UnitDirection(Vector3 delta)
+        {
+            if (delta.LengthSquared() > 1e-12f)
+            {
+                return Vector3.Normalize(delta);
+            }
+            return Vector3.Zero;
         }
     }
 }

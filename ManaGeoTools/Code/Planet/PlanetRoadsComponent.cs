@@ -5,6 +5,7 @@ using Mana.Code;
 using Mana.Code.Materials;
 using Mana.Code.Nodes;
 using Mana.Code.Shapes;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.Geometry;
 using ManaGeoTools.Code.Osm;
 
@@ -27,7 +28,13 @@ namespace ManaGeoTools.Code.Planet
 
         // Zoom 9 carries every primary road, its points to ~15 m, in tiles of ~150 KB around a city.
         private const int TileZoom = 9;
-        private const int RoadClassCount = 3;
+        private const int DetailZoom = 14;
+        private const float DetailBelowKm = 1.6f;
+        private const float DetailRadiusKm = 4.0f;
+        private const float DetailDrawMetres = 3000.0f;
+        private const int RoadKinds = 3;
+        private const int BridgeOffset = RoadKinds * 2;
+        private const int RoadClassCount = BridgeOffset * 2;
 
         private const int MaxCells = 48;
 
@@ -93,23 +100,28 @@ namespace ManaGeoTools.Code.Planet
 
         /// <summary>Some roads are on screen -- the cue to show OpenStreetMap's credit.</summary>
         [JsonIgnore]
-        public bool Drawing => _layer.Drawing;
+        public bool Drawing => _layer.Drawing || _detail.Drawing;
 
         private static readonly HttpClient Http = CreateHttp();
 
         // Downloads under way, so the road and water layers asking for one tile share a single fetch and file write.
-        private static readonly ConcurrentDictionary<(int X, int Y), Task<byte[]>> Fetching = new();
+        private static readonly ConcurrentDictionary<(int Zoom, int X, int Y), Task<byte[]>> Fetching = new();
 
         private readonly RoadLayer _layer;
+        private readonly RoadLayer _detail;
         private readonly WaterLayer _water;
         private PlanetRoadProps? _props;
         private ManaSceneNode? _propsGroup;
-        private readonly List<(RoadClass Class, Vector3[][] Lines)> _propRoads = [];
+        private readonly List<(RoadClass Class, Vector3[][] Lines, ManaPosition Origin)> _propRoads = [];
+        private double _groundRadius;
+        private Vector3 _groundSample;
+        private long _nextGroundSample;
 
         public PlanetRoadsComponent(ManaSceneNode owner) : base(owner)
         {
             Name = "Planet Roads";
-            _layer = new RoadLayer(this);
+            _layer = new RoadLayer(this, "Roads", TileZoom);
+            _detail = new RoadLayer(this, "Road Detail", DetailZoom);
             _water = new WaterLayer(this);
         }
 
@@ -118,9 +130,10 @@ namespace ManaGeoTools.Code.Planet
             base.UpdateComponent();
             if (Owner is PlanetNode planet)
             {
-                _layer.Update(planet, Context.World.MainCamera, Enabled);
-                _water.Update(planet, Context.World.MainCamera, Enabled && Water);
-                UpdateProps(planet);
+                var camera = Context.World.MainCamera;
+                _layer.Update(planet, camera, Enabled);
+                _water.Update(planet, camera, Enabled && Water);
+                UpdateCloseRoads(planet);
             }
         }
 
@@ -128,6 +141,7 @@ namespace ManaGeoTools.Code.Planet
         {
             base.OnRemoved();
             _layer.Remove();
+            _detail.Remove();
             _water.Remove();
             if (_propsGroup != null)
             {
@@ -141,13 +155,22 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // The kit's pieces along the roads shown, near a low camera.
-        private void UpdateProps(PlanetNode planet)
+        private void UpdateCloseRoads(PlanetNode planet)
         {
             if (Context.World.MainCamera is not { } camera || !Matrix4x4.Invert(planet.WorldTransform, out var toLocal))
             {
                 return;
             }
-            if (_props == null)
+            var cameraLocal = Vector3.Transform(camera.Owner.Position, toLocal);
+            var metresPerUnit = PlanetLoader.EarthRadiusMeters / planet.Radius;
+            var heightMetres = HeightAboveGround(planet, camera.Owner.Position, cameraLocal, metresPerUnit);
+            _detail.Update(planet, camera, Enabled, heightMetres / 1000.0f);
+            var (longitude, latitude) = Degrees(Vector3.Normalize(cameraLocal));
+            var detailReady = Enabled && heightMetres <= Math.Min(DetailBelowKm, ShowBelow) * 1000.0f
+                && _detail.IsBuilt(OsmRoadTiles.TileAt(longitude, latitude, DetailZoom));
+            _layer.SetDetailCoverage(detailReady);
+            _detail.SetDrawEnabled(detailReady);
+            if (_props == null && detailReady && Props)
             {
                 _propsGroup = new ManaSceneNode(Context, Matrix4x4.Identity) { Name = "Road Props", IncludeInEnvironmentCapture = false };
                 var group = _propsGroup;
@@ -162,21 +185,54 @@ namespace ManaGeoTools.Code.Planet
                 });
                 _props = new PlanetRoadProps(Context, _propsGroup);
             }
-            var cameraLocal = Vector3.Transform(camera.Owner.Position, toLocal);
-            var metresPerUnit = PlanetLoader.EarthRadiusMeters / planet.Radius;
-            var heightMetres = (cameraLocal.Length() - planet.Radius) * metresPerUnit;
-            _propRoads.Clear();
-            foreach (var set in _layer.Built)
+            if (_props == null)
             {
-                for (var c = 0; c < RoadClassCount; c++)
+                return;
+            }
+            _propRoads.Clear();
+            if (detailReady && Props)
+            {
+                foreach (var set in _detail.Built)
                 {
-                    if (set.Points[c].Length > 0 && _layer.ShowsClass(c, heightMetres / 1000.0f))
+                    if (set.RoadOrigin is not { } origin)
                     {
-                        _propRoads.Add(((RoadClass)c, set.Points[c]));
+                        continue;
+                    }
+                    // Ramps and bridge decks have their own widths and no kit props.
+                    for (var c = 0; c < RoadKinds; c++)
+                    {
+                        if (set.Points[c].Length > 0 && _detail.ShowsClass(c, heightMetres / 1000.0f))
+                        {
+                            _propRoads.Add(((RoadClass)c, set.Points[c], origin));
+                        }
                     }
                 }
             }
-            _props.Update(cameraLocal, heightMetres, metresPerUnit, _propRoads, _layer.Revision, Enabled && Props);
+            _props.Update(cameraLocal, heightMetres, metresPerUnit, _propRoads, _detail.Revision, detailReady && Props);
+        }
+
+        private float HeightAboveGround(PlanetNode planet, Vector3 eye, Vector3 cameraLocal, float metresPerUnit)
+        {
+            var distance = cameraLocal.Length();
+            var now = Environment.TickCount64;
+            if (now >= _nextGroundSample && (distance - planet.Radius) * metresPerUnit < 12_000.0f)
+            {
+                if (Vector3.DistanceSquared(cameraLocal, _groundSample) * metresPerUnit * metresPerUnit > 250.0f * 250.0f)
+                {
+                    _groundRadius = planet.Radius;
+                }
+                if (planet.SurveyBelow(eye)?.GroundRadius is { } ground)
+                {
+                    _groundRadius = Math.Max(planet.Radius, ground);
+                    _groundSample = cameraLocal;
+                    _nextGroundSample = now + 250;
+                }
+                else
+                {
+                    _nextGroundSample = now + 50;
+                }
+            }
+            return (float)(distance - Math.Max(_groundRadius, planet.Radius)) * metresPerUnit;
         }
 
         private static HttpClient CreateHttp()
@@ -193,7 +249,14 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // The tiles to fetch, nearest first, and the wider set to keep. None at all above the height roads show from.
-    private (List<((int X, int Y) Key, int Level)> Wanted, HashSet<(int X, int Y)> Keep) PlanTiles(Vector3 below, float altitudeKm, float showBelow)
+        private static (double Longitude, double Latitude) Degrees(Vector3 direction)
+        {
+            return (Math.Atan2(-direction.X, -direction.Z) * 180.0 / Math.PI,
+                Math.Asin(Math.Clamp(direction.Y, -1.0f, 1.0f)) * 180.0 / Math.PI);
+        }
+
+        private (List<((int X, int Y) Key, int Level)> Wanted, HashSet<(int X, int Y)> Keep) PlanTiles(
+            Vector3 below, float altitudeKm, float showBelow, int zoom = TileZoom)
         {
             var wanted = new List<((int X, int Y) Key, float Distance)>();
             var keep = new HashSet<(int X, int Y)>();
@@ -210,14 +273,21 @@ namespace ManaGeoTools.Code.Planet
                 loadKm = 0.0f;
             }
             var keepKm = MathF.Max(60.0f, LoadRadius) * 1.2f;
+            if (zoom == DetailZoom)
+            {
+                if (altitudeKm <= showBelow)
+                {
+                    loadKm = DetailRadiusKm;
+                }
+                keepKm = DetailRadiusKm * 1.5f;
+            }
 
-            var latitude = MathF.Asin(Math.Clamp(below.Y, -1.0f, 1.0f)) * 180.0f / MathF.PI;
-            var longitude = MathF.Atan2(-below.X, -below.Z) * 180.0f / MathF.PI;
+            var (longitude, latitude) = Degrees(below);
             var spanLatitude = keepKm / 111.0f;
-            var spanLongitude = MathF.Min(179.0f, keepKm / (111.0f * MathF.Max(0.05f, MathF.Cos(latitude * MathF.PI / 180.0f))));
-            var count = 1 << TileZoom;
-            var (westX, northY) = OsmRoadTiles.TileAt(longitude - spanLongitude, Math.Min(85.0, latitude + spanLatitude), TileZoom);
-            var (eastX, southY) = OsmRoadTiles.TileAt(longitude + spanLongitude, Math.Max(-85.0, latitude - spanLatitude), TileZoom);
+            var spanLongitude = Math.Min(179.0, keepKm / (111.0 * Math.Max(0.05, Math.Cos(latitude * Math.PI / 180.0))));
+            var count = 1 << zoom;
+            var (westX, northY) = OsmRoadTiles.TileAt(longitude - spanLongitude, Math.Min(85.0, latitude + spanLatitude), zoom);
+            var (eastX, southY) = OsmRoadTiles.TileAt(longitude + spanLongitude, Math.Max(-85.0, latitude - spanLatitude), zoom);
             if (eastX < westX)
             {
                 eastX += count;
@@ -232,7 +302,7 @@ namespace ManaGeoTools.Code.Planet
                     {
                         continue;
                     }
-                    var (west, south, east, north) = OsmRoadTiles.Bounds(TileZoom, key.X, y);
+                    var (west, south, east, north) = OsmRoadTiles.Bounds(zoom, key.X, y);
                     var distanceKm = PlanetLineLayer.TileDistanceKm(below, west, south, east, north);
                     if (distanceKm <= keepKm)
                     {
@@ -254,18 +324,19 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // A tile's bytes: kept from an earlier run, or fetched (once, however many layers ask) and kept.
-        private static async Task<byte[]> ReadTileAsync((int X, int Y) key, CancellationToken cancellation)
+        private static async Task<byte[]> ReadTileAsync((int X, int Y) key, CancellationToken cancellation, int zoom = TileZoom)
         {
             string? path = null;
             if (!OperatingSystem.IsBrowser())
             {
-                path = Path.Combine(CacheFolder, "Tiles", $"z{TileZoom}", $"{key.X}_{key.Y}.pbf");
+                path = Path.Combine(CacheFolder, "Tiles", $"z{zoom}", $"{key.X}_{key.Y}.pbf");
                 if (File.Exists(path))
                 {
                     return await File.ReadAllBytesAsync(path, cancellation).ConfigureAwait(false);
                 }
             }
-            var fetch = Fetching.GetOrAdd(key, _ => FetchTileAsync(key, path));
+            var id = (zoom, key.X, key.Y);
+            var fetch = Fetching.GetOrAdd(id, _ => FetchTileAsync(key, path, zoom));
             try
             {
                 return await fetch.WaitAsync(cancellation).ConfigureAwait(false);
@@ -274,14 +345,14 @@ namespace ManaGeoTools.Code.Planet
             {
                 if (fetch.IsCompleted)
                 {
-                    Fetching.TryRemove(new KeyValuePair<(int X, int Y), Task<byte[]>>(key, fetch));
+                    Fetching.TryRemove(new KeyValuePair<(int Zoom, int X, int Y), Task<byte[]>>(id, fetch));
                 }
             }
         }
 
-        private static async Task<byte[]> FetchTileAsync((int X, int Y) key, string? path)
+        private static async Task<byte[]> FetchTileAsync((int X, int Y) key, string? path, int zoom)
         {
-            var data = await OsmRoadTiles.FetchAsync(Http, TileZoom, key.X, key.Y, CancellationToken.None).ConfigureAwait(false);
+            var data = await OsmRoadTiles.FetchAsync(Http, zoom, key.X, key.Y, CancellationToken.None).ConfigureAwait(false);
             if (path != null)
             {
                 // Written aside and moved in, so a run stopped mid-write never leaves half a tile to be read next time.
@@ -293,50 +364,90 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // A tile that does not parse is dropped from the cache, so the next try fetches it afresh.
-        private static void DropCached((int X, int Y) key)
+        private static void DropCached((int X, int Y) key, int zoom = TileZoom)
         {
             if (OperatingSystem.IsBrowser())
             {
                 return;
             }
-            var path = Path.Combine(CacheFolder, "Tiles", $"z{TileZoom}", $"{key.X}_{key.Y}.pbf");
+            var path = Path.Combine(CacheFolder, "Tiles", $"z{zoom}", $"{key.X}_{key.Y}.pbf");
             if (File.Exists(path))
             {
                 File.Delete(path);
             }
         }
 
-        private sealed class RoadLayer(PlanetRoadsComponent roads) : PlanetLineLayer(roads, "Roads", "Roads", RoadClassCount)
+        private sealed class RoadLayer(PlanetRoadsComponent roads, string name, int zoom) :
+            PlanetLineLayer(roads, name, name, RoadClassCount)
         {
+            private bool Detailed => zoom == DetailZoom;
+            private static readonly bool[] BridgeClasses = Enumerable.Range(0, RoadClassCount).Select(c => c >= BridgeOffset).ToArray();
+            private bool _hasDetail;
+
+            public void SetDetailCoverage(bool enabled)
+            {
+                if (_hasDetail != enabled)
+                {
+                    _hasDetail = enabled;
+                    RefreshMaterials();
+                }
+            }
+
             // Read (or fetched and kept) and cut finer.
             protected override (List<((int X, int Y) Key, int Level)> Wanted, HashSet<(int X, int Y)> Keep) Plan(Vector3 below, float altitudeKm)
             {
-                return roads.PlanTiles(below, altitudeKm, roads.ShowBelow);
+                var showBelow = roads.ShowBelow;
+                if (Detailed)
+                {
+                    showBelow = Math.Min(DetailBelowKm, showBelow);
+                }
+                return roads.PlanTiles(below, altitudeKm, showBelow, zoom);
             }
 
             protected override async Task<PlanetDrapedLineSet?> LoadAsync((int X, int Y) key, int level, CancellationToken cancellation)
             {
-                var data = await ReadTileAsync(key, cancellation).ConfigureAwait(false);
+                var data = await ReadTileAsync(key, cancellation, zoom).ConfigureAwait(false);
                 List<RoadLine> lines;
                 try
                 {
-                    lines = OsmRoadTiles.Parse(data, TileZoom, key.X, key.Y);
+                    lines = OsmRoadCleanup.Join(OsmRoadTiles.Parse(data, zoom, key.X, key.Y));
                 }
                 catch (Exception)
                 {
-                    DropCached(key);
+                    DropCached(key, zoom);
                     throw;
                 }
-                var stepAngle = DensifyMetres / PlanetLoader.EarthRadiusMeters;
-                return PlanetDrapedLineSet.From(lines.Select(road => ((int)road.Class, (IReadOnlyList<(double, double)>)road.Points)),
-                    RoadClassCount, stepAngle);
+                var step = DensifyMetres;
+                bool[]? bridges = null;
+                if (Detailed)
+                {
+                    step = 12.0f;
+                    bridges = BridgeClasses;
+                }
+                return PlanetDrapedLineSet.From(lines.Select(road => (Style(road), (IReadOnlyList<(double, double)>)road.Points)),
+                    RoadClassCount, step / PlanetLoader.EarthRadiusMeters, bridges,
+                    PlanetLoader.EarthRadiusMeters / MetresPerUnit);
             }
 
-            protected override string ClassName(int lineClass) => $"{(RoadClass)lineClass} roads";
+            private static int Style(RoadLine road)
+            {
+                var style = (int)road.Class;
+                if (road.Ramp)
+                {
+                    style += RoadKinds;
+                }
+                if (road.Bridge)
+                {
+                    style += BridgeOffset;
+                }
+                return style;
+            }
+
+            protected override string ClassName(int lineClass) => $"{(RoadClass)(lineClass % RoadKinds)} roads";
 
             protected override Vector4 ColorOf(int lineClass)
             {
-                switch ((RoadClass)lineClass)
+                switch ((RoadClass)(lineClass % RoadKinds))
                 {
                     case RoadClass.Motorway:
                         return roads.MotorwayColor;
@@ -351,7 +462,7 @@ namespace ManaGeoTools.Code.Planet
 
             protected override bool Shows(int lineClass, float altitudeKm)
             {
-                switch ((RoadClass)lineClass)
+                switch ((RoadClass)(lineClass % RoadKinds))
                 {
                     case RoadClass.Motorway:
                         return roads.Motorways && altitudeKm <= roads.ShowBelow;
@@ -364,7 +475,7 @@ namespace ManaGeoTools.Code.Planet
 
             protected override ManaProceduralMesh CreateMesh(ManaContext context, PlanetDrapedLineSet geometry, int lineClass)
             {
-                return new PlanetRoadMesh(context, geometry.Points[lineClass], MetresPerUnit);
+                return new PlanetRoadMesh(context, geometry.Points[lineClass], MetresPerUnit, geometry.RoadOrigin);
             }
 
             // A constant width on screen from afar; up close the road's own width, with its lanes. OpenStreetMap draws a
@@ -374,17 +485,28 @@ namespace ManaGeoTools.Code.Planet
                 var pixels = roads.Width;
                 var widthMetres = 11.0f;
                 var lanes = 3.0f;
-                if (lineClass == (int)RoadClass.Trunk)
+                var roadClass = lineClass % RoadKinds;
+                if (roadClass == (int)RoadClass.Trunk)
                 {
                     pixels *= 0.85f;
                     widthMetres = 8.0f;
                     lanes = 2.0f;
                 }
-                else if (lineClass == (int)RoadClass.Primary)
+                else if (roadClass == (int)RoadClass.Primary)
                 {
                     pixels *= 0.7f;
                     widthMetres = 7.5f;
                     lanes = 2.0f;
+                }
+                if (lineClass / RoadKinds % 2 == 1)
+                {
+                    widthMetres = 4.5f;
+                    lanes = 1.0f;
+                    pixels *= 0.65f;
+                }
+                if (!Detailed)
+                {
+                    widthMetres = 0.0f;
                 }
                 var colour = ColorOf(lineClass);
                 material.SetShaderUniform("widthPerDistance", 0.5f * pixels * MathF.Max(PixelAngle, 1e-5f));
@@ -393,8 +515,19 @@ namespace ManaGeoTools.Code.Planet
                 material.SetShaderUniform("lanes", lanes);
                 material.SetShaderUniform("mapStyle", roads.MapStyle ? 1.0f : 0.0f);
                 material.SetShaderUniform("mapColor", new Vector3(colour.X, colour.Y, colour.Z));
-                // The bigger road a hair nearer, so where two classes share a line one wins rather than both flickering.
-                material.SetShaderUniform("towardCamera", TowardCamera * (1.0f + 0.05f * (RoadClassCount - lineClass)));
+                var pull = TowardCamera;
+                var coverage = 0.0f;
+                if (Detailed)
+                {
+                    pull = 0.0002f;
+                    coverage = DetailDrawMetres;
+                }
+                else if (_hasDetail)
+                {
+                    coverage = -DetailDrawMetres;
+                }
+                material.SetShaderUniform("detailCoverage", coverage);
+                material.SetShaderUniform("towardCamera", pull * (1.0f + 0.05f * (RoadKinds - roadClass)));
             }
         }
 

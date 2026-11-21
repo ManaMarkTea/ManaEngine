@@ -14,6 +14,7 @@ struct VertexOutput {
     // How much of the drawn width is the road itself rather than its minimum on screen: 1 close up, toward 0 far off.
     @location(3) real : f32,
     @location(4) half_width_metres : f32,
+    @location(5) distance_metres : f32,
 };
 
 #include "include/uniforms.wgsl"
@@ -50,6 +51,10 @@ struct CustomMaterialUniform {
 
     //PROPERTY(default=[1.0,0.55,0.15], min=[0.0,0.0,0.0], max=[1.0,1.0,1.0])
     mapColor : vec3<f32>,
+
+    // Positive draws the detailed roads inside this distance, negative keeps coarse roads outside.
+    //PROPERTY(default=0.0, min=-10000.0, max=10000.0)
+    detailCoverage : f32,
 };
 
 @group(2) @binding(0) var<uniform> custom : CustomMaterialUniform;
@@ -63,7 +68,10 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     let center = (object.model * vec4<f32>(position, 1.0)).xyz;
     let up = normalize((object.normal_matrix * vec4<f32>(normal, 0.0)).xyz);
     var side = (object.model * vec4<f32>(color.xyz, 0.0)).xyz;
-    let relative = mana_globe_relative(object.model, position);
+    var relative = mana_globe_relative(object.model, position);
+    if (custom.detailCoverage > 0.0) {
+        relative = mana_camera_relative(object, position);
+    }
     let to_camera = -relative;
     let distance_to_camera = length(to_camera);
 
@@ -94,6 +102,7 @@ fn vs_main(@location(0) position : vec3<f32>, @location(1) normal : vec3<f32>, @
     output.world_normal = up;
     output.real = real;
     output.half_width_metres = half_width * custom.metresPerUnit;
+    output.distance_metres = distance_to_camera * custom.metresPerUnit;
     return output;
 }
 
@@ -105,6 +114,10 @@ fn fs_main(input : VertexOutput) -> @location(0) vec4<f32> {
     let across = input.uv0.x * input.half_width_metres;
     let pixel_along = max(fwidth(along), 1e-3);
     let pixel_across = max(fwidth(across), 1e-3);
+    if (custom.detailCoverage > 0.0 && input.distance_metres >= custom.detailCoverage
+        || custom.detailCoverage < 0.0 && input.distance_metres < -custom.detailCoverage) {
+        discard;
+    }
 
     let up = normalize(input.world_normal);
     var to_sun = frame.sun_direction.xyz;

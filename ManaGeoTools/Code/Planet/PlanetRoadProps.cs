@@ -2,6 +2,7 @@ using Mana;
 using Mana.Code;
 using Mana.Code.Models;
 using Mana.Code.Nodes;
+using ManaCore.Graphics;
 using ManaGeoTools.Code.Osm;
 
 namespace ManaGeoTools.Code.Planet
@@ -23,10 +24,11 @@ namespace ManaGeoTools.Code.Planet
         private const float LightRadius = 1500.0f;
         private const float ShowBelowMetres = 1500.0f;
 
-        // Rail pieces this long, overlapped a little so the half-metre float grid far from the origin leaves no gaps.
+        // Rail pieces this long, overlapped a little at their joins.
         private const float PieceMetres = 12.0f;
         private const float RailMetres = 0.8f;
         private const float LightMetres = 10.0f;
+        private const float EndClearanceMetres = 18.0f;
         private const int MaxBarriers = 4000;
         private const int MaxLights = 800;
 
@@ -54,7 +56,8 @@ namespace ManaGeoTools.Code.Planet
         /// <param name="cameraLocal">The camera in the planet's local space.</param>
         /// <param name="roads">Each class's draped lines (planet local).</param>
         /// <param name="revision">Changes whenever the lines were built or laid again.</param>
-        public void Update(Vector3 cameraLocal, float heightMetres, float metresPerUnit, IReadOnlyList<(RoadClass Class, Vector3[][] Lines)> roads,
+        public void Update(Vector3 cameraLocal, float heightMetres, float metresPerUnit,
+            IReadOnlyList<(RoadClass Class, Vector3[][] Lines, ManaPosition Origin)> roads,
             int revision, bool enabled)
         {
             if (!enabled || heightMetres > ShowBelowMetres)
@@ -79,12 +82,13 @@ namespace ManaGeoTools.Code.Planet
             var lights = Begin(LightModel);
             var barrierReach = BarrierRadius * unitsPerMetre;
             var lightReach = LightRadius * unitsPerMetre;
-            foreach (var (roadClass, lines) in roads)
+            foreach (var (roadClass, lines, origin) in roads)
             {
                 var (width, lightEvery, railed) = Look(roadClass);
+                var eye = (new ManaPosition(cameraLocal) - origin).ToVector3();
                 foreach (var line in lines)
                 {
-                    PlantAlong(line, cameraLocal, unitsPerMetre, width, lightEvery, railed, barrierReach, lightReach, barriers, lights);
+                    PlantAlong(line, origin, eye, unitsPerMetre, width, lightEvery, railed, barrierReach, lightReach, barriers, lights);
                 }
             }
             End(barriers);
@@ -98,21 +102,32 @@ namespace ManaGeoTools.Code.Planet
             switch (roadClass)
             {
                 case RoadClass.Motorway:
-                    return (11.0f, 60.0f, true);
+                    return (11.0f, 110.0f, true);
                 case RoadClass.Trunk:
-                    return (8.0f, 50.0f, true);
+                    return (8.0f, 100.0f, true);
                 default:
-                    return (7.5f, 40.0f, false);
+                    return (7.5f, 85.0f, false);
             }
         }
 
-        private void PlantAlong(Vector3[] line, Vector3 camera, float unitsPerMetre, float width, float lightEvery, bool railed,
+        private void PlantAlong(Vector3[] line, ManaPosition origin, Vector3 camera, float unitsPerMetre, float width, float lightEvery, bool railed,
             float barrierReach, float lightReach, Pool? barriers, Pool? lights)
         {
             var piece = PieceMetres * unitsPerMetre;
             var lightGap = lightEvery * unitsPerMetre;
+            var endClearance = EndClearanceMetres * unitsPerMetre;
+            var lineLength = 0.0f;
+            for (var i = 1; i < line.Length; i++)
+            {
+                lineLength += Vector3.Distance(line[i - 1], line[i]);
+            }
+            var lastProp = lineLength - endClearance;
+            if (lastProp <= endClearance)
+            {
+                return;
+            }
             var travelled = 0.0f;
-            var nextLight = lightGap * 0.5f;
+            var nextLight = MathF.Max(endClearance, lightGap * 0.5f);
             for (var i = 0; i + 1 < line.Length; i++)
             {
                 var a = line[i];
@@ -135,21 +150,25 @@ namespace ManaGeoTools.Code.Planet
                 }
 
                 var along = (b - a) / length;
-                var steps = Math.Max(1, (int)MathF.Ceiling(length / piece));
-                for (var s = 0; s < steps; s++)
+                var railStart = MathF.Max(0.0f, endClearance - travelled);
+                var railEnd = MathF.Min(length, lastProp - travelled);
+                if (railed && barriers != null && railEnd - railStart > 1.0f * unitsPerMetre && StraightAt(line, i, along))
                 {
-                    var from = a + along * (length * s / steps);
-                    var to = a + along * (length * (s + 1) / steps);
-                    var centre = (from + to) * 0.5f;
-                    if (railed && barriers != null && barriers.Used < MaxBarriers && Vector3.Distance(centre, camera) < barrierReach)
+                    var railLength = railEnd - railStart;
+                    var steps = Math.Max(1, (int)MathF.Ceiling(railLength / piece));
+                    for (var s = 0; s < steps && barriers.Used < MaxBarriers; s++)
                     {
-                        // Its rails run along X at z = +-0.5, 0.08 tall: stretched to the piece, the road's width and rail height.
-                        Place(barriers, centre, along, Vector3.Distance(from, to) * 1.04f, width * unitsPerMetre, RailMetres / 0.08f * unitsPerMetre);
+                        var centre = a + along * (railStart + railLength * (s + 0.5f) / steps);
+                        if (Vector3.Distance(centre, camera) < barrierReach)
+                        {
+                            Place(barriers, origin + new ManaPosition(centre), along,
+                                railLength / steps * 1.04f, width * unitsPerMetre, RailMetres / 0.08f * unitsPerMetre);
+                        }
                     }
                 }
 
                 // Lights at the side, their arms reaching over the road (the model's arm is along -Z).
-                while (nextLight < travelled + length)
+                while (nextLight < travelled + length && nextLight < lastProp)
                 {
                     var at = a + along * (nextLight - travelled);
                     nextLight += lightGap;
@@ -157,14 +176,23 @@ namespace ManaGeoTools.Code.Planet
                     {
                         continue;
                     }
-                    var up = Vector3.Normalize(at);
+                    var up = (origin + new ManaPosition(at)).Normalized().ToVector3();
                     var across = Vector3.Normalize(Vector3.Cross(up, along));
                     var foot = at + across * ((width * 0.5f + 1.0f) * unitsPerMetre);
                     var size = LightMetres / 0.675f * unitsPerMetre;
-                    PlaceTurned(lights, foot, along, up, across, size);
+                    PlaceTurned(lights, origin + new ManaPosition(foot), up, across, size);
                 }
                 travelled += length;
             }
+        }
+
+        private static bool StraightAt(Vector3[] line, int segment, Vector3 along)
+        {
+            if (segment > 0 && Vector3.Dot(along, Vector3.Normalize(line[segment] - line[segment - 1])) < 0.96f)
+            {
+                return false;
+            }
+            return segment + 2 >= line.Length || Vector3.Dot(along, Vector3.Normalize(line[segment + 2] - line[segment + 1])) >= 0.96f;
         }
 
         private static Vector3 NearestOnSegment(Vector3 point, Vector3 a, Vector3 b)
@@ -175,29 +203,29 @@ namespace ManaGeoTools.Code.Planet
         }
 
         // X along the road (stretched to `length`), Y up (`height`), Z across (`width`).
-        private void Place(Pool pool, Vector3 centre, Vector3 along, float length, float width, float height)
+        private void Place(Pool pool, ManaPosition centre, Vector3 along, float length, float width, float height)
         {
-            var up = Vector3.Normalize(centre);
-            along = Vector3.Normalize(along - up * Vector3.Dot(along, up));
-            var across = Vector3.Cross(along, up);
+            var up = centre.Normalized().ToVector3();
+            var across = Vector3.Normalize(Vector3.Cross(along, up));
+            up = Vector3.Cross(across, along);
             var placement = new Matrix4x4(
                 along.X * length, along.Y * length, along.Z * length, 0.0f,
                 up.X * height, up.Y * height, up.Z * height, 0.0f,
                 across.X * width, across.Y * width, across.Z * width, 0.0f,
-                centre.X, centre.Y, centre.Z, 1.0f);
-            Use(pool, placement);
+                0.0f, 0.0f, 0.0f, 1.0f);
+            Use(pool, placement, centre);
         }
 
         // Uniformly scaled, its Z turned to `outward` (so its -Z arm reaches back over the road).
-        private void PlaceTurned(Pool pool, Vector3 foot, Vector3 along, Vector3 up, Vector3 outward, float size)
+        private void PlaceTurned(Pool pool, ManaPosition foot, Vector3 up, Vector3 outward, float size)
         {
             var x = Vector3.Normalize(Vector3.Cross(up, outward));
             var placement = new Matrix4x4(
                 x.X * size, x.Y * size, x.Z * size, 0.0f,
                 up.X * size, up.Y * size, up.Z * size, 0.0f,
                 outward.X * size, outward.Y * size, outward.Z * size, 0.0f,
-                foot.X, foot.Y, foot.Z, 1.0f);
-            Use(pool, placement);
+                0.0f, 0.0f, 0.0f, 1.0f);
+            Use(pool, placement, foot);
         }
 
         private Pool? Begin(string asset)
@@ -207,7 +235,11 @@ namespace ManaGeoTools.Code.Planet
                 // Loaded after the scene walk, which loading a model would disturb; planted from the next pass.
                 if (_loading.Add(asset))
                 {
-                    _context.World.PostUpdateFutures.Add(() => _pools[asset] = new Pool(_library.Model(asset)));
+                    _context.World.PostUpdateFutures.Add(() =>
+                    {
+                        _pools[asset] = new Pool(_library.Model(asset));
+                        _plantedRevision = -1;
+                    });
                 }
                 return null;
             }
@@ -219,7 +251,7 @@ namespace ManaGeoTools.Code.Planet
             return pool;
         }
 
-        private void Use(Pool pool, Matrix4x4 placement)
+        private void Use(Pool pool, Matrix4x4 placement, ManaPosition position)
         {
             if (pool.Used == pool.Copies.Count)
             {
@@ -231,12 +263,13 @@ namespace ManaGeoTools.Code.Planet
                     lock (world.SceneLock)
                     {
                         _parent.AddChild(copy);
+                        copy.PlaceVisual(placement, position);
                     }
                 });
                 pool.Copies.Add(copy);
             }
             var placed = pool.Copies[pool.Used++];
-            placed.LocalTransform = placement;
+            placed.PlaceVisual(placement, position);
             Show(placed, true);
         }
 

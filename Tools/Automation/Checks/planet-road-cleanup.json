@@ -1,0 +1,11 @@
+[
+  {"type":"open_level","path":"Content/Levels/Tests/Planet Road Cleanup.manalevel"},
+  {"type":"gizmos","visible":false},
+  {"type":"sky","name":"Day"},
+  {"type":"move_camera","position":[4925001.72,3513044.96,2000826.15],"target":[4924584.24,3512997.19,2000536.39]},
+  {"type":"wait","frames":660},
+  {"type":"move_camera","position":[4924758.85,3513000.91,2000657.39],"target":[4924582.05,3513006.47,2000525.48]},
+  {"type":"wait","frames":240},
+  {"type":"screenshot","path":"@@OUT@@","clean":true},
+  {"type":"quit"}
+]

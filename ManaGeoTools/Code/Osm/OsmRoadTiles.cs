@@ -12,7 +12,7 @@ namespace ManaGeoTools.Code.Osm
     }
 
     /// <summary>One stretch of road: its class and its points as (longitude, latitude) degrees.</summary>
-    public sealed record RoadLine(RoadClass Class, (double Longitude, double Latitude)[] Points);
+    public sealed record RoadLine(RoadClass Class, (double Longitude, double Latitude)[] Points, bool Ramp = false, bool Bridge = false);
 
     /// <summary>
     /// One area of inland water (lake, river, pond, reservoir -- the sea is left out) in a tile: its rings' points as
@@ -124,7 +124,7 @@ namespace ManaGeoTools.Code.Osm
                         keys.Add(Encoding.UTF8.GetString(layer.Bytes()));
                         break;
                     case 4 when wire == 2:
-                        values.Add(ReadStringValue(layer.Bytes()));
+                        values.Add(ReadTagValue(layer.Bytes()));
                         break;
                     case 5 when wire == 0:
                         extent = (uint)layer.Varint();
@@ -135,7 +135,7 @@ namespace ManaGeoTools.Code.Osm
                 }
             }
             // Features come before the keys and values they point into, so they are read once the layer is done.
-            if (name != "transportation")
+            if (name != "transportation" || extent == 0)
             {
                 return;
             }
@@ -145,19 +145,21 @@ namespace ManaGeoTools.Code.Osm
                 return;
             }
 
-            // A tile is 1 / 2^zoom of the world across; a tile unit is that over its extent.
-            var tileShare = 1.0 / (1 << zoom);
-            var scale = tileShare / extent;
+            var rampKey = keys.IndexOf("ramp");
+            var structureKey = keys.IndexOf("brunnel");
             foreach (var (start, length) in features)
             {
-                ReadFeature(bytes.Slice(start, length), classKey, values, x, y, scale, tileShare, lines);
+                ReadFeature(bytes.Slice(start, length), classKey, rampKey, structureKey,
+                    values, zoom, x, y, extent, lines);
             }
         }
 
-        private static void ReadFeature(ReadOnlySpan<byte> bytes, int classKey, List<string?> values, int tileX, int tileY,
-            double scale, double extentShare, List<RoadLine> lines)
+        private static void ReadFeature(ReadOnlySpan<byte> bytes, int classKey, int rampKey, int structureKey, List<string?> values,
+            int zoom, int tileX, int tileY, double extent, List<RoadLine> lines)
         {
             RoadClass? roadClass = null;
+            var ramp = false;
+            string? structure = null;
             var geometryStart = -1;
             var geometryLength = 0;
             var type = 0;
@@ -171,9 +173,21 @@ namespace ManaGeoTools.Code.Osm
                     {
                         var key = (int)tags.Varint();
                         var value = (int)tags.Varint();
-                        if (key == classKey && value < values.Count)
+                        if ((uint)value >= values.Count)
+                        {
+                            continue;
+                        }
+                        if (key == classKey)
                         {
                             roadClass = ClassOf(values[value]);
+                        }
+                        else if (key == rampKey)
+                        {
+                            ramp = values[value] is "1" or "true";
+                        }
+                        else if (key == structureKey)
+                        {
+                            structure = values[value];
                         }
                     }
                 }
@@ -191,13 +205,13 @@ namespace ManaGeoTools.Code.Osm
                 }
             }
             // Type 2 is a line string; areas (bridges drawn as polygons) are left out.
-            if (roadClass is not { } found || type != 2 || geometryStart < 0)
+            if (roadClass is not { } found || type != 2 || geometryStart < 0 || structure == "tunnel")
             {
                 return;
             }
 
             var commands = new ProtoReader(bytes.Slice(geometryStart, geometryLength));
-            var run = new List<(double Longitude, double Latitude)>();
+            var run = new List<(double X, double Y)>();
             long cursorX = 0;
             long cursorY = 0;
             while (!commands.Done)
@@ -207,7 +221,7 @@ namespace ManaGeoTools.Code.Osm
                 var count = command >> 3;
                 if (id == 1 && run.Count >= 2)
                 {
-                    lines.Add(new RoadLine(found, run.ToArray()));
+                    AddRuns();
                 }
                 if (id == 1)
                 {
@@ -221,13 +235,83 @@ namespace ManaGeoTools.Code.Osm
                 {
                     cursorX += ZigZag(commands.Varint());
                     cursorY += ZigZag(commands.Varint());
-                    run.Add(ToLongitudeLatitude(tileX, tileY, cursorX, cursorY, scale, extentShare));
+                    run.Add((cursorX, cursorY));
                 }
             }
             if (run.Count >= 2)
             {
-                lines.Add(new RoadLine(found, run.ToArray()));
+                AddRuns();
             }
+
+            void AddRuns()
+            {
+                foreach (var clipped in ClipRoad(run, extent))
+                {
+                    var points = Array.ConvertAll(clipped, p => TilePointToDegrees(zoom, tileX, tileY, p.X, p.Y, extent));
+                    lines.Add(new RoadLine(found, points, ramp, structure == "bridge"));
+                }
+            }
+        }
+
+        // The vector tile includes a buffer beyond each edge. Draw a segment only in the tile that owns it.
+        public static IEnumerable<(double X, double Y)[]> ClipRoad(IReadOnlyList<(double X, double Y)> points, double extent)
+        {
+            var run = new List<(double X, double Y)>();
+            for (var i = 1; i < points.Count; i++)
+            {
+                var a = points[i - 1];
+                var b = points[i];
+                var dx = b.X - a.X;
+                var dy = b.Y - a.Y;
+                if (dx == 0 && dy == 0)
+                {
+                    continue;
+                }
+                var start = 0.0;
+                var end = 1.0;
+                if ((dx == 0 && a.X == extent) || (dy == 0 && a.Y == extent)
+                    || !ClipAxis(a.X, dx, extent, ref start, ref end) || !ClipAxis(a.Y, dy, extent, ref start, ref end)
+                    || start >= end)
+                {
+                    if (run.Count >= 2)
+                    {
+                        yield return run.ToArray();
+                    }
+                    run.Clear();
+                    continue;
+                }
+                var from = Point(start);
+                var to = Point(end);
+                if (run.Count == 0 || run[^1] != from)
+                {
+                    if (run.Count >= 2)
+                    {
+                        yield return run.ToArray();
+                    }
+                    run.Clear();
+                    run.Add(from);
+                }
+                run.Add(to);
+                (double X, double Y) Point(double t) =>
+                    (Math.Clamp(a.X + dx * t, 0, extent), Math.Clamp(a.Y + dy * t, 0, extent));
+            }
+            if (run.Count >= 2)
+            {
+                yield return run.ToArray();
+            }
+        }
+
+        private static bool ClipAxis(double origin, double delta, double extent, ref double start, ref double end)
+        {
+            if (delta == 0.0)
+            {
+                return origin >= 0.0 && origin <= extent;
+            }
+            var a = -origin / delta;
+            var b = (extent - origin) / delta;
+            start = Math.Max(start, Math.Min(a, b));
+            end = Math.Min(end, Math.Max(a, b));
+            return start < end;
         }
 
         /// <summary>The lakes, rivers and ponds in a tile's bytes (the OpenMapTiles <c>water</c> layer, less the sea).</summary>
@@ -276,7 +360,7 @@ namespace ManaGeoTools.Code.Osm
                         keys.Add(Encoding.UTF8.GetString(layer.Bytes()));
                         break;
                     case 4 when wire == 2:
-                        values.Add(ReadStringValue(layer.Bytes()));
+                        values.Add(ReadTagValue(layer.Bytes()));
                         break;
                     case 5 when wire == 0:
                         extent = (uint)layer.Varint();
@@ -417,17 +501,6 @@ namespace ManaGeoTools.Code.Osm
             return (longitude, latitude);
         }
 
-        // Tile pixel (cursor) to degrees: the tile's own corner plus its share of the world, then web mercator undone.
-        private static (double Longitude, double Latitude) ToLongitudeLatitude(int tileX, int tileY, long cursorX, long cursorY,
-            double scale, double tileShare)
-        {
-            var worldX = tileX * tileShare + cursorX * scale;
-            var worldY = tileY * tileShare + cursorY * scale;
-            var longitude = worldX * 360.0 - 180.0;
-            var latitude = Math.Atan(Math.Sinh(Math.PI * (1.0 - 2.0 * worldY))) * 180.0 / Math.PI;
-            return (longitude, latitude);
-        }
-
         /// <summary>The web-mercator tile holding a point.</summary>
         public static (int X, int Y) TileAt(double longitude, double latitude, int zoom)
         {
@@ -464,7 +537,7 @@ namespace ManaGeoTools.Code.Osm
             }
         }
 
-        private static string? ReadStringValue(ReadOnlySpan<byte> bytes)
+        private static string? ReadTagValue(ReadOnlySpan<byte> bytes)
         {
             var value = new ProtoReader(bytes);
             string? text = null;
@@ -473,6 +546,14 @@ namespace ManaGeoTools.Code.Osm
                 if (field == 1 && wire == 2)
                 {
                     text = Encoding.UTF8.GetString(value.Bytes());
+                }
+                else if ((field is 4 or 5 or 6 or 7) && wire == 0)
+                {
+                    var number = value.Varint();
+                    if ((number == 1 && field != 6) || (number == 2 && field == 6))
+                    {
+                        text = "1";
+                    }
                 }
                 else
                 {
